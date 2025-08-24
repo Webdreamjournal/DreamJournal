@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.29.0 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.4 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -177,6 +177,34 @@ GNU Affero General Public License for more details.
         .no-voice-notes { text-align: center; color: var(--text-secondary); font-style: italic; 
                           padding: 30px; background: var(--bg-light); border: var(--border-dashed); 
                           border-radius: var(--border-radius); }
+        
+        /* === PHASE 3A: DREAM ENTRY UTILITIES === */
+        /* Dream entry emotion display */
+        .entry-emotions { margin-top: 8px; color: var(--text-secondary); font-size: 0.9em; }
+        .entry-emotions span { font-weight: var(--font-weight-semibold); }
+        
+        /* === PHASE 3B: FINAL OPTIMIZATION UTILITIES === */
+        /* Pagination and info display */
+        .pagination-info { text-align: center; padding: 20px; color: var(--text-secondary); }
+        
+        /* Small text utilities */
+        .text-xs { font-size: 0.6em; } .text-xxs { font-size: 12px; }
+        .small-helper { color: var(--text-secondary); font-size: 0.9em; margin-top: 5px; display: block; }
+        .small-helper-warning { color: var(--warning-color); font-size: 0.9em; margin-top: 5px; display: block; }
+        
+        /* Form utilities */
+        .form-checkbox { width: 16px; height: 16px; accent-color: var(--primary-color); }
+        .form-label-inline { font-size: 14px; font-weight: var(--font-weight-semibold); cursor: pointer; }
+        
+        /* Footer and structural elements */
+        .app-footer { background: var(--bg-light); border-top: 1px solid var(--border-color); 
+                      padding: 20px; margin-top: 40px; text-align: center; 
+                      color: var(--text-secondary); font-size: 14px; }
+        .app-footer p { margin: 0; font-size: 12px; opacity: 0.8; }
+        
+        /* Feedback and autocomplete */
+        .feedback-container { border-radius: var(--border-radius); display: none; }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-light); font-size: 14px; }
         
         /* === PHASE 2A: TAB CONTENT UTILITIES === */
         /* Progress bars */
@@ -726,7 +754,7 @@ GNU Affero General Public License for more details.
         
         /* ==== Inline edit form style ==== */
         .inline-edit-form {
-            padding: 8px 12px;
+            padding: 4px !important; /* Minimal container padding */
             margin: 0;
             background: transparent;
             border: 1px solid var(--border-color);
@@ -744,7 +772,7 @@ GNU Affero General Public License for more details.
         }
         
         .inline-edit-form .form-control {
-            padding: 8px 12px !important;
+            padding: 6px 8px !important; /* Compact padding for inline editing */
             font-size: 14px !important;
         }
         
@@ -968,8 +996,7 @@ GNU Affero General Public License for more details.
         .edit-mode .entry-title-input {
             font-size: 1.2em;
             font-weight: 600;
-            /* Match main form input styling */
-            padding: 12px 15px !important;
+            /* Use inherited padding from .inline-edit-form .form-control */
             border: 2px solid var(--border-color) !important;
             border-radius: var(--border-radius) !important;
             background: var(--bg-input) !important;
@@ -988,7 +1015,7 @@ GNU Affero General Public License for more details.
         }
         .edit-mode .form-control {
             width: 100% !important;
-            padding: 12px 15px !important;
+            /* Padding handled by .inline-edit-form .form-control rule */
             border: 2px solid var(--border-color) !important;
             border-radius: var(--border-radius) !important;
             font-size: 16px !important;
@@ -2366,9 +2393,9 @@ GNU Affero General Public License for more details.
             <div class="export-import-controls">
                 <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
                 <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
-                <div class="encryption-option" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="encryptionEnabled" style="width: 16px; height: 16px; accent-color: #4f46e5;">
-                    <label for="encryptionEnabled" style="font-size: 14px; font-weight: 600; color: #374151; cursor: pointer;">🔐 Password Protected</label>
+                <div class="encryption-option flex-center gap-sm">
+                    <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
+                    <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
                 </div>
             </div>
             <input type="file" id="importFile" class="file-input" accept=".txt,.enc">
@@ -2377,7 +2404,7 @@ GNU Affero General Public License for more details.
             <div class="entry-form" id="dreamFormFull">
                 <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
                     🌙 Record Your Dream 
-                    <span style="font-size: 0.6em; color: var(--text-secondary); font-weight: normal;">(Click to collapse)</span>
+                    <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
                 </h3>
                 <div class="form-group">
                     <label for="dreamDate">Dream Date & Time</label>
@@ -2390,7 +2417,7 @@ GNU Affero General Public License for more details.
                 <div class="form-group">
                     <label for="dreamEmotions">Emotions Experienced</label>
                     <input type="text" id="dreamEmotions" class="form-control" placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
-                    <small style="color: var(--text-secondary); font-size: 0.9em; margin-top: 5px; display: block;">
+                    <small class="small-helper">
                         Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
                     </small>
                 </div>
@@ -2399,7 +2426,7 @@ GNU Affero General Public License for more details.
                     <div class="tag-input-group">
                         <input type="text" id="dreamTags" class="form-control" placeholder="e.g., family, flying, school, animals (separate with commas)">
                     </div>
-                    <small style="color: var(--text-secondary); font-size: 0.9em; margin-top: 5px; display: block;">
+                    <small class="small-helper">
                         Tag your dream with themes, people, places, objects, or activities for easy searching
                     </small>
                 </div>
@@ -2408,7 +2435,7 @@ GNU Affero General Public License for more details.
                     <div class="tag-input-group">
                         <input type="text" id="dreamSigns" class="form-control" placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
                     </div>
-                    <small style="color: var(--warning-color); font-size: 0.9em; margin-top: 5px; display: block;">
+                    <small class="small-helper-warning">
                         Elements that could trigger lucidity - track these to improve dream awareness!
                     </small>
                 </div>
@@ -2427,7 +2454,7 @@ GNU Affero General Public License for more details.
             <div class="entry-form" id="dreamFormCollapsed" style="display: none;">
                 <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
                     📝 Record Your Dream 
-                    <span style="font-size: 0.6em; color: var(--text-secondary); font-weight: normal;">(Click to expand)</span>
+                    <span class="text-xs text-secondary font-normal">(Click to expand)</span>
                 </h3>
             </div>
             
@@ -2475,7 +2502,7 @@ GNU Affero General Public License for more details.
     </div>
     
     <!-- Footer -->
-    <footer style="background: var(--bg-light); border-top: 1px solid var(--border-color); padding: 20px; margin-top: 40px; text-align: center; color: var(--text-secondary); font-size: 14px;">
+    <footer class="app-footer">
         <div style="max-width: 800px; margin: 0 auto;">
             <p style="margin-bottom: 10px;">
                 <strong>Disclaimer:</strong> This application is for entertainment and personal journaling purposes only. 
@@ -2485,8 +2512,8 @@ GNU Affero General Public License for more details.
             <p style="margin-bottom: 10px; font-size: 12px;">
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
-            <p style="margin: 0; font-size: 12px; opacity: 0.8;">
-                Dream Journal v1.29.0 | Not a substitute for professional medical advice
+            <p class="app-footer p">
+                Dream Journal v1.32.4 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -3293,7 +3320,7 @@ GNU Affero General Public License for more details.
                                         <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
                                         <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
                                     </div>
-                                    <div id="lockScreenFeedback" class="mt-md p-sm" style="border-radius: var(--border-radius); display: none;"></div>
+                                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                                 </div>
                             </div>
                         `;
@@ -4623,8 +4650,8 @@ GNU Affero General Public License for more details.
                 
                 // Format emotions for display
                 const emotionsDisplay = safeEmotions ? 
-                    `<div class="entry-emotions" style="margin-top: 8px; color: #64748b; font-size: 0.9em;">
-                        <span style="font-weight: 600;">Emotions:</span> ${safeEmotions}
+                    `<div class="entry-emotions">
+                        <span>Emotions:</span> ${safeEmotions}
                     </div>` : '';
                 
                 // Format tags and dream signs for display
@@ -4689,14 +4716,14 @@ GNU Affero General Public License for more details.
                 const remainingDreams = totalDreams - endlessScrollState.loaded;
                 if (remainingDreams > 0) {
                     paginationContainer.innerHTML = `
-                        <div class="pagination-info" style="text-align: center; padding: 20px; color: #64748b;">
+                        <div class="pagination-info">
                             Showing ${endlessScrollState.loaded} of ${totalDreams} dreams
                             <br><span style="font-size: 14px;">Scroll down to load ${Math.min(5, remainingDreams)} more...</span>
                         </div>
                     `;
                 } else {
                     paginationContainer.innerHTML = `
-                        <div class="pagination-info" style="text-align: center; padding: 20px; color: #64748b;">
+                        <div class="pagination-info">
                             All ${totalDreams} dreams loaded
                         </div>
                     `;
@@ -4889,7 +4916,7 @@ GNU Affero General Public License for more details.
                 }
 
                 dropdown.innerHTML = matches.map(match => 
-                    `<div class="autocomplete-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 14px;" data-tag="${escapeAttr(match)}">
+                    `<div class="autocomplete-item" data-tag="${escapeAttr(match)}">
                         ${escapeHtml(match)}
                     </div>`
                 ).join('');
@@ -7037,7 +7064,7 @@ GNU Affero General Public License for more details.
             title.textContent = '🔑 Verify Your Dreams';
             message.innerHTML = `
                 Enter exactly 3 of your dream titles:<br>
-                <em style="font-size: 0.9em; color: var(--text-secondary);">Must match exactly, including capitalisation</em><br><br>
+                <em class="text-sm text-secondary">Must match exactly, including capitalisation</em><br><br>
                 <input type="text" id="recovery1" class="form-control" placeholder="Dream title 1" style="margin-bottom: 10px;">
                 <input type="text" id="recovery2" class="form-control" placeholder="Dream title 2" style="margin-bottom: 10px;">
                 <input type="text" id="recovery3" class="form-control" placeholder="Dream title 3">
@@ -7419,7 +7446,7 @@ GNU Affero General Public License for more details.
                         <button data-action="return-to-lock-screen" class="btn btn-secondary">← Back to PIN Entry</button>
                     </div>
                     
-                    <div id="lockScreenFeedback" class="mt-md p-sm" style="border-radius: var(--border-radius); display: none;"></div>
+                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                 `;
             } else {
                 showLockScreenMessage('error', 'Error accessing recovery options');
@@ -7513,7 +7540,7 @@ GNU Affero General Public License for more details.
                         <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
                         <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
                     </div>
-                    <div id="lockScreenFeedback" class="mt-md p-sm" style="border-radius: var(--border-radius); display: none;"></div>
+                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                 `;
                 
                 // Auto-focus PIN input
@@ -7555,7 +7582,7 @@ GNU Affero General Public License for more details.
                         <button data-action="return-to-lock-screen" class="btn btn-secondary">← Back</button>
                     </div>
                     
-                    <div id="lockScreenFeedback" class="mt-md p-sm" style="border-radius: var(--border-radius); display: none;"></div>
+                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                 `;
                 
                 // Auto-focus first input
@@ -7655,7 +7682,7 @@ GNU Affero General Public License for more details.
                         <button data-action="return-to-lock-screen" class="btn btn-secondary">← Cancel</button>
                     </div>
                     
-                    <div id="lockScreenFeedback" class="mt-md p-sm" style="border-radius: var(--border-radius); display: none;"></div>
+                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                 `;
             }
         }
