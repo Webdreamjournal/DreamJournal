@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.4 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.5 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2513,7 +2513,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.4 | Not a substitute for professional medical advice
+                Dream Journal v1.32.5 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -4200,40 +4200,61 @@ GNU Affero General Public License for more details.
 
         // Password Dialog Functions for Export/Import (defined early to avoid reference errors)
         
-        // Show password input dialog for export (Updated for Event Delegation)
-        function showExportPasswordDialog() {
+        // NEW UNIFIED PASSWORD DIALOG
+        function showPasswordDialog(config) {
             return new Promise((resolve) => {
+                const existingOverlay = document.getElementById('passwordDialogOverlay');
+                if(existingOverlay) existingOverlay.remove();
+
                 const overlay = document.createElement('div');
+                overlay.id = 'passwordDialogOverlay';
                 overlay.className = 'pin-overlay';
+                overlay.style.display = 'flex';
+
+                const confirmInputHTML = config.requireConfirm ? `
+                    <input type="password" id="${config.type}PasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="50" style="margin-top: 10px;">
+                ` : '';
+
                 overlay.innerHTML = `
                     <div class="pin-container">
-                        <h2>🔐 Set Export Password</h2>
-                        <p>Choose a password to encrypt your dream export. This password is not stored - remember it for importing!</p>
-                        <input type="password" id="exportPassword" class="pin-input" placeholder="Enter password" maxlength="50">
-                        <input type="password" id="exportPasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="50" style="margin-top: 10px;">
+                        <h2>${config.icon || '🔐'} ${escapeHtml(config.title)}</h2>
+                        <p>${escapeHtml(config.description)}</p>
+                        <input type="password" id="${config.type}Password" class="pin-input" placeholder="Enter password" maxlength="50">
+                        ${confirmInputHTML}
                         <div class="pin-buttons">
-                            <button data-action="confirm-export-password" class="btn btn-primary">Encrypt & Export</button>
-                            <button data-action="cancel-export-password" class="btn btn-secondary">Cancel</button>
+                            <button data-action="confirm-${config.type}-password" class="btn btn-primary">${escapeHtml(config.primaryButtonText)}</button>
+                            <button data-action="cancel-${config.type}-password" class="btn btn-secondary">Cancel</button>
                         </div>
-                        <div id="exportPasswordError" class="notification-message error"></div>
+                        <div id="${config.type}PasswordError" class="notification-message error"></div>
                     </div>
                 `;
                 
                 document.body.appendChild(overlay);
-                
-                // Store resolve function globally for button handlers
-                window.exportPasswordResolve = resolve;
-                
+
+                window[`${config.type}PasswordResolve`] = resolve;
+
                 setTimeout(() => {
-                    document.getElementById('exportPassword').focus();
+                    document.getElementById(`${config.type}Password`).focus();
                 }, 100);
-                
-                // Handle Enter key
+
                 overlay.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
-                        confirmExportPassword();
+                        const action = `confirm-${config.type}-password`;
+                        const handler = ACTION_MAP[action];
+                        if(handler) handler();
                     }
                 });
+            });
+        }
+
+        // Show password input dialog for export (Updated for Event Delegation)
+        function showExportPasswordDialog() {
+            return showPasswordDialog({
+                type: 'export',
+                title: 'Set Export Password',
+                description: 'Choose a password to encrypt your dream export. This password is not stored - remember it for importing!',
+                requireConfirm: true,
+                primaryButtonText: 'Encrypt & Export'
             });
         }
         
@@ -4256,7 +4277,7 @@ GNU Affero General Public License for more details.
             }
             
             // Remove overlay and resolve with password
-            const overlay = document.querySelector('.pin-overlay');
+            const overlay = document.getElementById('passwordDialogOverlay');
             if (overlay) overlay.remove();
             
             if (window.exportPasswordResolve) {
@@ -4267,7 +4288,7 @@ GNU Affero General Public License for more details.
         
         // Cancel export password
         function cancelExportPassword() {
-            const overlay = document.querySelector('.pin-overlay');
+            const overlay = document.getElementById('passwordDialogOverlay');
             if (overlay) overlay.remove();
             
             if (window.exportPasswordResolve) {
@@ -4278,37 +4299,12 @@ GNU Affero General Public License for more details.
         
         // Show password input dialog for import (Updated for Event Delegation)
         function showImportPasswordDialog() {
-            return new Promise((resolve) => {
-                const overlay = document.createElement('div');
-                overlay.className = 'pin-overlay';
-                overlay.innerHTML = `
-                    <div class="pin-container">
-                        <h2>🔓 Enter Import Password</h2>
-                        <p>Enter the password used to encrypt this dream export file.</p>
-                        <input type="password" id="importPassword" class="pin-input" placeholder="Enter password" maxlength="50">
-                        <div class="pin-buttons">
-                            <button data-action="confirm-import-password" class="btn btn-primary">Decrypt & Import</button>
-                            <button data-action="cancel-import-password" class="btn btn-secondary">Cancel</button>
-                        </div>
-                        <div id="importPasswordError" class="notification-message error"></div>
-                    </div>
-                `;
-                
-                document.body.appendChild(overlay);
-                
-                // Store resolve function globally for button handlers
-                window.importPasswordResolve = resolve;
-                
-                setTimeout(() => {
-                    document.getElementById('importPassword').focus();
-                }, 100);
-                
-                // Handle Enter key
-                overlay.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        confirmImportPassword();
-                    }
-                });
+            return showPasswordDialog({
+                type: 'import',
+                title: 'Enter Import Password',
+                description: 'Enter the password used to encrypt this dream export file.',
+                requireConfirm: false,
+                primaryButtonText: 'Decrypt & Import'
             });
         }
         
@@ -4324,7 +4320,7 @@ GNU Affero General Public License for more details.
             }
             
             // Remove overlay and resolve with password
-            const overlay = document.querySelector('.pin-overlay');
+            const overlay = document.getElementById('passwordDialogOverlay');
             if (overlay) overlay.remove();
             
             if (window.importPasswordResolve) {
@@ -4335,7 +4331,7 @@ GNU Affero General Public License for more details.
         
         // Cancel import password
         function cancelImportPassword() {
-            const overlay = document.querySelector('.pin-overlay');
+            const overlay = document.getElementById('passwordDialogOverlay');
             if (overlay) overlay.remove();
             
             if (window.importPasswordResolve) {
@@ -6485,6 +6481,81 @@ GNU Affero General Public License for more details.
 
         // PIN SECURITY & ACCESS CONTROL SYSTEM
         
+        // NEW UNIFIED PIN SCREEN RENDERER
+        function renderPinScreen(targetElement, config) {
+            if (!targetElement || !config) return;
+
+            let inputsHTML = '';
+            if (config.inputs) {
+                inputsHTML = config.inputs.map(input => {
+                    const valueAttr = input.value ? `value="${escapeAttr(input.value)}"` : '';
+                    const inputClass = input.class || 'form-control';
+                    return `<input
+                        type="${input.type}"
+                        id="${input.id}"
+                        class="${inputClass}"
+                        placeholder="${escapeAttr(input.placeholder)}"
+                        ${input.maxLength ? `maxlength="${input.maxLength}"` : ''}
+                        ${valueAttr}
+                        style="margin-bottom: 10px;"
+                    >`;
+                }).join('');
+            }
+
+            let buttonsHTML = '';
+            if (config.buttons) {
+                buttonsHTML = config.buttons.map(button => `
+                    <button
+                        data-action="${button.action}"
+                        class="btn ${button.class}"
+                        ${button.id ? `id="${button.id}"` : ''}
+                    >
+                        ${escapeHtml(button.text)}
+                    </button>
+                `).join('');
+            }
+
+            let linksHTML = '';
+            if (config.links) {
+                linksHTML = config.links.map(link => `
+                    <span
+                        data-action="${link.action}"
+                        class="pin-setup-link"
+                        ${link.id ? `id="${link.id}"` : ''}
+                        style="${link.style || ''}"
+                    >
+                        ${escapeHtml(link.text)}
+                    </span>
+                `).join('');
+            }
+
+            const iconHTML = config.icon ? `<div class="text-4xl mb-lg">${config.icon}</div>` : '';
+            const messageHTML = config.message ? `<p id="pinMessage" class="text-secondary mb-lg line-height-relaxed">${config.message}</p>` : '';
+            const feedbackHTML = config.feedbackContainer ? `<div id="pinFeedback" class="notification-message"></div><div id="pinSuccess" class="notification-message"></div><div id="pinInfo" class="notification-message"></div>` : '';
+
+            targetElement.innerHTML = `
+                ${iconHTML}
+                <h2 id="pinTitle" class="text-primary mb-md text-xl">${escapeHtml(config.title)}</h2>
+                ${messageHTML}
+                <div id="pinInputsContainer">${inputsHTML}</div>
+                <div class="pin-buttons">
+                    ${buttonsHTML}
+                </div>
+                <div id="pinLinksContainer" style="margin-top: 15px;">${linksHTML}</div>
+                ${feedbackHTML}
+            `;
+
+            // Auto-focus the first input if it exists
+            if (config.inputs && config.inputs.length > 0) {
+                setTimeout(() => {
+                    const firstInput = document.getElementById(config.inputs[0].id);
+                    if (firstInput) {
+                        firstInput.focus();
+                    }
+                }, CONSTANTS.FOCUS_DELAY_MS);
+            }
+        }
+
         // Show warning when storage isn't persistent
         function showStorageWarning() {
             const warning = document.createElement('div');
@@ -6764,30 +6835,21 @@ GNU Affero General Public License for more details.
 
         // Show Remove PIN option
         function showRemovePin() {
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const setupLink = document.getElementById('pinSetupLink');
-            const removePinLink = document.getElementById('removePinLink');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            
-            title.textContent = '⚠️ Remove PIN Protection';
-            message.textContent = 'Enter your current PIN to remove protection. Your dreams will no longer be secured.';
-            message.style.color = 'var(--text-primary)';
-            setupLink.style.display = 'none';
-            removePinLink.style.display = 'none';
-            cancelBtn.style.display = 'inline-block';
-            
-            document.getElementById('pinInput').placeholder = 'Enter current PIN';
-            document.getElementById('pinInput').value = '';
-            document.getElementById('pinInput').style.display = 'block';
-            
-            unlockBtn.dataset.action = 'confirm-remove-pin';
-            unlockBtn.textContent = 'Remove PIN';
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Remove PIN Protection',
+                icon: '⚠️',
+                message: 'Enter your current PIN to remove protection. Your dreams will no longer be secured.',
+                inputs: [
+                    { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
+                ],
+                buttons: [
+                    { text: 'Remove PIN', action: 'confirm-remove-pin', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
             document.getElementById('pinOverlay').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('pinInput').focus();
-            }, CONSTANTS.FOCUS_DELAY_MS);
         }
 
         // Confirm PIN removal - UPDATED for secure hashing
@@ -6814,25 +6876,15 @@ GNU Affero General Public License for more details.
                 // Remove the PIN
                 removePinHash();
                 
-                const title = document.getElementById('pinTitle');
-                const message = document.getElementById('pinMessage');
-                title.textContent = '✅ PIN Removed';
-                message.textContent = 'PIN protection has been removed. Your dreams are no longer secured.';
-                message.style.color = 'var(--success-color)';
-                
-                // Hide input and update button
-                document.getElementById('pinInput').style.display = 'none';
-                const unlockBtn = document.getElementById('pinMainBtn');
-                const cancelBtn = document.getElementById('cancelPinBtn');
-                
-                if (unlockBtn) {
-                    unlockBtn.textContent = 'Close';
-                    unlockBtn.dataset.action = 'complete-pin-removal';
-                }
-                
-                if (cancelBtn) {
-                    cancelBtn.style.display = 'none';
-                }
+                const pinContainer = document.querySelector('#pinOverlay .pin-container');
+                renderPinScreen(pinContainer, {
+                    title: 'PIN Removed',
+                    icon: '✅',
+                    message: 'PIN protection has been removed. Your dreams are no longer secured.',
+                    buttons: [
+                        { text: 'Close', action: 'complete-pin-removal', class: 'btn-primary' }
+                    ]
+                });
                 
                 isUnlocked = true;
             } catch (error) {
@@ -6942,7 +6994,8 @@ GNU Affero General Public License for more details.
                     
                     // Show forgot PIN link after failed attempts
                     if (failedPinAttempts >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
-                        document.getElementById('forgotPinLink').style.display = 'block';
+                        const forgotPinLink = document.getElementById('forgotPinLink');
+                        if(forgotPinLink) forgotPinLink.style.display = 'block';
                         showMessage('error', 'Incorrect PIN. You can use "Forgot PIN?" below if needed.');
                     } else {
                         showMessage('error', 'Incorrect PIN. Please try again.');
@@ -6960,21 +7013,12 @@ GNU Affero General Public License for more details.
 
         // Show Forgot PIN options
         async function showForgotPin() {
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const setupLink = document.getElementById('pinSetupLink');
-            const removePinLink = document.getElementById('removePinLink');
-            const forgotPinLink = document.getElementById('forgotPinLink');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            const pinInput = document.getElementById('pinInput');
-            
-            // Check if there's an active timer
             const resetTime = getResetTime();
             if (resetTime) {
                 const remainingTime = resetTime - Date.now();
                 if (remainingTime > 0) {
                     showTimerRecovery(remainingTime);
+                    return;
                 } else {
                     // Timer expired, allow reset
                     removeResetTime();
@@ -6985,99 +7029,71 @@ GNU Affero General Public License for more details.
                     updateSecurityControls();
                     displayDreams();
                     
-                    // Show success message in main content instead of alert
                     setTimeout(() => {
                         const container = document.querySelector('.main-content');
-                        const msg = document.createElement('div');
-                        msg.style.cssText = `
-                            background: var(--notification-info-bg);
-                            color: var(--info-color);
-                            padding: 15px;
-                            border-radius: var(--border-radius);
-                            margin-bottom: 20px;
-                            font-weight: var(--font-weight-semibold);
-                            text-align: center;
-                        `;
-                        msg.textContent = 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.';
-                        container.insertBefore(msg, container.firstChild);
-                        
-                        setTimeout(() => {
-                            msg.remove();
-                        }, 8000);
+                        createInlineMessage('info', 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.', {
+                            container: container,
+                            position: 'top',
+                            duration: 8000
+                        });
                     }, 100);
+                    return;
                 }
-                // Exit the function after handling timer
-                return;
             }
-            
-            title.textContent = '🔑 PIN Recovery';
-            message.innerHTML = `
-                <strong>Choose a recovery method:</strong><br><br>
-                <strong>Option 1:</strong> Enter 3 of your dream titles exactly as written<br>
-                <em style="font-size: 0.9em; color: #64748b;">(Note: "Untitled Dream" entries are not valid)</em><br><br>
-                <strong>Option 2:</strong> Wait 72 hours for automatic reset<br>
-                <em style="font-size: 0.9em; color: #64748b;">(Your dreams will remain safe)</em>
-            `;
-            message.style.color = '#374151';
-            setupLink.style.display = 'none';
-            removePinLink.style.display = 'none';
-            forgotPinLink.style.display = 'none';
-            cancelBtn.style.display = 'inline-block';
-            pinInput.style.display = 'none';
-            
-            // Update buttons for recovery options
-            unlockBtn.textContent = 'Verify Dream Titles';
-            unlockBtn.dataset.action = 'start-title-recovery';
-            
-            // Add a second button for timer option
-            const buttonsContainer = document.querySelector('.pin-buttons');
-            if (!document.getElementById('timerBtn')) {
-                const timerBtn = document.createElement('button');
-                timerBtn.id = 'timerBtn';
-                timerBtn.className = 'btn btn-secondary';
-                timerBtn.textContent = 'Start 72hr Timer';
-                timerBtn.dataset.action = 'start-timer-recovery';
-                buttonsContainer.insertBefore(timerBtn, cancelBtn);
-            }
+
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'PIN Recovery',
+                icon: '🔑',
+                message: '<strong>Choose a recovery method:</strong><br><br>' +
+                         '<strong>Option 1:</strong> Enter 3 of your dream titles exactly as written<br>' +
+                         '<em style="font-size: 0.9em; color: var(--text-secondary);">(Note: "Untitled Dream" entries are not valid)</em><br><br>' +
+                         '<strong>Option 2:</strong> Wait 72 hours for automatic reset<br>' +
+                         '<em style="font-size: 0.9em; color: var(--text-secondary);">(Your dreams will remain safe)</em>',
+                buttons: [
+                    { text: 'Verify Dream Titles', action: 'start-title-recovery', class: 'btn-primary' },
+                    { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
         }
 
         // Start dream title recovery (Updated for Event Delegation)
         async function startTitleRecovery() {
             const dreams = await loadDreams();
-            // Filter out untitled dreams
             const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-            
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+
             if (validDreams.length < 3) {
-                const message = document.getElementById('pinMessage');
-                message.innerHTML = `
-                    <span style="color: #dc2626;">You need at least 3 dreams with custom titles to use this recovery method.</span><br><br>
-                    Please use the 72-hour timer option instead.
-                `;
+                renderPinScreen(pinContainer, {
+                    title: 'PIN Recovery',
+                    icon: '🔑',
+                    message: '<span style="color: var(--error-color);">You need at least 3 dreams with custom titles to use this recovery method.</span><br><br>Please use the 72-hour timer option instead.',
+                    buttons: [
+                        { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
+                        { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                    ],
+                    feedbackContainer: false
+                });
                 return;
             }
-            
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            const timerBtn = document.getElementById('timerBtn');
-            
-            title.textContent = '🔑 Verify Your Dreams';
-            message.innerHTML = `
-                Enter exactly 3 of your dream titles:<br>
-                <em class="text-sm text-secondary">Must match exactly, including capitalisation</em><br><br>
-                <input type="text" id="recovery1" class="form-control" placeholder="Dream title 1" style="margin-bottom: 10px;">
-                <input type="text" id="recovery2" class="form-control" placeholder="Dream title 2" style="margin-bottom: 10px;">
-                <input type="text" id="recovery3" class="form-control" placeholder="Dream title 3">
-                <div id="recoveryFeedback" style="margin-top: 10px;"></div>
-            `;
-            
-            if (timerBtn) timerBtn.style.display = 'none';
-            unlockBtn.textContent = 'Verify Titles';
-            unlockBtn.dataset.action = 'verify-dream-titles';
-            
-            setTimeout(() => {
-                document.getElementById('recovery1').focus();
-            }, CONSTANTS.FOCUS_DELAY_MS);
+
+            renderPinScreen(pinContainer, {
+                title: 'Verify Your Dreams',
+                icon: '🔑',
+                message: 'Enter exactly 3 of your dream titles:<br><em class="text-sm text-secondary">Must match exactly, including capitalisation</em>',
+                inputs: [
+                    { id: 'recovery1', type: 'text', placeholder: 'Dream title 1', class: 'form-control' },
+                    { id: 'recovery2', type: 'text', placeholder: 'Dream title 2', class: 'form-control' },
+                    { id: 'recovery3', type: 'text', placeholder: 'Dream title 3', class: 'form-control' }
+                ],
+                buttons: [
+                    { text: 'Verify Titles', action: 'verify-dream-titles', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
         }
 
         // Verify dream titles for recovery - UPDATED for secure hashing
@@ -7085,10 +7101,10 @@ GNU Affero General Public License for more details.
             const title1 = document.getElementById('recovery1').value.trim();
             const title2 = document.getElementById('recovery2').value.trim();
             const title3 = document.getElementById('recovery3').value.trim();
-            const feedback = document.getElementById('recoveryFeedback');
+            const feedback = document.getElementById('pinFeedback');
             
             if (!title1 || !title2 || !title3) {
-                feedback.innerHTML = '<span style="color: #dc2626;">Please enter all 3 dream titles</span>';
+                feedback.innerHTML = '<span style="color: var(--error-color);">Please enter all 3 dream titles</span>';
                 return;
             }
             
@@ -7096,70 +7112,53 @@ GNU Affero General Public License for more details.
             const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
             const dreamTitles = validDreams.map(d => d.title);
             
-            // Check if all three titles exist and are different
             const titles = [title1, title2, title3];
             const uniqueTitles = [...new Set(titles)];
             
             if (uniqueTitles.length !== 3) {
-                feedback.innerHTML = '<span style="color: #dc2626;">Please enter 3 DIFFERENT dream titles. Each title must be unique.</span>';
+                feedback.innerHTML = '<span style="color: var(--error-color);">Please enter 3 DIFFERENT dream titles. Each title must be unique.</span>';
                 return;
             }
             
             const allValid = titles.every(t => dreamTitles.includes(t));
             
             if (allValid) {
-                // Success - remove PIN
                 removePinHash();
-                removeResetTime(); // Clear any active timer
+                removeResetTime();
                 
-                const titleEl = document.getElementById('pinTitle');
-                const message = document.getElementById('pinMessage');
-                titleEl.textContent = '✅ Recovery Successful';
-                message.innerHTML = `
-                    <span style="color: #059669;">Your PIN has been removed. You can now set a new secure PIN.</span><br><br>
-                    Click below to continue.
-                `;
-                message.style.color = 'var(--success-color)';
-                
-                const unlockBtn = document.getElementById('pinMainBtn');
-                const timerBtn = document.getElementById('timerBtn');
-                const cancelBtn = document.getElementById('cancelPinBtn');
-                
-                if (timerBtn) timerBtn.style.display = 'none';
-                if (cancelBtn) cancelBtn.style.display = 'none';
-                
-                unlockBtn.textContent = 'Continue';
-                unlockBtn.dataset.action = 'complete-recovery';
+                const pinContainer = document.querySelector('#pinOverlay .pin-container');
+                renderPinScreen(pinContainer, {
+                    title: 'Recovery Successful',
+                    icon: '✅',
+                    message: '<span style="color: var(--success-color);">Your PIN has been removed. You can now set a new secure PIN.</span><br><br>Click below to continue.',
+                    buttons: [
+                        { text: 'Continue', action: 'complete-recovery', class: 'btn-primary' }
+                    ]
+                });
                 
                 isUnlocked = true;
                 failedPinAttempts = 0;
-                updateTimerWarning(); // Hide warning if it was active
+                updateTimerWarning();
             } else {
-                feedback.innerHTML = '<span style="color: #dc2626;">One or more titles did not match. Please try again with exact titles from your dreams.</span>';
+                feedback.innerHTML = '<span style="color: var(--error-color);">One or more titles did not match. Please try again with exact titles from your dreams.</span>';
             }
         }
 
         // Start timer recovery
         function startTimerRecovery() {
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            const timerBtn = document.getElementById('timerBtn');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            
-            // Show confirmation in the dialog
-            title.textContent = '⏳ Confirm Timer Reset';
-            message.innerHTML = `
-                <span style="color: #dc2626; font-weight: 600;">⚠️ Warning</span><br><br>
-                This will start a 72-hour countdown. After 72 hours, your PIN will be automatically removed.<br><br>
-                <span style="color: #64748b;">Your dreams will remain safe and will not be deleted.</span><br><br>
-                Do you want to continue?
-            `;
-            
-            if (timerBtn) timerBtn.style.display = 'none';
-            unlockBtn.textContent = 'Yes, Start Timer';
-            unlockBtn.dataset.action = 'confirm-start-timer';
-            cancelBtn.textContent = 'No, Cancel';
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Confirm Timer Reset',
+                icon: '⏳',
+                message: '<span style="color: var(--error-color); font-weight: 600;">⚠️ Warning</span><br><br>' +
+                         'This will start a 72-hour countdown. After 72 hours, your PIN will be automatically removed.<br><br>' +
+                         '<span style="color: var(--text-secondary);">Your dreams will remain safe and will not be deleted.</span><br><br>' +
+                         'Do you want to continue?',
+                buttons: [
+                    { text: 'Yes, Start Timer', action: 'confirm-start-timer', class: 'btn-primary' },
+                    { text: 'No, Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ]
+            });
         }
 
         // Confirm and actually start the timer
@@ -7207,12 +7206,10 @@ GNU Affero General Public License for more details.
         function cancelResetTimer() {
             // Change the warning banner to show confirmation
             const warningBanner = document.getElementById('timerWarning');
-            const originalHTML = warningBanner.innerHTML;
-            
             warningBanner.innerHTML = `
                 ⚠️ <strong>Cancel PIN Reset Timer?</strong> - You will need to enter your PIN or start recovery again.
-                <button data-action="confirm-cancel-timer">Yes, Cancel Timer</button>
-                <button data-action="restore-warning-banner">No, Keep Timer</button>
+                <button data-action="confirm-cancel-timer" class="btn btn-primary btn-small">Yes, Cancel</button>
+                <button data-action="restore-warning-banner" class="btn btn-secondary btn-small">No, Keep</button>
             `;
         }
 
@@ -7221,14 +7218,14 @@ GNU Affero General Public License for more details.
             removeResetTime();
             updateTimerWarning();
             
-            // Show success message in the banner briefly
             const warningBanner = document.getElementById('timerWarning');
             warningBanner.innerHTML = '✅ PIN reset timer has been cancelled.';
             warningBanner.className = 'timer-warning active message-success';
             
             setTimeout(() => {
                 warningBanner.classList.remove('active');
-                warningBanner.className = 'timer-warning'; // Reset to original class
+                warningBanner.className = 'timer-warning';
+                updateTimerWarning(); // Restore original content
             }, 3000);
         }
 
@@ -7242,14 +7239,6 @@ GNU Affero General Public License for more details.
             const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
             const days = Math.ceil(hours / 24);
             
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            const timerBtn = document.getElementById('timerBtn');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            
-            title.textContent = '⏳ Recovery Timer Active';
-            
             let timeDisplay = '';
             if (days > 1) {
                 timeDisplay = `${days} days`;
@@ -7258,18 +7247,17 @@ GNU Affero General Public License for more details.
             } else {
                 timeDisplay = 'Less than 1 hour';
             }
-            
-            message.innerHTML = `
-                PIN reset timer is active.<br><br>
-                <strong>Time remaining: ${timeDisplay}</strong><br><br>
-                <em style="font-size: 0.9em; color: #64748b;">Check back later, or try the dream title recovery method instead.</em>
-            `;
-            message.style.color = '#374151';
-            
-            if (timerBtn) timerBtn.style.display = 'none';
-            unlockBtn.textContent = 'Try Title Recovery';
-            unlockBtn.dataset.action = 'start-title-recovery';
-            cancelBtn.style.display = 'inline-block';
+
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Recovery Timer Active',
+                icon: '⏳',
+                message: `PIN reset timer is active.<br><br><strong>Time remaining: ${timeDisplay}</strong><br><br><em style="font-size: 0.9em; color: var(--text-secondary);">Check back later, or try the dream title recovery method instead.</em>`,
+                buttons: [
+                    { text: 'Try Title Recovery', action: 'start-title-recovery', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ]
+            });
         }
 
         // Complete recovery process
@@ -7277,36 +7265,24 @@ GNU Affero General Public License for more details.
             resetPinOverlay();
             hidePinOverlay();
             
-            // Recovery successful - unlock the app
             isUnlocked = true;
             isAppLocked = false;
             
             console.log('PIN overlay recovery complete - showing all tabs');
             
-            // Show all tabs again
             showAllTabButtons();
             
             updateSecurityControls();
-            updateTimerWarning(); // Hide warning if recovery was successful
+            updateTimerWarning();
             await displayDreams();
             
-            // Show success in main view instead of alert
             const container = document.querySelector('.main-content');
             if (container) {
-                const successMsg = document.createElement('div');
-                successMsg.className = 'message-success';
-                successMsg.textContent = 'Recovery complete! You can now set a new PIN from the security controls if desired.';
-                container.insertBefore(successMsg, container.firstChild);
-                
-                setTimeout(() => {
-                    try {
-                        if (successMsg && successMsg.parentNode) {
-                            successMsg.remove();
-                        }
-                    } catch (e) {
-                        // Ignore cleanup errors
-                    }
-                }, 5000);
+                createInlineMessage('success', 'Recovery complete! You can now set a new PIN from the security controls if desired.', {
+                    container: container,
+                    position: 'top',
+                    duration: 5000
+                });
             }
         }
 
@@ -7315,9 +7291,7 @@ GNU Affero General Public License for more details.
         // Verify PIN on lock screen
         async function verifyLockScreenPin() {
             const pinInput = document.getElementById('lockScreenPinInput');
-            const feedbackDiv = document.getElementById('lockScreenFeedback');
-            
-            if (!pinInput || !feedbackDiv) return;
+            if (!pinInput) return;
             
             const enteredPin = pinInput.value;
             if (!enteredPin) {
@@ -7332,31 +7306,24 @@ GNU Affero General Public License for more details.
                 if (isValid) {
                     showLockScreenMessage('success', 'PIN verified! Unlocking journal...');
                     
-                    // Reset failed attempts and unlock
                     failedPinAttempts = 0;
                     isUnlocked = true;
-                    isAppLocked = false; // Important: set this false when unlocking
+                    isAppLocked = false;
                     
                     console.log('Lock screen unlock successful - showing all tabs');
                     
-                    // Clear PIN input
                     pinInput.value = '';
                     
-                    // Return to previous tab after short delay
                     setTimeout(() => {
-                        // Show all tabs again
                         showAllTabButtons();
-                        
-                        // Switch to previous tab (or journal if preLockActiveTab is lock)
                         const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                         switchAppTab(targetTab);
-                        updateSecurityControls(); // Simple call, no extra timeout needed
+                        updateSecurityControls();
                     }, 1000);
                     
                 } else {
                     failedPinAttempts++;
                     pinInput.value = '';
-                    
                     if (failedPinAttempts >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                         showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
                     } else {
@@ -7372,26 +7339,15 @@ GNU Affero General Public License for more details.
         
         // Show forgot PIN options on lock screen
         async function showLockScreenForgotPin() {
-            // Check if there's an active timer
             const resetTime = getResetTime();
             if (resetTime) {
                 const remainingTime = resetTime - Date.now();
                 if (remainingTime > 0) {
                     const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
                     const days = Math.ceil(hours / 24);
-                    
-                    let timeDisplay = '';
-                    if (days > 1) {
-                        timeDisplay = `${days} days`;
-                    } else if (hours > 1) {
-                        timeDisplay = `${hours} hours`;
-                    } else {
-                        timeDisplay = 'Less than 1 hour';
-                    }
-                    
+                    let timeDisplay = days > 1 ? `${days} days` : hours > 1 ? `${hours} hours` : 'Less than 1 hour';
                     showLockScreenMessage('info', `Recovery timer active. Time remaining: ${timeDisplay}. Press "Forgot PIN?" again when timer expires to unlock.`);
                 } else {
-                    // Timer expired but not processed yet
                     removeResetTime();
                     removePinHash();
                     isUnlocked = true;
@@ -7402,52 +7358,33 @@ GNU Affero General Public License for more details.
                 return;
             }
             
-            // Check if dream title recovery is possible
             const dreams = await loadDreams();
             const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-            
-            // Update the lock screen to show recovery options - FIXED SELECTOR
             const lockCard = document.querySelector('#lockTab > div > div');
-            
+
             if (lockCard) {
-                lockCard.innerHTML = `
-                    <div class="text-2xl mb-lg">🔑</div>
-                    <h2 class="text-primary mb-md text-xl">PIN Recovery</h2>
-                    <p class="text-secondary mb-lg line-height-relaxed">
-                        Choose a recovery method to regain access to your journal:
-                    </p>
-                    
-                    ${validDreams.length >= 3 ? `
-                    <div class="card-sm mb-md text-left">
-                        <h4 class="text-primary mb-sm">📝 Dream Title Verification</h4>
-                        <p class="text-secondary text-sm mb-sm">
-                            Enter 3 of your dream titles exactly as written (case-sensitive)
-                        </p>
-                        <button data-action="start-lock-screen-title-recovery" class="btn btn-primary btn-small">Verify Dream Titles</button>
-                    </div>
-                    ` : `
-                    <div class="message-base message-warning mb-md text-left">
-                        <h4 class="text-warning mb-sm">📝 Dream Title Verification</h4>
-                        <p class="text-secondary text-sm">
-                            You need at least 3 dreams with custom titles to use this method. You currently have ${validDreams.length} valid dream titles.
-                        </p>
-                    </div>
-                    `}
-                    
-                    <div class="card-sm mb-lg text-left">
-                        <h4 class="text-warning mb-sm">⏰ 72-Hour Timer Reset</h4>
-                        <p class="text-secondary text-sm mb-sm">
-                            Start a timer that will automatically remove your PIN after 72 hours
-                        </p>
-                        <button data-action="start-lock-screen-timer-recovery" class="btn btn-secondary btn-small">Start Timer Reset</button>
-                    </div>
-                    
-                    <div class="flex-center gap-sm">
-                        <button data-action="return-to-lock-screen" class="btn btn-secondary">← Back to PIN Entry</button>
-                    </div>
-                    
-                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                `;
+                renderPinScreen(lockCard, {
+                    title: 'PIN Recovery',
+                    icon: '🔑',
+                    message: `
+                        <strong>Choose a recovery method to regain access:</strong>
+                        <div class="card-sm mb-md text-left mt-lg">
+                            <h4 class="text-primary mb-sm">📝 Dream Title Verification</h4>
+                            <p class="text-secondary text-sm mb-sm">Enter 3 of your dream titles exactly as written (case-sensitive)</p>
+                            <button data-action="start-lock-screen-title-recovery" class="btn btn-primary btn-small" ${validDreams.length < 3 ? 'disabled' : ''}>Verify Dream Titles</button>
+                            ${validDreams.length < 3 ? `<p class="text-xs text-warning mt-sm">You need at least 3 dreams with custom titles to use this method. You have ${validDreams.length}.</p>` : ''}
+                        </div>
+                        <div class="card-sm mb-lg text-left">
+                            <h4 class="text-warning mb-sm">⏰ 72-Hour Timer Reset</h4>
+                            <p class="text-secondary text-sm mb-sm">Start a timer that will automatically remove your PIN after 72 hours</p>
+                            <button data-action="start-lock-screen-timer-recovery" class="btn btn-secondary btn-small">Start Timer Reset</button>
+                        </div>
+                    `,
+                    buttons: [
+                        { text: '← Back to PIN Entry', action: 'return-to-lock-screen', class: 'btn-secondary' }
+                    ],
+                    feedbackContainer: true
+                });
             } else {
                 showLockScreenMessage('error', 'Error accessing recovery options');
             }
@@ -7455,144 +7392,41 @@ GNU Affero General Public License for more details.
         
         // Show message on lock screen
         function showLockScreenMessage(type, message) {
-            const feedbackDiv = document.getElementById('lockScreenFeedback');
+            const feedbackDiv = document.getElementById('lockScreenFeedback') || document.getElementById('pinFeedback');
             if (!feedbackDiv) return;
             
-            // Clear previous state
-            feedbackDiv.style.display = 'none';
-            feedbackDiv.className = '';
-            
-            // Set new message
             feedbackDiv.textContent = message;
             feedbackDiv.style.display = 'block';
+            feedbackDiv.className = `notification-message ${type}`;
             
-            // Apply styling based on type using CSS variables
-            switch(type) {
-                case 'error':
-                    feedbackDiv.style.background = 'var(--notification-error-bg)';
-                    feedbackDiv.style.color = 'var(--error-color)';
-                    break;
-                case 'success':
-                    feedbackDiv.style.background = 'var(--notification-success-bg)';
-                    feedbackDiv.style.color = 'var(--success-color)';
-                    break;
-                case 'info':
-                    feedbackDiv.style.background = 'var(--notification-info-bg)';
-                    feedbackDiv.style.color = 'var(--info-color)';
-                    break;
-                case 'warning':
-                    feedbackDiv.style.background = 'var(--notification-warning-bg)';
-                    feedbackDiv.style.color = 'var(--warning-color)';
-                    break;
-            }
-            
-            // Auto-hide success messages
             if (type === 'success') {
-                setTimeout(() => {
-                    if (feedbackDiv) {
-                        feedbackDiv.style.display = 'none';
-                    }
-                }, CONSTANTS.MESSAGE_DURATION_MEDIUM);
+                setTimeout(() => { if (feedbackDiv) feedbackDiv.style.display = 'none'; }, CONSTANTS.MESSAGE_DURATION_MEDIUM);
             }
         }
         
         // Return to main lock screen
         function returnToLockScreen() {
-            const lockCard = document.querySelector('#lockTab > div > div');
-            if (lockCard) {
-                // Check if there's an active timer to show instructional text
-                const resetTime = getResetTime();
-                let timerInstructions = '';
-                
-                if (resetTime) {
-                    const remainingTime = resetTime - Date.now();
-                    if (remainingTime > 0) {
-                        const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
-                        const days = Math.ceil(hours / 24);
-                        
-                        let timeDisplay = '';
-                        if (days > 1) {
-                            timeDisplay = `${days} days`;
-                        } else if (hours > 1) {
-                            timeDisplay = `${hours} hours`;
-                        } else {
-                            timeDisplay = 'Less than 1 hour';
-                        }
-                        
-                        timerInstructions = `
-                            <div class="message-base message-info mb-md text-sm">
-                                ⏰ Recovery timer active (${timeDisplay} remaining)<br>
-                                <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
-                            </div>
-                        `;
-                    }
-                }
-                
-                lockCard.innerHTML = `
-                    <div class="text-4xl mb-lg">🔒</div>
-                    <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
-                    <p class="text-secondary mb-lg line-height-relaxed">
-                        Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
-                    </p>
-                    ${timerInstructions}
-                    <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
-                    <div class="flex-center gap-sm flex-wrap">
-                        <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
-                        <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
-                    </div>
-                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                `;
-                
-                // Auto-focus PIN input
-                setTimeout(() => {
-                    const pinInput = document.getElementById('lockScreenPinInput');
-                    if (pinInput) {
-                        pinInput.focus();
-                    }
-                }, CONSTANTS.FOCUS_DELAY_MS);
-            }
+            switchAppTab('lock');
         }
         
         // Start dream title recovery on lock screen
         async function startLockScreenTitleRecovery() {
-            const dreams = await loadDreams();
-            const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-            
-            if (validDreams.length < 3) {
-                showLockScreenMessage('error', 'You need at least 3 dreams with custom titles to use this recovery method.');
-                return;
-            }
-            
             const lockCard = document.querySelector('#lockTab > div > div');
-            if (lockCard) {
-                lockCard.innerHTML = `
-                    <div class="text-2xl mb-lg">📝</div>
-                    <h2 class="text-primary mb-md text-xl">Verify Dream Titles</h2>
-                    <p class="text-secondary mb-lg line-height-relaxed">
-                        Enter exactly 3 of your dream titles as they appear in your journal.<br>
-                        <em class="text-sm">Must match exactly, including capitalization</em>
-                    </p>
-                    
-                    <input type="text" id="recovery1" placeholder="Dream title 1" class="form-control mb-sm">
-                    <input type="text" id="recovery2" placeholder="Dream title 2" class="form-control mb-sm">
-                    <input type="text" id="recovery3" placeholder="Dream title 3" class="form-control mb-lg">
-                    
-                    <div class="flex-center gap-sm flex-wrap">
-                        <button data-action="verify-lock-screen-dream-titles" class="btn btn-primary">Verify Titles</button>
-                        <button data-action="return-to-lock-screen" class="btn btn-secondary">← Back</button>
-                    </div>
-                    
-                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                `;
-                
-                // Auto-focus first input
-                setTimeout(() => {
-                    const firstInput = document.getElementById('recovery1');
-                    if (firstInput) {
-                        firstInput.focus();
-                    }
-                }, CONSTANTS.FOCUS_DELAY_MS);
-            }
+            renderPinScreen(lockCard, {
+                title: 'Verify Dream Titles',
+                icon: '📝',
+                message: 'Enter exactly 3 of your dream titles as they appear in your journal.<br><em class="text-sm">Must match exactly, including capitalization</em>',
+                inputs: [
+                    { id: 'recovery1', type: 'text', placeholder: 'Dream title 1', class: 'form-control' },
+                    { id: 'recovery2', type: 'text', placeholder: 'Dream title 2', class: 'form-control' },
+                    { id: 'recovery3', type: 'text', placeholder: 'Dream title 3', class: 'form-control' }
+                ],
+                buttons: [
+                    { text: 'Verify Titles', action: 'verify-lock-screen-dream-titles', class: 'btn-primary' },
+                    { text: '← Back', action: 'return-to-lock-screen', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
         }
         
         // Verify dream titles on lock screen
@@ -7607,10 +7441,8 @@ GNU Affero General Public License for more details.
             }
             
             const dreams = await loadDreams();
-            const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-            const dreamTitles = validDreams.map(d => d.title);
+            const dreamTitles = dreams.filter(d => d.title !== 'Untitled Dream').map(d => d.title);
             
-            // Check if all three titles exist and are different
             const titles = [title1, title2, title3];
             const uniqueTitles = [...new Set(titles)];
             
@@ -7619,36 +7451,23 @@ GNU Affero General Public License for more details.
                 return;
             }
             
-            const allValid = titles.every(t => dreamTitles.includes(t));
-            
-            if (allValid) {
-                // Success - remove PIN and unlock
+            if (titles.every(t => dreamTitles.includes(t))) {
                 removePinHash();
-                removeResetTime(); // Clear any active timer
-                
+                removeResetTime();
                 showLockScreenMessage('success', 'Recovery successful! Your PIN has been removed. Unlocking journal...');
-                
                 isUnlocked = true;
                 isAppLocked = false;
                 failedPinAttempts = 0;
-                updateTimerWarning(); // Hide warning if it was active
-                
-                console.log('Lock screen recovery successful - showing all tabs');
+                updateTimerWarning();
                 
                 setTimeout(() => {
-                    // Show all tabs again
                     showAllTabButtons();
-                    
-                    // Switch to previous tab (or journal if preLockActiveTab is lock)
                     const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                     switchAppTab(targetTab);
-                    updateSecurityControls(); // Simple call, no extra timeout needed
+                    updateSecurityControls();
                 }, 2000);
-                
             } else {
-                showLockScreenMessage('error', 'One or more titles did not match. Please try again with exact titles from your dreams.');
-                
-                // Clear the inputs for retry
+                showLockScreenMessage('error', 'One or more titles did not match. Please try again.');
                 document.getElementById('recovery1').value = '';
                 document.getElementById('recovery2').value = '';
                 document.getElementById('recovery3').value = '';
@@ -7659,206 +7478,148 @@ GNU Affero General Public License for more details.
         // Start timer recovery on lock screen
         function startLockScreenTimerRecovery() {
             const lockCard = document.querySelector('#lockTab > div > div');
-            if (lockCard) {
-                lockCard.innerHTML = `
-                    <div class="text-2xl mb-lg">⏰</div>
-                    <h2 class="text-primary mb-md text-xl">72-Hour Timer Reset</h2>
+            renderPinScreen(lockCard, {
+                title: '72-Hour Timer Reset',
+                icon: '⏰',
+                message: `
                     <div class="message-base message-warning mb-lg text-left">
                         <h4 class="mb-sm">⚠️ Important Warning</h4>
-                        <p class="mb-sm line-height-relaxed">
-                            This will start a 72-hour countdown. After the timer expires, your PIN will be automatically removed.
-                        </p>
-                        <p class="font-semibold" style="margin: 0;">
-                            Your dreams will remain safe and will not be deleted.
-                        </p>
+                        <p class="mb-sm line-height-relaxed">This will start a 72-hour countdown. After the timer expires, your PIN will be automatically removed.</p>
+                        <p class="font-semibold" style="margin: 0;">Your dreams will remain safe and will not be deleted.</p>
                     </div>
-                    
-                    <p class="text-secondary mb-lg line-height-relaxed">
-                        Do you want to start the 72-hour recovery timer?
-                    </p>
-                    
-                    <div class="flex-center gap-sm flex-wrap">
-                        <button data-action="confirm-lock-screen-timer" class="btn btn-primary">Start Timer</button>
-                        <button data-action="return-to-lock-screen" class="btn btn-secondary">← Cancel</button>
-                    </div>
-                    
-                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                `;
-            }
+                    <p class="text-secondary mb-lg line-height-relaxed">Do you want to start the 72-hour recovery timer?</p>`,
+                buttons: [
+                    { text: 'Start Timer', action: 'confirm-lock-screen-timer', class: 'btn-primary' },
+                    { text: '← Cancel', action: 'return-to-lock-screen', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
         }
         
         // Confirm timer recovery on lock screen
         function confirmLockScreenTimer() {
             const resetTime = Date.now() + (CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000);
             storeResetTime(resetTime);
-            updateTimerWarning(); // Show warning banner
-            
-            showLockScreenMessage('success', '72-hour recovery timer started! You can check back later or continue using dream title recovery.');
-            
-            setTimeout(() => {
-                returnToLockScreen();
-            }, 3000);
+            updateTimerWarning();
+            showLockScreenMessage('success', '72-hour recovery timer started! You can check back later or use dream title recovery.');
+            setTimeout(returnToLockScreen, 3000);
         }
 
         // Show PIN overlay
         function showPinOverlay() {
-            // If already unlocked, don't show overlay
-            if (isUnlocked && isPinSetup()) {
-                return;
-            }
+            if (isUnlocked && isPinSetup()) return;
             
-            // Reset failed attempts when showing overlay fresh
             failedPinAttempts = 0;
-            
+            resetPinOverlay(); // Reset to default state
             document.getElementById('pinOverlay').style.display = 'flex';
             setTimeout(() => {
-                document.getElementById('pinInput').focus();
+                const pinInput = document.getElementById('pinInput');
+                if (pinInput) pinInput.focus();
             }, CONSTANTS.FOCUS_DELAY_MS);
         }
 
         // Hide PIN overlay
         function hidePinOverlay() {
-            // Reset the overlay to default state when hiding
-            resetPinOverlay();
-            
-            // Reset failed attempts when closing overlay
-            failedPinAttempts = 0;
-            
             document.getElementById('pinOverlay').style.display = 'none';
-            document.getElementById('pinInput').value = '';
+            resetPinOverlay();
         }
 
         // Show PIN setup
         function showPinSetup() {
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const setupLink = document.getElementById('pinSetupLink');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            
-            if (isPinSetup()) {
-                title.textContent = '⚙️ Change PIN';
-                message.textContent = 'Enter your current PIN to change it.';
-                setupLink.style.display = 'none';
-                cancelBtn.style.display = 'inline-block';
-            } else {
-                title.textContent = '⚙️ Setup PIN';
-                message.textContent = 'Create a 4-6 digit PIN to protect your dreams.';
-                setupLink.style.display = 'none';
-                cancelBtn.style.display = 'inline-block';
-            }
-            
-            document.getElementById('pinInput').placeholder = isPinSetup() ? 'Current PIN' : 'New PIN (4-6 digits)';
-            
-            // Use the correct action for processing PIN setup
-            const unlockBtn = document.getElementById('pinMainBtn');
-            unlockBtn.dataset.action = 'process-pin-setup';
-            unlockBtn.textContent = isPinSetup() ? 'Verify Current PIN' : 'Continue';
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            const isChangingPin = isPinSetup();
+
+            renderPinScreen(pinContainer, {
+                title: isChangingPin ? 'Change PIN' : 'Setup PIN',
+                icon: '⚙️',
+                message: isChangingPin ? 'Enter your current PIN to change it.' : 'Create a 4-6 digit PIN to protect your dreams.',
+                inputs: [
+                    { id: 'pinInput', type: 'password', placeholder: isChangingPin ? 'Current PIN' : 'New PIN (4-6 digits)', class: 'pin-input', maxLength: 6 }
+                ],
+                buttons: [
+                    { text: isChangingPin ? 'Verify Current PIN' : 'Continue', action: 'process-pin-setup', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
             document.getElementById('pinOverlay').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('pinInput').focus();
-            }, CONSTANTS.FOCUS_DELAY_MS);
         }
 
         // Setup new PIN (multi-step process) - UPDATED for secure hashing
         async function setupPin() {
             const enteredPin = document.getElementById('pinInput').value;
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const unlockBtn = document.getElementById('pinMainBtn');
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
             
-            if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH) {
-                message.textContent = `PIN must be ${CONSTANTS.PIN_MIN_LENGTH}-${CONSTANTS.PIN_MAX_LENGTH} digits. Please try again.`;
-                message.style.color = 'var(--error-color)';
-                document.getElementById('pinInput').value = '';
-                return;
-            }
-            if (!/^\d+$/.test(enteredPin)) {
-                message.textContent = 'PIN must contain only numbers. Please try again.';
-                message.style.color = 'var(--error-color)';
+            if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH || !/^\d+$/.test(enteredPin)) {
+                showMessage('error', `PIN must be ${CONSTANTS.PIN_MIN_LENGTH}-${CONSTANTS.PIN_MAX_LENGTH} digits.`);
                 document.getElementById('pinInput').value = '';
                 return;
             }
             
             if (isPinSetup()) {
-                // Step 1: Verify current PIN
-                try {
-                    const storedData = getStoredPinData();
-                    const isValid = await verifyPinHash(enteredPin, storedData);
-                    
-                    if (!isValid) {
-                        message.textContent = 'Current PIN is incorrect. Please try again.';
-                        message.style.color = 'var(--error-color)';
-                        document.getElementById('pinInput').value = '';
-                        return;
-                    }
-                    
-                    // Move to step 2: Enter new PIN
-                    title.textContent = '⚙️ Enter New PIN';
-                    message.textContent = 'Enter your new 4-6 digit PIN.';
-                    message.style.color = 'var(--text-primary)';
-                    document.getElementById('pinInput').placeholder = 'New PIN (4-6 digits)';
+                const storedData = getStoredPinData();
+                const isValid = await verifyPinHash(enteredPin, storedData);
+                if (!isValid) {
+                    showMessage('error', 'Current PIN is incorrect. Please try again.');
                     document.getElementById('pinInput').value = '';
-                    unlockBtn.dataset.action = 'setup-new-pin';
-                    unlockBtn.textContent = 'Continue';
-                } catch (error) {
-                    console.error('Error verifying current PIN:', error);
-                    message.textContent = 'Error verifying current PIN. Please try again.';
-                    message.style.color = 'var(--error-color)';
-                    document.getElementById('pinInput').value = '';
+                    return;
                 }
+                renderPinScreen(pinContainer, {
+                    title: 'Enter New PIN',
+                    icon: '⚙️',
+                    message: 'Enter your new 4-6 digit PIN.',
+                    inputs: [ { id: 'pinInput', type: 'password', placeholder: 'New PIN (4-6 digits)', class: 'pin-input', maxLength: 6 } ],
+                    buttons: [
+                        { text: 'Continue', action: 'setup-new-pin', class: 'btn-primary' },
+                        { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                    ],
+                    feedbackContainer: true
+                });
             } else {
-                // New PIN setup - go to confirmation step
-                // Store temporarily and ask for confirmation
                 window.tempNewPin = enteredPin;
-                title.textContent = '⚙️ Confirm PIN';
-                message.textContent = 'Enter the same PIN again to confirm.';
-                message.style.color = '#374151';
-                document.getElementById('pinInput').placeholder = 'Confirm PIN';
-                document.getElementById('pinInput').value = '';
-                unlockBtn.dataset.action = 'confirm-new-pin';
-                unlockBtn.textContent = 'Setup PIN';
+                renderPinScreen(pinContainer, {
+                    title: 'Confirm PIN',
+                    icon: '⚙️',
+                    message: 'Enter the same PIN again to confirm.',
+                    inputs: [ { id: 'pinInput', type: 'password', placeholder: 'Confirm PIN', class: 'pin-input', maxLength: 6 } ],
+                    buttons: [
+                        { text: 'Setup PIN', action: 'confirm-new-pin', class: 'btn-primary' },
+                        { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                    ],
+                    feedbackContainer: true
+                });
             }
         }
 
         // Step 2 of change PIN: Enter new PIN
         function setupNewPin() {
             const enteredPin = document.getElementById('pinInput').value;
-            const message = document.getElementById('pinMessage');
-            
-            if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH) {
-                message.textContent = `PIN must be ${CONSTANTS.PIN_MIN_LENGTH}-${CONSTANTS.PIN_MAX_LENGTH} digits. Please try again.`;
-                message.style.color = 'var(--error-color)';
-                document.getElementById('pinInput').value = '';
-                return;
-            }
-            if (!/^\d+$/.test(enteredPin)) {
-                message.textContent = 'PIN must contain only numbers. Please try again.';
-                message.style.color = 'var(--error-color)';
+            if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH || !/^\d+$/.test(enteredPin)) {
+                showMessage('error', `PIN must be ${CONSTANTS.PIN_MIN_LENGTH}-${CONSTANTS.PIN_MAX_LENGTH} digits.`);
                 document.getElementById('pinInput').value = '';
                 return;
             }
             
-            // Store temporarily and ask for confirmation
             window.tempNewPin = enteredPin;
-            const title = document.getElementById('pinTitle');
-            title.textContent = '⚙️ Confirm New PIN';
-            message.textContent = 'Enter the same PIN again to confirm.';
-            message.style.color = 'var(--text-primary)';
-            document.getElementById('pinInput').placeholder = 'Confirm new PIN';
-            document.getElementById('pinInput').value = '';
-            const unlockBtn = document.getElementById('pinMainBtn');
-            unlockBtn.dataset.action = 'confirm-new-pin';
-            unlockBtn.textContent = 'Change PIN';
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Confirm New PIN',
+                icon: '⚙️',
+                message: 'Enter the same PIN again to confirm.',
+                inputs: [ { id: 'pinInput', type: 'password', placeholder: 'Confirm new PIN', class: 'pin-input', maxLength: 6 } ],
+                buttons: [
+                    { text: 'Change PIN', action: 'confirm-new-pin', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
         }
 
         // Final step: Confirm the new PIN - UPDATED for secure hashing
         async function confirmNewPin() {
             const enteredPin = document.getElementById('pinInput').value;
-            const message = document.getElementById('pinMessage');
-            
             if (enteredPin !== window.tempNewPin) {
-                message.textContent = 'PINs do not match. Please start over.';
-                message.style.color = 'var(--error-color)';
+                showMessage('error', 'PINs do not match. Please start over.');
                 setTimeout(() => {
                     resetPinOverlay();
                     showPinSetup();
@@ -7867,165 +7628,90 @@ GNU Affero General Public License for more details.
             }
             
             try {
-                // Save the PIN with new secure system
                 const success = await storePinHash(window.tempNewPin);
-                
                 if (success) {
-                    const title = document.getElementById('pinTitle');
-                    title.textContent = '✅ PIN Setup Complete';
-                    
-                    // Show different success message based on storage type
-                    if (isLocalStorageAvailable()) {
-                        message.textContent = 'Secure PIN has been set successfully! Your dreams are now protected with advanced encryption.';
-                    } else {
-                        message.textContent = 'Secure PIN has been set successfully using memory storage! Your dreams are now protected. (Note: PIN will reset if you refresh the page)';
-                    }
-                    message.style.color = 'var(--success-color)';
-                    
-                    // Hide input and show close option
-                    document.getElementById('pinInput').style.display = 'none';
-                    
-                    const unlockBtn = document.getElementById('pinMainBtn');
-                    const cancelBtn = document.getElementById('cancelPinBtn');
-                    
-                    if (unlockBtn) {
-                        unlockBtn.textContent = 'Close';
-                        unlockBtn.dataset.action = 'complete-pin-setup';
-                    }
-                    
-                    if (cancelBtn) {
-                        cancelBtn.style.display = 'none';
-                    }
-                    
-                    // Clean up
+                    const pinContainer = document.querySelector('#pinOverlay .pin-container');
+                    renderPinScreen(pinContainer, {
+                        title: 'PIN Setup Complete',
+                        icon: '✅',
+                        message: `Secure PIN has been set successfully! Your dreams are now protected${isLocalStorageAvailable() ? ' with advanced encryption' : ' using memory storage (PIN will reset on refresh)'}.`,
+                        buttons: [
+                            { text: 'Close', action: 'complete-pin-setup', class: 'btn-primary' }
+                        ]
+                    });
                     delete window.tempNewPin;
-                    isUnlocked = true; // User is now authenticated
+                    isUnlocked = true;
                 } else {
-                    message.textContent = 'Error: Failed to save secure PIN. Please try again or restart the browser.';
-                    message.style.color = 'var(--error-color)';
-                    
-                    // Offer to restart the process
-                    setTimeout(() => {
-                        message.textContent += ' Click Cancel to try again.';
-                    }, 2000);
+                    showMessage('error', 'Error: Failed to save secure PIN. Please try again.');
                 }
             } catch (error) {
                 console.error('Error setting up secure PIN:', error);
-                message.textContent = 'Error: Failed to setup secure PIN. Please try again.';
-                message.style.color = 'var(--error-color)';
+                showMessage('error', 'Error: Failed to setup secure PIN. Please try again.');
             }
         }
 
         // Complete PIN setup and close overlay
         async function completePinSetup() {
-            // Ensure overlay is properly reset for future use
             resetPinOverlay();
             hidePinOverlay();
-            
-            // Reset failed attempts since PIN setup was successful
             failedPinAttempts = 0;
-            
-            // User is now authenticated and unlocked
             isUnlocked = true;
             isAppLocked = false;
-            
             console.log('PIN setup complete - ensuring tabs are visible');
-            
-            // Ensure all tabs are visible (in case they were hidden)
             showAllTabButtons();
-            
             updateSecurityControls();
-            await displayDreams(); // Refresh to show unlocked dreams
+            await displayDreams();
         }
 
         // Reset PIN overlay to default state
         function resetPinOverlay() {
-            const title = document.getElementById('pinTitle');
-            const message = document.getElementById('pinMessage');
-            const setupLink = document.getElementById('pinSetupLink');
-            const removePinLink = document.getElementById('removePinLink');
-            const forgotPinLink = document.getElementById('forgotPinLink');
-            const cancelBtn = document.getElementById('cancelPinBtn');
-            const unlockBtn = document.getElementById('pinMainBtn');
-            const pinInput = document.getElementById('pinInput');
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            if (!pinContainer) return;
             
-            // Reset failed attempts when overlay is reset
             failedPinAttempts = 0;
             
-            // Remove any timer button if it exists
-            const timerBtn = document.getElementById('timerBtn');
-            if (timerBtn) {
-                timerBtn.remove();
-            }
-            
-            // Reset text content
-            title.textContent = '🔒 Enter PIN';
-            message.textContent = 'Your dreams are protected. Enter your PIN to access them.';
-            message.style.color = 'var(--text-primary)'; // Reset color
-            
-            // Reset visibility based on whether PIN is setup and if user is unlocked
-            if (isPinSetup()) {
-                setupLink.style.display = 'none';
-                removePinLink.style.display = isUnlocked ? 'block' : 'none';
-                forgotPinLink.style.display = 'none'; // Reset to hidden since attempts are reset
-                cancelBtn.style.display = 'inline-block'; // Always show cancel for locked state
-            } else {
-                setupLink.style.display = 'block';
-                removePinLink.style.display = 'none';
-                forgotPinLink.style.display = 'none';
-                cancelBtn.style.display = 'inline-block';
-            }
-            
-            // Reset input
-            pinInput.style.display = 'block'; // Make sure input is visible
-            pinInput.placeholder = 'Enter PIN';
-            pinInput.value = '';
-            
-            // Reset button
-            if (unlockBtn) {
-                unlockBtn.dataset.action = 'verify-pin';
-                unlockBtn.textContent = 'Unlock';
-            }
+            renderPinScreen(pinContainer, {
+                title: 'Enter PIN',
+                icon: '🔒',
+                message: 'Your dreams are protected. Enter your PIN to access them.',
+                inputs: [ { id: 'pinInput', type: 'password', placeholder: 'Enter PIN', class: 'pin-input', maxLength: 6 } ],
+                buttons: [
+                    { text: 'Unlock', action: 'verify-pin', class: 'btn-primary', id: 'pinMainBtn' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary', id: 'cancelPinBtn' }
+                ],
+                links: [
+                    { text: 'Setup new PIN', action: 'show-pin-setup', id: 'pinSetupLink', style: isPinSetup() ? 'display:none' : '' },
+                    { text: 'Remove PIN protection', action: 'show-remove-pin', id: 'removePinLink', style: !isPinSetup() || !isUnlocked ? 'display:none' : '' },
+                    { text: 'Forgot PIN?', action: 'show-forgot-pin', id: 'forgotPinLink', style: 'display:none' }
+                ],
+                feedbackContainer: true
+            });
         }
 
         // Toggle lock state
         async function toggleLock() {
             if (!isPinSetup()) {
-                // No PIN set - show setup dialog with helpful message
                 const container = document.querySelector('.main-content');
                 if (container) {
-                    const msg = document.createElement('div');
-                    msg.className = 'message-info';
-                    msg.textContent = 'First, set up a PIN to protect your dreams, then you can lock your journal.';
-                    container.insertBefore(msg, container.firstChild);
-                    
-                    setTimeout(() => {
-                        if (msg && msg.parentNode) {
-                            msg.remove();
-                        }
-                    }, 4000);
+                    createInlineMessage('info', 'First, set up a PIN to protect your dreams, then you can lock your journal.', {
+                        container: container,
+                        position: 'top',
+                        duration: 4000
+                    });
                 }
-                
-                // Show PIN setup dialog
                 showPinSetup();
                 return;
             }
             
             if (isUnlocked && !isAppLocked) {
-                // User is unlocked and has PIN - lock the app
                 isUnlocked = false;
                 isAppLocked = true;
-                preLockActiveTab = activeAppTab; // Remember which tab they were on
-                
+                preLockActiveTab = activeAppTab;
                 console.log('Locking app - hiding other tabs');
-                
-                // Hide other tabs and switch to lock screen
                 hideAllTabButtons();
                 switchAppTab('lock');
                 updateSecurityControls();
             } else {
-                // This case shouldn't happen much since locked users see the lock screen
-                // But if it does, show unlock dialog
                 showPinOverlay();
             }
         }
