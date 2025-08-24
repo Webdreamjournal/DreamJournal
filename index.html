@@ -19,8 +19,8 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.26.2 === */
-        /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + inline style elimination */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.29.0 === */
+        /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
         :root {
@@ -97,6 +97,7 @@ GNU Affero General Public License for more details.
         .p-sm { padding: 8px; } .p-md { padding: 15px; } .p-lg { padding: 20px; } .p-xl { padding: 40px; }
         .mb-sm { margin-bottom: 10px; } .mb-md { margin-bottom: 15px; } .mb-lg { margin-bottom: 20px; }
         .mt-sm { margin-top: 10px; } .mt-md { margin-top: 15px; } .mt-lg { margin-top: 20px; }
+        .mx-lg { margin-left: 20px; margin-right: 20px; }
         
         /* Typography utilities */
         .text-center { text-align: center; } .text-left { text-align: left; }
@@ -125,6 +126,98 @@ GNU Affero General Public License for more details.
         
         /* Box shadow utilities */
         .shadow-lg { box-shadow: var(--shadow-lg); }
+        
+        /* === PHASE 2C: VOICE NOTES UTILITIES === */
+        /* Voice controls layout */
+        .voice-note-container { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; 
+                                background: var(--bg-secondary); border: 2px solid var(--border-color); 
+                                border-radius: var(--border-radius); padding: 15px; margin-bottom: 15px; 
+                                transition: var(--transition); }
+        .voice-note-container:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+        .voice-note-container.delete-pending { background: var(--notification-warning-bg); 
+                                               border-color: var(--warning-color); }
+        
+        /* Voice note content layout */
+        .voice-note-info { flex: 1; min-width: 200px; }
+        .voice-note-title { font-weight: var(--font-weight-semibold); color: var(--text-primary); 
+                            margin-bottom: 4px; }
+        .voice-note-meta { color: var(--text-secondary); font-size: 14px; }
+        .voice-note-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; 
+                               min-width: 300px; }
+        
+        /* Voice button base styling */
+        .voice-btn-base { padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; 
+                          font-weight: var(--font-weight-semibold); cursor: pointer; transition: var(--transition); 
+                          display: flex; align-items: center; gap: 4px; }
+        
+        /* Voice button variants */
+        .voice-btn-play { background: var(--info-color); color: var(--text-inverse); }
+        .voice-btn-play:hover { background: #0284c7; }
+        .voice-btn-pause { background: var(--warning-color); color: var(--text-inverse); }
+        .voice-btn-pause:hover { background: #d97706; }
+        .voice-btn-transcribe { background: #7c3aed; color: var(--text-inverse); }
+        .voice-btn-transcribe:hover { background: #6d28d9; }
+        .voice-btn-transcribe:disabled { background: var(--text-muted); cursor: not-allowed; }
+        .voice-btn-download { background: var(--success-color); color: var(--text-inverse); }
+        .voice-btn-download:hover { background: var(--success-hover); }
+        .voice-btn-delete { background: var(--error-color); color: var(--text-inverse); }
+        .voice-btn-delete:hover { background: var(--error-hover); }
+        
+        /* Voice progress container */
+        .voice-progress-container { flex: 1; min-width: 200px; display: flex; align-items: center; 
+                                    gap: 8px; margin: 0 15px; }
+        .voice-time-display { font-family: monospace; font-size: 12px; color: var(--text-secondary); 
+                              min-width: 80px; text-align: center; }
+        
+        /* Voice warning messages */
+        .voice-full-warning { background: var(--notification-error-bg); color: var(--error-color); 
+                              padding: 12px; border-radius: var(--border-radius); 
+                              border: 2px solid var(--error-color); margin-bottom: 15px; 
+                              font-weight: var(--font-weight-semibold); text-align: center; }
+        .no-voice-notes { text-align: center; color: var(--text-secondary); font-style: italic; 
+                          padding: 30px; background: var(--bg-light); border: var(--border-dashed); 
+                          border-radius: var(--border-radius); }
+        
+        /* === PHASE 2A: TAB CONTENT UTILITIES === */
+        /* Progress bars */
+        .progress-bar { background: var(--border-color); height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-fill { background: var(--success-color); height: 100%; transition: width 0.3s; }
+        .progress-success { background: var(--success-color); }
+        .progress-primary { background: var(--primary-color); }
+        
+        /* Status indicators */
+        .status-success { color: var(--success-color); font-weight: var(--font-weight-semibold); }
+        .status-warning { color: var(--warning-color); font-weight: var(--font-weight-semibold); }
+        .status-primary { color: var(--primary-color); font-weight: var(--font-weight-semibold); }
+        .status-info { color: var(--info-color); font-weight: var(--font-weight-semibold); }
+        
+        /* Icon containers */
+        .icon-lg { font-size: 2em; margin-bottom: 10px; }
+        .icon-xl { font-size: 2.5em; margin-bottom: 10px; }
+        
+        /* Feature sections */
+        .feature-item { background: var(--bg-light); padding: 15px; border-radius: var(--border-radius); 
+                        display: flex; align-items: center; gap: 15px; }
+        .feature-list { display: grid; gap: 15px; }
+        
+        /* Border accents */
+        .border-l-primary { border-left: 4px solid var(--primary-color); }
+        .border-l-success { border-left: 4px solid var(--success-color); }
+        .border-l-warning { border-left: 4px solid var(--warning-color); }
+        .border-l-info { border-left: 4px solid var(--info-color); }
+        
+        /* Layout grids */
+        .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .grid-1 { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        
+        /* Progress display */
+        .progress-display { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        
+        /* Content sections */
+        .content-highlight { background: linear-gradient(135deg, var(--bg-elevated), var(--bg-secondary)); }
+        
+        /* Day counters */
+        .day-counter { color: var(--primary-color); font-weight: var(--font-weight-semibold); }
         
         /* === DARK THEME - ONLY LIGHTNESS OVERRIDES === */
         [data-theme='dark'] {
@@ -1885,7 +1978,7 @@ GNU Affero General Public License for more details.
             flex-wrap: wrap;
         }
         @media (max-width: 768px) {
-            .voice-note {
+            .voice-note-container {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 10px;
@@ -2197,24 +2290,7 @@ GNU Affero General Public License for more details.
             font-size: 12px;
             opacity: 0.8;
         }
-/* Unify inline edit form spacing with main form */
-.entry .inline-edit-form {
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    background: transparent !important;
-}
-.inline-edit-form .form-group {
-    margin-bottom: 20px !important;
-}
-.inline-edit-form .form-group label {
-    margin-bottom: 8px !important;
-    font-size: inherit !important;
-}
-.inline-edit-form .form-control {
-    padding: 12px 15px !important;
-    font-size: 16px !important;
-}
+
 
     </style>
 </head>
@@ -2410,7 +2486,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p style="margin: 0; font-size: 12px; opacity: 0.8;">
-                Dream Journal v1.26.2 | Not a substitute for professional medical advice
+                Dream Journal v1.29.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2596,26 +2672,8 @@ GNU Affero General Public License for more details.
                 className = ''
             } = options;
             
-            const colors = {
-                success: { bg: 'var(--notification-success-bg)', color: 'var(--success-color)' },
-                error: { bg: 'var(--notification-error-bg)', color: 'var(--error-color)' },
-                warning: { bg: 'var(--notification-warning-bg)', color: 'var(--warning-color)' },
-                info: { bg: 'var(--notification-info-bg)', color: 'var(--info-color)' }
-            };
-            
-            const style = colors[type] || colors.info;
-            
             const msg = document.createElement('div');
-            msg.className = `inline-message ${className}`;
-            msg.style.cssText = `
-                background: ${style.bg};
-                color: ${style.color};
-                padding: 15px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                font-weight: 600;
-                text-align: center;
-            `;
+            msg.className = `message-base message-${type} ${className}`.trim();
             msg.textContent = text;
             
             if (container) {
@@ -2983,20 +3041,20 @@ GNU Affero General Public License for more details.
                         tabPanel.innerHTML = `
                             <div class="settings-section">
                                 <h3>🎯 Lucid Dreaming Goals</h3>
-                                <div class="stats-grid" style="grid-template-columns: 1fr;">
-                                    <div class="stats-card" style="text-align: left; background: linear-gradient(135deg, #f0f9ff, var(--bg-secondary));">
-                                        <h4 style="color: var(--primary-color); margin-bottom: 15px;">🌟 Current Goal: Achieve 3 Lucid Dreams This Month</h4>
-                                        <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                                <span style="font-weight: 600;">Progress:</span>
-                                                <span style="color: var(--success-color); font-weight: 600;">2 / 3 Lucid Dreams</span>
+                                <div class="grid-1">
+                                    <div class="card-md text-left content-highlight">
+                                        <h4 class="status-primary mb-md">🌟 Current Goal: Achieve 3 Lucid Dreams This Month</h4>
+                                        <div class="card-sm mb-md">
+                                            <div class="progress-display">
+                                                <span class="font-semibold">Progress:</span>
+                                                <span class="status-success">2 / 3 Lucid Dreams</span>
                                             </div>
-                                            <div style="background: var(--border-color); height: 8px; border-radius: 4px; overflow: hidden;">
-                                                <div style="background: var(--success-color); height: 100%; width: 67%; transition: width 0.3s;"></div>
+                                            <div class="progress-bar">
+                                                <div class="progress-fill progress-success" style="width: 67%;"></div>
                                             </div>
                                         </div>
-                                        <p style="color: var(--text-secondary); margin-bottom: 15px;">You're doing great! Just one more lucid dream to reach your monthly goal.</p>
-                                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                        <p class="text-secondary mb-md">You're doing great! Just one more lucid dream to reach your monthly goal.</p>
+                                        <div class="flex-center gap-sm flex-wrap">
                                             <button class="btn btn-primary btn-small">Update Goal</button>
                                             <button class="btn btn-secondary btn-small">Set New Goal</button>
                                         </div>
@@ -3006,42 +3064,48 @@ GNU Affero General Public License for more details.
                             
                             <div class="settings-section">
                                 <h3>📈 Goal Categories</h3>
-                                <div class="stats-grid">
-                                    <div class="stats-card">
-                                        <div style="font-size: 2em; margin-bottom: 10px;">🧠</div>
+                                <div class="grid-auto">
+                                    <div class="stats-card text-center">
+                                        <div class="icon-lg">🧠</div>
                                         <div class="stats-label">Dream Recall</div>
                                         <div class="stats-detail">Remember 1 dream daily</div>
-                                        <div style="color: var(--success-color); font-weight: 600; margin-top: 10px;">✅ On Track</div>
+                                        <div class="status-success mt-sm">✅ On Track</div>
                                     </div>
-                                    <div class="stats-card">
-                                        <div style="font-size: 2em; margin-bottom: 10px;">✨</div>
+                                    <div class="stats-card text-center">
+                                        <div class="icon-lg">✨</div>
                                         <div class="stats-label">Lucidity</div>
                                         <div class="stats-detail">3 lucid dreams/month</div>
-                                        <div style="color: var(--warning-color); font-weight: 600; margin-top: 10px;">⏳ In Progress</div>
+                                        <div class="status-warning mt-sm">⏳ In Progress</div>
                                     </div>
-                                    <div class="stats-card">
-                                        <div style="font-size: 2em; margin-bottom: 10px;">📝</div>
+                                    <div class="stats-card text-center">
+                                        <div class="icon-lg">📝</div>
                                         <div class="stats-label">Journal Habit</div>
                                         <div class="stats-detail">Write daily for 30 days</div>
-                                        <div style="color: var(--primary-color); font-weight: 600; margin-top: 10px;">🔥 Day 23/30</div>
+                                        <div class="day-counter mt-sm">🔥 Day 23/30</div>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="settings-section">
                                 <h3>🎪 Suggested Goals</h3>
-                                <div style="display: grid; gap: 15px;">
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-color);">
-                                        <h4 style="margin-bottom: 8px;">🌙 Master Reality Checks</h4>
-                                        <p style="color: var(--text-secondary); font-size: 14px;">Perform 10 reality checks daily for increased dream awareness</p>
+                                <div class="feature-list">
+                                    <div class="feature-item border-l-primary">
+                                        <div>
+                                            <h4 class="mb-sm">🌙 Master Reality Checks</h4>
+                                            <p class="text-secondary text-sm">Perform 10 reality checks daily for increased dream awareness</p>
+                                        </div>
                                     </div>
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; border-left: 4px solid var(--success-color);">
-                                        <h4 style="margin-bottom: 8px;">🎭 Practice Dream Control</h4>
-                                        <p style="color: var(--text-secondary); font-size: 14px;">Learn to control dream elements like flying or changing scenery</p>
+                                    <div class="feature-item border-l-success">
+                                        <div>
+                                            <h4 class="mb-sm">🎭 Practice Dream Control</h4>
+                                            <p class="text-secondary text-sm">Learn to control dream elements like flying or changing scenery</p>
+                                        </div>
                                     </div>
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; border-left: 4px solid var(--warning-color);">
-                                        <h4 style="margin-bottom: 8px;">🔍 Identify Personal Dream Signs</h4>
-                                        <p style="color: var(--text-secondary); font-size: 14px;">Track recurring elements that could trigger lucidity</p>
+                                    <div class="feature-item border-l-warning">
+                                        <div>
+                                            <h4 class="mb-sm">🔍 Identify Personal Dream Signs</h4>
+                                            <p class="text-secondary text-sm">Track recurring elements that could trigger lucidity</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3049,17 +3113,17 @@ GNU Affero General Public License for more details.
                     } else if (tabId === 'statsTab') {
                         tabPanel.innerHTML = `
                             <div class="stats-grid">
-                                <div class="stats-card">
+                                <div class="stats-card text-center">
                                     <div class="stats-number">47</div>
                                     <div class="stats-label">Total Dreams</div>
                                     <div class="stats-detail">Recorded since you started</div>
                                 </div>
-                                <div class="stats-card">
+                                <div class="stats-card text-center">
                                     <div class="stats-number">12</div>
                                     <div class="stats-label">Lucid Dreams</div>
                                     <div class="stats-detail">25.5% of all dreams</div>
                                 </div>
-                                <div class="stats-card">
+                                <div class="stats-card text-center">
                                     <div class="stats-number">8</div>
                                     <div class="stats-label">Voice Notes</div>
                                     <div class="stats-detail">3/5 storage slots used</div>
@@ -3070,11 +3134,11 @@ GNU Affero General Public License for more details.
                         tabPanel.innerHTML = `
                             <div class="settings-section">
                                 <h3>💡 Dream Enhancement Tips</h3>
-                                <div style="display: grid; gap: 20px;">
-                                    <div style="background: var(--bg-elevated); padding: 20px; border-radius: 12px; border: 2px solid var(--border-color);">
-                                        <h4 style="color: var(--primary-color); margin-bottom: 15px;">🌟 Today's Tip: Reality Checks</h4>
-                                        <p style="margin-bottom: 15px;">Perform reality checks throughout the day by looking at your hands, checking clocks, or reading text twice. This habit will carry into your dreams and trigger lucidity!</p>
-                                        <div style="background: var(--bg-light); padding: 12px; border-radius: 6px; font-size: 14px; color: var(--text-secondary);">
+                                <div class="grid-1">
+                                    <div class="card-elevated card-lg">
+                                        <h4 class="status-primary mb-md">🌟 Today's Tip: Reality Checks</h4>
+                                        <p class="mb-md line-height-relaxed">Perform reality checks throughout the day by looking at your hands, checking clocks, or reading text twice. This habit will carry into your dreams and trigger lucidity!</p>
+                                        <div class="card-sm text-sm text-secondary">
                                             💡 <strong>Pro Tip:</strong> Set hourly phone reminders to do reality checks until it becomes automatic.
                                         </div>
                                     </div>
@@ -3083,22 +3147,22 @@ GNU Affero General Public License for more details.
                             
                             <div class="settings-section">
                                 <h3>📚 Lucid Dreaming Techniques</h3>
-                                <div class="stats-grid">
-                                    <div class="stats-card" style="text-align: left;">
-                                        <h4 style="color: var(--success-color); margin-bottom: 10px;">🔄 MILD Technique</h4>
-                                        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                                <div class="grid-auto">
+                                    <div class="stats-card text-left">
+                                        <h4 class="status-success mb-sm">🔄 MILD Technique</h4>
+                                        <p class="text-sm text-secondary line-height-relaxed">
                                             <strong>Mnemonic Induction:</strong> As you fall asleep, repeat "Next time I'm dreaming, I'll remember I'm dreaming" while visualizing becoming lucid.
                                         </p>
                                     </div>
-                                    <div class="stats-card" style="text-align: left;">
-                                        <h4 style="color: var(--warning-color); margin-bottom: 10px;">⏰ WBTB Method</h4>
-                                        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                                    <div class="stats-card text-left">
+                                        <h4 class="status-warning mb-sm">⏰ WBTB Method</h4>
+                                        <p class="text-sm text-secondary line-height-relaxed">
                                             <strong>Wake-Back-to-Bed:</strong> Wake up 4-6 hours after sleep, stay awake for 20-30 minutes thinking about lucid dreaming, then return to sleep.
                                         </p>
                                     </div>
-                                    <div class="stats-card" style="text-align: left;">
-                                        <h4 style="color: var(--info-color); margin-bottom: 10px;">✋ Reality Checks</h4>
-                                        <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                                    <div class="stats-card text-left">
+                                        <h4 class="status-info mb-sm">✋ Reality Checks</h4>
+                                        <p class="text-sm text-secondary line-height-relaxed">
                                             <strong>Daily Habit:</strong> Check your hands, read text twice, or look at digital clocks. In dreams, these often appear distorted.
                                         </p>
                                     </div>
@@ -3107,26 +3171,26 @@ GNU Affero General Public License for more details.
                             
                             <div class="settings-section">
                                 <h3>🧘 Sleep Optimization</h3>
-                                <div style="display: grid; gap: 15px;">
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
-                                        <div style="font-size: 2em;">🛏️</div>
+                                <div class="feature-list">
+                                    <div class="feature-item">
+                                        <div class="icon-lg">🛏️</div>
                                         <div>
-                                            <h4 style="margin-bottom: 5px;">Sleep Schedule</h4>
-                                            <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">Maintain consistent sleep and wake times to improve REM sleep quality and dream recall.</p>
+                                            <h4 class="mb-sm">Sleep Schedule</h4>
+                                            <p class="text-secondary text-sm">Maintain consistent sleep and wake times to improve REM sleep quality and dream recall.</p>
                                         </div>
                                     </div>
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
-                                        <div style="font-size: 2em;">📱</div>
+                                    <div class="feature-item">
+                                        <div class="icon-lg">📱</div>
                                         <div>
-                                            <h4 style="margin-bottom: 5px;">Screen Time</h4>
-                                            <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">Avoid screens 1 hour before bed. Blue light can disrupt melatonin production and dream intensity.</p>
+                                            <h4 class="mb-sm">Screen Time</h4>
+                                            <p class="text-secondary text-sm">Avoid screens 1 hour before bed. Blue light can disrupt melatonin production and dream intensity.</p>
                                         </div>
                                     </div>
-                                    <div style="background: var(--bg-light); padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
-                                        <div style="font-size: 2em;">🍃</div>
+                                    <div class="feature-item">
+                                        <div class="icon-lg">🍃</div>
                                         <div>
-                                            <h4 style="margin-bottom: 5px;">Dream Herbs</h4>
-                                            <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">Consider natural supplements like mugwort or galantamine (research first and consult healthcare providers).</p>
+                                            <h4 class="mb-sm">Dream Herbs</h4>
+                                            <p class="text-secondary text-sm">Consider natural supplements like mugwort or galantamine (research first and consult healthcare providers).</p>
                                         </div>
                                     </div>
                                 </div>
@@ -3134,16 +3198,16 @@ GNU Affero General Public License for more details.
                             
                             <div class="settings-section">
                                 <h3>⚠️ Important Reminders</h3>
-                                <div style="background: var(--bg-elevated); border: 2px solid var(--border-dark); padding: 15px; border-radius: 8px;">
-                                    <p style="color: var(--text-secondary); margin: 0; font-weight: 600;">
+                                <div class="card-elevated card-md">
+                                    <p class="text-secondary font-semibold">
                                         🔬 <strong>Scientific Approach:</strong> Lucid dreaming techniques work best with consistency and patience. Results typically take 2-4 weeks of regular practice.
                                     </p>
                                 </div>
                             </div>
                             
                             <div class="settings-section">
-                                <div style="background: var(--bg-subtle); border: 2px solid var(--border-color); padding: 20px; border-radius: 8px; text-align: center;">
-                                    <p style="color: var(--text-primary); margin: 0; font-size: 14px; line-height: 1.6;">
+                                <div class="card card-lg text-center">
+                                    <p class="text-primary text-sm line-height-loose">
                                         <strong>Disclaimer:</strong> This application is for entertainment and personal journaling purposes only. 
                                         It is not intended to provide medical, psychological, or therapeutic advice. 
                                         If you have concerns about your sleep, dreams, or mental health, please consult a qualified healthcare professional.
@@ -4279,15 +4343,7 @@ GNU Affero General Public License for more details.
                     const container = document.querySelector('.main-content');
                     if (container) {
                         const msg = document.createElement('div');
-                        msg.style.cssText = `
-                            background: var(--notification-warning-bg);
-                            color: var(--warning-color);
-                            padding: 15px;
-                            border-radius: var(--border-radius);
-                            margin-bottom: 20px;
-                            font-weight: var(--font-weight-semibold);
-                            text-align: center;
-                        `;
+                        msg.className = 'message-warning';
                         msg.innerHTML = `
                             <strong>Transcription Tip:</strong> For automatic transcription, speak clearly during recording. 
                             <br>Transcription works best with clear speech in quiet environments.
@@ -5940,18 +5996,10 @@ GNU Affero General Public License for more details.
                     const container = document.querySelector('.voice-recording-section');
                     if (container) {
                         const successMsg = document.createElement('div');
-                        successMsg.style.cssText = `
-                            background: var(--notification-success-bg);
-                            color: var(--success-color);
-                            padding: 15px;
-                            border-radius: var(--border-radius);
-                            margin-top: 15px;
-                            text-align: center;
-                            font-weight: var(--font-weight-semibold);
-                        `;
+                        successMsg.className = 'message-success mt-md';
                         successMsg.innerHTML = `
                             Voice note saved with transcription! (${formatDuration(duration)})<br>
-                            <button data-action="create-from-transcription" data-voice-note-id="${voiceNote.id}" class="btn btn-primary" style="margin-top: 10px; font-size: 14px;">
+                            <button data-action="create-from-transcription" data-voice-note-id="${voiceNote.id}" class="btn btn-primary btn-small mt-sm">
                                 📝 Create Dream Entry
                             </button>
                         `;
@@ -6013,7 +6061,7 @@ GNU Affero General Public License for more details.
                 }
                 
                 // Show warning if at capacity
-                                        let warningHTML = '';
+                let warningHTML = '';
                 if (voiceNotes.length >= CONSTANTS.VOICE_STORAGE_LIMIT) {
                     warningHTML = `
                         <div class="voice-full-warning">
@@ -6042,20 +6090,16 @@ GNU Affero General Public License for more details.
                         metaItems.push({ value: transcriptionIndicator });
                     }
                     
-                    // Create control buttons
+                    // Create control buttons using utility classes
                     const controlButtons = [
-                        createActionButton('play-voice', note.id, '▶️ Play', 'voice-btn play', { id: `play-btn-${note.id}` }),
-                        createActionButton('transcribe-voice', note.id, 
-                            hasTranscription ? '📝 Use as Dream' : '📝 Transcribe & Create Dream', 
-                            'voice-btn transcribe', 
-                            { title: hasTranscription ? 'Create a dream entry from this transcription' : 'Transcribe the audio and create a dream entry' }
-                        ),
-                        createActionButton('download-voice', note.id, '⬇️ Download', 'voice-btn download'),
-                        createActionButton('delete-voice', note.id, '🗑️ Delete', 'voice-btn delete')
+                        `<button data-action="play-voice" data-voice-note-id="${escapeAttr(note.id)}" id="play-btn-${escapeAttr(note.id)}" class="voice-btn-base voice-btn-play">▶️ Play</button>`,
+                        `<button data-action="transcribe-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-transcribe" title="${hasTranscription ? 'Create a dream entry from this transcription' : 'Transcribe the audio and create a dream entry'}">${hasTranscription ? '📝 Use as Dream' : '📝 Transcribe & Create Dream'}</button>`,
+                        `<button data-action="download-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-download">⬇️ Download</button>`,
+                        `<button data-action="delete-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`
                     ].join('');
                     
                     return `
-                        <div class="voice-note" id="voice-note-${escapeAttr(note.id)}">
+                        <div class="voice-note-container" id="voice-note-${escapeAttr(note.id)}">
                             <div class="voice-note-info">
                                 <div class="voice-note-title">${escapeHtml(note.title)}</div>
                                 <div class="voice-note-meta">${createMetaDisplay(metaItems)}</div>
@@ -6336,7 +6380,7 @@ GNU Affero General Public License for more details.
             // Find and replace delete button with confirm button
             const deleteBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="delete-voice"]`);
             if (deleteBtn) {
-                deleteBtn.outerHTML = createActionButton('confirm-delete-voice', voiceNoteId, 'Confirm Delete', 'voice-btn delete', { style: 'animation: pulse 0.5s ease-in-out;' });
+                deleteBtn.outerHTML = `<button data-action="confirm-delete-voice" data-voice-note-id="${voiceNoteId}" class="voice-btn-base voice-btn-delete" style="animation: pulse 0.5s ease-in-out;">Confirm Delete</button>`;
             }
             
             // Set timeout to revert after specified time
@@ -6407,7 +6451,7 @@ GNU Affero General Public License for more details.
                 // Replace confirm button with original delete button
                 const confirmBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="confirm-delete-voice"]`);
                 if (confirmBtn) {
-                    confirmBtn.outerHTML = createActionButton('delete-voice', voiceNoteId, '🗑️ Delete', 'voice-btn delete');
+                    confirmBtn.outerHTML = `<button data-action="delete-voice" data-voice-note-id="${voiceNoteId}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`;
                 }
             }
         }
@@ -6418,16 +6462,7 @@ GNU Affero General Public License for more details.
         function showStorageWarning() {
             const warning = document.createElement('div');
             warning.id = 'storageWarning';
-            warning.style.cssText = `
-                background: var(--notification-warning-bg);
-                border: 2px solid var(--warning-color);
-                color: var(--warning-color);
-                padding: 15px;
-                margin: 20px;
-                border-radius: var(--border-radius);
-                text-align: center;
-                font-weight: var(--font-weight-semibold);
-            `;
+            warning.className = 'message-warning mb-lg mx-lg';
             warning.innerHTML = `
                 ⚠️ <strong>Storage Warning:</strong> Your dreams are stored temporarily in memory only. 
                 <br>They will be lost when you close this tab. Please export your dreams regularly!
@@ -6820,6 +6855,7 @@ GNU Affero General Public License for more details.
             
             if (element) {
                 element.textContent = message;
+                element.className = `notification-message ${type}`;
                 element.style.display = 'block';
                 
                 // Auto-hide success messages after duration
@@ -7161,11 +7197,11 @@ GNU Affero General Public License for more details.
             // Show success message in the banner briefly
             const warningBanner = document.getElementById('timerWarning');
             warningBanner.innerHTML = '✅ PIN reset timer has been cancelled.';
-            warningBanner.style.background = 'var(--success-color)';
+            warningBanner.className = 'timer-warning active message-success';
             
             setTimeout(() => {
                 warningBanner.classList.remove('active');
-                warningBanner.style.background = 'var(--error-color)'; // Reset to red for future use
+                warningBanner.className = 'timer-warning'; // Reset to original class
             }, 3000);
         }
 
@@ -7231,15 +7267,7 @@ GNU Affero General Public License for more details.
             const container = document.querySelector('.main-content');
             if (container) {
                 const successMsg = document.createElement('div');
-                successMsg.style.cssText = `
-                    background: var(--notification-success-bg);
-                    color: var(--success-color);
-                    padding: 15px;
-                    border-radius: var(--border-radius);
-                    margin-bottom: 20px;
-                    font-weight: var(--font-weight-semibold);
-                    text-align: center;
-                `;
+                successMsg.className = 'message-success';
                 successMsg.textContent = 'Recovery complete! You can now set a new PIN from the security controls if desired.';
                 container.insertBefore(successMsg, container.firstChild);
                 
@@ -7613,7 +7641,7 @@ GNU Affero General Public License for more details.
                         <p class="mb-sm line-height-relaxed">
                             This will start a 72-hour countdown. After the timer expires, your PIN will be automatically removed.
                         </p>
-                        <p style="margin: 0; font-weight: 600;">
+                        <p class="font-semibold" style="margin: 0;">
                             Your dreams will remain safe and will not be deleted.
                         </p>
                     </div>
@@ -7940,15 +7968,7 @@ GNU Affero General Public License for more details.
                 const container = document.querySelector('.main-content');
                 if (container) {
                     const msg = document.createElement('div');
-                    msg.style.cssText = `
-                        background: var(--notification-info-bg);
-                        color: var(--info-color);
-                        padding: 15px;
-                        border-radius: var(--border-radius);
-                        margin-bottom: 20px;
-                        font-weight: var(--font-weight-semibold);
-                        text-align: center;
-                    `;
+                    msg.className = 'message-info';
                     msg.textContent = 'First, set up a PIN to protect your dreams, then you can lock your journal.';
                     container.insertBefore(msg, container.firstChild);
                     
@@ -8010,13 +8030,9 @@ GNU Affero General Public License for more details.
             
             if (!content) {
                 // Show error message inline instead of alert
-                                    contentElement.style.borderColor = 'var(--error-color)';
+                contentElement.style.borderColor = 'var(--error-color)';
                 const errorMsg = document.createElement('div');
-                errorMsg.style.cssText = `
-                    color: #dc2626;
-                    font-size: 14px;
-                    margin-top: 5px;
-                `;
+                errorMsg.className = 'message-error text-sm mt-sm';
                 errorMsg.textContent = 'Please enter a dream description before saving.';
                 contentElement.parentElement.appendChild(errorMsg);
                 
@@ -8424,7 +8440,7 @@ GNU Affero General Public License for more details.
                 }
                 
                 // Replace with editable inputs
-                // entryElement.classList.add('edit-mode');
+                entryElement.classList.add('edit-mode');
                 entryElement.classList.add('inline-edit-form'); // Updated to use compact inline edit style
                 
                 const safeDreamId = escapeAttr(dreamId.toString());
@@ -8517,12 +8533,7 @@ GNU Affero General Public License for more details.
                     const existingError = contentField.parentElement.querySelector('.edit-error');
                     if (!existingError) {
                         const errorMsg = document.createElement('div');
-                        errorMsg.className = 'edit-error';
-                        errorMsg.style.cssText = `
-                            color: var(--error-color);
-                            font-size: 14px;
-                            margin-top: 5px;
-                        `;
+                        errorMsg.className = 'edit-error message-error text-sm mt-sm';
                         errorMsg.textContent = 'Dream description cannot be empty.';
                         contentField.parentElement.appendChild(errorMsg);
                     }
@@ -9159,15 +9170,7 @@ GNU Affero General Public License for more details.
                     const container = document.querySelector('.main-content');
                     if (container) {
                         const msg = document.createElement('div');
-                        msg.style.cssText = `
-                            background: var(--notification-success-bg);
-                            color: var(--success-color);
-                            padding: 15px;
-                            border-radius: var(--border-radius);
-                            margin-bottom: 20px;
-                            font-weight: var(--font-weight-semibold);
-                            text-align: center;
-                        `;
+                        msg.className = importedCount > 0 ? 'message-success' : 'message-error';
                         
                         let messageText = '';
                         const fileType = encryptionEnabled || isEncryptedFile ? 'encrypted' : 'standard';
@@ -9180,8 +9183,6 @@ GNU Affero General Public License for more details.
                             messageText = `Import complete! All ${skippedCount} dreams were already in your journal.`;
                         } else {
                             messageText = 'No valid dreams found in the file.';
-                            msg.style.background = '#fee2e2';
-                            msg.style.color = '#dc2626';
                         }
                         
                         msg.textContent = messageText;
@@ -9209,15 +9210,7 @@ GNU Affero General Public License for more details.
                 const container = document.querySelector('.main-content');
                 if (container) {
                     const msg = document.createElement('div');
-                    msg.style.cssText = `
-                        background: var(--notification-error-bg);
-                        color: var(--error-color);
-                        padding: 15px;
-                        border-radius: var(--border-radius);
-                        margin-bottom: 20px;
-                        font-weight: var(--font-weight-semibold);
-                        text-align: center;
-                    `;
+                    msg.className = 'message-error';
                     msg.textContent = 'Import failed: ' + error.message;
                     container.insertBefore(msg, container.firstChild);
                     
@@ -9406,16 +9399,12 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
                 // Show upgrade notice for very old browsers
                 const body = document.body;
                 const notice = document.createElement('div');
+                notice.className = 'message-error';
                 notice.style.cssText = `
                     position: fixed;
                     top: 0;
                     left: 0;
                     right: 0;
-                    background: #dc2626;
-                    color: white;
-                    padding: 15px;
-                    text-align: center;
-                    font-weight: 600;
                     z-index: 9999;
                 `;
                 notice.innerHTML = '⚠️ Your browser is outdated and may not display themes correctly. Please update to a modern browser.';
@@ -9500,16 +9489,8 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
                         const container = document.querySelector('.main-content');
                         if (container) {
                             const msg = document.createElement('div');
-                            msg.style.cssText = `
-                                background: #e0f2fe;
-                                color: #0284c7;
-                                padding: 15px;
-                                border-radius: 8px;
-                                margin-bottom: 20px;
-                                font-weight: 600;
-                                text-align: center;
-                            `;
-                            msg.textContent = 'Your PIN reset timer has expired. The PIN has been removed. You can set a new one if desired.';
+                            msg.className = 'message-info';
+                            msg.textContent = 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.';
                             container.insertBefore(msg, container.firstChild);
                             
                             setTimeout(() => {
@@ -9775,15 +9756,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
                 const voiceSection = document.querySelector('.voice-recording-section');
                 if (voiceSection && voiceCapabilities.browser.isSafariMobile) {
                     const helpMsg = document.createElement('div');
-                    helpMsg.style.cssText = `
-                        background: var(--notification-error-bg);
-                        color: var(--error-color);
-                        padding: 15px;
-                        border-radius: var(--border-radius);
-                        margin-top: 15px;
-                        font-weight: var(--font-weight-semibold);
-                        text-align: center;
-                    `;
+                    helpMsg.className = 'message-error mt-md';
                     helpMsg.innerHTML = `
                         <strong>🍎 Safari iOS Limitation</strong><br>
                         Safari iOS has limited voice recording support. For voice features, try:<br>
@@ -9811,15 +9784,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
                 const voiceSection = document.querySelector('.voice-recording-section');
                 if (voiceSection && voiceCapabilities.browser.isFirefox) {
                     const helpMsg = document.createElement('div');
-                    helpMsg.style.cssText = `
-                        background: var(--notification-warning-bg);
-                        color: var(--warning-color);
-                        padding: 15px;
-                        border-radius: var(--border-radius);
-                        margin-top: 15px;
-                        font-weight: var(--font-weight-semibold);
-                        text-align: center;
-                    `;
+                    helpMsg.className = 'message-warning mt-md';
                     helpMsg.innerHTML = `
                         <strong>🦊 Firefox Note</strong><br>
                         Voice recording works great! Transcription isn't supported in Firefox yet.<br>
