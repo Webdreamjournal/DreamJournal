@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.5 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.6 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -754,7 +754,7 @@ GNU Affero General Public License for more details.
         
         /* ==== Inline edit form style ==== */
         .inline-edit-form {
-            padding: 4px !important; /* Minimal container padding */
+            padding: 15px !important;
             margin: 0;
             background: transparent;
             border: 1px solid var(--border-color);
@@ -767,21 +767,52 @@ GNU Affero General Public License for more details.
         }
         
         .inline-edit-form .form-group label {
+            display: block !important;
             margin-bottom: 4px !important;
             font-size: 14px !important;
+            font-weight: var(--font-weight-semibold) !important;
         }
         
         .inline-edit-form .form-control {
-            padding: 6px 8px !important; /* Compact padding for inline editing */
+            padding: 8px 10px !important;
             font-size: 14px !important;
+            width: 100% !important;
+            border: 2px solid var(--border-color) !important;
+            border-radius: var(--border-radius) !important;
+            background: var(--bg-input) !important;
+            color: var(--text-primary) !important;
+            font-family: inherit !important;
+            transition: border-color 0.3s !important;
+        }
+
+        .inline-edit-form .form-control:focus {
+            outline: none !important;
+            border-color: var(--border-focus) !important;
+        }
+
+        .inline-edit-form .entry-title-input {
+            font-size: 1.2em !important;
+            font-weight: 600 !important;
+            margin-bottom: 10px;
+        }
+
+        .inline-edit-form textarea.form-control {
+            min-height: 100px !important;
+            resize: vertical !important;
+            margin-bottom: 10px;
         }
         
         .inline-edit-form .lucid-checkbox {
             margin-bottom: 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
         }
         
         .inline-edit-form .edit-actions {
-            margin-top: 12px;
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
         }
         .entry-form h3 {
             margin-bottom: 15px;
@@ -988,64 +1019,8 @@ GNU Affero General Public License for more details.
             background: var(--notification-warning-bg);
             border-color: var(--warning-color) !important;
         }
-        .edit-mode .entry-title-input,
-        .edit-mode .entry-content-input {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        .edit-mode .entry-title-input {
-            font-size: 1.2em;
-            font-weight: 600;
-            /* Use inherited padding from .inline-edit-form .form-control */
-            border: 2px solid var(--border-color) !important;
-            border-radius: var(--border-radius) !important;
-            background: var(--bg-input) !important;
-            color: var(--text-primary) !important;
-        }
-        /* Edit mode should match main form spacing exactly */
-        .edit-mode .form-group {
-            margin-bottom: 20px !important;
-        }
-        .edit-mode .form-group label {
-            display: block !important;
-            margin-bottom: 8px !important;
-            font-weight: var(--font-weight-semibold) !important;
-            color: var(--text-primary) !important;
-            font-size: inherit !important;
-        }
-        .edit-mode .form-control {
-            width: 100% !important;
-            /* Padding handled by .inline-edit-form .form-control rule */
-            border: 2px solid var(--border-color) !important;
-            border-radius: var(--border-radius) !important;
-            font-size: 16px !important;
-            transition: border-color 0.3s !important;
-            font-family: inherit !important;
-            background: var(--bg-input) !important;
-            color: var(--text-primary) !important;
-        }
-        .edit-mode .form-control:focus {
-            outline: none !important;
-            border-color: var(--border-focus) !important;
-        }
-        .edit-mode .lucid-checkbox {
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            margin-bottom: 20px !important;
-        }
-        .edit-mode textarea.form-control {
-            min-height: 120px !important;
-            resize: vertical !important;
-        }
-        .edit-mode .entry-content-input {
-            margin-bottom: 10px !important;
-        }
-        .edit-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
+        /* STYLES FOR .edit-mode HAVE BEEN REMOVED AND CONSOLIDATED INTO .inline-edit-form */
+        /* This rule is now handled by .inline-edit-form .edit-actions */
         .entry-content {
             color: var(--text-primary);
             line-height: 1.7;
@@ -2513,7 +2488,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.5 | Not a substitute for professional medical advice
+                Dream Journal v1.32.6 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
