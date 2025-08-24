@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.6 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.8 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -753,7 +753,7 @@ GNU Affero General Public License for more details.
         }
         
         /* ==== Inline edit form style ==== */
-        .inline-edit-form {
+        .entry.inline-edit-form {
             padding: 15px !important;
             margin: 0;
             background: transparent;
@@ -762,18 +762,18 @@ GNU Affero General Public License for more details.
         }
         
         /* Compact spacing for inline edit forms */
-        .inline-edit-form .form-group {
+        .entry.inline-edit-form .form-group {
             margin-bottom: 12px !important;
         }
         
-        .inline-edit-form .form-group label {
+        .entry.inline-edit-form .form-group label {
             display: block !important;
             margin-bottom: 4px !important;
             font-size: 14px !important;
             font-weight: var(--font-weight-semibold) !important;
         }
         
-        .inline-edit-form .form-control {
+        .entry.inline-edit-form .form-control {
             padding: 8px 10px !important;
             font-size: 14px !important;
             width: 100% !important;
@@ -785,31 +785,31 @@ GNU Affero General Public License for more details.
             transition: border-color 0.3s !important;
         }
 
-        .inline-edit-form .form-control:focus {
+        .entry.inline-edit-form .form-control:focus {
             outline: none !important;
             border-color: var(--border-focus) !important;
         }
 
-        .inline-edit-form .entry-title-input {
+        .entry.inline-edit-form .entry-title-input {
             font-size: 1.2em !important;
             font-weight: 600 !important;
             margin-bottom: 10px;
         }
 
-        .inline-edit-form textarea.form-control {
+        .entry.inline-edit-form textarea.form-control {
             min-height: 100px !important;
             resize: vertical !important;
             margin-bottom: 10px;
         }
         
-        .inline-edit-form .lucid-checkbox {
+        .entry.inline-edit-form .lucid-checkbox {
             margin-bottom: 12px !important;
             display: flex !important;
             align-items: center !important;
             gap: 8px !important;
         }
         
-        .inline-edit-form .edit-actions {
+        .entry.inline-edit-form .edit-actions {
             margin-top: 15px;
             display: flex;
             gap: 10px;
@@ -2488,7 +2488,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.6 | Not a substitute for professional medical advice
+                Dream Journal v1.32.8 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -8128,7 +8128,6 @@ GNU Affero General Public License for more details.
                 }
                 
                 // Replace with editable inputs
-                entryElement.classList.add('edit-mode');
                 entryElement.classList.add('inline-edit-form'); // Updated to use compact inline edit style
                 
                 const safeDreamId = escapeAttr(dreamId.toString());
