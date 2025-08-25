@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.11 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.13 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2239,7 +2239,7 @@ GNU Affero General Public License for more details.
 <body>
     <!-- MAIN APPLICATION STRUCTURE -->
     
-    <div class="container">
+    <div class="container" style="visibility: hidden;">
         <div class="timer-warning" id="timerWarning">
             ⚠️ <strong>PIN RESET TIMER ACTIVE</strong> - Someone has initiated a PIN reset!
             <span id="timerWarningTime"></span>
@@ -2428,7 +2428,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.11 | Not a substitute for professional medical advice
+                Dream Journal v1.32.13 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -9475,6 +9475,9 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
                     voiceSection.appendChild(helpMsg);
                 }
             }
+
+            // Finally, make the container visible now that setup is complete
+            document.querySelector('.container').style.visibility = 'visible';
         });
     </script>
 </body>
