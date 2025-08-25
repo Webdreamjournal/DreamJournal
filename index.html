@@ -7321,6 +7321,61 @@ GNU Affero General Public License for more details.
         
         // Return to main lock screen
         function returnToLockScreen() {
+            const lockTab = document.getElementById('lockTab');
+            if (!lockTab) {
+                // Fallback in case tab doesn't exist, though it should
+                switchAppTab('lock');
+                return;
+            }
+
+            // Check if there's an active timer to show instructional text
+            const resetTime = getResetTime();
+            let timerInstructions = '';
+
+            if (resetTime) {
+                const remainingTime = resetTime - Date.now();
+                if (remainingTime > 0) {
+                    const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
+                    const days = Math.ceil(hours / 24);
+
+                    let timeDisplay = '';
+                    if (days > 1) {
+                        timeDisplay = `${days} days`;
+                    } else if (hours > 1) {
+                        timeDisplay = `${hours} hours`;
+                    } else {
+                        timeDisplay = 'Less than 1 hour';
+                    }
+
+                    timerInstructions = `
+                        <div class="message-base message-info mb-md text-sm">
+                            ⏰ Recovery timer active (${timeDisplay} remaining)<br>
+                            <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
+                        </div>
+                    `;
+                }
+            }
+
+            lockTab.innerHTML = `
+                <div class="flex-center" style="min-height: 400px;">
+                    <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                        <div class="text-4xl mb-lg">🔒</div>
+                        <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
+                        <p class="text-secondary mb-lg line-height-relaxed">
+                            Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
+                        </p>
+                        ${timerInstructions}
+                        <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
+                        <div class="flex-center gap-sm flex-wrap">
+                            <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
+                            <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
+                        </div>
+                        <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
+                    </div>
+                </div>
+            `;
+
+            // Ensure the tab is active and focus is set
             switchAppTab('lock');
         }
         
