@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.8 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.9 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -744,85 +744,6 @@ GNU Affero General Public License for more details.
         
         /* FORM COMPONENTS & INTERACTIVE ELEMENTS */
         
-        .entry-form {
-            background: var(--bg-light);
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border: 2px solid var(--border-color);
-        }
-        
-        /* ==== Inline edit form style ==== */
-        .entry.inline-edit-form {
-            padding: 15px !important;
-            margin: 0;
-            background: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-        }
-        
-        /* Compact spacing for inline edit forms */
-        .entry.inline-edit-form .entry-header {
-            margin-bottom: 4px !important;
-        }
-
-        .entry.inline-edit-form .form-group {
-            margin-bottom: 4px !important;
-        }
-        
-        .entry.inline-edit-form .form-group label {
-            display: block !important;
-            margin-bottom: 4px !important;
-            font-size: 14px !important;
-            font-weight: var(--font-weight-semibold) !important;
-        }
-        
-        .entry.inline-edit-form .form-control {
-            padding: 8px 10px !important;
-            font-size: 14px !important;
-            width: 100% !important;
-            border: 2px solid var(--border-color) !important;
-            border-radius: var(--border-radius) !important;
-            background: var(--bg-input) !important;
-            color: var(--text-primary) !important;
-            font-family: inherit !important;
-            transition: border-color 0.3s !important;
-        }
-
-        .entry.inline-edit-form .form-control:focus {
-            outline: none !important;
-            border-color: var(--border-focus) !important;
-        }
-
-        .entry.inline-edit-form .entry-title-input {
-            font-size: 1.2em !important;
-            font-weight: 600 !important;
-            margin-bottom: 10px;
-        }
-
-        .entry.inline-edit-form textarea.form-control {
-            min-height: 100px !important;
-            resize: vertical !important;
-            margin-bottom: 10px;
-        }
-        
-        .entry.inline-edit-form .lucid-checkbox {
-            margin-bottom: 12px !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-        }
-        
-        .entry.inline-edit-form .edit-actions {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-        }
-        .entry-form h3 {
-            margin-bottom: 15px;
-            color: var(--text-primary);
-            font-size: 1.3em;
-        }
         .form-group {
             margin-bottom: 20px;
         }
@@ -1030,6 +951,21 @@ GNU Affero General Public License for more details.
             line-height: 1.7;
             white-space: pre-wrap;
         }
+
+        .entry-form {
+            background: var(--bg-light);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px solid var(--border-color);
+        }
+
+        .entry-form h3 {
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            font-size: 1.3em;
+        }
+
         .no-entries {
             text-align: center;
             color: var(--text-secondary);
@@ -2492,7 +2428,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.8 | Not a substitute for professional medical advice
+                Dream Journal v1.32.9 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -8109,10 +8045,7 @@ GNU Affero General Public License for more details.
                 }
                 
                 const entryElement = document.getElementById(`entry-${dreamId}`);
-                const titleElement = document.getElementById(`title-${dreamId}`);
-                const contentElement = document.getElementById(`content-${dreamId}`);
-                
-                if (!entryElement || !titleElement || !contentElement) {
+                if (!entryElement) {
                     console.error('Required DOM elements not found for dream:', dreamId);
                     return;
                 }
@@ -8131,21 +8064,22 @@ GNU Affero General Public License for more details.
                     datetimeLocalValue = new Date().toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
                 }
                 
-                // Replace with editable inputs
-                entryElement.classList.add('inline-edit-form'); // Updated to use compact inline edit style
+                // Add a new class for the edit mode and clear existing content
+                entryElement.classList.add('entry-form', 'dream-entry-edit-mode');
+                entryElement.innerHTML = ''; // Clear the element
                 
                 const safeDreamId = escapeAttr(dreamId.toString());
-                
-                titleElement.innerHTML = `
-                    <input type="text" class="form-control entry-title-input" id="edit-title-${safeDreamId}" value="${escapeAttr(dream.title || '')}">
-                `;
-                
+                const safeTitle = escapeAttr(dream.title || '');
                 const safeEmotions = escapeAttr(dream.emotions || '');
                 const safeTags = Array.isArray(dream.tags) ? escapeAttr(dream.tags.join(', ')) : '';
                 const safeDreamSigns = Array.isArray(dream.dreamSigns) ? escapeAttr(dream.dreamSigns.join(', ')) : '';
                 const safeContent = escapeAttr(dream.content || '');
-                
-                contentElement.innerHTML = `
+
+                entryElement.innerHTML = `
+                    <div class="form-group">
+                        <label for="edit-title-${safeDreamId}">Dream Title</label>
+                        <input type="text" class="form-control" id="edit-title-${safeDreamId}" value="${safeTitle}">
+                    </div>
                     <div class="form-group">
                         <label for="edit-date-${safeDreamId}">Dream Date & Time</label>
                         <input type="datetime-local" class="form-control" value="${datetimeLocalValue}" id="edit-date-${safeDreamId}">
@@ -8159,26 +8093,28 @@ GNU Affero General Public License for more details.
                         <input type="text" class="form-control" id="edit-tags-${safeDreamId}" placeholder="e.g., family, flying, school, animals" value="${safeTags}">
                     </div>
                     <div class="form-group">
-                        <label for="edit-dreamsigns-${safeDreamId}">Dream Signs</label>
+                        <label for="edit-dreamsigns-${safeDreamId}">⚡ Dream Signs</label>
                         <input type="text" class="form-control" id="edit-dreamsigns-${safeDreamId}" placeholder="e.g., flying, text-changing, deceased-alive" value="${safeDreamSigns}">
                     </div>
                     <div class="lucid-checkbox">
                         <input type="checkbox" id="edit-lucid-${safeDreamId}" ${dream.isLucid ? 'checked' : ''}>
                         <label for="edit-lucid-${safeDreamId}">This was a lucid dream ✨</label>
                     </div>
-                    <textarea class="form-control entry-content-input" id="edit-content-${safeDreamId}">${safeContent}</textarea>
-                    <div class="edit-actions">
+                    <div class="form-group">
+                        <label for="edit-content-${safeDreamId}">Dream Description</label>
+                        <textarea class="form-control" id="edit-content-${safeDreamId}">${safeContent}</textarea>
+                    </div>
+                    <div class="edit-actions" style="margin-top: 15px; display: flex; gap: 10px;">
                         <button data-action="save-edit" data-dream-id="${safeDreamId}" class="btn btn-primary btn-small">Save Changes</button>
                         <button data-action="cancel-edit" data-dream-id="${safeDreamId}" class="btn btn-secondary btn-small">Cancel</button>
                     </div>
                 `;
                 
-                // Focus on the content textarea after DOM is updated
+                // Focus on the title input after DOM is updated
                 setTimeout(() => {
-                    const textareaElement = document.getElementById(`edit-content-${safeDreamId}`);
-                    if (textareaElement) {
-                        textareaElement.focus();
-                        textareaElement.setSelectionRange(textareaElement.value.length, textareaElement.value.length);
+                    const titleInputElement = document.getElementById(`edit-title-${safeDreamId}`);
+                    if (titleInputElement) {
+                        titleInputElement.focus();
                     }
                 }, CONSTANTS.FOCUS_DELAY_MS);
                 
