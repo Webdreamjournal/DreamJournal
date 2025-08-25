@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.9 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.10 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -847,8 +847,8 @@ GNU Affero General Public License for more details.
         
         /* Dark Theme Lucid Dreams - More prominent override */
         [data-theme='dark'] .entry.lucid {
-            border-color: var(--success-color) !important;
-            background: linear-gradient(135deg, #0f2e1a, var(--bg-secondary)) !important;
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #0f2e1a, var(--bg-secondary));
             position: relative;
         }
         
@@ -875,9 +875,9 @@ GNU Affero General Public License for more details.
         
         /* Dark Theme Lucid Hover - More prominent */
         [data-theme='dark'] .entry.lucid:hover {
-            border-color: var(--success-hover) !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
-            background: linear-gradient(135deg, #1a3d28, var(--bg-secondary)) !important;
+            border-color: var(--success-hover);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, #1a3d28, var(--bg-secondary));
         }
         .entry-header {
             display: flex;
@@ -942,7 +942,7 @@ GNU Affero General Public License for more details.
         }
         .delete-pending {
             background: var(--notification-warning-bg);
-            border-color: var(--warning-color) !important;
+            border-color: var(--warning-color);
         }
         /* STYLES FOR .edit-mode HAVE BEEN REMOVED AND CONSOLIDATED INTO .inline-edit-form */
         /* This rule is now handled by .inline-edit-form .edit-actions */
@@ -1178,7 +1178,7 @@ GNU Affero General Public License for more details.
             color: #1d4ed8;
         }
         .voice-status.warning {
-            background: #fef3c7;
+            background: var(--notification-warning-bg);
             color: var(--warning-color);
         }
         .voice-status.error {
@@ -1222,8 +1222,8 @@ GNU Affero General Public License for more details.
         }
         
         .voice-note.delete-pending {
-            background: #fef3c7;
-            border-color: #f59e0b !important;
+            background: var(--notification-warning-bg);
+            border-color: var(--warning-color);
         }
         
         .voice-note-info {
@@ -1862,34 +1862,6 @@ GNU Affero General Public License for more details.
             color: var(--warning-color);
         }
         
-        /* Force dark theme colors for voice status warning */
-        [data-theme='dark'] .voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        
-        /* Target voice status within voice recording section specifically */
-        [data-theme='dark'] .voice-recording-section .voice-status.warning,
-        [data-theme='dark'] .voice-tab-content .voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        
-        /* Catch-all for any voice status warning in dark theme */
-        [data-theme='dark'] *[class*="voice-status"][class*="warning"],
-        [data-theme='dark'] div[class*="voice-status"][class*="warning"] {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        [data-theme='dark'] body #voiceStatus.voice-status.warning,
-        [data-theme='dark'] html body #voiceStatus.voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
         .voice-status.error {
             background: var(--notification-error-bg);
             color: var(--error-color);
@@ -2428,7 +2400,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.9 | Not a substitute for professional medical advice
+                Dream Journal v1.32.10 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2541,8 +2513,7 @@ GNU Affero General Public License for more details.
         const asyncMutex = {
             displayDreams: { locked: false, queue: [] },
             saveDreams: { locked: false, queue: [] },
-            voiceOperations: { locked: false, queue: [] },
-            deleteOperations: { locked: false, queue: [] }
+            voiceOperations: { locked: false, queue: [] }
         };
         
         // Generic mutex implementation
@@ -6486,17 +6457,6 @@ GNU Affero General Public License for more details.
             container.insertBefore(warning, container.children[2]);
         }
 
-        // Simple hash function for PIN (DEPRECATED - kept for migration)
-        function hashPinLegacy(pin) {
-            let hash = 0;
-            for (let i = 0; i < pin.length; i++) {
-                const char = pin.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32-bit integer
-            }
-            return hash.toString();
-        }
-
         // Secure PIN hashing using existing crypto infrastructure
         async function hashPinSecure(pin, salt = null) {
             try {
@@ -6620,6 +6580,17 @@ GNU Affero General Public License for more details.
         // Verify PIN against stored hash - UPDATED to handle both legacy and secure formats
         async function verifyPinHash(enteredPin, storedData) {
             if (!storedData) return false;
+
+            // Simple hash function for PIN (DEPRECATED - kept for migration)
+            function hashPinLegacy(pin) {
+                let hash = 0;
+                for (let i = 0; i < pin.length; i++) {
+                    const char = pin.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32-bit integer
+                }
+                return hash.toString();
+            }
             
             try {
                 if (isLegacyPinFormat(storedData)) {
@@ -7199,7 +7170,8 @@ GNU Affero General Public License for more details.
                     duration: 5000
                 });
             }
-        }
+        });
+    }
 
         // LOCK SCREEN TAB FUNCTIONS
         
@@ -7635,8 +7607,9 @@ GNU Affero General Public License for more details.
         
         // Save a new dream entry - optimized to use individual operations
         async function saveDream() {
-            const titleElement = document.getElementById('dreamTitle');
-            const contentElement = document.getElementById('dreamContent');
+            return withMutex('saveDreams', async () => {
+                const titleElement = document.getElementById('dreamTitle');
+                const contentElement = document.getElementById('dreamContent');
             const dreamDateElement = document.getElementById('dreamDate');
             const isLucidElement = document.getElementById('isLucid');
             const emotionsElement = document.getElementById('dreamEmotions');
@@ -7762,7 +7735,8 @@ GNU Affero General Public License for more details.
             
             // Refresh display
             await displayDreams();
-        }
+        });
+    }
 
         // Display dreams in the container with pagination (Refactored and Optimized)
         async function displayDreams() {
@@ -8131,8 +8105,9 @@ GNU Affero General Public License for more details.
 
         // Save dream edit - optimized to use individual update
         async function saveDreamEdit(dreamId) {
-            try {
-                const newTitleElement = document.getElementById(`edit-title-${dreamId}`);
+            return withMutex('saveDreams', async () => {
+                try {
+                    const newTitleElement = document.getElementById(`edit-title-${dreamId}`);
                 const newContentElement = document.getElementById(`edit-content-${dreamId}`);
                 const newDateElement = document.getElementById(`edit-date-${dreamId}`);
                 const newIsLucidElement = document.getElementById(`edit-lucid-${dreamId}`);
@@ -8284,7 +8259,7 @@ GNU Affero General Public License for more details.
 
         // Actually delete the dream after confirmation - optimized for IndexedDB (with mutex protection)
         async function confirmDelete(dreamId) {
-            return withMutex('deleteOperations', async () => {
+            return withMutex('saveDreams', async () => {
                 try {
                     // Clear the timeout
                     if (deleteTimeouts[dreamId]) {
@@ -8600,10 +8575,11 @@ GNU Affero General Public License for more details.
 
         // Import dreams from text file (with optional decryption)
         async function importEntries(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            return withMutex('saveDreams', async () => {
+                const file = event.target.files[0];
+                if (!file) return;
             
-            try {
+                try {
                 // Check if encryption is enabled
                 const encryptionEnabled = document.getElementById('encryptionEnabled').checked;
                 const isEncryptedFile = file.name.endsWith('.enc');
@@ -8855,7 +8831,8 @@ GNU Affero General Public License for more details.
                 // Clear the file input
                 event.target.value = '';
             }
-        }
+        });
+    }
 
         // Export dreams formatted for AI analysis
         async function exportForAIAnalysis() {
