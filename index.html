@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.13 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.14 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2428,7 +2428,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.13 | Not a substitute for professional medical advice
+                Dream Journal v1.32.14 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2892,6 +2892,7 @@ GNU Affero General Public License for more details.
             'show-remove-pin': () => showRemovePin(),
             'show-forgot-pin': () => showForgotPin(),
             'confirm-remove-pin': () => confirmRemovePin(),
+            'execute-pin-removal': () => executePinRemoval(),
             'complete-pin-removal': () => completePinRemoval(),
             'start-title-recovery': () => startTitleRecovery(),
             'verify-dream-titles': () => verifyDreamTitles(),
@@ -2901,6 +2902,7 @@ GNU Affero General Public License for more details.
             'restore-warning-banner': () => restoreWarningBanner(),
             'complete-recovery': () => completeRecovery(),
             'complete-pin-setup': () => completePinSetup(),
+            'show-set-new-pin-screen': () => showSetNewPinScreen(),
             'setup-new-pin': () => setupNewPin(),
             'confirm-new-pin': () => confirmNewPin(),
             
@@ -6767,6 +6769,29 @@ GNU Affero General Public License for more details.
             document.getElementById('pinOverlay').style.display = 'flex';
         }
 
+        // Execute PIN removal after verification
+        async function executePinRemoval() {
+            try {
+                // Remove the PIN
+                removePinHash();
+
+                const pinContainer = document.querySelector('#pinOverlay .pin-container');
+                renderPinScreen(pinContainer, {
+                    title: 'PIN Removed',
+                    icon: '✅',
+                    message: 'PIN protection has been removed. Your dreams are no longer secured.',
+                    buttons: [
+                        { text: 'Close', action: 'complete-pin-removal', class: 'btn-primary' }
+                    ]
+                });
+
+                isUnlocked = true;
+            } catch (error) {
+                console.error('Error removing PIN:', error);
+                showMessage('error', 'Error removing PIN. Please try again.');
+            }
+        }
+
         // Confirm PIN removal - UPDATED for secure hashing
         async function confirmRemovePin() {
             const enteredPin = document.getElementById('pinInput').value;
@@ -6788,20 +6813,8 @@ GNU Affero General Public License for more details.
                     return;
                 }
                 
-                // Remove the PIN
-                removePinHash();
+                await executePinRemoval();
                 
-                const pinContainer = document.querySelector('#pinOverlay .pin-container');
-                renderPinScreen(pinContainer, {
-                    title: 'PIN Removed',
-                    icon: '✅',
-                    message: 'PIN protection has been removed. Your dreams are no longer secured.',
-                    buttons: [
-                        { text: 'Close', action: 'complete-pin-removal', class: 'btn-primary' }
-                    ]
-                });
-                
-                isUnlocked = true;
             } catch (error) {
                 console.error('Error removing PIN:', error);
                 showMessage('error', 'Error removing PIN. Please try again.');
@@ -7535,15 +7548,15 @@ GNU Affero General Public License for more details.
                     return;
                 }
                 renderPinScreen(pinContainer, {
-                    title: 'Enter New PIN',
+                    title: 'Change or Remove PIN',
                     icon: '⚙️',
-                    message: 'Enter your new 4-6 digit PIN.',
-                    inputs: [ { id: 'pinInput', type: 'password', placeholder: 'New PIN (4-6 digits)', class: 'pin-input', maxLength: 6 } ],
+                    message: 'Your current PIN is correct. What would you like to do?',
                     buttons: [
-                        { text: 'Continue', action: 'setup-new-pin', class: 'btn-primary' },
+                        { text: 'Set New PIN', action: 'show-set-new-pin-screen', class: 'btn-primary' },
+                        { text: 'Remove PIN', action: 'execute-pin-removal', class: 'btn-delete' },
                         { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
                     ],
-                    feedbackContainer: true
+                    feedbackContainer: false
                 });
             } else {
                 window.tempNewPin = enteredPin;
@@ -7562,6 +7575,21 @@ GNU Affero General Public License for more details.
         }
 
         // Step 2 of change PIN: Enter new PIN
+        function showSetNewPinScreen() {
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Enter New PIN',
+                icon: '⚙️',
+                message: 'Enter your new 4-6 digit PIN.',
+                inputs: [ { id: 'pinInput', type: 'password', placeholder: 'New PIN (4-6 digits)', class: 'pin-input', maxLength: 6 } ],
+                buttons: [
+                    { text: 'Continue', action: 'setup-new-pin', class: 'btn-primary' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
+        }
+
         function setupNewPin() {
             const enteredPin = document.getElementById('pinInput').value;
             if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH || !/^\d+$/.test(enteredPin)) {
