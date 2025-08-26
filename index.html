@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.33.0 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.34.0 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2452,15 +2452,6 @@ GNU Affero General Public License for more details.
                 <input type="date" id="endDateFilter" class="filter-select" style="padding: 10px; min-width: 140px;">
             </div>
             <div class="control-row-break"></div>
-            <div class="export-import-controls">
-                <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
-                <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
-                <div class="encryption-option flex-center gap-sm">
-                    <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
-                    <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
-                </div>
-            </div>
-            <input type="file" id="importFile" class="file-input" accept=".txt,.enc">
         </div>
         <div class="main-content">
             <div class="entry-form" id="dreamFormFull">
@@ -2473,18 +2464,14 @@ GNU Affero General Public License for more details.
                     <input type="datetime-local" id="dreamDate" class="form-control">
                 </div>
                 <div class="form-group">
-                    <label for="dreamTitle">Dream Title (optional)</label>
-                    <input type="text" id="dreamTitle" class="form-control" placeholder="Give your dream a memorable title...">
-                </div>
-                <div class="form-group">
-                    <label for="dreamEmotions">Emotions Experienced</label>
+                    <label for="dreamEmotions">Emotions Experienced (optional)</label>
                     <input type="text" id="dreamEmotions" class="form-control" placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
                     <small class="small-helper">
                         Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
                     </small>
                 </div>
                 <div class="form-group">
-                    <label for="dreamTags">Tags & Themes</label>
+                    <label for="dreamTags">Tags & Themes (optional)</label>
                     <div class="tag-input-group">
                         <input type="text" id="dreamTags" class="form-control" placeholder="e.g., family, flying, school, animals (separate with commas)">
                     </div>
@@ -2493,7 +2480,7 @@ GNU Affero General Public License for more details.
                     </small>
                 </div>
                 <div class="form-group">
-                    <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers)</label>
+                    <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
                     <div class="tag-input-group">
                         <input type="text" id="dreamSigns" class="form-control" placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
                     </div>
@@ -2504,6 +2491,10 @@ GNU Affero General Public License for more details.
                 <div class="lucid-checkbox">
                     <input type="checkbox" id="isLucid">
                     <label for="isLucid">This was a lucid dream ✨</label>
+                </div>
+                <div class="form-group">
+                    <label for="dreamTitle">Dream Title (optional)</label>
+                    <input type="text" id="dreamTitle" class="form-control" placeholder="Give your dream a memorable title...">
                 </div>
                 <div class="form-group">
                     <label for="dreamContent">Dream Description</label>
@@ -2552,7 +2543,6 @@ GNU Affero General Public License for more details.
             <div class="dreams-section-header">
                 <h3>Your Dreams</h3>
                 <div class="dreams-controls">
-                    <button data-action="export-ai" class="btn btn-success">Export for AI Analysis</button>
                     <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal">🔒 Setup & Lock</button>
                 </div>
             </div>
@@ -2575,7 +2565,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.33.0 | Not a substitute for professional medical advice
+                Dream Journal v1.34.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2599,6 +2589,7 @@ GNU Affero General Public License for more details.
         </div>
     </div>
 
+    <input type="file" id="importFile" class="file-input" accept=".txt,.enc">
     <script>
         // APPLICATION CONSTANTS & CONFIGURATION
         // Application Constants - Single Source of Truth
@@ -3369,6 +3360,40 @@ GNU Affero General Public License for more details.
                                     </div>
                                     <div class="settings-controls">
                                         <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-section">
+                                <h3>💾 Data Management</h3>
+                                <div class="settings-row">
+                                    <div>
+                                        <div class="settings-label">Export/Import</div>
+                                        <div class="settings-description">Save your dreams to a file or load from a backup</div>
+                                    </div>
+                                    <div class="settings-controls export-import-controls">
+                                        <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
+                                        <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
+                                    </div>
+                                </div>
+                                <div class="settings-row">
+                                    <div>
+                                        <div class="settings-label">AI Analysis Export</div>
+                                        <div class="settings-description">Export a prompt for analysis by an AI model</div>
+                                    </div>
+                                    <div class="settings-controls">
+                                        <button data-action="export-ai" class="btn btn-success">Export for AI Analysis</button>
+                                    </div>
+                                </div>
+                                <div class="settings-row">
+                                    <div>
+                                        <div class="settings-label">Encryption</div>
+                                        <div class="settings-description">Protect your exported file with a password</div>
+                                    </div>
+                                    <div class="settings-controls">
+                                        <div class="encryption-option flex-center gap-sm">
+                                            <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
+                                            <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -6639,7 +6664,7 @@ GNU Affero General Public License for more details.
 
             let header = `
                 <div class="calendar-header">
-                    <button data-action="prev-month" class="btn btn-secondary btn-small">‹ Prev</button>
+                    <button data-action="prev-month" class="btn btn-secondary" title="Previous Month">‹</button>
                     <div class="calendar-nav">
                         <select id="monthSelect" class="filter-select" data-action="select-month">
                             ${monthNames.map((m, i) => `<option value="${i}" ${i === month ? 'selected' : ''}>${m}</option>`).join('')}
@@ -6648,7 +6673,7 @@ GNU Affero General Public License for more details.
                             ${getYearOptions(year)}
                         </select>
                     </div>
-                    <button data-action="next-month" class="btn btn-secondary btn-small">Next ›</button>
+                    <button data-action="next-month" class="btn btn-secondary" title="Next Month">›</button>
                 </div>
             `;
 
@@ -6690,7 +6715,7 @@ GNU Affero General Public License for more details.
                             <td>
                                 <div class="calendar-day ${isToday ? 'today' : ''}" data-action="go-to-date" data-date="${dateStr}">
                                     <div class="day-number">${date}</div>
-                                    ${dreamData ? `<div class="dream-indicator" title="${dreamData.count} dream(s), ${dreamData.lucid} lucid">✨ ${dreamData.count}</div>` : ''}
+                                    ${dreamData ? `<div class="dream-indicator" title="${dreamData.count} dream(s), ${dreamData.lucid} lucid">${dreamData.lucid > 0 ? '✨ ' : ''}${dreamData.count}</div>` : ''}
                                 </div>
                             </td>
                         `;
