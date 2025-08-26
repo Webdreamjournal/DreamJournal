@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.14 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.15 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2428,7 +2428,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.14 | Not a substitute for professional medical advice
+                Dream Journal v1.32.15 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -3456,10 +3456,10 @@ GNU Affero General Public License for more details.
                     if (isUnlocked) {
                         lockBtnSettings.style.display = 'inline-block';
                         lockBtnSettings.textContent = '🔒 Lock';
-                        setupBtnSettings.textContent = '⚙️ Change PIN';
+                        setupBtnSettings.textContent = '⚙️ Change/Remove PIN';
                     } else {
                         lockBtnSettings.style.display = 'none';
-                        setupBtnSettings.textContent = '⚙️ Change PIN';
+                        setupBtnSettings.textContent = '⚙️ Change/Remove PIN';
                     }
                 } else {
                     lockBtnSettings.style.display = 'none';
@@ -6740,7 +6740,7 @@ GNU Affero General Public License for more details.
             
             // Update setup button text (only exists in settings)
             if (setupBtnSettings) {
-                setupBtnSettings.textContent = isPinSetup() ? '⚙️ Change PIN' : '⚙️ Setup PIN';
+                setupBtnSettings.textContent = isPinSetup() ? '⚙️ Change/Remove PIN' : '⚙️ Setup PIN';
             }
             
             // Ensure correct app state
@@ -7513,7 +7513,7 @@ GNU Affero General Public License for more details.
             const isChangingPin = isPinSetup();
 
             renderPinScreen(pinContainer, {
-                title: isChangingPin ? 'Change PIN' : 'Setup PIN',
+                title: isChangingPin ? 'Change/Remove PIN' : 'Setup PIN',
                 icon: '⚙️',
                 message: isChangingPin ? 'Enter your current PIN to change it.' : 'Create a 4-6 digit PIN to protect your dreams.',
                 inputs: [
