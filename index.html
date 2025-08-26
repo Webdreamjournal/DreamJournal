@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.15 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.16 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -628,7 +628,7 @@ GNU Affero General Public License for more details.
         }
         
         /* Button Colors - Combined selectors */
-        .btn-primary, .btn-secondary, .btn-success {
+        .btn-primary, .btn-success {
             color: white;
         }
         
@@ -642,12 +642,16 @@ GNU Affero General Public License for more details.
         
         .btn-secondary {
             background: var(--secondary-color);
+            color: var(--text-primary);
         }
         .btn-secondary:hover {
             background: var(--secondary-hover);
         }
         
         /* Dark theme specific button hover fixes */
+        [data-theme='dark'] .btn-secondary {
+            color: var(--text-inverse);
+        }
         [data-theme='dark'] .btn-secondary:hover {
             background: #64748b;
         }
@@ -2428,7 +2432,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.15 | Not a substitute for professional medical advice
+                Dream Journal v1.32.16 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
