@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS v1.32.16 === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.33.0 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -1585,6 +1585,143 @@ GNU Affero General Public License for more details.
             color: var(--text-tertiary);
             font-size: 14px;
         }
+
+        /* Pie Chart Styles */
+        .pie-chart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .pie-chart {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pie-chart-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: var(--bg-secondary);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            border: 2px solid var(--border-color);
+        }
+
+        .pie-chart-total {
+            font-size: 1.5em;
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+        }
+
+        .pie-chart-label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+
+        .pie-chart-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: var(--font-weight-medium);
+            color: var(--text-secondary);
+        }
+
+        .legend-color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        /* Calendar Styles */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .calendar-grid {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .calendar-grid th {
+            text-align: center;
+            padding: 10px;
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .calendar-grid td {
+            border: 1px solid var(--border-color);
+            height: 100px;
+            vertical-align: top;
+            padding: 8px;
+            width: 14.28%;
+        }
+        .calendar-day {
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-radius: var(--border-radius);
+            transition: background-color 0.2s;
+        }
+        .calendar-day:hover {
+            background: var(--bg-hover);
+        }
+        .day-number {
+            font-weight: var(--font-weight-semibold);
+            font-size: 14px;
+        }
+        .calendar-day.other-month {
+            opacity: 0.5;
+        }
+        .calendar-day.today .day-number {
+            color: var(--primary-color);
+            background-color: var(--bg-selected);
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dream-indicator {
+            margin-top: 8px;
+            background-color: var(--primary-color);
+            color: var(--text-inverse);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: var(--font-weight-semibold);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
         
         /* Settings Tab Styling */
         .settings-section {
@@ -2308,6 +2445,12 @@ GNU Affero General Public License for more details.
                     <option value="all">Show All</option>
                 </select>
             </div>
+            <div class="date-filter-group" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 14px;">From:</label>
+                <input type="date" id="startDateFilter" class="filter-select" style="padding: 10px; min-width: 140px;">
+                <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 14px;">To:</label>
+                <input type="date" id="endDateFilter" class="filter-select" style="padding: 10px; min-width: 140px;">
+            </div>
             <div class="control-row-break"></div>
             <div class="export-import-controls">
                 <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
@@ -2432,7 +2575,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.32.16 | Not a substitute for professional medical advice
+                Dream Journal v1.33.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2886,6 +3029,37 @@ GNU Affero General Public License for more details.
             
             // Pagination actions
             'go-to-page': (ctx) => goToPage(parseInt(ctx.page)),
+
+            // Calendar actions
+            'prev-month': () => {
+                calendarState.date.setMonth(calendarState.date.getMonth() - 1);
+                renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
+            },
+            'next-month': () => {
+                calendarState.date.setMonth(calendarState.date.getMonth() + 1);
+                renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
+            },
+            'select-month': (ctx) => {
+                const newMonth = parseInt(ctx.element.value);
+                renderCalendar(calendarState.date.getFullYear(), newMonth);
+            },
+            'select-year': (ctx) => {
+                const newYear = parseInt(ctx.element.value);
+                renderCalendar(newYear, calendarState.date.getMonth());
+            },
+            'go-to-date': (ctx) => {
+                const date = ctx.element.dataset.date;
+                if(date) {
+                    const startDateInput = document.getElementById('startDateFilter');
+                    const endDateInput = document.getElementById('endDateFilter');
+                    if(startDateInput && endDateInput) {
+                        startDateInput.value = date;
+                        endDateInput.value = date;
+                        switchAppTab('journal');
+                        debouncedFilter();
+                    }
+                }
+            },
             
             // Document-level actions (PIN overlay, password dialogs, etc.)
             'verify-pin': () => verifyPin(),
@@ -3060,21 +3234,22 @@ GNU Affero General Public License for more details.
                         `;
                     } else if (tabId === 'statsTab') {
                         tabPanel.innerHTML = `
-                            <div class="stats-grid">
-                                <div class="stats-card text-center">
-                                    <div class="stats-number">47</div>
-                                    <div class="stats-label">Total Dreams</div>
-                                    <div class="stats-detail">Recorded since you started</div>
+                            <div id="statsContainer">
+                                <div id="calendarContainer" class="card-md mb-lg">
+                                    <!-- Calendar will be generated here -->
+                                    <div class="loading-state">Loading calendar...</div>
                                 </div>
-                                <div class="stats-card text-center">
-                                    <div class="stats-number">12</div>
-                                    <div class="stats-label">Lucid Dreams</div>
-                                    <div class="stats-detail">25.5% of all dreams</div>
-                                </div>
-                                <div class="stats-card text-center">
-                                    <div class="stats-number">8</div>
-                                    <div class="stats-label">Voice Notes</div>
-                                    <div class="stats-detail">3/5 storage slots used</div>
+                                <div class="stats-grid" id="monthlyStatsGrid">
+                                    <div id="monthlyStatsContainer" class="card-md">
+                                        <!-- Monthly stats will be generated here -->
+                                        <h3 class="text-primary mb-md">Monthly Stats</h3>
+                                        <div class="loading-state">Loading stats...</div>
+                                    </div>
+                                    <div id="pieChartContainer" class="card-md">
+                                        <!-- Pie chart will be generated here -->
+                                        <h3 class="text-primary mb-md">Dream Types</h3>
+                                        <div class="loading-state">Loading chart...</div>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -3301,6 +3476,11 @@ GNU Affero General Public License for more details.
                 updateSecurityControls();
             }
             
+            // Initialize calendar if stats tab is selected
+            if (tabName === 'stats') {
+                initCalendar();
+            }
+
             // ALWAYS update settings when switching to settings tab (whether new or existing)
             if (tabName === 'settings') {
                 setTimeout(() => {
@@ -4417,11 +4597,16 @@ GNU Affero General Public License for more details.
         // Break down the large displayDreams function into smaller helper functions
         
         // Filter dreams based on search and filter criteria
-        function filterDreams(dreams, searchTerm, filterType) {
+        function filterDreams(dreams, searchTerm, filterType, startDate, endDate) {
             if (!Array.isArray(dreams)) return [];
+
+            const start = startDate ? new Date(startDate) : null;
+            if(start) start.setHours(0,0,0,0); // Start of the day
+            const end = endDate ? new Date(endDate) : null;
+            if(end) end.setHours(23,59,59,999); // End of the day
             
             return dreams.filter(dream => {
-                if (!dream || typeof dream !== 'object') return false;
+                if (!dream || typeof dream !== 'object' || !dream.timestamp) return false;
                 
                 try {
                     const title = (dream.title || '').toString().toLowerCase();
@@ -4440,10 +4625,22 @@ GNU Affero General Public License for more details.
                     const matchesFilter = filterType === 'all' || 
                         (filterType === 'lucid' && Boolean(dream.isLucid)) ||
                         (filterType === 'non-lucid' && !Boolean(dream.isLucid));
+
+                    const dreamDate = new Date(dream.timestamp);
+                    if(isNaN(dreamDate.getTime())) return false; // Invalid dream date
+
+                    let matchesDate = true;
+                    if (start && end) {
+                        matchesDate = dreamDate >= start && dreamDate <= end;
+                    } else if (start) {
+                        matchesDate = dreamDate >= start;
+                    } else if (end) {
+                        matchesDate = dreamDate <= end;
+                    }
                     
-                    return matchesSearch && matchesFilter;
+                    return matchesSearch && matchesFilter && matchesDate;
                 } catch (error) {
-                    console.error('Error filtering dream:', error);
+                    console.error('Error filtering dream:', error, dream);
                     return false;
                 }
             });
@@ -6400,6 +6597,260 @@ GNU Affero General Public License for more details.
             }
         }
 
+        // CALENDAR & STATS SYSTEM
+
+        let calendarState = {
+            date: new Date(),
+            dreamsByDate: {}
+        };
+
+        async function updateCalendarData() {
+            const dreams = await loadDreams();
+            calendarState.dreamsByDate = {};
+            dreams.forEach(dream => {
+                const dreamDate = new Date(dream.timestamp);
+                const y = dreamDate.getFullYear();
+                const m = String(dreamDate.getMonth() + 1).padStart(2, '0');
+                const d = String(dreamDate.getDate()).padStart(2, '0');
+                const date = `${y}-${m}-${d}`;
+
+                if (!calendarState.dreamsByDate[date]) {
+                    calendarState.dreamsByDate[date] = { count: 0, lucid: 0 };
+                }
+                calendarState.dreamsByDate[date].count++;
+                if (dream.isLucid) {
+                    calendarState.dreamsByDate[date].lucid++;
+                }
+            });
+        }
+
+        async function initCalendar() {
+            await updateCalendarData();
+            const currentDate = new Date();
+            await renderCalendar(currentDate.getFullYear(), currentDate.getMonth());
+        }
+
+        async function renderCalendar(year, month) {
+            const calendarContainer = document.getElementById('calendarContainer');
+            if (!calendarContainer) return;
+
+            calendarState.date = new Date(year, month, 1);
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+            let header = `
+                <div class="calendar-header">
+                    <button data-action="prev-month" class="btn btn-secondary btn-small">‹ Prev</button>
+                    <div class="calendar-nav">
+                        <select id="monthSelect" class="filter-select" data-action="select-month">
+                            ${monthNames.map((m, i) => `<option value="${i}" ${i === month ? 'selected' : ''}>${m}</option>`).join('')}
+                        </select>
+                        <select id="yearSelect" class="filter-select" data-action="select-year">
+                            ${getYearOptions(year)}
+                        </select>
+                    </div>
+                    <button data-action="next-month" class="btn btn-secondary btn-small">Next ›</button>
+                </div>
+            `;
+
+            let calendarHTML = header + '<table class="calendar-grid"><thead><tr>';
+            const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            weekDays.forEach(day => calendarHTML += `<th>${day}</th>`);
+            calendarHTML += '</tr></thead><tbody>';
+
+            const firstDay = new Date(year, month).getDay();
+            const daysInMonth = 32 - new Date(year, month, 32).getDate();
+
+            let date = 1;
+            for (let i = 0; i < 6; i++) {
+                calendarHTML += '<tr>';
+                for (let j = 0; j < 7; j++) {
+                    if (i === 0 && j < firstDay) {
+                        const prevMonth = new Date(year, month, 0);
+                        const prevMonthDays = prevMonth.getDate();
+                        const day = prevMonthDays - firstDay + j + 1;
+                        calendarHTML += `<td><div class="calendar-day other-month"><div class="day-number">${day}</div></div></td>`;
+                    } else if (date > daysInMonth) {
+                        const nextMonthDay = date - daysInMonth;
+                        calendarHTML += `<td><div class="calendar-day other-month"><div class="day-number">${nextMonthDay}</div></div></td>`;
+                        date++;
+                    } else {
+                        const currentDate = new Date(year, month, date);
+                        const today = new Date();
+                        const isToday = today.getDate() === date && today.getMonth() === month && today.getFullYear() === year;
+
+                        // Manually format date string to avoid timezone issues with toISOString()
+                        const y = currentDate.getFullYear();
+                        const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+                        const d = String(currentDate.getDate()).padStart(2, '0');
+                        const dateStr = `${y}-${m}-${d}`;
+
+                        const dreamData = calendarState.dreamsByDate[dateStr];
+
+                        calendarHTML += `
+                            <td>
+                                <div class="calendar-day ${isToday ? 'today' : ''}" data-action="go-to-date" data-date="${dateStr}">
+                                    <div class="day-number">${date}</div>
+                                    ${dreamData ? `<div class="dream-indicator" title="${dreamData.count} dream(s), ${dreamData.lucid} lucid">✨ ${dreamData.count}</div>` : ''}
+                                </div>
+                            </td>
+                        `;
+                        date++;
+                    }
+                }
+                calendarHTML += '</tr>';
+                if (date > daysInMonth && i >= 4) { // ensure at least 5 rows, but break if done
+                    break;
+                }
+            }
+
+            calendarHTML += '</tbody></table>';
+            calendarContainer.innerHTML = calendarHTML;
+
+            await updateMonthlyStats(year, month);
+            await renderPieChart(year, month);
+        }
+
+        function getYearOptions(selectedYear) {
+            let years = new Set();
+            for(const date in calendarState.dreamsByDate) {
+                years.add(parseInt(date.substring(0,4)));
+            }
+            const currentYear = new Date().getFullYear();
+            years.add(currentYear);
+            if(selectedYear) years.add(selectedYear);
+
+            for(let i = -5; i <= 5; i++) {
+                years.add(currentYear + i);
+            }
+
+            return Array.from(years).sort((a,b) => b-a).map(y => `<option value="${y}" ${y === selectedYear ? 'selected' : ''}>${y}</option>`).join('');
+        }
+
+        async function updateMonthlyStats(year, month) {
+            const monthlyStatsContainer = document.getElementById('monthlyStatsContainer');
+            if (!monthlyStatsContainer) return;
+
+            monthlyStatsContainer.innerHTML = `<h3 class="text-primary mb-md">Monthly Stats</h3><div class="loading-state">Calculating stats...</div>`;
+
+            try {
+                const dreams = await loadDreams();
+
+                // 1. Filter dreams for the selected month
+                const dreamsInMonth = dreams.filter(dream => {
+                    const dreamDate = new Date(dream.timestamp);
+                    return dreamDate.getFullYear() === year && dreamDate.getMonth() === month;
+                });
+
+                // 2. Calculate stats
+                const totalDreams = dreamsInMonth.length;
+                const lucidDreams = dreamsInMonth.filter(d => d.isLucid).length;
+
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                const daysWithDreamsSet = new Set();
+                dreamsInMonth.forEach(dream => {
+                    daysWithDreamsSet.add(new Date(dream.timestamp).getDate());
+                });
+                const daysWithDreams = daysWithDreamsSet.size;
+
+                const dreamDaysPercentage = daysInMonth > 0 ? ((daysWithDreams / daysInMonth) * 100).toFixed(1) : 0;
+                const avgDreamsPerDay = daysInMonth > 0 ? (totalDreams / daysInMonth).toFixed(2) : 0;
+
+                // 3. Render the stats
+                const statsHTML = `
+                    <h3 class="text-primary mb-md text-lg">Stats for ${new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                    <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="stats-card card-sm text-center">
+                            <div class="stats-number">${totalDreams}</div>
+                            <div class="stats-label">Total Dreams</div>
+                        </div>
+                        <div class="stats-card card-sm text-center">
+                            <div class="stats-number">${lucidDreams}</div>
+                            <div class="stats-label">Lucid Dreams</div>
+                        </div>
+                        <div class="stats-card card-sm text-center">
+                            <div class="stats-number">${dreamDaysPercentage}%</div>
+                            <div class="stats-label">Dream Recall Rate</div>
+                            <div class="stats-detail">${daysWithDreams} of ${daysInMonth} days</div>
+                        </div>
+                        <div class="stats-card card-sm text-center">
+                            <div class="stats-number">${avgDreamsPerDay}</div>
+                            <div class="stats-label">Avg Dreams/Day</div>
+                        </div>
+                    </div>
+                `;
+
+                monthlyStatsContainer.innerHTML = statsHTML;
+            } catch (error) {
+                console.error("Error calculating monthly stats:", error);
+                monthlyStatsContainer.innerHTML = `<h3 class="text-primary mb-md">Monthly Stats</h3><div class="message-error">Could not load stats.</div>`;
+            }
+        }
+
+        async function renderPieChart(year, month) {
+            const pieChartContainer = document.getElementById('pieChartContainer');
+            if (!pieChartContainer) return;
+
+            pieChartContainer.innerHTML = `<h3 class="text-primary mb-md">Dream Types</h3><div class="loading-state">Loading chart...</div>`;
+
+            try {
+                const dreams = await loadDreams();
+
+                const dreamsInMonth = dreams.filter(dream => {
+                    const dreamDate = new Date(dream.timestamp);
+                    return dreamDate.getFullYear() === year && dreamDate.getMonth() === month;
+                });
+
+                const totalDreams = dreamsInMonth.length;
+                const lucidDreams = dreamsInMonth.filter(d => d.isLucid).length;
+                const regularDreams = totalDreams - lucidDreams;
+
+                if (totalDreams === 0) {
+                    pieChartContainer.innerHTML = `
+                        <h3 class="text-primary mb-md">Dream Types</h3>
+                        <div class="no-entries" style="padding: 20px;">No dreams recorded for this month to create a chart.</div>
+                    `;
+                    return;
+                }
+
+                const lucidPercentage = (lucidDreams / totalDreams) * 100;
+                const regularPercentage = 100 - lucidPercentage;
+
+                const lucidColor = 'var(--success-color)';
+                const regularColor = 'var(--info-color)';
+
+                const gradient = `conic-gradient(${lucidColor} 0% ${lucidPercentage.toFixed(2)}%, ${regularColor} ${lucidPercentage.toFixed(2)}% 100%)`;
+
+                const chartHTML = `
+                    <h3 class="text-primary mb-md">Dream Types</h3>
+                    <div class="pie-chart-container">
+                        <div class="pie-chart" style="background: ${gradient};">
+                            <div class="pie-chart-center">
+                                <div class="pie-chart-total">${totalDreams}</div>
+                                <div class="pie-chart-label">Dreams</div>
+                            </div>
+                        </div>
+                        <div class="pie-chart-legend">
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: ${lucidColor};"></div>
+                                <span>Lucid (${lucidDreams}) - ${lucidPercentage.toFixed(1)}%</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color-box" style="background: ${regularColor};"></div>
+                                <span>Regular (${regularDreams}) - ${regularPercentage.toFixed(1)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                pieChartContainer.innerHTML = chartHTML;
+
+            } catch (error) {
+                console.error("Error rendering pie chart:", error);
+                pieChartContainer.innerHTML = `<h3 class="text-primary mb-md">Dream Types</h3><div class="message-error">Could not load chart.</div>`;
+            }
+        }
+
         // PIN SECURITY & ACCESS CONTROL SYSTEM
         
         // NEW UNIFIED PIN SCREEN RENDERER
@@ -7863,7 +8314,7 @@ GNU Affero General Public License for more details.
                 // No need to check isUnlocked here since locked users can't access this tab
                 
                 // Get filter values
-                const { searchTerm, filterType, sortType, limitValue } = getFilterValues();
+                const { searchTerm, filterType, sortType, limitValue, startDate, endDate } = getFilterValues();
                 const dreams = await loadDreams();
                 const container = document.getElementById('entriesContainer');
                 
@@ -7876,7 +8327,7 @@ GNU Affero General Public License for more details.
                 }
                 
                 // Filter and sort dreams
-                let filteredDreams = filterDreams(dreams, searchTerm, filterType);
+                let filteredDreams = filterDreams(dreams, searchTerm, filterType, startDate, endDate);
                 filteredDreams = sortDreams(filteredDreams, sortType);
                 
                 // Handle no results
@@ -7906,12 +8357,16 @@ GNU Affero General Public License for more details.
             const filterSelect = document.getElementById('filterSelect');
             const sortSelect = document.getElementById('sortSelect');
             const limitSelect = document.getElementById('limitSelect');
+            const startDateInput = document.getElementById('startDateFilter');
+            const endDateInput = document.getElementById('endDateFilter');
             
             return {
                 searchTerm: (searchBox ? searchBox.value : '').toLowerCase(),
                 filterType: filterSelect ? filterSelect.value : 'all',
                 sortType: sortSelect ? sortSelect.value : 'newest',
-                limitValue: limitSelect ? limitSelect.value : '10'
+                limitValue: limitSelect ? limitSelect.value : '10',
+                startDate: startDateInput ? startDateInput.value : '',
+                endDate: endDateInput ? endDateInput.value : ''
             };
         }
         
@@ -8069,38 +8524,12 @@ GNU Affero General Public License for more details.
         // Get count of filtered dreams
         async function getFilteredDreamsCount() {
             try {
-                const searchBox = document.getElementById('searchBox');
-                const filterSelect = document.getElementById('filterSelect');
-                
-                const searchTerm = (searchBox && searchBox.value ? searchBox.value : '').toLowerCase();
-                const filterType = filterSelect && filterSelect.value ? filterSelect.value : 'all';
+                const { searchTerm, filterType, startDate, endDate } = getFilterValues();
                 const dreams = await loadDreams();
-                
                 if (!Array.isArray(dreams)) return 0;
-                
-                return dreams.filter(dream => {
-                    // Safety checks for dream data
-                    if (!dream || typeof dream !== 'object') return false;
-                    
-                    const title = (dream.title || '').toString();
-                    const content = (dream.content || '').toString();
-                    const emotions = (dream.emotions || '').toString();
-                    const tags = Array.isArray(dream.tags) ? dream.tags.join(' ') : '';
-                    const dreamSigns = Array.isArray(dream.dreamSigns) ? dream.dreamSigns.join(' ') : '';
-                    
-                    const matchesSearch = !searchTerm || 
-                        title.toLowerCase().includes(searchTerm) ||
-                        content.toLowerCase().includes(searchTerm) ||
-                        emotions.toLowerCase().includes(searchTerm) ||
-                        tags.toLowerCase().includes(searchTerm) ||
-                        dreamSigns.toLowerCase().includes(searchTerm);
-                    
-                    const matchesFilter = filterType === 'all' || 
-                        (filterType === 'lucid' && Boolean(dream.isLucid)) ||
-                        (filterType === 'non-lucid' && !Boolean(dream.isLucid));
-                    
-                    return matchesSearch && matchesFilter;
-                }).length;
+
+                const filtered = filterDreams(dreams, searchTerm, filterType, startDate, endDate);
+                return filtered.length;
             } catch (error) {
                 console.error('Error counting filtered dreams:', error);
                 return 0;
@@ -8955,38 +9384,11 @@ GNU Affero General Public License for more details.
                 return;
             }
             
-            const searchBox = document.getElementById('searchBox');
-            const filterSelect = document.getElementById('filterSelect');
-            const sortSelect = document.getElementById('sortSelect');
-            
-            const searchTerm = (searchBox ? searchBox.value : '').toLowerCase();
-            const filterType = filterSelect ? filterSelect.value : 'all';
-            const sortType = sortSelect ? sortSelect.value : 'newest';
+            const { searchTerm, filterType, sortType, startDate, endDate } = getFilterValues();
             const allDreams = await loadDreams();
             
             // Apply same filtering as display
-            let dreams = allDreams.filter(dream => {
-                if (!dream || typeof dream !== 'object') return false;
-                
-                const title = dream.title || '';
-                const content = dream.content || '';
-                const emotions = dream.emotions || '';
-                const tags = Array.isArray(dream.tags) ? dream.tags.join(' ') : '';
-                const dreamSigns = Array.isArray(dream.dreamSigns) ? dream.dreamSigns.join(' ') : '';
-                
-                const matchesSearch = !searchTerm || 
-                    title.toLowerCase().includes(searchTerm) ||
-                    content.toLowerCase().includes(searchTerm) ||
-                    emotions.toLowerCase().includes(searchTerm) ||
-                    tags.toLowerCase().includes(searchTerm) ||
-                    dreamSigns.toLowerCase().includes(searchTerm);
-                
-                const matchesFilter = filterType === 'all' || 
-                    (filterType === 'lucid' && Boolean(dream.isLucid)) ||
-                    (filterType === 'non-lucid' && !Boolean(dream.isLucid));
-                
-                return matchesSearch && matchesFilter;
-            });
+            let dreams = filterDreams(allDreams, searchTerm, filterType, startDate, endDate);
             
             // Apply same sorting as display for consistency
             dreams.sort((a, b) => {
@@ -9361,6 +9763,11 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             if (filterSelect) filterSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
             if (sortSelect) sortSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
             if (limitSelect) limitSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
+
+            const startDateInput = document.getElementById('startDateFilter');
+            const endDateInput = document.getElementById('endDateFilter');
+            if (startDateInput) startDateInput.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
+            if (endDateInput) endDateInput.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
             
             // Theme switching is now handled by the action system
             
