@@ -19,7 +19,7 @@ GNU Affero General Public License for more details.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
     <style>
-        /* === DREAM JOURNAL OPTIMIZED CSS === */
+        /* === DREAM JOURNAL OPTIMIZED CSS v1.39.0 === */
         /* HSL Theme System + Utility Classes - 90% reduction in theme CSS + Phase 2C voice optimization */
         /* === OPTIMIZED HSL THEME SYSTEM === */
         
@@ -2763,7 +2763,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.40.0 | Not a substitute for professional medical advice
+                Dream Journal v1.39.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -3990,10 +3990,6 @@ GNU Affero General Public License for more details.
             'import-dreams': () => document.getElementById('importFile').click(),
             'export-all-data': () => exportAllData(),
             'import-all-data': () => document.getElementById('importAllDataFile').click(),
-            'select-persistent-file': () => selectPersistentFile(),
-            'load-persistent-file': () => loadPersistentFile(),
-            'save-persistent-file': () => saveToPersistentFile(),
-            'disable-persistent-file': () => disablePersistentFile(),
             'export-ai': () => exportForAIAnalysis(),
             'toggle-lock': () => toggleLock(), // Always visible, handles PIN setup if needed
             'setup-pin': () => showPinSetup(),
@@ -4478,19 +4474,6 @@ GNU Affero General Public License for more details.
                                     </div>
                                 </div>
                                 
-                                <!-- Persistent File Storage -->
-                                <div class="settings-row">
-                                    <div>
-                                        <div class="settings-label">Persistent File Storage</div>
-                                        <div class="settings-description">Automatically save all data to a file on your computer</div>
-                                    </div>
-                                    <div class="settings-controls">
-                                        <div id="fileSystemControls">
-                                            <!-- File system controls will be populated here -->
-                                        </div>
-                                    </div>
-                                </div>
-                                
                                 <!-- AI Analysis Export -->
                                 <div class="settings-row">
                                     <div>
@@ -4625,7 +4608,6 @@ GNU Affero General Public License for more details.
             if (tabName === 'settings') {
                 setTimeout(() => {
                     updateSecurityControls();
-                    updateFileSystemUI(); // Update persistent file storage UI
                     
                     // Always update theme select - this fixes the tab switching issue
                     const themeSelect = document.getElementById('themeSelect');
@@ -6672,7 +6654,6 @@ GNU Affero General Public License for more details.
                     if (saved) {
                         storageType = 'indexeddb';
                         // localStorage backup is automatically updated by saveToIndexedDB
-                        triggerAutoSave(); // Trigger auto-save for persistent file
                         return;
                     }
                 }
@@ -6682,7 +6663,6 @@ GNU Affero General Public License for more details.
                     try {
                         localStorage.setItem('dreamJournalEntries', JSON.stringify(dreams));
                         storageType = 'localstorage';
-                        triggerAutoSave(); // Trigger auto-save for persistent file
                         return;
                     } catch (error) {
                         console.error('Failed to save to localStorage:', error);
@@ -6692,7 +6672,6 @@ GNU Affero General Public License for more details.
                 // Final fallback to memory
                 memoryStorage = dreams;
                 storageType = 'memory';
-                triggerAutoSave(); // Trigger auto-save for persistent file
                 
                 // Show warning about data persistence if using memory only
                 if (!document.getElementById('storageWarning')) {
@@ -6735,7 +6714,6 @@ GNU Affero General Public License for more details.
                     const saved = await saveGoalsToIndexedDB(goals);
                     if (saved) {
                         console.log('Successfully saved to IndexedDB');
-                        triggerAutoSave(); // Trigger auto-save for persistent file
                         // Also backup to localStorage
                         if (isLocalStorageAvailable()) {
                             try {
@@ -6757,7 +6735,6 @@ GNU Affero General Public License for more details.
                     try {
                         localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
                         console.log('Successfully saved to localStorage');
-                        triggerAutoSave(); // Trigger auto-save for persistent file
                     } catch (error) {
                         console.error('Error saving goals to localStorage:', error);
                         throw error; // Re-throw to be caught by caller
@@ -11113,7 +11090,7 @@ GNU Affero General Public License for more details.
                 
                 // Create comprehensive export object
                 const exportData = {
-                    version: "1.34.4", // Updated version
+                    version: "1.34.3", // Updated version
                     exportDate: new Date().toISOString(),
                     exportType: "complete",
                     data: {
@@ -11493,410 +11470,6 @@ GNU Affero General Public License for more details.
             ]);
         }
 
-        // === FILE SYSTEM ACCESS API - PERSISTENT STORAGE ===
-        
-        // Global state for file system access
-        let fileSystemEnabled = false;
-        let currentFileHandle = null;
-        let autoSaveEnabled = false;
-        let isAutoSaving = false; // Prevent save loops
-        let autoSaveDebounceTimer = null;
-        
-        // Check File System Access API availability and browser compatibility
-        function checkFileSystemSupport() {
-            try {
-                // Check for File System Access API support
-                if (!('showSaveFilePicker' in window) || !('showOpenFilePicker' in window)) {
-                    return {
-                        supported: false,
-                        reason: 'File System Access API not supported by this browser'
-                    };
-                }
-                
-                // Check if we're in a secure context (HTTPS or localhost)
-                if (!window.isSecureContext) {
-                    return {
-                        supported: false,
-                        reason: 'File System Access API requires a secure context (HTTPS)'
-                    };
-                }
-                
-                // Additional browser-specific checks
-                const userAgent = navigator.userAgent.toLowerCase();
-                
-                // Chrome/Edge support (version 86+)
-                if (userAgent.includes('chrome') || userAgent.includes('edg')) {
-                    return { supported: true, browser: 'chrome-based' };
-                }
-                
-                // Safari - limited or no support
-                if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-                    return {
-                        supported: false,
-                        reason: 'File System Access API not supported in Safari'
-                    };
-                }
-                
-                // Firefox - limited support behind flags
-                if (userAgent.includes('firefox')) {
-                    return {
-                        supported: false,
-                        reason: 'File System Access API not fully supported in Firefox'
-                    };
-                }
-                
-                // Generic check - assume supported if API exists
-                return { supported: true, browser: 'unknown' };
-                
-            } catch (error) {
-                return {
-                    supported: false,
-                    reason: `File system check failed: ${error.message}`
-                };
-            }
-        }
-        
-        // Initialize persistent file storage
-        async function initializeFileStorage() {
-            const support = checkFileSystemSupport();
-            
-            if (!support.supported) {
-                console.log('File System Access API not available:', support.reason);
-                fileSystemEnabled = false;
-                updateFileSystemUI();
-                return false;
-            }
-            
-            try {
-                // Check if there's a stored file handle from previous session
-                const storedHandle = localStorage.getItem('dreamJournalFileHandle');
-                const autoSaveEnabledStored = localStorage.getItem('dreamJournalAutoSave') === 'true';
-                
-                if (storedHandle && autoSaveEnabledStored) {
-                    // Note: File handles can't be fully serialized/deserialized
-                    // We'll need user to re-select file on page load
-                    autoSaveEnabled = true;
-                    fileSystemEnabled = false; // Will be true once file is selected
-                }
-                
-                updateFileSystemUI();
-                return support.supported;
-                
-            } catch (error) {
-                console.error('Failed to initialize file storage:', error);
-                fileSystemEnabled = false;
-                autoSaveEnabled = false;
-                updateFileSystemUI();
-                return false;
-            }
-        }
-        
-        // Select file for persistent storage
-        async function selectPersistentFile() {
-            try {
-                const support = checkFileSystemSupport();
-                if (!support.supported) {
-                    throw new Error(support.reason);
-                }
-                
-                // Show file picker for save location
-                const fileHandle = await window.showSaveFilePicker({
-                    suggestedName: `dream-journal-persistent-${new Date().toISOString().split('T')[0]}.json`,
-                    types: [{
-                        description: 'Dream Journal Data',
-                        accept: {
-                            'application/json': ['.json']
-                        }
-                    }]
-                });
-                
-                currentFileHandle = fileHandle;
-                fileSystemEnabled = true;
-                autoSaveEnabled = true;
-                
-                // Store preference (file handle itself can't be fully stored)
-                localStorage.setItem('dreamJournalAutoSave', 'true');
-                
-                // Perform initial save
-                await saveToPersistentFile();
-                
-                createInlineMessage('success', `Persistent file storage enabled: ${fileHandle.name}`, {
-                    container: document.querySelector('.main-content'),
-                    position: 'top',
-                    duration: 4000
-                });
-                
-                updateFileSystemUI();
-                return true;
-                
-            } catch (error) {
-                console.error('Failed to select persistent file:', error);
-                
-                let errorMessage = 'Failed to set up persistent file storage.';
-                if (error.name === 'AbortError') {
-                    errorMessage = 'File selection cancelled.';
-                } else if (error.message.includes('not supported')) {
-                    errorMessage = error.message;
-                } else {
-                    errorMessage += ` Error: ${error.message}`;
-                }
-                
-                createInlineMessage('error', errorMessage, {
-                    container: document.querySelector('.main-content'),
-                    position: 'top',
-                    duration: 5000
-                });
-                
-                return false;
-            }
-        }
-        
-        // Load existing persistent file
-        async function loadPersistentFile() {
-            try {
-                const support = checkFileSystemSupport();
-                if (!support.supported) {
-                    throw new Error(support.reason);
-                }
-                
-                // Show file picker for loading
-                const [fileHandle] = await window.showOpenFilePicker({
-                    types: [{
-                        description: 'Dream Journal Data',
-                        accept: {
-                            'application/json': ['.json']
-                        }
-                    }]
-                });
-                
-                const file = await fileHandle.getFile();
-                const contents = await file.text();
-                
-                // Parse and validate the file
-                let importData;
-                try {
-                    importData = JSON.parse(contents);
-                } catch (parseError) {
-                    throw new Error('Invalid JSON file format.');
-                }
-                
-                // Validate export format
-                if (!importData.data || !importData.exportType) {
-                    throw new Error('Invalid Dream Journal file format.');
-                }
-                
-                // Set this as the persistent file
-                currentFileHandle = fileHandle;
-                fileSystemEnabled = true;
-                autoSaveEnabled = true;
-                
-                localStorage.setItem('dreamJournalAutoSave', 'true');
-                
-                // Show import options dialog
-                const importMode = await showImportOptionsDialog(importData);
-                if (!importMode) {
-                    return false; // User cancelled
-                }
-                
-                // Process import
-                await processCompleteImport(importData, importMode);
-                
-                createInlineMessage('success', `Loaded and set as persistent file: ${fileHandle.name}`, {
-                    container: document.querySelector('.main-content'),
-                    position: 'top',
-                    duration: 4000
-                });
-                
-                updateFileSystemUI();
-                return true;
-                
-            } catch (error) {
-                console.error('Failed to load persistent file:', error);
-                
-                let errorMessage = 'Failed to load persistent file.';
-                if (error.name === 'AbortError') {
-                    errorMessage = 'File selection cancelled.';
-                } else if (error.message.includes('not supported')) {
-                    errorMessage = error.message;
-                } else {
-                    errorMessage += ` Error: ${error.message}`;
-                }
-                
-                createInlineMessage('error', errorMessage, {
-                    container: document.querySelector('.main-content'),
-                    position: 'top',
-                    duration: 5000
-                });
-                
-                return false;
-            }
-        }
-        
-        // Save data to persistent file
-        async function saveToPersistentFile() {
-            if (!fileSystemEnabled || !currentFileHandle || isAutoSaving) {
-                return false;
-            }
-            
-            try {
-                isAutoSaving = true;
-                
-                // Collect all current data (same as exportAllData but without user interaction)
-                const [dreams, voiceNotes, goals] = await Promise.all([
-                    loadDreams(),
-                    loadVoiceNotes(),
-                    loadGoals()
-                ]);
-                
-                const settings = {
-                    theme: getCurrentTheme(),
-                    storageType: storageType,
-                    // Note: PIN data is intentionally NOT saved for security
-                };
-                
-                const exportData = {
-                    version: "1.34.4", // Increment for file system feature
-                    exportDate: new Date().toISOString(),
-                    exportType: "complete",
-                    source: "persistent-file",
-                    data: {
-                        dreams: dreams || [],
-                        voiceNotes: (voiceNotes || []).map(note => ({
-                            id: note.id,
-                            timestamp: note.timestamp,
-                            duration: note.duration,
-                            transcription: note.transcription || '',
-                            hasAudio: !!note.audioBlob
-                        })),
-                        goals: goals || [],
-                        settings: settings,
-                        metadata: {
-                            totalDreams: (dreams || []).length,
-                            totalVoiceNotes: (voiceNotes || []).length,
-                            totalGoals: (goals || []).length,
-                            lucidDreams: (dreams || []).filter(d => d.isLucid).length,
-                        }
-                    }
-                };
-                
-                const jsonData = JSON.stringify(exportData, null, 2);
-                
-                // Create writable stream and write data
-                const writable = await currentFileHandle.createWritable();
-                await writable.write(jsonData);
-                await writable.close();
-                
-                console.log('Auto-saved to persistent file:', currentFileHandle.name);
-                return true;
-                
-            } catch (error) {
-                console.error('Failed to save to persistent file:', error);
-                
-                // Handle permission errors gracefully
-                if (error.name === 'NotAllowedError') {
-                    createInlineMessage('warning', 'File permission denied. You may need to re-select your persistent file.', {
-                        container: document.querySelector('.main-content'),
-                        position: 'top',
-                        duration: 4000
-                    });
-                    
-                    // Reset file system state
-                    disablePersistentFile();
-                }
-                
-                return false;
-            } finally {
-                isAutoSaving = false;
-            }
-        }
-        
-        // Disable persistent file storage
-        function disablePersistentFile() {
-            fileSystemEnabled = false;
-            autoSaveEnabled = false;
-            currentFileHandle = null;
-            
-            localStorage.removeItem('dreamJournalAutoSave');
-            localStorage.removeItem('dreamJournalFileHandle');
-            
-            if (autoSaveDebounceTimer) {
-                clearTimeout(autoSaveDebounceTimer);
-                autoSaveDebounceTimer = null;
-            }
-            
-            updateFileSystemUI();
-            
-            createInlineMessage('info', 'Persistent file storage disabled.', {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 3000
-            });
-        }
-        
-        // Debounced auto-save function
-        function triggerAutoSave() {
-            if (!autoSaveEnabled || !fileSystemEnabled) {
-                return;
-            }
-            
-            // Clear existing timer
-            if (autoSaveDebounceTimer) {
-                clearTimeout(autoSaveDebounceTimer);
-            }
-            
-            // Set new timer with 2-second debounce
-            autoSaveDebounceTimer = setTimeout(async () => {
-                await saveToPersistentFile();
-            }, 2000);
-        }
-        
-        // Update file system UI elements
-        function updateFileSystemUI() {
-            const support = checkFileSystemSupport();
-            const container = document.querySelector('#fileSystemControls');
-            
-            if (!container) return;
-            
-            if (!support.supported) {
-                container.innerHTML = `
-                    <div class="card-sm" style="background: var(--notification-warning-bg); border: 1px solid var(--warning-color); color: var(--text-primary);">
-                        <h5 style="margin-bottom: 8px; color: var(--warning-color);">⚠️ File System Access Unavailable</h5>
-                        <p style="margin-bottom: 8px; font-size: 13px; line-height: 1.4;">${support.reason}</p>
-                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
-                            Supported in Chrome 86+ and Edge 86+. Requires HTTPS or localhost.
-                        </p>
-                    </div>
-                `;
-                return;
-            }
-            
-            if (fileSystemEnabled && currentFileHandle) {
-                container.innerHTML = `
-                    <div class="card-sm" style="background: var(--notification-success-bg); border: 1px solid var(--success-color);">
-                        <h5 style="margin-bottom: 8px; color: var(--success-color);">✅ Persistent File Active</h5>
-                        <p style="margin-bottom: 10px; font-size: 13px; color: var(--text-primary);">
-                            File: <strong>${currentFileHandle.name}</strong><br>
-                            Auto-save: <span style="color: var(--success-color);">Enabled</span>
-                        </p>
-                        <div style="display: flex; gap: 8px;">
-                            <button data-action="save-persistent-file" class="btn btn-outline btn-small">💾 Save Now</button>
-                            <button data-action="disable-persistent-file" class="btn btn-outline btn-small">❌ Disable</button>
-                        </div>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-                        <button data-action="select-persistent-file" class="btn btn-primary btn-small">📁 Select File Location</button>
-                        <button data-action="load-persistent-file" class="btn btn-secondary btn-small">📂 Load Existing File</button>
-                    </div>
-                    <p style="margin-top: 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.4; text-align: right;">
-                        Automatically saves all changes to a file on your computer. Compatible with Chrome 86+ and Edge 86+.
-                    </p>
-                `;
-            }
-        }
-
         // Export dreams formatted for AI analysis
         async function exportForAIAnalysis() {
             // Check if app is locked
@@ -12068,9 +11641,6 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             
             // Initialize goals system
             await initGoals();
-            
-            // Initialize file system storage
-            await initializeFileStorage();
             
             // CRITICAL FIX: Ensure tab container exists before any tab switching
             let tabContainer = document.querySelector('.tab-content-container');
