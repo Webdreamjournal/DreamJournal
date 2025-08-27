@@ -34,8 +34,12 @@ This is a single-file HTML dream journal application (DreamJournal.html) that pr
 
 1. Never use alert() and confirm()  or prompt() or any kind of popup. They don't work in my environment. Only use the custom popup system that's already been designed or display text/confirmation inline somewhere if necessary
 
-2. Increment the version number in some way every time you make a change, I don't really care how, it's just important it changes at all so I can be sure I'm not looking at a cached version
+2. Increment the version number in some way every time you make a change, I don't really care how, it's just important it changes at all so I can be sure I'm not looking at a cached version. Here:
 
+            <p class="app-footer p">
+                Dream Journal vX.XX.X | Not a substitute for professional medical advice
+            </p>
+   
 3. I know it's long, but it has a single file constraint
 
 
