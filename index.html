@@ -2763,7 +2763,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.40.0 | Not a substitute for professional medical advice
+                Dream Journal v1.39.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2840,7 +2840,7 @@ GNU Affero General Public License for more details.
             BYTES_PER_MB: 1048576, // 1024 * 1024
             
             // Database Constants
-            DB_VERSION: 4, // Incremented for File System Access API
+            DB_VERSION: 3,
             DATETIME_LOCAL_SLICE_LENGTH: 16,
             
             // UI Timing & Durations (milliseconds)
@@ -2858,9 +2858,6 @@ GNU Affero General Public License for more details.
         
         // GLOBAL VARIABLES & STATE MANAGEMENT (WITH MUTEX PROTECTION)
         
-        // File System Access API handle
-        let fileHandle = null;
-
         // Voice recording variables
         let mediaRecorder = null;
         let audioChunks = [];
@@ -4006,9 +4003,6 @@ GNU Affero General Public License for more details.
             'show-pin-overlay': () => showPinOverlay(),
             'create-from-transcription': (ctx) => createDreamFromTranscription(ctx.voiceNoteId),
             'cancel-timer': () => cancelResetTimer(),
-            'create-new-file': () => createNewFile(),
-            'connect-file': () => connectToFile(),
-            'disconnect-file': () => disconnectFromFile(),
             
             // Goal management actions
             'create-goal': () => showCreateGoalDialog(),
@@ -4490,18 +4484,6 @@ GNU Affero General Public License for more details.
                                         <button data-action="export-ai" class="btn btn-success">Export for AI Analysis</button>
                                     </div>
                                 </div>
-
-                                <!-- Persistent File Storage -->
-                                <div class="settings-row">
-                                    <div>
-                                        <div class="settings-label">Persistent File Storage (Experimental)</div>
-                                        <div class="settings-description">Save your journal to a local file for automatic, persistent storage. Requires a Chromium-based browser (Chrome, Edge).</div>
-                                    </div>
-                                    <div class="settings-controls" id="fileSystemAccessControls">
-                                        <!-- This will be populated by JavaScript -->
-                                        <span class="text-secondary">Loading...</span>
-                                    </div>
-                                </div>
                             </div>
                         `;
                     } else if (tabId === 'lockTab') {
@@ -4626,7 +4608,6 @@ GNU Affero General Public License for more details.
             if (tabName === 'settings') {
                 setTimeout(() => {
                     updateSecurityControls();
-                    updateFileSystemAccessUI(); // Add this call
                     
                     // Always update theme select - this fixes the tab switching issue
                     const themeSelect = document.getElementById('themeSelect');
@@ -6273,10 +6254,8 @@ GNU Affero General Public License for more details.
                             goalsStore.createIndex('type', 'type', { unique: false });
                         }
                         
-                        if (oldVersion < 4) {
-                            // Add file system handle store
-                            database.createObjectStore('fileSystem', { keyPath: 'id' });
-                        }
+                        // Future migrations can be added here
+                        // if (oldVersion < 3) { ... }
                     };
                 } catch (error) {
                     console.error('Failed to open IndexedDB:', error);
@@ -6526,7 +6505,6 @@ GNU Affero General Public License for more details.
                     request.onsuccess = async () => {
                         // Update localStorage backup after successful IndexedDB operation
                         await updateLocalStorageBackup();
-                        await saveDreamsToFile(); // Auto-save to file
                         resolve(true);
                     };
                     request.onerror = (event) => {
@@ -6584,7 +6562,6 @@ GNU Affero General Public License for more details.
                     request.onsuccess = async () => {
                         // Update localStorage backup after successful IndexedDB operation
                         await updateLocalStorageBackup();
-                        await saveDreamsToFile(); // Auto-save to file
                         resolve(true);
                     };
                     request.onerror = () => {
@@ -6623,7 +6600,6 @@ GNU Affero General Public License for more details.
                     request.onsuccess = async () => {
                         // Update localStorage backup after successful IndexedDB operation
                         await updateLocalStorageBackup();
-                        await saveDreamsToFile(); // Auto-save to file
                         resolve(true);
                     };
                     request.onerror = () => {
@@ -8861,210 +8837,6 @@ GNU Affero General Public License for more details.
             
             // Remove from memory storage
             pinStorage.resetTime = null;
-        }
-
-        // Update File System Access UI
-        function updateFileSystemAccessUI() {
-            const controlsContainer = document.getElementById('fileSystemAccessControls');
-            if (!controlsContainer) return;
-
-            if ('showOpenFilePicker' in window) {
-                if (fileHandle) {
-                    // User is connected to a file
-                    controlsContainer.innerHTML = `
-                        <span class="status-success">Connected to: ${fileHandle.name}</span>
-                        <button data-action="disconnect-file" class="btn btn-secondary btn-small">Disconnect</button>
-                    `;
-                } else {
-                    // API supported, but not connected
-                    controlsContainer.innerHTML = `
-                        <button data-action="create-new-file" class="btn btn-primary">Create New File</button>
-                        <button data-action="connect-file" class="btn btn-secondary">Open Existing File</button>
-                    `;
-                }
-            } else {
-                // API not supported
-                controlsContainer.innerHTML = `
-                    <span class="status-warning">Your browser does not support this feature. Try Chrome or Edge on desktop.</span>
-                `;
-            }
-        }
-
-        // === FILE SYSTEM ACCESS API FUNCTIONS ===
-
-        // Create a new local file
-        async function createNewFile() {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    types: [{
-                        description: 'Dream Journal Files',
-                        accept: { 'application/json': ['.json'] }
-                    }]
-                });
-
-                fileHandle = handle;
-                await saveFileHandle(fileHandle);
-                await saveDreamsToFile(); // Save current dreams to the new file
-                updateFileSystemAccessUI();
-
-                createInlineMessage('success', `Created and connected to ${fileHandle.name}. Your journal will now be saved automatically.`, {
-                    container: document.querySelector('.settings-section h3').parentElement,
-                    duration: 5000
-                });
-
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error('File System Access error:', error);
-                    createInlineMessage('error', 'Could not create file. Please try again.', {
-                        container: document.querySelector('.settings-section h3').parentElement
-                    });
-                }
-            }
-        }
-
-        // Connect to a local file
-        async function connectToFile() {
-            try {
-                [fileHandle] = await window.showOpenFilePicker({
-                    types: [{
-                        description: 'Dream Journal Files',
-                        accept: { 'application/json': ['.json'] }
-                    }]
-                });
-
-                await saveFileHandle(fileHandle);
-                await loadDreamsFromFile();
-                updateFileSystemAccessUI();
-
-                createInlineMessage('success', `Connected to ${fileHandle.name}. Your journal will now be saved automatically.`, {
-                    container: document.querySelector('.settings-section h3').parentElement,
-                    duration: 5000
-                });
-
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error('File System Access error:', error);
-                    createInlineMessage('error', 'Could not connect to file. Please try again.', {
-                        container: document.querySelector('.settings-section h3').parentElement
-                    });
-                }
-            }
-        }
-
-        // Save file handle to IndexedDB
-        async function saveFileHandle(handle) {
-            if (!db) return;
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['fileSystem'], 'readwrite');
-                const store = transaction.objectStore('fileSystem');
-                store.put(handle, 'journalFileHandle');
-                transaction.oncomplete = resolve;
-                transaction.onerror = reject;
-            });
-        }
-
-        // Load dreams from the connected file
-        async function loadDreamsFromFile() {
-            if (!fileHandle) return;
-
-            try {
-                const file = await fileHandle.getFile();
-                const contents = await file.text();
-
-                if (contents) {
-                    const dreamsFromFile = JSON.parse(contents);
-                    if (Array.isArray(dreamsFromFile)) {
-                        const currentDreams = await loadDreams();
-                        const existingIds = new Set(currentDreams.map(d => d.id));
-
-                        const newDreams = dreamsFromFile.filter(d => !existingIds.has(d.id));
-
-                        if (newDreams.length > 0) {
-                            const mergedDreams = [...currentDreams, ...newDreams];
-                            await saveDreams(mergedDreams);
-                        }
-
-                        await displayDreams();
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading from file:', error);
-                createInlineMessage('error', `Could not read from ${fileHandle.name}. Please ensure it's a valid JSON file.`, {
-                    container: document.querySelector('.settings-section h3').parentElement
-                });
-            }
-        }
-
-
-        // Reconnect to file on application load
-        async function reconnectToFileOnLoad() {
-            if (!db) return;
-
-            try {
-                const handle = await new Promise((resolve, reject) => {
-                    const transaction = db.transaction(['fileSystem'], 'readonly');
-                    const store = transaction.objectStore('fileSystem');
-                    const request = store.get('journalFileHandle');
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = reject;
-                });
-
-                if (handle) {
-                    if (await handle.queryPermission({ mode: 'readwrite' }) === 'granted') {
-                        fileHandle = handle;
-                        await loadDreamsFromFile();
-                    } else {
-                        console.log('File system permission not granted on load.');
-                    }
-                }
-            } catch (error) {
-                console.error('Error reconnecting to file on load:', error);
-            }
-        }
-
-        // Save all dreams to the connected file
-        async function saveDreamsToFile() {
-            if (!fileHandle) return;
-
-            try {
-                const dreams = await loadDreams();
-                const writable = await fileHandle.createWritable();
-                await writable.write(JSON.stringify(dreams, null, 2));
-                await writable.close();
-            } catch (error) {
-                console.error('Error saving to file automatically:', error);
-                // Optionally, inform the user non-intrusively
-                const container = document.querySelector('.settings-section h3')?.parentElement;
-                if (container) {
-                    createInlineMessage('error', `Auto-save to ${fileHandle.name} failed. Please check file permissions.`, {
-                        container,
-                        duration: 7000
-                    });
-                }
-            }
-        }
-
-        // Disconnect from the local file
-        function disconnectFromFile() {
-            const fileName = fileHandle ? fileHandle.name : 'the file';
-            fileHandle = null;
-            deleteFileHandle();
-            updateFileSystemAccessUI();
-            createInlineMessage('success', `Disconnected from ${fileName}. Your journal will no longer be saved to a local file.`, {
-                container: document.querySelector('.settings-section h3').parentElement
-            });
-        }
-
-        // Delete file handle from IndexedDB
-        async function deleteFileHandle() {
-            if (!db) return;
-            return new Promise((resolve, reject) => {
-                const transaction = db.transaction(['fileSystem'], 'readwrite');
-                const store = transaction.objectStore('fileSystem');
-                store.delete('journalFileHandle');
-                transaction.oncomplete = resolve;
-                transaction.onerror = reject;
-            });
         }
 
         // Update security controls visibility
@@ -11318,7 +11090,7 @@ GNU Affero General Public License for more details.
                 
                 // Create comprehensive export object
                 const exportData = {
-                    version: "1.40.0", // Updated version
+                    version: "1.34.3", // Updated version
                     exportDate: new Date().toISOString(),
                     exportType: "complete",
                     data: {
@@ -11863,7 +11635,6 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             
             // Initialize IndexedDB
             await initDB();
-            await reconnectToFileOnLoad(); // Attempt to reconnect on load
             
             // Initialize theme system early
             initializeTheme();
