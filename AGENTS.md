@@ -81,6 +81,13 @@ This is a **single-file HTML application** that implements a privacy-focused dre
                 Dream Journal vX.XX.X | Not a substitute for professional medical advice
             </p>
 
+
+and here:
+
+<!-- 
+Dream Journal vX.XX.X - A privacy-focused dream tracking application
+Copyright (C) 2025 Dream Journal Contributors
+
 3. I know it's long, but it has a single file constraint
 
 ### Making Changes
