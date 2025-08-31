@@ -885,7 +885,7 @@ GNU Affero General Public License for more details.
             align-items: center;
             flex-wrap: wrap;
         }
-
+        
         .autocomplete-management-list {
             display: flex;
             flex-direction: column;
@@ -2803,7 +2803,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.39.3 | Not a substitute for professional medical advice
+                Dream Journal v1.39.4 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2830,6 +2830,8 @@ GNU Affero General Public License for more details.
     <input type="file" id="importFile" class="file-input" accept=".txt,.enc">
     <input type="file" id="importAllDataFile" class="file-input" accept=".json,.enc">
     <script>
+    // UI State Keys
+    const DREAM_FORM_COLLAPSE_KEY = 'dreamFormCollapsed';
         // APPLICATION CONSTANTS & CONFIGURATION
         // Application Constants - Single Source of Truth
         const CONSTANTS = {
@@ -4535,7 +4537,7 @@ GNU Affero General Public License for more details.
                             <div class="settings-section">
                                 <h3>🏷️ Autocomplete Management</h3>
                                 <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. You can add your own custom items or remove default items you don't use.</p>
-
+                                
                                 <div class="settings-row">
                                     <div>
                                         <div class="settings-label">Tags & Themes</div>
@@ -4551,7 +4553,7 @@ GNU Affero General Public License for more details.
                                         <div class="loading-state">Loading tags...</div>
                                     </div>
                                 </div>
-
+                                
                                 <div class="settings-row">
                                     <div>
                                         <div class="settings-label">⚡ Dream Signs</div>
@@ -5017,17 +5019,19 @@ GNU Affero General Public License for more details.
             const collapsedForm = document.getElementById('dreamFormCollapsed');
             
             if (!fullForm || !collapsedForm) return; // Safety check
-            
+
             if (isDreamFormCollapsed) {
                 // Expand: show full form, hide collapsed
                 fullForm.style.display = 'block';
                 collapsedForm.style.display = 'none';
                 isDreamFormCollapsed = false;
+                try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'false'); } catch (e) {}
             } else {
                 // Collapse: hide full form, show collapsed
                 fullForm.style.display = 'none';
                 collapsedForm.style.display = 'block';
                 isDreamFormCollapsed = true;
+                try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'true'); } catch (e) {}
             }
         }
         function routeAction(context, event = null) {
@@ -6177,7 +6181,7 @@ GNU Affero General Public License for more details.
                 const tags = input.split(',')
                     .map(tag => tag.trim())
                     .filter(tag => tag.length > 0 && tag.length <= CONSTANTS.MAX_TAG_LENGTH);
-
+                
                 // Remove duplicates, case-insensitively, preserving first-seen casing
                 const seen = new Set();
                 return tags.filter(tag => {
@@ -6281,7 +6285,7 @@ GNU Affero General Public License for more details.
                     });
                 });
             };
-
+            
             input.autocompleteListener = listener;
             input.addEventListener('input', listener);
 
@@ -6346,7 +6350,7 @@ GNU Affero General Public License for more details.
                             database.createObjectStore('userDreamSigns', { keyPath: 'id' });
                             database.createObjectStore('deletedDefaults', { keyPath: 'id' });
                         }
-
+                        
                         // Future migrations can be added here
                         // if (oldVersion < 4) { ... }
                     };
@@ -9504,7 +9508,7 @@ GNU Affero General Public License for more details.
                         const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                         switchAppTab(targetTab);
                         updateSecurityControls();
-                    }, 1000);
+                    }, 1);
                     
                 } else {
                     failedPinAttempts++;
@@ -9991,7 +9995,7 @@ GNU Affero General Public License for more details.
                 const newItemId = newItemValue.toLowerCase();
                 if (!userItemsSet.has(newItemId) && !defaultItemsSet.has(newItemId)) {
                     userItems.push({ id: newItemId, value: newItemValue });
-                    userItemsSet.add(newItemId);
+                    userItemsSet.add(newItemId); 
                     newItemsFound = true;
                 }
             });
@@ -10973,7 +10977,7 @@ GNU Affero General Public License for more details.
         // Generic function to load all items from a given store
         async function loadFromStore(storeName) {
             if (!isIndexedDBAvailable()) return [];
-
+            
             return new Promise((resolve) => {
                 try {
                     if (!db.objectStoreNames.contains(storeName)) {
@@ -10981,15 +10985,15 @@ GNU Affero General Public License for more details.
                         resolve([]);
                         return;
                     }
-
+                    
                     const transaction = db.transaction([storeName], 'readonly');
                     const store = transaction.objectStore(storeName);
                     const request = store.getAll();
-
+                    
                     request.onsuccess = () => {
                         resolve(request.result || []);
                     };
-
+                    
                     request.onerror = () => {
                         console.error(`Error loading from store '${storeName}':`, request.error);
                         resolve([]);
@@ -11004,7 +11008,7 @@ GNU Affero General Public License for more details.
         // Generic function to overwrite a store with new data
         async function saveToStore(storeName, data) {
             if (!isIndexedDBAvailable()) return false;
-
+            
             return new Promise((resolve) => {
                 try {
                     if (!db.objectStoreNames.contains(storeName)) {
@@ -11012,35 +11016,35 @@ GNU Affero General Public License for more details.
                         resolve(false);
                         return;
                     }
-
+                    
                     const transaction = db.transaction([storeName], 'readwrite');
-
+                    
                     // --- ADD THIS HANDLER ---
                     transaction.onabort = (event) => {
                         console.error(`Transaction aborted for store '${storeName}':`, event.target.error);
                         resolve(false);
                     };
                     // ------------------------
-
+                    
                     const store = transaction.objectStore(storeName);
-
+                    
                     const clearRequest = store.clear();
-
+                    
                     clearRequest.onsuccess = () => {
                         data.forEach(item => {
                             store.put(item);
                         });
                     };
-
+                    
                     clearRequest.onerror = (event) => {
                         console.error(`Error clearing store '${storeName}':`, event.target.error);
                         transaction.abort();
                     };
-
+                    
                     transaction.oncomplete = () => {
                         resolve(true);
                     };
-
+                    
                     transaction.onerror = (event) => {
                         console.error(`Error saving to store '${storeName}':`, event.target.error);
                         resolve(false);
@@ -11087,12 +11091,12 @@ GNU Affero General Public License for more details.
             const dataToStore = deletedItems.map(item => ({ id: item.toLowerCase() }));
             return await saveToStore('deletedDefaults', dataToStore);
         }
-
+        
         // Get combined list of suggestions for autocomplete
         async function getAutocompleteSuggestions(type) {
             const isTags = type === 'tags';
             const defaultList = isTags ? commonTags : commonDreamSigns;
-
+            
             const [userItems, deletedItems] = await Promise.all([
                 loadFromStore(isTags ? 'userTags' : 'userDreamSigns'),
                 loadFromStore('deletedDefaults')
@@ -11144,7 +11148,7 @@ GNU Affero General Public License for more details.
                     const itemId = item.toLowerCase();
                     const isUserItem = userItemSet.has(itemId);
                     const isDefault = defaultItemSet.has(itemId);
-
+                    
                     let itemClass = 'autocomplete-list-item';
                     let itemType = '';
                     let actionButton = '';
@@ -11168,7 +11172,7 @@ GNU Affero General Public License for more details.
                         </div>
                     `;
                 }).join('');
-
+                
                 const hiddenItems = Array.from(deletedItemSet)
                     .filter(id => defaultItemSet.has(id))
                     .map(id => {
@@ -11208,10 +11212,10 @@ GNU Affero General Public License for more details.
                 input.value = '';
                 return;
             }
-
+            
             userItems.push({ id: value.toLowerCase(), value: value });
             await saveToStore(storeName, userItems);
-
+            
             input.value = '';
             await renderAutocompleteManagementList(type);
     await initializeAutocomplete();
@@ -11220,7 +11224,7 @@ GNU Affero General Public License for more details.
         async function deleteAutocompleteItem(type, itemId) {
             const isTags = type === 'tags';
             const storeName = isTags ? 'userTags' : 'userDreamSigns';
-
+            
             const userItems = await loadFromStore(storeName);
             const userItemIndex = userItems.findIndex(item => item.id === itemId);
 
@@ -11235,7 +11239,7 @@ GNU Affero General Public License for more details.
                     await saveToStore('deletedDefaults', deletedItems);
                 }
             }
-
+            
             await renderAutocompleteManagementList(type);
     await initializeAutocomplete();
         }
@@ -12483,6 +12487,14 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             }
 
             // Finally, make the container visible now that setup is complete
+            // Restore dream form collapse state from localStorage
+            try {
+                const savedCollapse = localStorage.getItem(DREAM_FORM_COLLAPSE_KEY);
+                if (savedCollapse === 'true') {
+                    isDreamFormCollapsed = false; // will be toggled to true below
+                    toggleDreamForm();
+                }
+            } catch (e) {}
             document.querySelector('.container').style.visibility = 'visible';
         });
     </script>
