@@ -4,7 +4,7 @@ This file provides guidance to Gemini Jules (jules.google.com) when working with
 
 ## Project Overview
 
-This is a **single-file HTML application** that implements a privacy-focused dream journal. The entire application is contained within `DreamJournal.html` - there are no separate build tools, package managers, or external dependencies.
+This is a **single-file HTML application** that implements a privacy-focused dream journal. The entire application is contained within `index.html` - there are no separate build tools, package managers, or external dependencies.
 
 ## Architecture
 
@@ -97,7 +97,7 @@ This is a **single-file HTML application** that implements a privacy-focused dre
 - Handle async operations with proper error catching
 
 ### Testing
-- Open `DreamJournal.html` directly in a web browser
+- Open `index.html` directly in a web browser
 - Test in Chrome/Edge for full voice features, Firefox/Safari for basic functionality
 - Use browser dev tools for debugging - no external testing framework
 
