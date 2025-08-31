@@ -1,36 +1,77 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Gemini Jules (jules.google.com) when working with code in this repository.
 
 ## Project Overview
 
-This is a single-file HTML dream journal application (DreamJournal.html) that prioritizes privacy and offline functionality. The entire application is contained in one self-contained HTML file with embedded CSS, JavaScript, and all dependencies.
+This is a **single-file HTML application** that implements a privacy-focused dream journal. The entire application is contained within `DreamJournal.html` - there are no separate build tools, package managers, or external dependencies.
 
 ## Architecture
 
-### Core Components
-- **Single File Application**: All code exists in `DreamJournal.html` - CSS, JavaScript, and HTML are embedded together
-- **Dual Storage System**: 
-  - IndexedDB for persistent storage (default)
-  - In-memory storage fallback when IndexedDB unavailable
-  - Automatic switching between storage types with data migration
-- **Security Layer**: PIN-based encryption for dream entries with failed attempt protection
-- **Voice Recording**: MediaRecorder API integration with transcription capabilities
-- **Theme System**: HSL-based color system with light/dark theme support
+### Single-File Structure
+- **HTML**: Application structure and UI templates
+- **CSS**: HSL-based theme system with utility classes for light/dark themes
+- **JavaScript**: Modular functions handling all application logic
 
-### Key Data Structures
-- **Dreams Store**: Main entries with title, content, date, lucid flags, tags, and dream signs
-- **Voice Notes Store**: Audio recordings with metadata, transcriptions, and timestamps
-- **Settings**: Theme preferences, PIN configuration, storage type selection
+### Core Systems
 
-### Major Functionality Areas
-1. **Dream Management**: CRUD operations with inline editing, search, filtering, and pagination
-2. **Voice Recording**: Record, playback, transcription, and dream creation from voice notes
-3. **Security**: PIN protection, auto-lock, PIN reset mechanisms
-4. **Data Export**: JSON export with optional password protection and AI analysis format
-5. **Privacy Features**: No external servers, local-only storage, encryption options
+1. **Data Storage**: Uses IndexedDB for local persistence
+   - Dreams, goals, voice notes, and settings stored locally
+   - No server communication - fully client-side
 
-## Development Notes
+2. **Theme System**: HSL-based CSS custom properties
+   - Light/dark theme support via CSS variables
+   - Utility classes for consistent styling
+
+3. **Event System**: Centralized event delegation
+   - All interactions handled through `data-action` attributes
+   - Event handlers registered in `ACTION_HANDLERS` object
+
+4. **Voice Recording**: Browser-based audio recording and transcription
+   - MediaRecorder API for audio capture
+   - SpeechRecognition API for transcription (Chrome/Edge only)
+   - Local storage with configurable limits
+
+### Key Components
+
+- **Dream Management**: CRUD operations for dream entries with categories, emotions, and dream signs
+- **Goals System**: Track lucid dreaming goals with progress calculation
+- **Voice Notes**: Record and transcribe voice memos with automatic dream creation
+- **Statistics**: Calendar view and analytics dashboard
+- **Data Export/Import**: Encrypted backup/restore functionality
+- **PIN Protection**: Optional security layer for sensitive content
+
+### Major Functions by Category
+
+**Data Management** (lines ~6213-11628):
+- `initDB()`: IndexedDB initialization
+- `saveDream()`, `loadDreams()`: Dream CRUD operations
+- `saveGoal()`, `loadGoals()`: Goals management
+- `exportDreams()`, `importDreams()`: Data backup/restore
+
+**UI Management** (lines ~3946-4700):
+- `switchAppTab()`: Main navigation between sections
+- `initializeTheme()`, `switchTheme()`: Theme handling
+- Event delegation system via `setupEventDelegation()`
+
+**Voice System** (lines ~5576-6200):
+- `toggleRecording()`: Start/stop voice recording
+- `transcribeVoiceNote()`: Speech-to-text processing
+- `createDreamFromTranscription()`: Convert voice notes to dreams
+
+**Goals & Analytics** (lines ~3082-3704):
+- `calculateGoalProgress()`: Track goal completion
+- `initCalendar()`: Statistics dashboard
+- Dream streak and recall calculations
+
+### Application Flow
+
+1. **Initialization** (line 11629): DOM ready → check compatibility → init DB → load theme → display content
+2. **Event Handling**: All user interactions routed through centralized action system
+3. **Data Persistence**: Changes auto-saved to IndexedDB with error handling
+4. **Theme Application**: CSS custom properties updated dynamically
+
+## Development Guidelines
 
 1. Never use alert() and confirm()  or prompt() or any kind of popup. They don't work in my environment. Only use the custom popup system that's already been designed or display text/confirmation inline somewhere if necessary
 
@@ -39,33 +80,28 @@ This is a single-file HTML dream journal application (DreamJournal.html) that pr
             <p class="app-footer p">
                 Dream Journal vX.XX.X | Not a substitute for professional medical advice
             </p>
-   
+
 3. I know it's long, but it has a single file constraint
 
+### Making Changes
+- All code exists in the single HTML file
+- CSS uses the existing HSL theme system - avoid hardcoded colors
+- JavaScript follows the established pattern of standalone functions
+- New features should integrate with the centralized event system
 
-### No Build System
-- This is a single HTML file with no build process, package.json, or dependencies
-- Open `DreamJournal.html` directly in a web browser to run the application
-- No compilation, bundling, or server setup required
+### Key Patterns
+- Use `data-action` attributes for interactive elements
+- Follow the existing CSS utility class naming
+- Maintain the HSL theme variable structure
+- Use `createInlineMessage()` for user feedback
+- Handle async operations with proper error catching
 
-### Code Organization
-- CSS: HSL theme system with utility classes (lines ~20-2000)
-- JavaScript: Modular functions organized by feature area (lines ~2000+)
-- HTML: Tab-based UI structure with overlays for PIN protection
+### Testing
+- Open `DreamJournal.html` directly in a web browser
+- Test in Chrome/Edge for full voice features, Firefox/Safari for basic functionality
+- Use browser dev tools for debugging - no external testing framework
 
-### Key Constants and Configuration
-- `CONSTANTS` object contains all app configuration (storage limits, timing, etc.)
-- Database version controlled via `DB_VERSION` for schema migrations
-- Voice storage limits and security timeouts are configurable
-
-### Testing and Development
-- No automated tests - manual testing in browser required
-- Use browser DevTools for debugging
-- IndexedDB can be inspected via Application tab in Chrome DevTools
-- Console logging available for storage operations and errors
-
-## Security Considerations
-- PIN protection uses browser's built-in password input with timing attack prevention
-- All encryption/decryption happens client-side
-- No network requests - completely offline application
-- Failed PIN attempts trigger progressive delays
+### Data Handling
+- All data is stored locally in IndexedDB
+- Encryption available for exports using Web Crypto API
+- No network requests - fully offline application
