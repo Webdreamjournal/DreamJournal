@@ -2763,7 +2763,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.39.1 | Not a substitute for professional medical advice
+                Dream Journal v1.39.2 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -10280,14 +10280,27 @@ GNU Affero General Public License for more details.
                 let datetimeLocalValue = '';
                 try {
                     const dreamDateTime = new Date(dream.timestamp);
+                    let dateToFormat;
                     if (!isNaN(dreamDateTime.getTime())) {
-                        datetimeLocalValue = dreamDateTime.toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
+                        dateToFormat = dreamDateTime;
                     } else {
-                        datetimeLocalValue = new Date().toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
+                        dateToFormat = new Date(); // Fallback to now
                     }
+                    const year = dateToFormat.getFullYear();
+                    const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
+                    const day = dateToFormat.getDate().toString().padStart(2, '0');
+                    const hours = dateToFormat.getHours().toString().padStart(2, '0');
+                    const minutes = dateToFormat.getMinutes().toString().padStart(2, '0');
+                    datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
                 } catch (error) {
                     // If timestamp is invalid, use current time
-                    datetimeLocalValue = new Date().toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                    const day = now.getDate().toString().padStart(2, '0');
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
                 }
                 
                 // Add a new class for the edit mode and clear existing content
@@ -11702,7 +11715,12 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             const dreamDateInput = document.getElementById('dreamDate');
             if (dreamDateInput) {
                 const now = new Date();
-                const datetimeLocalValue = now.toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
                 dreamDateInput.value = datetimeLocalValue;
             }
             
