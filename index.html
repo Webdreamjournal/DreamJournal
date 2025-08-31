@@ -195,6 +195,24 @@ GNU Affero General Public License for more details.
         .stats-tab-panel {
             width: 100%;
         }
+
+        .word-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+        }
+        .word-cloud-item {
+            display: inline-block;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            cursor: default;
+        }
+        .word-cloud-item:hover {
+            transform: scale(1.1);
+        }
         
         /* Voice button variants */
         .voice-btn-play { background: var(--info-color); color: var(--text-inverse); }
@@ -2803,7 +2821,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.39.4 | Not a substitute for professional medical advice
+                Dream Journal v1.40.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -4315,6 +4333,9 @@ GNU Affero General Public License for more details.
                                     <button class="stats-tab" data-action="switch-stats-tab" data-tab="lifetime">
                                         🏆 Lifetime
                                     </button>
+                                    <button class="stats-tab" data-action="switch-stats-tab" data-tab="dream-signs">
+                                        ⚡ Dream Signs
+                                    </button>
                                 </div>
                                 
                                 <!-- Stats Tab Content -->
@@ -4364,6 +4385,20 @@ GNU Affero General Public License for more details.
                                                 <h3 class="text-primary mb-md">All-Time Dream Types</h3>
                                                 <div class="loading-state">Loading lifetime chart...</div>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dream Signs Tab -->
+                                    <div id="statsTabDreamSigns" class="stats-tab-panel" style="display: none;">
+                                        <div id="dreamSignWordCloudContainer" class="card-md mb-lg">
+                                            <!-- Word cloud will be generated here -->
+                                            <h3 class="text-primary mb-md">Dream Sign Word Cloud</h3>
+                                            <div class="loading-state">Loading word cloud...</div>
+                                        </div>
+                                        <div id="dreamSignListContainer" class="card-md">
+                                            <!-- Dream sign list will be generated here -->
+                                            <h3 class="text-primary mb-md">Dream Sign Lucidity Rate</h3>
+                                            <div class="loading-state">Loading list...</div>
                                         </div>
                                     </div>
                                 </div>
@@ -8263,9 +8298,16 @@ GNU Affero General Public License for more details.
             }
         }
         
+        // Update the dream signs tab with the latest data
+        async function updateDreamSignsTab() {
+            const stats = await calculateDreamSignStats();
+            renderDreamSignWordCloud(stats);
+            renderDreamSignList(stats);
+        }
+
         // STATS TAB SWITCHING FUNCTION
         function switchStatsTab(tabName) {
-            if (!tabName || !['month', 'year', 'lifetime'].includes(tabName)) return;
+            if (!tabName || !['month', 'year', 'lifetime', 'dream-signs'].includes(tabName)) return;
             
             // Update tab buttons
             document.querySelectorAll('.stats-tab').forEach(tab => {
@@ -8277,7 +8319,10 @@ GNU Affero General Public License for more details.
             document.querySelectorAll('.stats-tab-panel').forEach(panel => {
                 panel.style.display = 'none';
             });
-            document.getElementById(`statsTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).style.display = 'block';
+
+            // Handle the different capitalization for the dream-signs tab ID
+            const panelId = `statsTab${tabName.charAt(0).toUpperCase() + tabName.slice(1).replace('-s', 'S')}`;
+            document.getElementById(panelId).style.display = 'block';
             
             // Load data for the selected tab if needed
             if (tabName === 'year') {
@@ -8287,6 +8332,8 @@ GNU Affero General Public License for more details.
             } else if (tabName === 'lifetime') {
                 updateLifetimeStats();
                 renderLifetimePieChart();
+            } else if (tabName === 'dream-signs') {
+                updateDreamSignsTab();
             }
         }
         
@@ -8635,6 +8682,152 @@ GNU Affero General Public License for more details.
                 console.error("Error rendering lifetime pie chart:", error);
                 lifetimePieChartContainer.innerHTML = `<h3 class="text-primary mb-md">All-Time Dream Types</h3><div class="message-error">Could not load lifetime chart.</div>`;
             }
+        }
+
+        // Calculate dream sign statistics
+        async function calculateDreamSignStats() {
+            const dreams = await loadDreams();
+            const dreamSignStats = new Map();
+
+            dreams.forEach(dream => {
+                if (dream.dreamSigns && Array.isArray(dream.dreamSigns)) {
+                    const uniqueSigns = [...new Set(dream.dreamSigns.map(s => s.trim().toLowerCase()))];
+
+                    uniqueSigns.forEach(sign => {
+                        if (!sign) return;
+
+                        const stat = dreamSignStats.get(sign) || {
+                            total: 0,
+                            lucid: 0,
+                            originalCase: sign
+                        };
+
+                        stat.total++;
+                        if (dream.isLucid) {
+                            stat.lucid++;
+                        }
+                        // A simple way to keep a consistent-ish casing
+                        if (dream.dreamSigns.includes(stat.originalCase)) {
+                            // prefer the casing that is already stored if it exists in the current dream
+                        } else {
+                            // otherwise, just take the first one we see
+                            stat.originalCase = dream.dreamSigns.find(s => s.trim().toLowerCase() === sign);
+                        }
+
+                        dreamSignStats.set(sign, stat);
+                    });
+                }
+            });
+
+            const statsArray = [];
+            for (const [sign, stat] of dreamSignStats.entries()) {
+                statsArray.push({
+                    sign: stat.originalCase,
+                    total: stat.total,
+                    lucid: stat.lucid,
+                    lucidityRate: stat.total > 0 ? (stat.lucid / stat.total) : 0
+                });
+            }
+
+            return statsArray;
+        }
+
+        // Render the detailed list of dream signs
+        function renderDreamSignList(stats) {
+            const container = document.getElementById('dreamSignListContainer');
+            if (!container) return;
+
+            const successfulSigns = stats.filter(stat => stat.lucid > 0);
+
+            if (successfulSigns.length === 0) {
+                container.innerHTML = `
+                    <h3 class="text-primary mb-md">Dream Sign Lucidity Rate</h3>
+                    <div class="no-entries" style="padding: 20px;">
+                        You haven't had any lucid dreams triggered by your tracked dream signs yet.
+                        Keep practicing reality checks when you notice them!
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by lucidity rate (highest first)
+            successfulSigns.sort((a, b) => b.lucidityRate - a.lucidityRate);
+
+            const listHTML = successfulSigns.map(stat => {
+                const percentage = (stat.lucidityRate * 100).toFixed(0);
+                return `
+                    <div class="stats-card card-sm text-left mb-sm">
+                        <div class="flex-between">
+                            <span class="font-semibold text-primary">⚡ ${escapeHtml(stat.sign)}</span>
+                            <span class="status-success">${percentage}% Lucid</span>
+                        </div>
+                        <div class="progress-bar mt-sm mb-sm">
+                            <div class="progress-fill progress-success" style="width: ${percentage}%;"></div>
+                        </div>
+                        <div class="text-sm text-secondary">
+                            Triggered lucidity in <strong>${stat.lucid}</strong> of <strong>${stat.total}</strong> appearances.
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <h3 class="text-primary mb-md">Dream Sign Lucidity Rate</h3>
+                <p class="text-secondary mb-lg text-sm">This list shows dream signs that have successfully triggered a lucid dream at least once, sorted by their effectiveness.</p>
+                ${listHTML}
+            `;
+        }
+
+        // Render the dream sign word cloud
+        function renderDreamSignWordCloud(stats) {
+            const container = document.getElementById('dreamSignWordCloudContainer');
+            if (!container) return;
+
+            if (stats.length === 0) {
+                container.innerHTML = `
+                    <h3 class="text-primary mb-md">Dream Sign Word Cloud</h3>
+                    <div class="no-entries" style="padding: 20px;">
+                        Record dreams with dream signs to see your personal word cloud here!
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by total frequency (most frequent first)
+            const sortedByFrequency = [...stats].sort((a, b) => b.total - a.total);
+
+            // Tiering system (6 tiers)
+            const tierCount = 6;
+            const tierSize = Math.max(1, Math.ceil(sortedByFrequency.length / tierCount));
+
+            // Define styles for each tier (font size and HSL color)
+            // Hues: Red(0), Orange(30), Yellow(55), Blue(220), Green(140), Purple(270)
+            const styles = [
+                { size: '2.5em', color: 'hsl(0, 85%, 65%)' },   // Tier 1: Bright Red
+                { size: '2.1em', color: 'hsl(30, 85%, 60%)' },  // Tier 2: Bright Orange
+                { size: '1.8em', color: 'hsl(55, 85%, 55%)' },  // Tier 3: Bright Yellow
+                { size: '1.5em', color: 'hsl(220, 85%, 65%)' }, // Tier 4: Bright Blue
+                { size: '1.2em', color: 'hsl(140, 75%, 50%)' }, // Tier 5: Medium Green
+                { size: '1.0em', color: 'hsl(270, 75%, 60%)' }  // Tier 6: Medium-dim Purple
+            ];
+
+            const cloudHTML = sortedByFrequency.map((stat, index) => {
+                const tier = Math.floor(index / tierSize);
+                const style = styles[Math.min(tier, tierCount - 1)]; // Ensure we don't go out of bounds
+
+                return `
+                    <span class="word-cloud-item" style="font-size: ${style.size}; color: ${style.color};" title="${stat.total} appearances">
+                        ${escapeHtml(stat.sign)}
+                    </span>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <h3 class="text-primary mb-md">Dream Sign Word Cloud</h3>
+                <div class="word-cloud">
+                    ${cloudHTML}
+                </div>
+            `;
         }
 
         // PIN SECURITY & ACCESS CONTROL SYSTEM
