@@ -2821,7 +2821,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.42.0 | Not a substitute for professional medical advice
+                Dream Journal v1.42.1 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -5174,6 +5174,11 @@ GNU Affero General Public License for more details.
                     renderAutocompleteManagementList('tags');
                     renderAutocompleteManagementList('dreamSigns');
                 }, CONSTANTS.FOCUS_DELAY_MS);
+            }
+
+            // Initialize advice tab when switched to
+            if (tabName === 'advice') {
+                initializeAdviceTab();
             }
         }
         
@@ -13003,7 +13008,6 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             
             // Display dreams on load
             try {
-                initializeAdviceTab();
                 await displayDreams();
                 await updateRecordButtonState();
                 await displayVoiceNotes();
