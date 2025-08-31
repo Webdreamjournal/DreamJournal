@@ -2878,6 +2878,7 @@ GNU Affero General Public License for more details.
         const asyncMutex = {
             displayDreams: { locked: false, queue: [] },
             saveDreams: { locked: false, queue: [] },
+            saveGoals: { locked: false, queue: [] },
             voiceOperations: { locked: false, queue: [] },
             deleteOperations: { locked: false, queue: [] }
         };
@@ -3257,7 +3258,7 @@ GNU Affero General Public License for more details.
             
             goalDiv.innerHTML = `
                 <div class="flex-between mb-md">
-                    <h4>${goal.icon} ${goal.title}</h4>
+                    <h4>${escapeHtml(goal.icon)} ${escapeHtml(goal.title)}</h4>
                     <div class="goal-actions">
                         ${!isCompleted ? `
                             <button data-action="edit-goal" data-goal-id="${goal.id}" class="btn btn-outline btn-small">Edit</button>
@@ -3268,7 +3269,7 @@ GNU Affero General Public License for more details.
                         <button data-action="delete-goal" data-goal-id="${goal.id}" class="btn btn-error btn-small">Delete</button>
                     </div>
                 </div>
-                <p class="text-secondary mb-md">${goal.description}</p>
+                <p class="text-secondary mb-md">${escapeHtml(goal.description)}</p>
                 <div class="goal-progress-section">
                     <div class="flex-between mb-sm">
                         <span class="font-semibold">Progress:</span>
@@ -6705,47 +6706,49 @@ GNU Affero General Public License for more details.
         
         // Save goals to storage
         async function saveGoals(goals) {
-            console.log('saveGoals called with', goals.length, 'goals');
-            
-            try {
-                // Try IndexedDB first
-                if (isIndexedDBAvailable() && db) {
-                    console.log('Attempting to save to IndexedDB');
-                    const saved = await saveGoalsToIndexedDB(goals);
-                    if (saved) {
-                        console.log('Successfully saved to IndexedDB');
-                        // Also backup to localStorage
-                        if (isLocalStorageAvailable()) {
-                            try {
-                                localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
-                                console.log('Backup saved to localStorage');
-                            } catch (error) {
-                                console.warn('Could not backup goals to localStorage:', error);
+            return withMutex('saveGoals', async () => {
+                console.log('saveGoals called with', goals.length, 'goals');
+
+                try {
+                    // Try IndexedDB first
+                    if (isIndexedDBAvailable() && db) {
+                        console.log('Attempting to save to IndexedDB');
+                        const saved = await saveGoalsToIndexedDB(goals);
+                        if (saved) {
+                            console.log('Successfully saved to IndexedDB');
+                            // Also backup to localStorage
+                            if (isLocalStorageAvailable()) {
+                                try {
+                                    localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
+                                    console.log('Backup saved to localStorage');
+                                } catch (error) {
+                                    console.warn('Could not backup goals to localStorage:', error);
+                                }
                             }
+                            return;
+                        } else {
+                            console.warn('IndexedDB save failed, falling back to localStorage');
                         }
-                        return;
+                    }
+
+                    // Fallback to localStorage
+                    if (isLocalStorageAvailable()) {
+                        console.log('Saving to localStorage as fallback');
+                        try {
+                            localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
+                            console.log('Successfully saved to localStorage');
+                        } catch (error) {
+                            console.error('Error saving goals to localStorage:', error);
+                            throw error; // Re-throw to be caught by caller
+                        }
                     } else {
-                        console.warn('IndexedDB save failed, falling back to localStorage');
+                        throw new Error('No storage method available');
                     }
+                } catch (error) {
+                    console.error('saveGoals failed:', error);
+                    throw error; // Re-throw to be caught by caller
                 }
-                
-                // Fallback to localStorage
-                if (isLocalStorageAvailable()) {
-                    console.log('Saving to localStorage as fallback');
-                    try {
-                        localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
-                        console.log('Successfully saved to localStorage');
-                    } catch (error) {
-                        console.error('Error saving goals to localStorage:', error);
-                        throw error; // Re-throw to be caught by caller
-                    }
-                } else {
-                    throw new Error('No storage method available');
-                }
-            } catch (error) {
-                console.error('saveGoals failed:', error);
-                throw error; // Re-throw to be caught by caller
-            }
+            });
         }
         
         // IndexedDB goals functions
@@ -9272,36 +9275,56 @@ GNU Affero General Public License for more details.
             }
         }
 
-        // Cancel reset timer
+        // Cancel reset timer - now requires PIN
         function cancelResetTimer() {
-            // Change the warning banner to show confirmation
-            const warningBanner = document.getElementById('timerWarning');
-            warningBanner.innerHTML = `
-                ⚠️ <strong>Cancel PIN Reset Timer?</strong> - You will need to enter your PIN or start recovery again.
-                <button data-action="confirm-cancel-timer" class="btn btn-primary btn-small">Yes, Cancel</button>
-                <button data-action="restore-warning-banner" class="btn btn-secondary btn-small">No, Keep</button>
-            `;
+            const pinOverlay = document.getElementById('pinOverlay');
+            const pinContainer = pinOverlay.querySelector('.pin-container');
+            
+            renderPinScreen(pinContainer, {
+                title: 'Cancel PIN Reset',
+                icon: '⚠️',
+                message: 'To cancel the pending PIN reset, please enter your current PIN.',
+                inputs: [
+                    { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
+                ],
+                buttons: [
+                    { text: 'Confirm Cancellation', action: 'confirm-cancel-timer', class: 'btn-primary' },
+                    { text: 'Back', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: true
+            });
+            
+            pinOverlay.style.display = 'flex';
         }
 
-        // Actually cancel the timer
-        function confirmCancelTimer() {
-            removeResetTime();
-            updateTimerWarning();
-            
-            const warningBanner = document.getElementById('timerWarning');
-            warningBanner.innerHTML = '✅ PIN reset timer has been cancelled.';
-            warningBanner.className = 'timer-warning active message-success';
-            
-            setTimeout(() => {
-                warningBanner.classList.remove('active');
-                warningBanner.className = 'timer-warning';
-                updateTimerWarning(); // Restore original content
-            }, 3000);
-        }
+        // Actually cancel the timer - NOW requires PIN verification
+        async function confirmCancelTimer() {
+            const enteredPin = document.getElementById('pinInput').value;
+            if (!enteredPin) {
+                showMessage('error', 'Please enter your PIN.');
+                return;
+            }
 
-        // Restore warning banner if user cancels
-        function restoreWarningBanner() {
-            updateTimerWarning();
+            const storedData = getStoredPinData();
+            const isValid = await verifyPinHash(enteredPin, storedData);
+
+            if (isValid) {
+                removeResetTime();
+                updateTimerWarning();
+                hidePinOverlay();
+
+                // Show a success message in the main content area
+                const container = document.querySelector('.main-content');
+                if (container) {
+                    createInlineMessage('success', 'PIN reset timer has been successfully cancelled.', {
+                        container: document.querySelector('.container'),
+                        position: 'top',
+                        duration: 5000
+                    });
+                }
+            } else {
+                showMessage('error', 'Incorrect PIN. The reset timer remains active.');
+            }
         }
 
         // Show timer recovery status
@@ -10797,7 +10820,8 @@ GNU Affero General Public License for more details.
             return existingDreams.some(existing => 
                 existing && 
                 existing.title === newDream.title && 
-                existing.content === newDream.content
+                existing.content === newDream.content &&
+                existing.timestamp === newDream.timestamp
             );
         }
 
