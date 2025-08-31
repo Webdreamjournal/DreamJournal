@@ -2763,7 +2763,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.40.0 | Not a substitute for professional medical advice
+                Dream Journal v1.39.0 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -2840,7 +2840,7 @@ GNU Affero General Public License for more details.
             BYTES_PER_MB: 1048576, // 1024 * 1024
             
             // Database Constants
-            DB_VERSION: 4,
+            DB_VERSION: 3,
             DATETIME_LOCAL_SLICE_LENGTH: 16,
             
             // UI Timing & Durations (milliseconds)
@@ -3833,18 +3833,26 @@ GNU Affero General Public License for more details.
         // THEME MANAGEMENT SYSTEM
         
         // Get current theme from storage or default to dark
-        async function getCurrentTheme() {
-            const theme = await getSetting('theme');
-            return theme || 'dark';
+        function getCurrentTheme() {
+            if (isLocalStorageAvailable()) {
+                return localStorage.getItem('dreamJournalTheme') || 'dark';
+            }
+            return 'dark';
         }
         
         // Store theme preference
-        async function storeTheme(theme) {
-            await saveSetting('theme', theme);
+        function storeTheme(theme) {
+            if (isLocalStorageAvailable()) {
+                try {
+                    localStorage.setItem('dreamJournalTheme', theme);
+                } catch (error) {
+                    console.warn('Failed to store theme preference:', error);
+                }
+            }
         }
         
         // Apply theme to document
-        async function applyTheme(theme) {
+        function applyTheme(theme) {
             if (!theme || !['light', 'dark'].includes(theme)) {
                 theme = 'dark';
             }
@@ -3857,16 +3865,16 @@ GNU Affero General Public License for more details.
                 themeSelect.value = theme;
             }
             
-            await storeTheme(theme);
+            storeTheme(theme);
         }
         
         // Switch theme
-        async function switchTheme(newTheme) {
+        function switchTheme(newTheme) {
             if (!newTheme || !['light', 'dark'].includes(newTheme)) {
                 return;
             }
             
-            await applyTheme(newTheme);
+            applyTheme(newTheme);
             
             // Update any visible theme selects
             const themeSelects = document.querySelectorAll('#themeSelect');
@@ -3935,9 +3943,9 @@ GNU Affero General Public License for more details.
         }
         
         // Initialize theme on page load
-        async function initializeTheme() {
-            const savedTheme = await getCurrentTheme();
-            await applyTheme(savedTheme);
+        function initializeTheme() {
+            const savedTheme = getCurrentTheme();
+            applyTheme(savedTheme);
         }
         
         // CENTRALIZED ACTION SYSTEM & EVENT DELEGATION
@@ -4104,7 +4112,7 @@ GNU Affero General Public License for more details.
         };
         
         // Switch main app tabs
-        async function switchAppTab(tabName) {
+        function switchAppTab(tabName) {
             if (!tabName || !['journal', 'goals', 'stats', 'advice', 'settings', 'lock'].includes(tabName)) return;
             
             // Handle lock screen transitions
@@ -4162,7 +4170,7 @@ GNU Affero General Public License for more details.
             
             // Ensure all tab panels exist
             const requiredTabs = ['journalTab', 'goalsTab', 'statsTab', 'adviceTab', 'settingsTab', 'lockTab'];
-            for (const tabId of requiredTabs) {
+            requiredTabs.forEach(tabId => {
                 if (!document.getElementById(tabId)) {
                     const tabPanel = document.createElement('div');
                     tabPanel.id = tabId;
@@ -4399,7 +4407,7 @@ GNU Affero General Public License for more details.
                         `;
                     } else if (tabId === 'settingsTab') {
                         // Get current theme to set correct option as selected
-                        const currentTheme = await getCurrentTheme();
+                        const currentTheme = getCurrentTheme();
                         const lightSelected = currentTheme === 'light' ? 'selected' : '';
                         const darkSelected = currentTheme === 'dark' ? 'selected' : '';
                         
@@ -4528,19 +4536,8 @@ GNU Affero General Public License for more details.
                     }
                     
                     tabContainer.appendChild(tabPanel);
-
-                    // If settings tab was just created, attach its event listener
-                    if (tabId === 'settingsTab') {
-                        const themeSelect = document.getElementById('themeSelect');
-                        if (themeSelect && !themeSelect.hasAttribute('data-listener-added')) {
-                            themeSelect.addEventListener('change', function() {
-                                switchTheme(this.value);
-                            });
-                            themeSelect.setAttribute('data-listener-added', 'true');
-                        }
-                    }
                 }
-            }
+            });
             
             // Update tab panels
             const tabs = document.querySelectorAll('.tab-panel');
@@ -4612,13 +4609,32 @@ GNU Affero General Public License for more details.
                 setTimeout(() => {
                     updateSecurityControls();
                     
-                    // Ensure theme select listener is attached if tab already existed
+                    // Always update theme select - this fixes the tab switching issue
                     const themeSelect = document.getElementById('themeSelect');
-                    if (themeSelect && !themeSelect.hasAttribute('data-listener-added')) {
-                        themeSelect.addEventListener('change', function() {
-                            switchTheme(this.value);
+                    if (themeSelect) {
+                        const currentTheme = getCurrentTheme();
+                        
+                        // Update the select value
+                        themeSelect.value = currentTheme;
+                        
+                        // Also update the selected attribute in the DOM
+                        themeSelect.querySelectorAll('option').forEach(option => {
+                            if (option.value === currentTheme) {
+                                option.selected = true;
+                                option.setAttribute('selected', 'selected');
+                            } else {
+                                option.selected = false;
+                                option.removeAttribute('selected');
+                            }
                         });
-                        themeSelect.setAttribute('data-listener-added', 'true');
+                        
+                        // Add event listener if not already added
+                        if (!themeSelect.hasAttribute('data-listener-added')) {
+                            themeSelect.addEventListener('change', function() {
+                                switchTheme(this.value);
+                            });
+                            themeSelect.setAttribute('data-listener-added', 'true');
+                        }
                     }
                 }, CONSTANTS.FOCUS_DELAY_MS);
             }
@@ -5762,56 +5778,6 @@ GNU Affero General Public License for more details.
                 }
             });
         }
-
-        // Save a setting to IndexedDB
-        async function saveSetting(id, value) {
-            if (!isIndexedDBAvailable()) return false;
-
-            return new Promise((resolve) => {
-                try {
-                    const transaction = db.transaction(['settings'], 'readwrite');
-                    const store = transaction.objectStore('settings');
-                    const request = store.put({ id, value });
-
-                    request.onsuccess = () => resolve(true);
-                    request.onerror = () => {
-                        console.error('Failed to save setting:', request.error);
-                        resolve(false);
-                    };
-                } catch (error) {
-                    console.error('Error creating save setting transaction:', error);
-                    resolve(false);
-                }
-            });
-        }
-
-        // Get a setting from IndexedDB
-        async function getSetting(id) {
-            if (!isIndexedDBAvailable()) return null;
-
-            return new Promise((resolve) => {
-                try {
-                    const transaction = db.transaction(['settings'], 'readonly');
-                    const store = transaction.objectStore('settings');
-                    const request = store.get(id);
-
-                    request.onsuccess = () => {
-                        if (request.result) {
-                            resolve(request.result.value);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-                    request.onerror = () => {
-                        console.error('Failed to get setting:', request.error);
-                        resolve(null);
-                    };
-                } catch (error) {
-                    console.error('Error creating get setting transaction:', error);
-                    resolve(null);
-                }
-            });
-        }
         
         // Sort dreams based on sort criteria
         function sortDreams(dreams, sortType) {
@@ -6288,13 +6254,8 @@ GNU Affero General Public License for more details.
                             goalsStore.createIndex('type', 'type', { unique: false });
                         }
                         
-                        if (oldVersion < 4) {
-                            // Add settings store for key-value pairs
-                            database.createObjectStore('settings', { keyPath: 'id' });
-                        }
-
                         // Future migrations can be added here
-                        // if (oldVersion < 4) { ... }
+                        // if (oldVersion < 3) { ... }
                     };
                 } catch (error) {
                     console.error('Failed to open IndexedDB:', error);
@@ -11676,7 +11637,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             await initDB();
             
             // Initialize theme system early
-            await initializeTheme();
+            initializeTheme();
             
             // Initialize goals system
             await initGoals();
