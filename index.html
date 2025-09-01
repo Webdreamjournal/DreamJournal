@@ -1,5 +1,5 @@
 <!-- 
-Dream Journal v1.42.2 - A privacy-focused dream tracking application
+Dream Journal v1.42.3 - A privacy-focused dream tracking application
 Copyright (C) 2025 Dream Journal Contributors
 
 This program is free software: you can redistribute it and/or modify
@@ -2821,7 +2821,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.42.2 | Not a substitute for professional medical advice
+                Dream Journal v1.42.3 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -4990,15 +4990,17 @@ GNU Affero General Public License for more details.
                                     <div>
                                         <div class="settings-label">Tags & Themes</div>
                                         <div class="settings-description">Add a new custom tag or theme.</div>
-                                        <div class="form-group mt-sm">
-                                            <div class="flex-center gap-sm">
+                                    </div>
+                                    <div style="flex: 1; min-width: 300px;">
+                                        <div id="tagsManagementList" class="autocomplete-management-list">
+                                            <div class="loading-state">Loading tags...</div>
+                                        </div>
+                                        <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                                            <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
                                                 <input type="text" id="newTagInput" class="form-control" placeholder="e.g., recurring-nightmare">
                                                 <button data-action="add-custom-tag" class="btn btn-primary btn-small">Add</button>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div id="tagsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 300px;">
-                                        <div class="loading-state">Loading tags...</div>
                                     </div>
                                 </div>
                                 
@@ -5006,15 +5008,17 @@ GNU Affero General Public License for more details.
                                     <div>
                                         <div class="settings-label">⚡ Dream Signs</div>
                                         <div class="settings-description">Add a new custom dream sign.</div>
-                                        <div class="form-group mt-sm">
-                                            <div class="flex-center gap-sm">
+                                    </div>
+                                    <div style="flex: 1; min-width: 300px;">
+                                        <div id="dreamSignsManagementList" class="autocomplete-management-list">
+                                            <div class="loading-state">Loading dream signs...</div>
+                                        </div>
+                                        <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                                            <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
                                                 <input type="text" id="newDreamSignInput" class="form-control" placeholder="e.g., extra-fingers">
                                                 <button data-action="add-custom-dream-sign" class="btn btn-primary btn-small">Add</button>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div id="dreamSignsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 300px;">
-                                        <div class="loading-state">Loading dream signs...</div>
                                     </div>
                                 </div>
                             </div>
