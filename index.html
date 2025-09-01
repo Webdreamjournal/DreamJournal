@@ -1,5 +1,5 @@
 <!-- 
-Dream Journal v1.42.3 - A privacy-focused dream tracking application
+Dream Journal v1.42.4 - A privacy-focused dream tracking application
 Copyright (C) 2025 Dream Journal Contributors
 
 This program is free software: you can redistribute it and/or modify
@@ -2339,6 +2339,14 @@ GNU Affero General Public License for more details.
             .stats-tab-content {
                 padding: 15px;
             }
+
+            #tipText {
+                font-size: 0.9em;
+            }
+
+            #tipCounter {
+                font-size: 0.6em;
+            }
         }
         .voice-note:hover {
             border-color: #c7d2fe;
@@ -2821,7 +2829,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.42.3 | Not a substitute for professional medical advice
+                Dream Journal v1.42.4 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -4281,7 +4289,7 @@ GNU Affero General Public License for more details.
 
                 const tip = dailyTips[safeIndex];
                 tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
-                tipCounterElement.textContent = `Tip ${safeIndex + 1} / ${dailyTips.length}`;
+                tipCounterElement.textContent = `${safeIndex + 1} / ${dailyTips.length}`;
                 currentTipIndex = safeIndex;
             }
         }
