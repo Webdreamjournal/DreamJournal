@@ -2900,7 +2900,7 @@ GNU Affero General Public License for more details.
             BYTES_PER_MB: 1048576, // 1024 * 1024
             
             // Database Constants
-            DB_VERSION: 4,
+            DB_VERSION: 5,
             DATETIME_LOCAL_SLICE_LENGTH: 16,
             
             // UI Timing & Durations (milliseconds)
@@ -4984,7 +4984,7 @@ GNU Affero General Public License for more details.
                             </div>
                             <div class="settings-section">
                                 <h3>🏷️ Autocomplete Management</h3>
-                                <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. You can add your own custom items or remove default items you don't use.</p>
+                                <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
                                 
                                 <div class="settings-row">
                                     <div>
@@ -4997,7 +4997,7 @@ GNU Affero General Public License for more details.
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="tagsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 250px;">
+                                    <div id="tagsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 300px;">
                                         <div class="loading-state">Loading tags...</div>
                                     </div>
                                 </div>
@@ -5013,7 +5013,7 @@ GNU Affero General Public License for more details.
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="dreamSignsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 250px;">
+                                    <div id="dreamSignsManagementList" class="autocomplete-management-list" style="flex: 1; min-width: 300px;">
                                         <div class="loading-state">Loading dream signs...</div>
                                     </div>
                                 </div>
@@ -6803,9 +6803,83 @@ GNU Affero General Public License for more details.
                             database.createObjectStore('userDreamSigns', { keyPath: 'id' });
                             database.createObjectStore('deletedDefaults', { keyPath: 'id' });
                         }
+
+                        if (oldVersion < 5) {
+                            // Create a new unified store for autocomplete items and migrate data
+                            const autocompleteStore = database.createObjectStore('autocomplete', { keyPath: 'id' });
+                            const transaction = event.target.transaction;
+
+                            const getAllFromStore = (storeName) => {
+                                return new Promise((resolve, reject) => {
+                                    if (!database.objectStoreNames.contains(storeName)) {
+                                        resolve([]);
+                                        return;
+                                    }
+                                    try {
+                                        const store = transaction.objectStore(storeName);
+                                        const request = store.getAll();
+                                        request.onsuccess = () => resolve(request.result || []);
+                                        request.onerror = () => {
+                                            console.error(`Error getting all from ${storeName}:`, request.error);
+                                            reject(request.error);
+                                        };
+                                    } catch (error) {
+                                        console.error(`Error accessing store ${storeName}:`, error);
+                                        // If store is somehow gone, resolve with empty to not block migration
+                                        resolve([]);
+                                    }
+                                });
+                            };
+
+                            Promise.all([
+                                getAllFromStore('userTags'),
+                                getAllFromStore('userDreamSigns'),
+                                getAllFromStore('deletedDefaults')
+                            ]).then(([userTags, userDreamSigns, deletedDefaults]) => {
+                                const deletedSet = new Set((deletedDefaults || []).map(item => item.id));
+
+                                // Process Tags
+                                const tagsMap = new Map();
+                                commonTags.forEach(tag => tagsMap.set(tag.toLowerCase(), tag));
+                                (userTags || []).forEach(tag => tagsMap.set(tag.id, tag.value));
+                                const finalTags = Array.from(tagsMap.values()).filter(tag => !deletedSet.has(tag.toLowerCase()));
+
+                                // Process Dream Signs
+                                const signsMap = new Map();
+                                commonDreamSigns.forEach(sign => signsMap.set(sign.toLowerCase(), sign));
+                                (userDreamSigns || []).forEach(sign => signsMap.set(sign.id, sign.value));
+                                const finalDreamSigns = Array.from(signsMap.values()).filter(sign => !deletedSet.has(sign.toLowerCase()));
+
+                                // Save to new store
+                                autocompleteStore.put({ id: 'tags', items: finalTags });
+                                autocompleteStore.put({ id: 'dreamSigns', items: finalDreamSigns });
+
+                                // Set a flag in localStorage to indicate migration is complete
+                                try {
+                                    localStorage.setItem('autocompleteMigrationV5Done', 'true');
+                                } catch(e) {
+                                    console.warn("Could not set autocomplete migration flag in localStorage.");
+                                }
+
+                            }).catch(err => {
+                                console.error("Autocomplete migration failed:", err);
+                            });
+                        }
                         
                         // Future migrations can be added here
-                        // if (oldVersion < 4) { ... }
+                        if (oldVersion < 6) {
+                            // TODO: In a future version (e.g., v6+), remove the old stores after giving users time to migrate.
+                            // This prevents breaking the app for users who open an old version and then a new one.
+                            // if (database.objectStoreNames.contains('userTags')) {
+                            //     database.deleteObjectStore('userTags');
+                            // }
+                            // if (database.objectStoreNames.contains('userDreamSigns')) {
+                            //     database.deleteObjectStore('userDreamSigns');
+                            // }
+                            // if (database.objectStoreNames.contains('deletedDefaults')) {
+                            //     database.deleteObjectStore('deletedDefaults');
+                            // }
+                        }
                     };
                 } catch (error) {
                     console.error('Failed to open IndexedDB:', error);
@@ -10588,31 +10662,32 @@ GNU Affero General Public License for more details.
 
         // DREAM CRUD OPERATIONS (CREATE, READ, UPDATE, DELETE)
 
-        // Learn new tags/signs from user input and add to custom lists
-        async function learnFromInput(inputArray, type) {
+        async function learnAutocompleteItems(inputArray, type) {
             if (!inputArray || inputArray.length === 0) return;
 
-            const isTags = type === 'tags';
-            const defaultList = isTags ? commonTags : commonDreamSigns;
-            const storeName = isTags ? 'userTags' : 'userDreamSigns';
+            const storeId = type; // 'tags' or 'dreamSigns'
+            let autocompleteData = await loadItemFromStore('autocomplete', storeId);
 
-            const userItems = await loadFromStore(storeName);
-            const userItemsSet = new Set(userItems.map(item => item.id));
+            // If the store doesn't exist yet, initialize it.
+            if (!autocompleteData) {
+                autocompleteData = { id: storeId, items: [] };
+            }
 
-            const defaultItemsSet = new Set(defaultList.map(item => item.toLowerCase()));
-
+            const currentItemsLower = new Set(autocompleteData.items.map(item => item.toLowerCase()));
             let newItemsFound = false;
+
             inputArray.forEach(newItemValue => {
-                const newItemId = newItemValue.toLowerCase();
-                if (!userItemsSet.has(newItemId) && !defaultItemsSet.has(newItemId)) {
-                    userItems.push({ id: newItemId, value: newItemValue });
-                    userItemsSet.add(newItemId); 
+                if (!currentItemsLower.has(newItemValue.toLowerCase())) {
+                    autocompleteData.items.push(newItemValue);
+                    currentItemsLower.add(newItemValue.toLowerCase()); // Add to set to handle duplicates within the same input
                     newItemsFound = true;
                 }
             });
 
             if (newItemsFound) {
-                await saveToStore(storeName, userItems);
+                await saveItemToStore('autocomplete', autocompleteData);
+                // Also update the autocomplete suggestions in the UI
+                await initializeAutocomplete();
             }
         }
         
@@ -10639,9 +10714,9 @@ GNU Affero General Public License for more details.
             const tags = parseTagsFromInput(tagsElement.value);
             const dreamSigns = parseTagsFromInput(dreamSignsElement.value);
 
-            // Learn new tags and dream signs
-            await learnFromInput(tags, 'tags');
-            await learnFromInput(dreamSigns, 'dreamSigns');
+            // Learn new tags and dream signs from user input
+            await learnAutocompleteItems(tags, 'tags');
+            await learnAutocompleteItems(dreamSigns, 'dreamSigns');
             
             if (!content) {
                 // Show error message inline instead of alert
@@ -11132,9 +11207,9 @@ GNU Affero General Public License for more details.
                 const newTags = parseTagsFromInput(newTagsElement.value);
                 const newDreamSigns = parseTagsFromInput(newDreamSignsElement.value);
 
-                // Learn new tags and dream signs
-                await learnFromInput(newTags, 'tags');
-                await learnFromInput(newDreamSigns, 'dreamSigns');
+                // Learn new tags and dream signs from user input
+                await learnAutocompleteItems(newTags, 'tags');
+                await learnAutocompleteItems(newDreamSigns, 'dreamSigns');
                 
                 if (!newContent) {
                     // Show error inline in the edit area
@@ -11585,6 +11660,37 @@ GNU Affero General Public License for more details.
 
         // TAG & DREAM SIGN MANAGEMENT FUNCTIONS
 
+        // Generic function to load a single item from a given store by ID
+        async function loadItemFromStore(storeName, id) {
+            if (!isIndexedDBAvailable()) return null;
+
+            return new Promise((resolve) => {
+                try {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        console.warn(`Store '${storeName}' not found in database.`);
+                        resolve(null);
+                        return;
+                    }
+
+                    const transaction = db.transaction([storeName], 'readonly');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.get(id);
+
+                    request.onsuccess = () => {
+                        resolve(request.result || null);
+                    };
+
+                    request.onerror = () => {
+                        console.error(`Error loading item with id '${id}' from store '${storeName}':`, request.error);
+                        resolve(null);
+                    };
+                } catch (error) {
+                    console.error(`Error creating transaction for store '${storeName}':`, error);
+                    resolve(null);
+                }
+            });
+        }
+
         // Generic function to load all items from a given store
         async function loadFromStore(storeName) {
             if (!isIndexedDBAvailable()) return [];
@@ -11612,6 +11718,42 @@ GNU Affero General Public License for more details.
                 } catch (error) {
                     console.error(`Error creating transaction for store '${storeName}':`, error);
                     resolve([]);
+                }
+            });
+        }
+
+        // Generic function to save/update a single item in a store
+        async function saveItemToStore(storeName, item) {
+            if (!isIndexedDBAvailable()) return false;
+
+            return new Promise((resolve) => {
+                try {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        console.error(`Store '${storeName}' not found for saving.`);
+                        resolve(false);
+                        return;
+                    }
+
+                    const transaction = db.transaction([storeName], 'readwrite');
+                    const store = transaction.objectStore(storeName);
+                    const request = store.put(item);
+
+                    request.onsuccess = () => {
+                        resolve(true);
+                    };
+
+                    request.onerror = (event) => {
+                        console.error(`Error saving item to store '${storeName}':`, event.target.error);
+                        resolve(false);
+                    };
+
+                    transaction.onabort = (event) => {
+                        console.error(`Transaction aborted for store '${storeName}':`, event.target.error);
+                        resolve(false);
+                    };
+                } catch (error) {
+                    console.error(`Error creating save transaction for store '${storeName}':`, error);
+                    resolve(false);
                 }
             });
         }
@@ -11705,6 +11847,19 @@ GNU Affero General Public License for more details.
         
         // Get combined list of suggestions for autocomplete
         async function getAutocompleteSuggestions(type) {
+            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+
+            // For new users or migrated users, use the new unified 'autocomplete' store
+            if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+                const autocompleteData = await loadItemFromStore('autocomplete', storeId);
+                if (autocompleteData && autocompleteData.items) {
+                    // Sort alphabetically for consistent display
+                    return autocompleteData.items.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+                }
+            }
+
+            // Fallback logic for users who have not yet run the v5 migration
+            console.warn(`Falling back to legacy autocomplete logic for ${type}. This is expected if you haven't updated yet.`);
             const isTags = type === 'tags';
             const defaultList = isTags ? commonTags : commonDreamSigns;
             
@@ -11732,74 +11887,34 @@ GNU Affero General Public License for more details.
         }
 
         async function renderAutocompleteManagementList(type) {
-            const isTags = type === 'tags';
-            const containerId = isTags ? 'tagsManagementList' : 'dreamSignsManagementList';
+            const containerId = type === 'tags' ? 'tagsManagementList' : 'dreamSignsManagementList';
             const container = document.getElementById(containerId);
             if (!container) return;
 
             container.innerHTML = '<div class="loading-state">Loading...</div>';
 
             try {
-                const [suggestions, userItems, deletedItems] = await Promise.all([
-                    getAutocompleteSuggestions(type),
-                    loadFromStore(isTags ? 'userTags' : 'userDreamSigns'),
-                    loadFromStore('deletedDefaults')
-                ]);
+                // Get the unified list of suggestions. This now correctly reads from the new store.
+                const suggestions = await getAutocompleteSuggestions(type);
 
-                const userItemSet = new Set(userItems.map(item => item.id));
-                const deletedItemSet = new Set(deletedItems.map(item => item.id));
-                const defaultItemSet = new Set((isTags ? commonTags : commonDreamSigns).map(i => i.toLowerCase()));
-
-                if (suggestions.length === 0 && userItems.length === 0) {
-                    container.innerHTML = `<div class="no-entries" style="padding: 15px;">No items to display.</div>`;
+                if (suggestions.length === 0) {
+                    container.innerHTML = `<div class="no-entries" style="padding: 15px;">No custom items added yet.</div>`;
                     return;
                 }
 
+                // All items are now treated the same. No more 'default' vs 'user' distinction.
                 const listHtml = suggestions.map(item => {
-                    const itemId = item.toLowerCase();
-                    const isUserItem = userItemSet.has(itemId);
-                    const isDefault = defaultItemSet.has(itemId);
-                    
-                    let itemClass = 'autocomplete-list-item';
-                    let itemType = '';
-                    let actionButton = '';
-
-                    if (isDefault) {
-                        itemClass += ' default';
-                        itemType = 'Default';
-                        actionButton = `<button data-action="delete-autocomplete-item" data-item-type="${type}" data-item-id="${escapeAttr(itemId)}" class="btn btn-delete btn-small">Hide</button>`;
-                    } else { // User item
-                        itemType = 'User';
-                        actionButton = `<button data-action="delete-autocomplete-item" data-item-type="${type}" data-item-id="${escapeAttr(itemId)}" class="btn btn-delete btn-small">Delete</button>`;
-                    }
-
                     return `
-                        <div class="${itemClass}">
+                        <div class="autocomplete-list-item">
                             <span class="item-value">${escapeHtml(item)}</span>
                             <div class="flex-center gap-sm">
-                                <span class="item-type">${itemType}</span>
-                                ${actionButton}
+                                <button data-action="delete-autocomplete-item" data-item-type="${type}" data-item-id="${escapeAttr(item)}" class="btn btn-delete btn-small">Delete</button>
                             </div>
                         </div>
                     `;
                 }).join('');
-                
-                const hiddenItems = Array.from(deletedItemSet)
-                    .filter(id => defaultItemSet.has(id))
-                    .map(id => {
-                        const originalItem = (isTags ? commonTags : commonDreamSigns).find(i => i.toLowerCase() === id) || id;
-                         return `
-                            <div class="autocomplete-list-item default" style="opacity: 0.5;">
-                                <span class="item-value">${escapeHtml(originalItem)}</span>
-                                <div class="flex-center gap-sm">
-                                    <span class="item-type">Hidden</span>
-                                    <button data-action="restore-default-item" data-item-type="${type}" data-item-id="${escapeAttr(id)}" class="btn btn-success btn-small">Restore</button>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
 
-                container.innerHTML = listHtml + hiddenItems;
+                container.innerHTML = listHtml;
             } catch (error) {
                 console.error(`Error rendering ${type} list:`, error);
                 container.innerHTML = `<div class="message-error">Failed to load ${type} list.</div>`;
@@ -11807,60 +11922,67 @@ GNU Affero General Public License for more details.
         }
 
         async function addCustomAutocompleteItem(type) {
-            const isTags = type === 'tags';
-            const inputId = isTags ? 'newTagInput' : 'newDreamSignInput';
+            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+            const inputId = type === 'tags' ? 'newTagInput' : 'newDreamSignInput';
             const input = document.getElementById(inputId);
             if (!input) return;
 
             const value = input.value.trim();
             if (!value) return;
 
-            const storeName = isTags ? 'userTags' : 'userDreamSigns';
-            const userItems = await loadFromStore(storeName);
-            const userItemsSet = new Set(userItems.map(item => item.id));
+            // Load the entire autocomplete object for this type
+            let autocompleteData = await loadItemFromStore('autocomplete', storeId);
 
-            if (userItemsSet.has(value.toLowerCase())) {
+            // It's possible the store is empty on first use. Let's create it.
+            if (!autocompleteData) {
+                autocompleteData = { id: storeId, items: [] };
+            }
+
+            const currentItems = autocompleteData.items || [];
+            const currentItemsLower = new Set(currentItems.map(item => item.toLowerCase()));
+
+            // Prevent adding duplicates
+            if (currentItemsLower.has(value.toLowerCase())) {
                 input.value = '';
                 return;
             }
-            
-            userItems.push({ id: value.toLowerCase(), value: value });
-            await saveToStore(storeName, userItems);
-            
+
+            // Add the new item
+            currentItems.push(value);
+            autocompleteData.items = currentItems;
+
+            // Save the updated object back to the store
+            await saveItemToStore('autocomplete', autocompleteData);
+
             input.value = '';
             await renderAutocompleteManagementList(type);
-    await initializeAutocomplete();
+            await initializeAutocomplete();
         }
 
-        async function deleteAutocompleteItem(type, itemId) {
-            const isTags = type === 'tags';
-            const storeName = isTags ? 'userTags' : 'userDreamSigns';
+        async function deleteAutocompleteItem(type, itemValue) {
+            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
             
-            const userItems = await loadFromStore(storeName);
-            const userItemIndex = userItems.findIndex(item => item.id === itemId);
-
-            if (userItemIndex !== -1) {
-                userItems.splice(userItemIndex, 1);
-                await saveToStore(storeName, userItems);
-            } else {
-                const deletedItems = await loadFromStore('deletedDefaults');
-                const deletedItemsSet = new Set(deletedItems.map(item => item.id));
-                if (!deletedItemsSet.has(itemId)) {
-                    deletedItems.push({ id: itemId });
-                    await saveToStore('deletedDefaults', deletedItems);
-                }
+            const autocompleteData = await loadItemFromStore('autocomplete', storeId);
+            if (!autocompleteData || !autocompleteData.items) {
+                console.error(`Could not load autocomplete data for ${type}`);
+                return;
             }
-            
-            await renderAutocompleteManagementList(type);
-    await initializeAutocomplete();
-        }
 
-        async function restoreDefaultItem(type, itemId) {
-            const deletedItems = await loadFromStore('deletedDefaults');
-            const updatedDeletedItems = deletedItems.filter(item => item.id !== itemId);
-            await saveToStore('deletedDefaults', updatedDeletedItems);
+            const itemToDelete = itemValue.toLowerCase();
+            const updatedItems = autocompleteData.items.filter(item => item.toLowerCase() !== itemToDelete);
+
+            // If nothing was deleted, no need to save
+            if (updatedItems.length === autocompleteData.items.length) {
+                console.warn(`Item "${itemValue}" not found in ${type} list for deletion.`);
+                return;
+            }
+
+            autocompleteData.items = updatedItems;
+
+            await saveItemToStore('autocomplete', autocompleteData);
+
             await renderAutocompleteManagementList(type);
-    await initializeAutocomplete();
+            await initializeAutocomplete();
         }
 
         // Import dreams from text file (with optional decryption)
