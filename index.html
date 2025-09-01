@@ -4833,22 +4833,6 @@ GNU Affero General Public License for more details.
                                     </div>
                                 </div>
                             </div>
-                            <div class="settings-section">
-                                <h3>💡 General Lucid Dreaming Advice</h3>
-                                <div class="card-md">
-                                    <h4 class="text-primary mb-sm">Reality Checks</h4>
-                                    <p class="line-height-relaxed mb-md">Frequently question your reality throughout the day. Try to push your finger through your palm, or check a clock twice. In a dream, these things often behave strangely.</p>
-
-                                    <h4 class="text-primary mb-sm">Dream Journaling</h4>
-                                    <p class="line-height-relaxed mb-md">Keep a dream journal by your bed. Write down your dreams as soon as you wake up. This improves dream recall and helps you identify recurring dream signs.</p>
-
-                                    <h4 class="text-primary mb-sm">Mnemonic Induction of Lucid Dreams (MILD)</h4>
-                                    <p class="line-height-relaxed mb-md">As you fall asleep, repeat the mantra, "The next time I'm dreaming, I will remember that I'm dreaming." Visualize yourself becoming lucid in a recent dream.</p>
-
-                                    <h4 class="text-primary mb-sm">Wake-Back-to-Bed (WBTB)</h4>
-                                    <p class="line-height-relaxed">Wake up after 4-6 hours of sleep, stay awake for a short period (20-60 minutes), and then go back to sleep with the intention of having a lucid dream. This technique significantly increases the chances of lucidity.</p>
-                                </div>
-                            </div>
                         `;
                     } else if (tabId === 'adviceTab') {
                         tabPanel.innerHTML = `
@@ -4856,10 +4840,10 @@ GNU Affero General Public License for more details.
                                 <h3>💡 Daily Lucid Dreaming Tip</h3>
                                 <div id="dailyTipContainer" class="card-elevated card-lg text-center">
                                     <p id="tipText" class="text-lg line-height-loose mb-lg" style="height: 180px; overflow-y: auto;">Loading tip...</p>
-                                    <div class="tip-navigation flex-center gap-lg">
-                                        <button id="prevTip" data-action="prev-tip" class="btn btn-secondary">← Previous</button>
+                                    <div class="tip-navigation flex-between">
+                                        <button id="prevTip" data-action="prev-tip" class="calendar-nav-btn prev" title="Previous Tip"></button>
                                         <span id="tipCounter" class="font-semibold text-secondary">Tip 1 / 375</span>
-                                        <button id="nextTip" data-action="next-tip" class="btn btn-secondary">Next →</button>
+                                        <button id="nextTip" data-action="next-tip" class="calendar-nav-btn next" title="Next Tip"></button>
                                     </div>
                                 </div>
                             </div>
