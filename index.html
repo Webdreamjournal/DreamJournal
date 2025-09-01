@@ -1,5 +1,5 @@
 <!-- 
-Dream Journal v1.42.8 - A privacy-focused dream tracking application
+Dream Journal v1.42.9 - A privacy-focused dream tracking application
 Copyright (C) 2025 Dream Journal Contributors
 
 This program is free software: you can redistribute it and/or modify
@@ -2838,7 +2838,7 @@ GNU Affero General Public License for more details.
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
             <p class="app-footer p">
-                Dream Journal v1.42.8 | Not a substitute for professional medical advice
+                Dream Journal v1.42.9 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -10856,10 +10856,18 @@ GNU Affero General Public License for more details.
             
             // Reset date to current time for next entry
             if (dreamDateElement) {
-                const now = new Date();
-                const datetimeLocalValue = now.toISOString().slice(0, CONSTANTS.DATETIME_LOCAL_SLICE_LENGTH);
-                dreamDateElement.value = datetimeLocalValue;
-            }
+            const now = new Date();
+
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+
+            const localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+            dreamDateElement.value = localDatetimeString;
+        }
             
             // Reset to page 1 to show the new dream
             currentPage = 1;
@@ -12964,8 +12972,18 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             const dreamDateInput = document.getElementById('dreamDate');
             if (dreamDateInput) {
                 const now = new Date();
-                const datetimeLocalValue = now.toISOString().slice(0, 16);
-                dreamDateInput.value = datetimeLocalValue;
+                
+                // Get local date components and pad with leading zeros if needed
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+
+                // Assemble the string in the correct format for datetime-local
+                const localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+                
+                dreamDateInput.value = localDatetimeString;
             }
             
             // Update timer warning if active
