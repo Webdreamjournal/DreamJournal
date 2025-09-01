@@ -10191,7 +10191,7 @@ GNU Affero General Public License for more details.
                         const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                         switchAppTab(targetTab);
                         updateSecurityControls();
-                    }, 1);
+                    }, 200);
                     
                 } else {
                     failedPinAttempts++;
