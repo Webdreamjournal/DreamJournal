@@ -73,22 +73,27 @@ This is a **single-file HTML application** that implements a privacy-focused dre
 
 ## Development Guidelines
 
-1. Never use alert() and confirm()  or prompt() or any kind of popup. They don't work in my environment. Only use the custom popup system that's already been designed or display text/confirmation inline somewhere if necessary
+Never use alert() and confirm()  or prompt() or any kind of pop-up. Only use the custom popup system that's already been designed, or display text/confirmation inline somewhere if necessary
 
-2. Increment the version number in some way every time you make a change, I don't really care how, it's just important it changes at all so I can be sure I'm not looking at a cached version. Here:
+Increment the version number in some way every time you make a change; I don't really care how. It's referenced in 3 places. Here:
 
-            <p class="app-footer p">
-                Dream Journal vX.XX.X | Not a substitute for professional medical advice
-            </p>
-
-
-and here:
-
+1.
 <!-- 
 Dream Journal vX.XX.X - A privacy-focused dream tracking application
 Copyright (C) 2025 Dream Journal Contributors
 
-3. I know it's long, but it has a single file constraint
+2.
+// Create comprehensive export object
+                const exportData = {
+                    version: "vX.XX.X", // Updated version
+                    exportDate: new Date().toISOString(),
+                    exportType: "complete",
+
+3.
+            <p class="app-footer p">
+                Dream Journal vX.XX.X | Not a substitute for professional medical advice
+            </p>
+
 
 ### Making Changes
 - All code exists in the single HTML file
