@@ -9857,7 +9857,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
 
         // IMPORT & EXPORT FUNCTIONALITY
         
- - exportEntries()
+        // - exportEntries()
 
         // Update localStorage backup after successful IndexedDB operations
         async function updateLocalStorageBackup() {
@@ -10262,13 +10262,13 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             await initializeAutocomplete();
         }
 
- - importEntries()
+        // - importEntries()
 
         // === COMPREHENSIVE DATA MANAGEMENT FUNCTIONS ===
         
- - exportAllData()
+        // - exportAllData()
         
- - importAllData()
+        // - importAllData()
 
         async function importAllData(event) {
             const file = event.target.files[0];
@@ -10546,7 +10546,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             ]);
         }
 
- - exportForAIAnalysis()
+        // - exportForAIAnalysis()
 
         async function exportForAIAnalysis() {
             // Check if app is locked
