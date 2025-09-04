@@ -421,7 +421,7 @@
             
             // Create comprehensive export object
             const exportData = {
-                version: "v2.00.0", // Major version - Successful modular refactor
+                version: "v2.01.4", // Fixed voice note seeking to remain paused at seek position
                 exportDate: new Date().toISOString(),
                 exportType: "complete",
                 data: {

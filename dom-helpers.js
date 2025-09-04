@@ -54,9 +54,12 @@
             .filter(item => item && item.value)
             .map(item => {
                 if (item.label) {
-                    return `<span class="meta-item">${escapeHtml(item.label)}: ${escapeHtml(item.value)}</span>`;
+                    const labelHtml = escapeHtml(item.label);
+                    const valueHtml = item.isHTML ? item.value : escapeHtml(item.value);
+                    return `<span class="meta-item">${labelHtml}: ${valueHtml}</span>`;
                 } else {
-                    return `<span class="meta-item">${escapeHtml(item.value)}</span>`;
+                    const valueHtml = item.isHTML ? item.value : escapeHtml(item.value);
+                    return `<span class="meta-item">${valueHtml}</span>`;
                 }
             })
             .join(' • ');

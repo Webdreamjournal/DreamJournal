@@ -270,7 +270,7 @@
         return isIndexedDBAvailable() && db !== null;
     }
 
-    // Main dream loading function with fallback chain
+    // Main dream loading function - IndexedDB only with memory fallback
     async function loadDreams() {
         // Try IndexedDB first
         if (isIndexedDBReady()) {
@@ -280,58 +280,81 @@
             }
         }
         
-        // Fallback to localStorage
-        if (isLocalStorageAvailable()) {
-            try {
-                const stored = localStorage.getItem('dreamJournal');
-                if (stored) {
-                    const dreams = JSON.parse(stored);
-                    console.log('Loaded dreams from localStorage fallback');
-                    return dreams;
-                }
-            } catch (error) {
-                console.error('Error loading from localStorage:', error);
-            }
-        }
-        
-        // Final fallback to memory
-        console.log('Using memory storage fallback');
+        // Fallback to memory only if IndexedDB fails
+        console.log('IndexedDB unavailable, using memory storage fallback');
         return memoryStorage;
     }
 
-    // Main dream saving function with fallback chain
+    // Main dream saving function - IndexedDB only with memory fallback
     async function saveDreams(dreams) {
         return withMutex('saveDreams', async () => {
-            let saved = false;
-            
             // Try IndexedDB first
             if (isIndexedDBAvailable()) {
-                saved = await saveToIndexedDB(dreams);
+                const saved = await saveToIndexedDB(dreams);
                 if (saved) {
                     console.log('Dreams saved to IndexedDB');
                     return;
                 }
             }
             
-            // Fallback to localStorage
-            if (isLocalStorageAvailable()) {
-                try {
-                    localStorage.setItem('dreamJournal', JSON.stringify(dreams));
-                    console.log('Dreams saved to localStorage fallback');
-                    saved = true;
-                    return;
-                } catch (error) {
-                    console.error('Error saving to localStorage:', error);
-                }
-            }
+            // Fallback to memory only if IndexedDB fails
+            memoryStorage = [...dreams];
+            console.log('IndexedDB unavailable, dreams saved to memory fallback');
             
-            // Final fallback to memory
-            if (!saved) {
-                memoryStorage = [...dreams];
-                console.log('Dreams saved to memory fallback');
-                
-                if (storageType !== 'memory') {
-                    showStorageWarning();
+            if (storageType !== 'memory') {
+                showStorageWarning();
+            }
+        });
+    }
+
+    
+    async function saveAllVoiceNotesToIndexedDB(voiceNotes) {
+        if (!isIndexedDBAvailable()) return false;
+
+        return new Promise((resolve) => {
+            try {
+                const transaction = db.transaction([VOICE_STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(VOICE_STORE_NAME);
+
+                const clearRequest = store.clear();
+                clearRequest.onsuccess = () => {
+                    let completed = 0;
+                    const total = voiceNotes.length;
+                    if (total === 0) {
+                        resolve(true);
+                        return;
+                    }
+                    voiceNotes.forEach(note => {
+                        const addRequest = store.add(note);
+                        addRequest.onsuccess = () => {
+                            completed++;
+                            if (completed === total) {
+                                resolve(true);
+                            }
+                        };
+                        addRequest.onerror = (e) => {
+                            console.error('Error adding voice note during save all:', e.target.error);
+                        };
+                    });
+                };
+                clearRequest.onerror = (e) => {
+                    console.error('Error clearing voice notes store:', e.target.error);
+                    resolve(false);
+                };
+            } catch (error) {
+                console.error('Error in saveAllVoiceNotesToIndexedDB transaction:', error);
+                resolve(false);
+            }
+        });
+    }
+
+    
+    async function saveVoiceNotes(notes) {
+        return withMutex('saveVoiceNote', async () => {
+            if (isIndexedDBAvailable()) {
+                const saved = await saveAllVoiceNotesToIndexedDB(notes);
+                if (saved) {
+                    console.log('All voice notes saved to IndexedDB');
                 }
             }
         });
@@ -644,8 +667,8 @@
     }
 
     async function deleteVoiceNoteFromIndexedDB(voiceNoteId) {
-        if (!isIndexedDBAvailable()) return false;
-        
+    if (!isIndexedDBAvailable()) return false;
+    
         return new Promise((resolve) => {
             try {
                 if (!db.objectStoreNames.contains(VOICE_STORE_NAME)) {
@@ -654,17 +677,14 @@
                 }
                 
                 const transaction = db.transaction([VOICE_STORE_NAME], 'readwrite');
+                
+                transaction.oncomplete = () => resolve(true);
+                transaction.onerror = () => resolve(false);
+                transaction.onabort = () => resolve(false);
+
                 const store = transaction.objectStore(VOICE_STORE_NAME);
-                const request = store.delete(voiceNoteId);
+                store.delete(voiceNoteId);
                 
-                request.onsuccess = () => {
-                    resolve(true);
-                };
-                
-                request.onerror = () => {
-                    console.error('Error deleting voice note:', request.error);
-                    resolve(false);
-                };
             } catch (error) {
                 console.error('Error deleting voice note:', error);
                 resolve(false);
@@ -705,6 +725,20 @@
                     await saveVoiceNoteToIndexedDB(note);
                 }
                 console.log('Migrated voice notes from localStorage to IndexedDB');
+            }
+            
+            // Clear localStorage data after successful migration to prevent re-migration
+            if (dreamData) {
+                localStorage.removeItem('dreamJournal');
+                console.log('Cleared localStorage dreams after migration');
+            }
+            if (goalData) {
+                localStorage.removeItem('dreamJournalGoals');
+                console.log('Cleared localStorage goals after migration');
+            }
+            if (voiceData) {
+                localStorage.removeItem('dreamJournalVoiceNotes');
+                console.log('Cleared localStorage voice notes after migration');
             }
         } catch (error) {
             console.error('Error during migration:', error);
@@ -906,54 +940,21 @@
     
     // Add individual dream to IndexedDB
     async function addDreamToIndexedDB(dream) {
-        if (!isIndexedDBAvailable()) return false;
-        
-        // Validate dream data before adding
-        if (!validateDreamData(dream)) {
-            return false;
-        }
+        if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
         
         return new Promise((resolve) => {
             try {
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
+                
+                transaction.oncomplete = () => {
+                    resolve(true); // Resolve when transaction is complete
+                };
+                transaction.onerror = () => resolve(false);
+                transaction.onabort = () => resolve(false);
+
                 const store = transaction.objectStore(STORE_NAME);
-                
-                // Transaction-level error handling
-                transaction.onabort = () => {
-                    console.error('Add dream transaction aborted');
-                    resolve(false);
-                };
-                
-                transaction.onerror = () => {
-                    console.error('Add dream transaction error:', transaction.error);
-                    resolve(false);
-                };
-                
-                const request = store.add(dream);
-                
-                request.onsuccess = async () => {
-                    // Update localStorage backup after successful IndexedDB operation
-                    await updateLocalStorageBackup();
-                    resolve(true);
-                };
-                request.onerror = (event) => {
-                    // Handle ID collision specifically
-                    if (event.target.error && event.target.error.name === 'ConstraintError') {
-                        // ID collision - fallback to put() instead of add()
-                        const putRequest = store.put(dream);
-                        putRequest.onsuccess = async () => {
-                            await updateLocalStorageBackup();
-                            resolve(true);
-                        };
-                        putRequest.onerror = () => {
-                            console.error('Failed to update dream after ID collision:', putRequest.error);
-                            resolve(false);
-                        };
-                    } else {
-                        console.error('Failed to add dream:', event.target.error);
-                        resolve(false);
-                    }
-                };
+                store.add(dream);
+
             } catch (error) {
                 console.error('Error creating add dream transaction:', error);
                 resolve(false);
@@ -963,40 +964,21 @@
     
     // Update individual dream in IndexedDB
     async function updateDreamInIndexedDB(dream) {
-        if (!isIndexedDBAvailable()) return false;
-        
-        // Validate dream data before updating
-        if (!validateDreamData(dream)) {
-            return false;
-        }
-        
+    if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
+
         return new Promise((resolve) => {
             try {
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                
-                // Transaction-level error handling
-                transaction.onabort = () => {
-                    console.error('Update dream transaction aborted');
-                    resolve(false);
-                };
-                
-                transaction.onerror = () => {
-                    console.error('Update dream transaction error:', transaction.error);
-                    resolve(false);
-                };
-                
-                const request = store.put(dream);
-                
-                request.onsuccess = async () => {
-                    // Update localStorage backup after successful IndexedDB operation
-                    await updateLocalStorageBackup();
+
+                transaction.oncomplete = () => {
                     resolve(true);
                 };
-                request.onerror = () => {
-                    console.error('Failed to update dream:', request.error);
-                    resolve(false);
-                };
+                transaction.onerror = () => resolve(false);
+                transaction.onabort = () => resolve(false);
+
+                const store = transaction.objectStore(STORE_NAME);
+                store.put(dream);
+
             } catch (error) {
                 console.error('Error creating update dream transaction:', error);
                 resolve(false);
@@ -1011,30 +993,14 @@
         return new Promise((resolve) => {
             try {
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
+                
+                transaction.oncomplete = () => resolve(true);
+                transaction.onerror = () => resolve(false);
+                transaction.onabort = () => resolve(false);
+
                 const store = transaction.objectStore(STORE_NAME);
-                
-                // Transaction-level error handling
-                transaction.onabort = () => {
-                    console.error('Delete dream transaction aborted');
-                    resolve(false);
-                };
-                
-                transaction.onerror = () => {
-                    console.error('Delete dream transaction error:', transaction.error);
-                    resolve(false);
-                };
-                
-                const request = store.delete(dreamId);
-                
-                request.onsuccess = async () => {
-                    // Update localStorage backup after successful IndexedDB operation
-                    await updateLocalStorageBackup();
-                    resolve(true);
-                };
-                request.onerror = () => {
-                    console.error('Failed to delete dream:', request.error);
-                    resolve(false);
-                };
+                store.delete(dreamId);
+
             } catch (error) {
                 console.error('Error creating delete dream transaction:', error);
                 resolve(false);
@@ -1108,21 +1074,7 @@
         });
     }
 
-    // Update localStorage backup after successful IndexedDB operations
-    async function updateLocalStorageBackup() {
-        if (!isLocalStorageAvailable()) return;
-        
-        try {
-            const dreams = await loadFromIndexedDB();
-            if (dreams && dreams.length > 0) {
-                // Keep only the most recent 50 dreams as backup
-                const recentDreams = dreams.slice(0, 50);
-                localStorage.setItem('dreamJournal', JSON.stringify(recentDreams));
-            }
-        } catch (error) {
-            console.error('Error updating localStorage backup:', error);
-        }
-    }
+    // localStorage backup removed - using IndexedDB only for dreams
 
     // Show warning when voice notes are stored in memory only
     function showVoiceStorageWarning() {

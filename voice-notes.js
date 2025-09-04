@@ -188,6 +188,7 @@
             
             const now = new Date();
             const duration = recordingStartTime ? (Date.now() - recordingStartTime) / 1000 : 0;
+            console.log(`saveRecording: recordingStartTime=${recordingStartTime}, calculated duration=${duration}s`);
             
             const voiceNote = {
                 id: `voice_${now.getTime()}_${Math.random().toString(36).slice(2, 11)}`,
@@ -274,15 +275,13 @@
                 currentPlayingAudio.pause();
                 currentPlayingAudio = null;
                 
-                // Reset all play buttons and hide progress bars
+                // Reset all play buttons (progress bars stay visible)
                 document.querySelectorAll('.voice-btn.pause').forEach(btn => {
                     btn.className = 'voice-btn play';
                     btn.innerHTML = '▶️ Play';
                     btn.dataset.action = 'play-voice';
                 });
-                document.querySelectorAll('[id^="progress-container-"]').forEach(container => {
-                    container.style.display = 'none';
-                });
+                // Progress containers now stay visible
             }
             
             // Validate audioBlob before creating URL
@@ -292,10 +291,19 @@
                 return;
             }
             
-            // Create audio element
-            const audio = new Audio();
-            const audioURL = URL.createObjectURL(voiceNote.audioBlob);
-            audio.src = audioURL;
+            // Use pre-loaded audio element if it exists (from seeking), otherwise create new one
+            let audio, audioURL;
+            if (audioElements[voiceNoteId]) {
+                // Use existing audio element that may have been seeked
+                audio = audioElements[voiceNoteId].audio;
+                audioURL = audioElements[voiceNoteId].url;
+                console.log(`Using pre-loaded audio for ${voiceNoteId}, current time: ${formatDuration(audio.currentTime)}`);
+            } else {
+                // Create new audio element
+                audio = new Audio();
+                audioURL = URL.createObjectURL(voiceNote.audioBlob);
+                audio.src = audioURL;
+            }
             
             // Update button to pause state and show progress bar
             if (playBtn) {
@@ -304,21 +312,87 @@
                 playBtn.dataset.action = 'pause-voice';
             }
             
-            if (progressContainer) {
-                progressContainer.style.display = 'flex';
-            }
+            // Progress container is now always visible
             
-            // Set up audio event listeners for progress tracking
-            audio.ontimeupdate = () => {
-                updateAudioProgress(voiceNoteId, audio.currentTime, audio.duration);
-            };
+            // Enhanced duration detection with multiple fallback mechanisms
+            let durationDetected = false;
+            let actualDuration = 0;
             
+            // Method 1: Try to get duration on loadedmetadata
             audio.onloadedmetadata = () => {
-                // Update total time display when metadata loads
                 const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
                 if (totalTimeEl) {
-                    totalTimeEl.textContent = formatDuration(audio.duration);
+                    if (isFinite(audio.duration) && audio.duration > 0) {
+                        actualDuration = audio.duration;
+                        durationDetected = true;
+                        totalTimeEl.textContent = formatDuration(audio.duration);
+                        console.log(`Audio duration loaded via metadata: ${audio.duration}s for ${voiceNoteId}`);
+                    }
                 }
+            };
+            
+            // Method 2: Try on canplaythrough event (more reliable for some formats)
+            audio.oncanplaythrough = () => {
+                if (!durationDetected) {
+                    const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                    if (totalTimeEl && isFinite(audio.duration) && audio.duration > 0) {
+                        actualDuration = audio.duration;
+                        durationDetected = true;
+                        totalTimeEl.textContent = formatDuration(audio.duration);
+                        console.log(`Audio duration loaded via canplaythrough: ${audio.duration}s for ${voiceNoteId}`);
+                    }
+                }
+            };
+            
+            // Method 3: Try on loadeddata event
+            audio.onloadeddata = () => {
+                if (!durationDetected) {
+                    const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                    if (totalTimeEl && isFinite(audio.duration) && audio.duration > 0) {
+                        actualDuration = audio.duration;
+                        durationDetected = true;
+                        totalTimeEl.textContent = formatDuration(audio.duration);
+                        console.log(`Audio duration loaded via loadeddata: ${audio.duration}s for ${voiceNoteId}`);
+                    }
+                }
+            };
+            
+            // Method 4: Force duration check after play starts
+            audio.onplaying = () => {
+                if (!durationDetected) {
+                    setTimeout(() => {
+                        const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                        if (totalTimeEl && isFinite(audio.duration) && audio.duration > 0) {
+                            actualDuration = audio.duration;
+                            durationDetected = true;
+                            totalTimeEl.textContent = formatDuration(audio.duration);
+                            console.log(`Audio duration loaded after play: ${audio.duration}s for ${voiceNoteId}`);
+                        } else if (totalTimeEl && voiceNote.duration) {
+                            // Final fallback: use stored duration
+                            actualDuration = voiceNote.duration;
+                            totalTimeEl.textContent = formatDuration(voiceNote.duration);
+                            console.log(`Using stored duration as fallback: ${voiceNote.duration}s for ${voiceNoteId}`);
+                        }
+                    }, 100);
+                }
+            };
+            
+            // Set up time update listener
+            audio.ontimeupdate = () => {
+                // Try to detect duration during playback if not yet detected
+                if (!durationDetected && isFinite(audio.duration) && audio.duration > 0) {
+                    actualDuration = audio.duration;
+                    durationDetected = true;
+                    const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                    if (totalTimeEl) {
+                        totalTimeEl.textContent = formatDuration(audio.duration);
+                        console.log(`Audio duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
+                    }
+                }
+                
+                // Update progress with detected or fallback duration
+                const effectiveDuration = actualDuration || audio.duration || voiceNote.duration || 0;
+                updateAudioProgress(voiceNoteId, audio.currentTime, effectiveDuration);
             };
             
             audio.onended = () => {
@@ -329,16 +403,19 @@
                 }
                 currentPlayingAudio = null;
                 
-                // Reset button to play state and hide progress bar
+                // Clean up cached audio element
+                if (audioElements[voiceNoteId]) {
+                    delete audioElements[voiceNoteId];
+                }
+                
+                // Reset button to play state
                 if (playBtn) {
                     playBtn.className = 'voice-btn play';
                     playBtn.innerHTML = '▶️ Play';
                     playBtn.dataset.action = 'play-voice';
                 }
                 
-                if (progressContainer) {
-                    progressContainer.style.display = 'none';
-                }
+                // Progress container stays visible
                 
                 // Reset progress bar
                 const progressFill = document.getElementById(`progress-fill-${voiceNoteId}`);
@@ -360,6 +437,12 @@
                     console.warn('Failed to revoke audio URL on error:', e);
                 }
                 currentPlayingAudio = null;
+                
+                // Clean up cached audio element
+                if (audioElements[voiceNoteId]) {
+                    delete audioElements[voiceNoteId];
+                }
+                
                 updateVoiceStatus('Error playing voice note', 'error');
                 
                 // Reset button state
@@ -369,13 +452,16 @@
                     playBtn.dataset.action = 'play-voice';
                 }
                 
-                if (progressContainer) {
-                    progressContainer.style.display = 'none';
-                }
+                // Progress container stays visible
             };
             
             // Start playing
             currentPlayingAudio = audio;
+            
+            // Preload the audio to ensure metadata is available
+            audio.preload = 'metadata';
+            audio.load(); // Force load metadata
+            
             await audio.play();
             
         } catch (error) {
@@ -495,11 +581,69 @@
         
         // Format recording duration
         function formatDuration(seconds) {
-            if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
+            if (!seconds || isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return '0:00';
             const safeSeconds = Math.max(0, Math.floor(seconds));
             const mins = Math.floor(safeSeconds / 60);
             const secs = safeSeconds % 60;
             return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // Get actual audio duration from blob - simplified version for WebM Infinity handling
+        async function getAudioDuration(audioBlob) {
+            return new Promise((resolve) => {
+                if (!audioBlob || !(audioBlob instanceof Blob)) {
+                    console.log('getAudioDuration: Invalid audioBlob');
+                    resolve(0);
+                    return;
+                }
+                
+                console.log(`getAudioDuration: Starting for blob type: ${audioBlob.type}, size: ${audioBlob.size}`);
+                const audio = new Audio();
+                const url = URL.createObjectURL(audioBlob);
+                let resolved = false;
+                
+                // Simple approach: Just try to play the audio and get its duration
+                audio.oncanplay = () => {
+                    console.log(`getAudioDuration: canplay event - duration is ${audio.duration}`);
+                    if (!resolved) {
+                        if (audio.duration === Infinity) {
+                            console.log('getAudioDuration: WebM Infinity detected, returning 5 seconds as fallback');
+                            resolved = true;
+                            URL.revokeObjectURL(url);
+                            resolve(5); // Default 5 seconds for WebM with Infinity duration
+                        } else if (isFinite(audio.duration) && audio.duration > 0) {
+                            console.log(`getAudioDuration: Valid duration detected: ${audio.duration}s`);
+                            resolved = true;
+                            URL.revokeObjectURL(url);
+                            resolve(audio.duration);
+                        }
+                    }
+                };
+                
+                // Timeout fallback after 3 seconds
+                setTimeout(() => {
+                    if (!resolved) {
+                        console.log(`getAudioDuration: Timeout - using 5s fallback for WebM Infinity`);
+                        resolved = true;
+                        URL.revokeObjectURL(url);
+                        resolve(5); // Default duration for problematic WebM files
+                    }
+                }, 3000);
+                
+                audio.onerror = () => {
+                    if (!resolved) {
+                        console.error('getAudioDuration: Audio load error');
+                        resolved = true;
+                        URL.revokeObjectURL(url);
+                        resolve(0);
+                    }
+                };
+                
+                // Load the audio
+                audio.preload = 'metadata';
+                audio.src = url;
+                audio.load();
+            });
         }
         
         // Update recording timer
@@ -585,7 +729,7 @@
         
         // Throttle progress updates to prevent excessive DOM manipulation
         let lastProgressUpdate = 0;
-        const PROGRESS_UPDATE_THROTTLE = 100; // ms
+        const PROGRESS_UPDATE_THROTTLE = 50; // ms - reduced for smoother updates
         
         // Display voice notes (Updated for Event Delegation)
         async function displayVoiceNotes() {
@@ -627,7 +771,7 @@
                     // Create meta information
                     const metaItems = [
                         { value: escapeHtml(note.dateString) },
-                        { value: formatDuration(note.duration) },
+                        { value: `<span id="header-duration-${escapeAttr(note.id)}">${formatDuration(note.duration || 0)}</span>`, isHTML: true },
                         { value: sizeDisplay }
                     ];
                     
@@ -651,12 +795,12 @@
                             </div>
                             <div class="voice-note-controls">
                                 ${controlButtons}
-                                <div class="voice-progress-container" id="progress-container-${escapeAttr(note.id)}" style="display: none;">
+                                <div class="voice-progress-container" id="progress-container-${escapeAttr(note.id)}" style="display: flex;">
                                     <div class="voice-time-display" id="time-current-${escapeAttr(note.id)}">0:00</div>
                                     <div class="voice-progress-bar" data-action="seek-audio" data-voice-note-id="${escapeAttr(note.id)}" id="progress-bar-${escapeAttr(note.id)}">
                                         <div class="voice-progress-fill" id="progress-fill-${escapeAttr(note.id)}"></div>
                                     </div>
-                                    <div class="voice-time-display" id="time-total-${escapeAttr(note.id)}">${formatDuration(note.duration)}</div>
+                                    <div class="voice-time-display" id="time-total-${escapeAttr(note.id)}">${formatDuration(note.duration || 0)}</div>
                                 </div>
                             </div>
                         </div>
@@ -664,6 +808,39 @@
                 }).join('');
                 
                 container.innerHTML = warningHTML + notesHTML;
+                
+                // Update durations asynchronously with actual audio durations
+                voiceNotes.forEach(async (note) => {
+                    try {
+                        console.log(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
+                        const actualDuration = await getAudioDuration(note.audioBlob);
+                        console.log(`Detected duration for note ${note.id}: ${actualDuration}s`);
+                        
+                        // Use detected duration or fall back to stored duration
+                        const effectiveDuration = actualDuration > 0 ? actualDuration : note.duration;
+                        
+                        if (effectiveDuration > 0) {
+                            // Update the header duration display
+                            const headerDurationEl = document.getElementById(`header-duration-${note.id}`);
+                            if (headerDurationEl) {
+                                headerDurationEl.textContent = formatDuration(effectiveDuration);
+                                console.log(`Updated header duration for ${note.id} to ${formatDuration(effectiveDuration)} (source: ${actualDuration > 0 ? 'detected' : 'stored'})`);
+                            } else {
+                                console.warn(`Could not find header duration element for ${note.id}`);
+                            }
+                            
+                            // Update the total time display in progress bar
+                            const totalTimeEl = document.getElementById(`time-total-${note.id}`);
+                            if (totalTimeEl) {
+                                totalTimeEl.textContent = formatDuration(effectiveDuration);
+                            }
+                        } else {
+                            console.warn(`No duration available for note ${note.id} (detected: ${actualDuration}, stored: ${note.duration})`);
+                        }
+                    } catch (error) {
+                        console.error('Error getting audio duration for note:', note.id, error);
+                    }
+                });
                 
             } catch (error) {
                 console.error('Error displaying voice notes:', error);
@@ -697,14 +874,14 @@
                 playBtn.dataset.action = 'play-voice';
             }
             
-            if (progressContainer) {
-                progressContainer.style.display = 'none';
-            }
+            // Progress container stays visible
         }
         
         // Update audio progress bar and time displays
         function updateAudioProgress(voiceNoteId, currentTime, duration) {
-            if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0) return;
+            if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
+                return;
+            }
             
             // Throttle updates to prevent excessive DOM manipulation
             const now = Date.now();
@@ -722,13 +899,17 @@
             }
             
             if (currentTimeEl) {
-                currentTimeEl.textContent = formatDuration(Math.max(0, currentTime));
+                const formattedTime = formatDuration(Math.max(0, currentTime));
+                currentTimeEl.textContent = formattedTime;
             }
         }
         
+        // Store audio elements for seeking when paused
+        let audioElements = {};
+        
         // Seek to specific position in audio
-        function seekAudio(voiceNoteId, event) {
-            if (!currentPlayingAudio || !event) return;
+        async function seekAudio(voiceNoteId, event) {
+            if (!event) return;
             
             const progressBar = document.getElementById(`progress-bar-${voiceNoteId}`);
             if (!progressBar) return;
@@ -744,12 +925,66 @@
             // Ensure percentage is between 0 and 1
             const seekPercentage = Math.max(0, Math.min(1, clickPercentage));
             
-            if (!isNaN(currentPlayingAudio.duration) && currentPlayingAudio.duration > 0) {
+            // If audio is currently playing, seek it directly
+            if (currentPlayingAudio && !isNaN(currentPlayingAudio.duration) && currentPlayingAudio.duration > 0) {
                 const seekTime = seekPercentage * currentPlayingAudio.duration;
                 currentPlayingAudio.currentTime = seekTime;
                 
                 // Update progress immediately for responsive feedback
                 updateAudioProgress(voiceNoteId, seekTime, currentPlayingAudio.duration);
+            } else {
+                // If not playing, load audio but keep it paused at the seek position
+                try {
+                    const voiceNotes = await loadVoiceNotes();
+                    const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
+                    
+                    if (voiceNote) {
+                        // Create or get existing audio element for this note
+                        if (!audioElements[voiceNoteId]) {
+                            const audio = new Audio();
+                            const audioURL = URL.createObjectURL(voiceNote.audioBlob);
+                            audio.src = audioURL;
+                            audio.preload = 'metadata';
+                            audioElements[voiceNoteId] = { audio, url: audioURL };
+                            
+                            // Clean up on audio end
+                            audio.onended = () => {
+                                if (audioElements[voiceNoteId]) {
+                                    URL.revokeObjectURL(audioElements[voiceNoteId].url);
+                                    delete audioElements[voiceNoteId];
+                                }
+                            };
+                        }
+                        
+                        const { audio } = audioElements[voiceNoteId];
+                        
+                        // Wait for metadata to load, then seek
+                        const seekWhenReady = () => {
+                            if (audio.duration && (isFinite(audio.duration) || audio.duration === Infinity)) {
+                                // Use fallback duration for WebM Infinity
+                                const effectiveDuration = audio.duration === Infinity ? 5 : audio.duration;
+                                const seekTime = seekPercentage * effectiveDuration;
+                                audio.currentTime = seekTime;
+                                
+                                // Update progress bar to show seek position
+                                updateAudioProgress(voiceNoteId, seekTime, effectiveDuration);
+                                
+                                console.log(`Seeked to ${formatDuration(seekTime)} (paused) in voice note ${voiceNoteId}`);
+                            }
+                        };
+                        
+                        if (audio.readyState >= 1) {
+                            // Metadata already loaded
+                            seekWhenReady();
+                        } else {
+                            // Wait for metadata
+                            audio.onloadedmetadata = seekWhenReady;
+                            audio.load();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error seeking in paused audio:', error);
+                }
             }
         }
         
@@ -823,49 +1058,48 @@
 
         // Actually delete the voice note after confirmation (with mutex protection)
         async function confirmDeleteVoiceNote(voiceNoteId) {
-            return withMutex('voiceOperations', async () => {
-                try {
-                    // Clear the timeout
-                    if (voiceDeleteTimeouts[voiceNoteId]) {
-                        clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
-                        delete voiceDeleteTimeouts[voiceNoteId];
-                    }
-                    
-                    // Stop playing if this note is currently playing
-                    if (currentPlayingAudio) {
-                        currentPlayingAudio.pause();
-                        currentPlayingAudio = null;
-                    }
-                    
-                    // Try to delete from IndexedDB first
-                    let deleted = false;
-                    if (isIndexedDBAvailable()) {
-                        deleted = await deleteVoiceNoteFromIndexedDB(voiceNoteId);
-                    }
-                    
-                    // If IndexedDB deletion failed or unavailable, delete from memory
-                    if (!deleted) {
-                        const index = memoryVoiceNotes.findIndex(n => n.id === voiceNoteId);
-                        if (index !== -1) {
-                            memoryVoiceNotes.splice(index, 1);
-                            deleted = true;
-                        }
-                    }
-                    
-                    if (deleted) {
-                        await updateRecordButtonState();
-                        await displayVoiceNotes();
-                        updateVoiceStatus('Voice note deleted', 'info');
-                    } else {
-                        updateVoiceStatus('Voice note not found', 'error');
-                    }
-                    
-                } catch (error) {
-                    console.error('Error deleting voice note:', error);
-                    updateVoiceStatus('Failed to delete voice note', 'error');
+        return withMutex('voiceOperations', async () => {
+            try {
+                // Clear the timeout
+                if (voiceDeleteTimeouts[voiceNoteId]) {
+                    clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
+                    delete voiceDeleteTimeouts[voiceNoteId];
                 }
-            });
-        }
+                
+                // Stop playing if this note is currently playing
+                if (currentPlayingAudio) {
+                    currentPlayingAudio.pause();
+                    currentPlayingAudio = null;
+                }
+                
+                // Try to delete from IndexedDB first
+                let deleted = false;
+                if (isIndexedDBAvailable()) {
+                    deleted = await deleteVoiceNoteFromIndexedDB(voiceNoteId);
+                }
+                
+                // If IndexedDB deletion failed or unavailable, delete from memory/fallback
+                if (!deleted) {
+                    const allNotes = await loadVoiceNotes();
+                    const updatedNotes = allNotes.filter(note => note.id !== voiceNoteId);
+                    await saveVoiceNotes(updatedNotes); // Use the load/save fallback
+                    deleted = true; // Mark as deleted since fallback was used
+                }
+                
+                if (deleted) {
+                    await updateRecordButtonState();
+                    await displayVoiceNotes();
+                    updateVoiceStatus('Voice note deleted', 'info');
+                } else {
+                    updateVoiceStatus('Voice note not found', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error deleting voice note:', error);
+                updateVoiceStatus('Failed to delete voice note', 'error');
+            }
+        });
+    }
 
         // Cancel voice note delete and revert to normal state
         function cancelDeleteVoiceNote(voiceNoteId) {

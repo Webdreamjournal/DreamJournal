@@ -155,9 +155,12 @@
             }
         }
         
-        // Perform migration if needed
+        // Perform migration only if IndexedDB is empty (first-time setup)
         if (isIndexedDBAvailable() && isLocalStorageAvailable()) {
-            await migrateFromLocalStorage();
+            const existingDreamCount = await getIndexedDBCount();
+            if (existingDreamCount === 0) {
+                await migrateFromLocalStorage();
+            }
         }
         
         // Set current date/time as default for new dreams

@@ -1,9 +1,8 @@
     // --- 5.1 Dream CRUD ---
     // --- All functions related to creating, reading, updating, and deleting dreams --- //
 
-    // Save a new dream entry - optimized to use individual operations
-    // MOVED FROM: Main functions area - Dream creation and editing // Also affects UI (SECTION 3), database (SECTION 4)
-    async function saveDream() {
+    // Save a new dream entry
+       async function saveDream() {
         const titleElement = document.getElementById('dreamTitle');
         const contentElement = document.getElementById('dreamContent');
         const dreamDateElement = document.getElementById('dreamDate');
@@ -12,25 +11,7 @@
         const tagsElement = document.getElementById('dreamTags');
         const dreamSignsElement = document.getElementById('dreamSigns');
         
-        // Safety checks for form elements
-        if (!titleElement || !contentElement || !dreamDateElement || !isLucidElement || !emotionsElement || !tagsElement || !dreamSignsElement) {
-            return;
-        }
-        
-        const title = titleElement.value.trim();
-        const content = contentElement.value.trim();
-        const dreamDate = dreamDateElement.value;
-        const isLucid = isLucidElement.checked;
-        const emotions = emotionsElement.value.trim();
-        const tags = parseTagsFromInput(tagsElement.value);
-        const dreamSigns = parseTagsFromInput(dreamSignsElement.value);
-
-        // Learn new tags and dream signs from user input
-        await learnAutocompleteItems(tags, 'tags');
-        await learnAutocompleteItems(dreamSigns, 'dreamSigns');
-        
-        if (!content) {
-            // Show error message inline instead of alert
+        if (!contentElement?.value.trim()) {
             contentElement.style.borderColor = 'var(--error-color)';
             const errorMsg = document.createElement('div');
             errorMsg.className = 'message-error text-sm mt-sm';
@@ -38,66 +19,41 @@
             contentElement.parentElement.appendChild(errorMsg);
             
             setTimeout(() => {
-                try {
-                    if (contentElement) {
-                        contentElement.style.borderColor = 'var(--border-color)';
-                    }
-                    if (errorMsg && errorMsg.parentNode) {
-                        errorMsg.remove();
-                    }
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
+                contentElement.style.borderColor = 'var(--border-color)';
+                errorMsg.remove();
             }, 3000);
             return;
         }
-        
-        // Use custom date if provided, otherwise current time
-        let timestamp, dateForDisplay;
-        
-        if (dreamDate) {
-            try {
-                dateForDisplay = new Date(dreamDate);
-                if (isNaN(dateForDisplay.getTime())) {
-                    // Invalid date, fallback to current time
-                    dateForDisplay = new Date();
-                }
-                timestamp = dateForDisplay.toISOString();
-            } catch (error) {
-                // Error parsing date, fallback to current time
-                dateForDisplay = new Date();
-                timestamp = dateForDisplay.toISOString();
-            }
-        } else {
-            dateForDisplay = new Date();
-            timestamp = dateForDisplay.toISOString();
-        }
+
+        const tags = parseTagsFromInput(tagsElement.value);
+        const dreamSigns = parseTagsFromInput(dreamSignsElement.value);
+
+        await learnAutocompleteItems(tags, 'tags');
+        await learnAutocompleteItems(dreamSigns, 'dreamSigns');
+
+        const dreamDate = dreamDateElement.value ? new Date(dreamDateElement.value) : new Date();
         
         const newDream = {
             id: generateUniqueId(),
-            title: title || 'Untitled Dream',
-            content: content,
-            emotions: emotions, // Add emotions to the dream data
-            tags: tags, // Add tags array
-            dreamSigns: dreamSigns, // Add dream signs array
-            timestamp: timestamp,
-            isLucid: isLucid,
-            dateString: dateForDisplay.toLocaleDateString('en-AU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+            title: titleElement.value.trim() || 'Untitled Dream',
+            content: contentElement.value.trim(),
+            emotions: emotionsElement.value.trim(),
+            tags: tags,
+            dreamSigns: dreamSigns,
+            timestamp: dreamDate.toISOString(),
+            isLucid: isLucidElement.checked,
+            dateString: dreamDate.toLocaleDateString('en-AU', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
             })
         };
         
-        // Try to add directly to IndexedDB first for better performance
+        // Try fast path first
         let saveSuccess = false;
         if (isIndexedDBAvailable()) {
             saveSuccess = await addDreamToIndexedDB(newDream);
         }
         
-        // If IndexedDB failed or unavailable, fall back to loading all and saving
+        // Fallback if the fast method fails
         if (!saveSuccess) {
             const dreams = await loadDreams();
             dreams.unshift(newDream);
@@ -105,43 +61,25 @@
         }
         
         // Clear form
-        if (titleElement) titleElement.value = '';
-        if (contentElement) contentElement.value = '';
-        if (dreamDateElement) dreamDateElement.value = '';
-        if (isLucidElement) isLucidElement.checked = false;
-        if (emotionsElement) emotionsElement.value = '';
-        if (tagsElement) tagsElement.value = '';
-        if (dreamSignsElement) dreamSignsElement.value = '';
+        titleElement.value = '';
+        contentElement.value = '';
+        isLucidElement.checked = false;
+        emotionsElement.value = '';
+        tagsElement.value = '';
+        dreamSignsElement.value = '';
         
-        // Reset date to current time for next entry
-        if (dreamDateElement) {
+        // Reset date to current time
         const now = new Date();
-
-        const year = now.getFullYear();
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-
-        const localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-
+        const localDatetimeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         dreamDateElement.value = localDatetimeString;
-    }
         
-        // Reset to page 1 to show the new dream
         currentPage = 1;
         
-        // Show success message
-        const form = document.querySelector('.entry-form');
-        if (form) {
-            createInlineMessage('success', 'Dream saved successfully!', {
-                container: form,
-                position: 'bottom',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
-        }
+        createInlineMessage('success', 'Dream saved successfully!', {
+            container: document.querySelector('.entry-form'),
+            position: 'bottom'
+        });
         
-        // Refresh display
         await displayDreams();
         await initializeAutocomplete();
     }
@@ -412,128 +350,56 @@
         }
     }
 
-    // Save dream edit - optimized to use individual update
+    // Save dream edit
     async function saveDreamEdit(dreamId) {
-        try {
-            const newTitleElement = document.getElementById(`edit-title-${dreamId}`);
-            const newContentElement = document.getElementById(`edit-content-${dreamId}`);
-            const newDateElement = document.getElementById(`edit-date-${dreamId}`);
-            const newIsLucidElement = document.getElementById(`edit-lucid-${dreamId}`);
-            const newEmotionsElement = document.getElementById(`edit-emotions-${dreamId}`);
-            const newTagsElement = document.getElementById(`edit-tags-${dreamId}`);
-            const newDreamSignsElement = document.getElementById(`edit-dreamsigns-${dreamId}`);
-            
-            if (!newTitleElement || !newContentElement || !newDateElement || !newIsLucidElement || 
-                !newEmotionsElement || !newTagsElement || !newDreamSignsElement) {
-                throw new Error('Required form elements not found');
-            }
-            
-            const newTitle = newTitleElement.value.trim();
-            const newContent = newContentElement.value.trim();
-            const newDate = newDateElement.value;
-            const newIsLucid = newIsLucidElement.checked;
-            const newEmotions = newEmotionsElement.value.trim();
-            const newTags = parseTagsFromInput(newTagsElement.value);
-            const newDreamSigns = parseTagsFromInput(newDreamSignsElement.value);
+        const newContentElement = document.getElementById(`edit-content-${dreamId}`);
+        if (!newContentElement?.value.trim()) {
+            newContentElement.style.borderColor = 'var(--error-color)';
+            return;
+        }
 
-            // Learn new tags and dream signs from user input
-            await learnAutocompleteItems(newTags, 'tags');
-            await learnAutocompleteItems(newDreamSigns, 'dreamSigns');
-            
-            if (!newContent) {
-                // Show error inline in the edit area
-                const contentField = newContentElement;
-                contentField.style.borderColor = 'var(--error-color)';
-                const existingError = contentField.parentElement.querySelector('.edit-error');
-                if (!existingError) {
-                    const errorMsg = document.createElement('div');
-                    errorMsg.className = 'edit-error message-error text-sm mt-sm';
-                    errorMsg.textContent = 'Dream description cannot be empty.';
-                    contentField.parentElement.appendChild(errorMsg);
-                }
-                
-                setTimeout(() => {
-                    contentField.style.borderColor = 'var(--border-color)';
-                    const error = contentField.parentElement.querySelector('.edit-error');
-                    if (error) error.remove();
-                }, 3000);
-                return;
-            }
-            
+        const newTags = parseTagsFromInput(document.getElementById(`edit-tags-${dreamId}`).value);
+        const newDreamSigns = parseTagsFromInput(document.getElementById(`edit-dreamsigns-${dreamId}`).value);
+
+        await learnAutocompleteItems(newTags, 'tags');
+        await learnAutocompleteItems(newDreamSigns, 'dreamSigns');
+
+        const newDateValue = document.getElementById(`edit-date-${dreamId}`).value;
+        const newDate = newDateValue ? new Date(newDateValue) : new Date();
+
+        // Create updated dream object
+        const updatedDream = {
+            id: dreamId,
+            title: document.getElementById(`edit-title-${dreamId}`).value.trim() || 'Untitled Dream',
+            content: newContentElement.value.trim(),
+            emotions: document.getElementById(`edit-emotions-${dreamId}`).value.trim(),
+            tags: newTags,
+            dreamSigns: newDreamSigns,
+            isLucid: document.getElementById(`edit-lucid-${dreamId}`).checked,
+            timestamp: newDate.toISOString(),
+            dateString: newDate.toLocaleDateString('en-AU', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            }),
+            lastModified: new Date().toISOString()
+        };
+
+        // Try fast path first
+        let updateSuccess = false;
+        if (isIndexedDBAvailable()) {
+            updateSuccess = await updateDreamInIndexedDB(updatedDream);
+        }
+        
+        // Fallback if the fast method fails
+        if (!updateSuccess) {
             const dreams = await loadDreams();
-            // Handle both string and numeric IDs for backward compatibility
-            const dreamIndex = dreams.findIndex(d => 
-                d.id === dreamId || 
-                d.id === dreamId.toString() || 
-                d.id === Number(dreamId)
-            );
-            
-            if (dreamIndex === -1) {
-                throw new Error('Dream not found in database');
-            }
-            
-            // Update timestamp and dateString if date was changed
-            let timestamp, dateForDisplay;
-            try {
-                if (newDate) {
-                    dateForDisplay = new Date(newDate);
-                    if (isNaN(dateForDisplay.getTime())) {
-                        dateForDisplay = new Date(dreams[dreamIndex].timestamp);
-                    }
-                    timestamp = dateForDisplay.toISOString();
-                } else {
-                    timestamp = dreams[dreamIndex].timestamp;
-                    dateForDisplay = new Date(timestamp);
-                }
-            } catch (dateError) {
-                console.warn('Error parsing date, using original:', dateError);
-                timestamp = dreams[dreamIndex].timestamp;
-                dateForDisplay = new Date(timestamp);
-            }
-            
-            const updatedDream = {
-                ...dreams[dreamIndex],
-                title: newTitle || 'Untitled Dream',
-                content: newContent,
-                emotions: newEmotions,
-                tags: newTags,
-                dreamSigns: newDreamSigns,
-                isLucid: newIsLucid,
-                timestamp: timestamp,
-                dateString: dateForDisplay.toLocaleDateString('en-AU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }),
-                lastModified: new Date().toISOString()
-            };
-            
-            // Try to update directly in IndexedDB first
-            let updateSuccess = false;
-            if (isIndexedDBAvailable()) {
-                updateSuccess = await updateDreamInIndexedDB(updatedDream);
-            }
-            
-            // If IndexedDB failed, fall back to updating all
-            if (!updateSuccess) {
+            const dreamIndex = dreams.findIndex(d => d.id.toString() === dreamId.toString());
+            if (dreamIndex !== -1) {
                 dreams[dreamIndex] = updatedDream;
                 await saveDreams(dreams);
             }
-            
-            await displayDreams();
-            await initializeAutocomplete();
-            
-        } catch (error) {
-            console.error('Error saving dream edit:', error);
-            
-            createInlineMessage('error', 'Error saving changes: ' + error.message, {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 5000
-            });
         }
+        await displayDreams();
+        await initializeAutocomplete();
     }
 
     // Cancel dream edit
@@ -571,65 +437,34 @@
         }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
     }
 
-    // Actually delete the dream after confirmation - optimized for IndexedDB (with mutex protection)
+    // Actually delete the dream after confirmation
     async function confirmDelete(dreamId) {
         return withMutex('deleteOperations', async () => {
             try {
-                // Clear the timeout
                 if (deleteTimeouts[dreamId]) {
                     clearTimeout(deleteTimeouts[dreamId]);
                     delete deleteTimeouts[dreamId];
                 }
-                
-                const dreams = await loadDreams();
-                // Handle both string and numeric IDs for backward compatibility
-                const dream = dreams.find(d => 
-                    d.id === dreamId || 
-                    d.id === dreamId.toString() || 
-                    d.id === Number(dreamId)
-                );
-                
-                if (!dream) {
-                    // Show error inline
-                    const entryElement = document.getElementById(`entry-${dreamId}`);
-                    if (entryElement) {
-                        const errorMsg = document.createElement('div');
-                        errorMsg.style.cssText = `
-                            background: #fee2e2;
-                            color: #dc2626;
-                            padding: 10px;
-                            border-radius: 6px;
-                            margin-top: 10px;
-                            font-weight: 600;
-                        `;
-                        errorMsg.textContent = 'Error: Dream not found.';
-                        entryElement.appendChild(errorMsg);
-                        
-                        setTimeout(() => {
-                            errorMsg.remove();
-                            cancelDelete(dreamId);
-                        }, 3000);
-                    }
-                    return;
-                }
-                
-                // Try to delete directly from IndexedDB first
+
+                // Try fast path first
                 let deleteSuccess = false;
                 if (isIndexedDBAvailable()) {
-                    deleteSuccess = await deleteDreamFromIndexedDB(dream.id);
+                    deleteSuccess = await deleteDreamFromIndexedDB(dreamId);
                 }
                 
-                // If IndexedDB delete failed or unavailable, fall back to filtering
+                // Fallback if the fast method fails
                 if (!deleteSuccess) {
-                    const filteredDreams = dreams.filter(d => d.id !== dream.id);
-                    await saveDreams(filteredDreams);
+                    const dreams = await loadDreams();
+                    const updatedDreams = dreams.filter(d => d.id.toString() !== dreamId.toString());
+                    await saveDreams(updatedDreams);
                 }
-                
-                // Reset to page 1 in case current page becomes empty
+
                 currentPage = 1;
                 await displayDreams();
+
             } catch (error) {
-                createInlineMessage('error', 'Error deleting dream: ' + error.message, {
+                console.error(`Error in confirmDelete for dreamId ${dreamId}:`, error);
+                createInlineMessage('error', 'Error deleting dream. Please refresh and try again.', {
                     container: document.querySelector('.main-content'),
                     position: 'top',
                     duration: 5000
