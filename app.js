@@ -117,6 +117,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('=== END EVENT HANDLING DIAGNOSTICS ===');
+    
+    // Additional IndexedDB diagnostics
+    console.log('=== INDEXEDDB DIAGNOSTICS ===');
+    console.log('IndexedDB browser support:', 'indexedDB' in window);
+    console.log('IndexedDB object:', !!window.indexedDB);
+    
+    if (typeof isIndexedDBAvailable === 'function') {
+        console.log('isIndexedDBAvailable():', isIndexedDBAvailable());
+    }
+    if (typeof isIndexedDBReady === 'function') {
+        console.log('isIndexedDBReady():', isIndexedDBReady());
+    }
+    if (typeof db !== 'undefined') {
+        console.log('db object:', !!db);
+    }
+    
+    console.log('=== END INDEXEDDB DIAGNOSTICS ===');
 });
 
 console.log('Dream Journal v2.00.0 - Master application entry point loaded');

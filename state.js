@@ -25,6 +25,7 @@
         displayDreams: { locked: false, queue: [] },
         saveDreams: { locked: false, queue: [] },
         saveGoals: { locked: false, queue: [] },
+        saveVoiceNote: { locked: false, queue: [] },
         voiceOperations: { locked: false, queue: [] },
         deleteOperations: { locked: false, queue: [] }
     };

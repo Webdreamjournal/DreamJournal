@@ -263,13 +263,17 @@
     }
 
     function isIndexedDBAvailable() {
-        return 'indexedDB' in window && db !== null;
+        return 'indexedDB' in window && window.indexedDB !== undefined;
+    }
+    
+    function isIndexedDBReady() {
+        return isIndexedDBAvailable() && db !== null;
     }
 
     // Main dream loading function with fallback chain
     async function loadDreams() {
         // Try IndexedDB first
-        if (isIndexedDBAvailable()) {
+        if (isIndexedDBReady()) {
             const dreams = await loadFromIndexedDB();
             if (dreams !== null) {
                 return dreams;
@@ -531,7 +535,7 @@
     // Load voice notes
     async function loadVoiceNotes() {
         // Voice notes require IndexedDB due to Blob storage - localStorage cannot deserialize Blobs properly
-        if (!isIndexedDBAvailable()) {
+        if (!isIndexedDBReady()) {
             console.warn('Voice notes require IndexedDB support. No voice notes available without IndexedDB.');
             return [];
         }
@@ -544,7 +548,7 @@
     async function saveVoiceNote(voiceNote) {
         return withMutex('saveVoiceNote', async () => {
             // Voice notes require IndexedDB due to Blob storage - localStorage fallback cannot handle Blobs
-            if (!isIndexedDBAvailable()) {
+            if (!isIndexedDBReady()) {
                 throw new Error('Voice notes require IndexedDB support. localStorage cannot store audio Blobs.');
             }
             
