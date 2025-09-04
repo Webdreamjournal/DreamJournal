@@ -421,7 +421,7 @@
             
             // Create comprehensive export object
             const exportData = {
-                version: "v2.01.8", // Fixed recording duration calculation timing issue
+                version: "v2.01.16", // Cleaned up dream-crud.js documentation and structure
                 exportDate: new Date().toISOString(),
                 exportType: "complete",
                 data: {

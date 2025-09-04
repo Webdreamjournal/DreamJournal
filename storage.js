@@ -907,39 +907,16 @@
         console.log(`Learned ${newItems.length} new ${type}: ${newItems.join(', ')}`);
     }
 
-    // Learn new autocomplete items from user input (auto-save new tags/dream signs)
-    async function learnAutocompleteItems(inputArray, type) {
-        if (!inputArray || inputArray.length === 0) return;
 
-        const storeId = type; // 'tags' or 'dreamSigns'
-        let autocompleteData = await loadItemFromStore('autocomplete', storeId);
+// ===================================================================================
+// INDIVIDUAL DREAM CRUD OPERATIONS
+// ===================================================================================
+// Individual dream operations for proper CRUD functionality
+// Complement the bulk operations with single-item precision
 
-        // If the store doesn't exist yet, initialize it.
-        if (!autocompleteData) {
-            autocompleteData = { id: storeId, items: [] };
-        }
-
-        const currentItemsLower = new Set(autocompleteData.items.map(item => item.toLowerCase()));
-        let newItemsFound = false;
-
-        inputArray.forEach(newItemValue => {
-            if (!currentItemsLower.has(newItemValue.toLowerCase())) {
-                autocompleteData.items.push(newItemValue);
-                currentItemsLower.add(newItemValue.toLowerCase()); // Add to set to handle duplicates within the same input
-                newItemsFound = true;
-            }
-        });
-
-        if (newItemsFound) {
-            await saveItemToStore('autocomplete', autocompleteData);
-            console.log(`Auto-learned ${inputArray.filter(item => !currentItemsLower.has(item.toLowerCase())).length} new ${type}`);
-        }
-    }
-
-    // Individual dream management functions (needed for proper CRUD operations)
-    
-    // Add individual dream to IndexedDB
-    async function addDreamToIndexedDB(dream) {
+// Add single dream to IndexedDB with validation
+// Returns true on success, false on error or validation failure
+async function addDreamToIndexedDB(dream) {
         if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
         
         return new Promise((resolve) => {
@@ -947,7 +924,7 @@
                 const transaction = db.transaction([STORE_NAME], 'readwrite');
                 
                 transaction.oncomplete = () => {
-                    resolve(true); // Resolve when transaction is complete
+                    resolve(true); // Success when transaction completes
                 };
                 transaction.onerror = () => resolve(false);
                 transaction.onabort = () => resolve(false);
@@ -961,9 +938,9 @@
             }
         });
     }
-    
-    // Update individual dream in IndexedDB
-    async function updateDreamInIndexedDB(dream) {
+// Update existing dream in IndexedDB with validation
+// Returns true on success, false on error or validation failure
+async function updateDreamInIndexedDB(dream) {
     if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
 
         return new Promise((resolve) => {
@@ -985,9 +962,9 @@
             }
         });
     }
-    
-    // Delete individual dream from IndexedDB
-    async function deleteDreamFromIndexedDB(dreamId) {
+// Delete single dream from IndexedDB by ID
+// Returns true on success, false on error
+async function deleteDreamFromIndexedDB(dreamId) {
         if (!isIndexedDBAvailable()) return false;
         
         return new Promise((resolve) => {
@@ -1008,14 +985,19 @@
         });
     }
 
-    // Dream validation function
-    function validateDreamData(dream) {
+// ===================================================================================
+// DATA VALIDATION OPERATIONS
+// ===================================================================================
+
+// Comprehensive dream data validation with detailed error reporting
+// Ensures data integrity before database operations
+function validateDreamData(dream) {
         if (!dream) {
             console.error('Dream validation failed: dream is null or undefined');
             return false;
         }
         
-        // Required fields
+        // Check for required fields presence
         if (!dream.id) {
             console.error('Dream validation failed: missing id');
             return false;
@@ -1026,7 +1008,7 @@
             return false;
         }
         
-        // Validate data types
+        // Validate data types for type safety
         if (typeof dream.id !== 'string') {
             console.error('Dream validation failed: id must be string');
             return false;
@@ -1047,7 +1029,7 @@
             return false;
         }
         
-        // Validate arrays
+        // Validate array fields for proper structure
         if (!Array.isArray(dream.tags)) {
             console.error('Dream validation failed: tags must be array');
             return false;
@@ -1061,23 +1043,28 @@
         return true;
     }
 
-    // Check if dream is duplicate based on content similarity and timestamp
-    function isDreamDuplicate(existingDreams, newDream) {
-        const timeDiffThreshold = 5 * 60 * 1000; // 5 minutes
-        const contentSimilarityThreshold = 0.8;
+// Check if dream is likely duplicate based on content and timing
+// Prevents accidental duplicate entries from user error or system issues
+function isDreamDuplicate(existingDreams, newDream) {
+    const timeDiffThreshold = 5 * 60 * 1000; // 5-minute time window
+    const contentSimilarityThreshold = 0.8; // Currently unused but reserved for future fuzzy matching
+    
+    return existingDreams.some(existing => {
+        const timeDiff = Math.abs(new Date(existing.timestamp) - new Date(newDream.timestamp));
+        const contentSimilarity = existing.content.toLowerCase() === newDream.content.toLowerCase();
         
-        return existingDreams.some(existing => {
-            const timeDiff = Math.abs(new Date(existing.timestamp) - new Date(newDream.timestamp));
-            const contentSimilarity = existing.content.toLowerCase() === newDream.content.toLowerCase();
-            
-            return timeDiff < timeDiffThreshold && contentSimilarity;
-        });
-    }
+        // Consider duplicate if within time threshold and identical content
+        return timeDiff < timeDiffThreshold && contentSimilarity;
+    });
+}
 
-    // localStorage backup removed - using IndexedDB only for dreams
+// ===================================================================================
+// STORAGE WARNING FUNCTIONS
+// ===================================================================================
 
-    // Show warning when voice notes are stored in memory only
-    function showVoiceStorageWarning() {
+// Display warning when voice notes can't be persistently stored
+// Informs users about temporary storage limitations for voice data
+function showVoiceStorageWarning() {
         const container = document.querySelector('.voice-notes-section');
         if (!container) return;
         
@@ -1092,40 +1079,50 @@
         );
     }
 
-    // User tag and dream sign management functions
-    
-    // Load user-defined tags from IndexedDB
-    async function loadUserTags() {
+// ===================================================================================
+// USER-DEFINED TAGS & DREAM SIGNS OPERATIONS
+// ===================================================================================
+// Legacy functions for older tag/dream sign management system
+// These functions handle user-defined suggestions separately from defaults
+
+// Load user-defined tags from dedicated store
+// Returns array of tag strings, empty array if none found
+async function loadUserTags() {
         const tags = await loadFromStore('userTags');
         return tags.map(t => t.value);
     }
 
-    // Load user-defined dream signs from IndexedDB
-    async function loadUserDreamSigns() {
+// Load user-defined dream signs from dedicated store
+// Returns array of dream sign strings, empty array if none found
+async function loadUserDreamSigns() {
         const signs = await loadFromStore('userDreamSigns');
         return signs.map(s => s.value);
     }
 
-    // Load deleted default tags/signs from IndexedDB
-    async function loadDeletedDefaults() {
+// Load list of default items that user has deleted
+// Used to filter out unwanted defaults from suggestion lists
+async function loadDeletedDefaults() {
         const deleted = await loadFromStore('deletedDefaults');
         return deleted.map(d => d.id);
     }
 
-    // Save a list of user tags
-    async function saveUserTags(tags) {
+// Save complete list of user-defined tags to dedicated store
+// Replaces existing user tags with new list
+async function saveUserTags(tags) {
         const dataToStore = tags.map(tag => ({ id: tag.toLowerCase(), value: tag }));
         return await saveToStore('userTags', dataToStore);
     }
 
-    // Save a list of user dream signs
-    async function saveUserDreamSigns(signs) {
+// Save complete list of user-defined dream signs to dedicated store
+// Replaces existing user dream signs with new list
+async function saveUserDreamSigns(signs) {
         const dataToStore = signs.map(sign => ({ id: sign.toLowerCase(), value: sign }));
         return await saveToStore('userDreamSigns', dataToStore);
     }
 
-    // Save a list of deleted default items
-    async function saveDeletedDefaults(deletedItems) {
+// Save list of default items that user has chosen to delete
+// Used to hide unwanted defaults from autocomplete suggestions
+async function saveDeletedDefaults(deletedItems) {
         const dataToStore = deletedItems.map(item => ({ id: item.toLowerCase() }));
         return await saveToStore('deletedDefaults', dataToStore);
     }

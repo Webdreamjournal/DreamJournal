@@ -1,5 +1,12 @@
-    // --- 5.6 Security & PIN Logic ---
-    // Encryption and cryptographic functions
+// ================================
+// SECURITY.JS - CRYPTOGRAPHY & PIN MANAGEMENT
+// ================================
+// Handles encryption, decryption, PIN hashing, authentication, and recovery systems
+// Uses WebCrypto API for secure operations with PBKDF2 key derivation
+
+// ================================
+// 1. CRYPTOGRAPHIC UTILITIES
+// ================================
     
     // Generate cryptographically secure random salt
     function generateSalt() {
@@ -86,8 +93,13 @@
         }
     }
     
-    // Password Dialog Functions for Export/Import
-    function showPasswordDialog(config) {
+// ================================
+// 2. PASSWORD DIALOG SYSTEM
+// ================================
+
+// Show password dialog for export/import operations with configurable options
+// Supports both password entry and confirmation modes
+function showPasswordDialog(config) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
@@ -149,8 +161,13 @@
                 }
                 
                 if (config.requireConfirm && password !== confirmPassword) {
-                    alert('Passwords do not match');
+                    // Create inline error message instead of alert
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'text-error text-sm mb-sm';
+                    errorDiv.textContent = 'Passwords do not match';
+                    confirmInput.parentNode.insertBefore(errorDiv, confirmInput.nextSibling);
                     confirmInput.focus();
+                    setTimeout(() => errorDiv.remove(), 3000);
                     return;
                 }
                 
@@ -186,81 +203,87 @@
         });
     }
     
-    // PIN Management and Security Functions
-    
-    // Simple hash function for PIN (DEPRECATED - kept for migration)
-    function hashPinLegacy(pin) {
-        let hash = 0;
-        for (let i = 0; i < pin.length; i++) {
-            const char = pin.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return hash.toString();
+// ================================
+// 3. PIN HASHING & VERIFICATION SYSTEM
+// ================================
+
+// Simple hash function for PIN (DEPRECATED - kept for legacy migration)
+// Used to verify old PIN hashes before upgrading to secure format
+function hashPinLegacy(pin) {
+    let hash = 0;
+    for (let i = 0; i < pin.length; i++) {
+        const char = pin.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
     }
-    
-    // Secure PIN hashing using existing crypto infrastructure
-    async function hashPinSecure(pin, salt = null) {
+    return hash.toString();
+}
+
+// Secure PIN hashing using PBKDF2 with salt and configurable iterations
+// Returns both hash and salt in hex format for secure storage
+async function hashPinSecure(pin, salt = null) {
+    try {
+        if (!salt) salt = generateSalt();
+        
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(pin),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveBits']
+        );
+        
+        // Derive bits instead of key to avoid extractability issues
+        const derivedBits = await crypto.subtle.deriveBits(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: CONSTANTS.CRYPTO_PBKDF2_ITERATIONS,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            CONSTANTS.CRYPTO_KEY_LENGTH
+        );
+        
+        // Convert to hex strings for storage
+        const hashArray = Array.from(new Uint8Array(derivedBits));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        const saltArray = Array.from(salt);
+        const saltHex = saltArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        return {
+            hash: hashHex,
+            salt: saltHex
+        };
+    } catch (error) {
+        console.error('Secure PIN hashing error:', error);
+        throw new Error('Failed to hash PIN securely');
+    }
+}
+
+// Detect PIN storage format for backwards compatibility
+// Legacy format: simple hash string | Secure format: JSON with hash and salt
+function isLegacyPinFormat(storedData) {
+    if (typeof storedData === 'string') {
         try {
-            if (!salt) salt = generateSalt();
-            
-            // Use existing deriveKey function but make result extractable for storage
-            const encoder = new TextEncoder();
-            const keyMaterial = await crypto.subtle.importKey(
-                'raw',
-                encoder.encode(pin),
-                { name: 'PBKDF2' },
-                false,
-                ['deriveBits']
-            );
-            
-            // Derive bits instead of key to avoid extractability issues
-            const derivedBits = await crypto.subtle.deriveBits(
-                {
-                    name: 'PBKDF2',
-                    salt: salt,
-                    iterations: CONSTANTS.CRYPTO_PBKDF2_ITERATIONS,
-                    hash: 'SHA-256'
-                },
-                keyMaterial,
-                CONSTANTS.CRYPTO_KEY_LENGTH // 32 bytes
-            );
-            
-            // Convert to hex string
-            const hashArray = Array.from(new Uint8Array(derivedBits));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            // Convert salt to hex string  
-            const saltArray = Array.from(salt);
-            const saltHex = saltArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            return {
-                hash: hashHex,
-                salt: saltHex
-            };
-        } catch (error) {
-            console.error('Secure PIN hashing error:', error);
-            throw new Error('Failed to hash PIN securely');
+            const parsed = JSON.parse(storedData);
+            return !(parsed && parsed.hash && parsed.salt);
+        } catch (e) {
+            return true; // Not JSON, so it's legacy
         }
     }
+    return true;
+}
     
-    // Detect if stored PIN data is old format (simple hash) or new format (secure)
-    function isLegacyPinFormat(storedData) {
-        // Legacy format is just a simple hash string
-        // New format is JSON with hash and salt properties
-        if (typeof storedData === 'string') {
-            try {
-                const parsed = JSON.parse(storedData);
-                return !(parsed && parsed.hash && parsed.salt);
-            } catch (e) {
-                return true; // Not JSON, so it's legacy
-            }
-        }
-        return true;
-    }
-    
-    // Check if PIN is set up
-    function isPinSetup() {
+// ================================
+// 4. PIN STORAGE & MANAGEMENT
+// ================================
+
+// Check if PIN protection is currently enabled
+// Works with both IndexedDB and localStorage fallback systems
+function isPinSetup() {
         if (storageType === 'indexeddb') {
             return pinStorage.hash !== null;
         } else {
@@ -561,41 +584,47 @@
         updateTimerWarning(); // Show warning banner
     }
 
-    // Update timer warning banner
-    function updateTimerWarning() {
-        const warningBanner = document.getElementById('timerWarning');
-        const warningTime = document.getElementById('timerWarningTime');
-        
-        if (!warningBanner || !warningTime) return; // Safety check
-        
-        const resetTime = getResetTime();
-        if (resetTime) {
-            const remainingMs = resetTime - Date.now();
-            if (remainingMs > 0) {
-                const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
-                const days = Math.ceil(hours / 24);
-                
-                let timeDisplay = '';
-                if (days > 1) {
-                    timeDisplay = `${days} days remaining`;
-                } else if (hours > 1) {
-                    timeDisplay = `${hours} hours remaining`;
-                } else {
-                    timeDisplay = 'Less than 1 hour remaining';
-                }
-                
-                warningTime.textContent = `(${timeDisplay})`;
-                warningBanner.classList.add('active');
+// ================================
+// 7. PIN RECOVERY & RESET SYSTEM
+// ================================
+
+// TODO: Split into calculateRemainingTime() and updateTimerDisplay() functions
+// Update timer warning banner display and calculate remaining time
+function updateTimerWarning() {
+    const warningBanner = document.getElementById('timerWarning');
+    const warningTime = document.getElementById('timerWarningTime');
+    
+    if (!warningBanner || !warningTime) return;
+    
+    const resetTime = getResetTime();
+    if (resetTime) {
+        const remainingMs = resetTime - Date.now();
+        if (remainingMs > 0) {
+            const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
+            const days = Math.ceil(hours / 24);
+            
+            let timeDisplay = '';
+            if (days > 1) {
+                timeDisplay = `${days} days remaining`;
+            } else if (hours > 1) {
+                timeDisplay = `${hours} hours remaining`;
             } else {
-                warningBanner.classList.remove('active');
+                timeDisplay = 'Less than 1 hour remaining';
             }
+            
+            warningTime.textContent = `(${timeDisplay})`;
+            warningBanner.classList.add('active');
         } else {
             warningBanner.classList.remove('active');
         }
+    } else {
+        warningBanner.classList.remove('active');
     }
+}
 
-    // Cancel reset timer - now requires PIN
-    function cancelResetTimer() {
+// Show PIN verification screen for timer cancellation
+// Renders PIN entry interface for reset timer cancellation
+function cancelResetTimer() {
         const pinOverlay = document.getElementById('pinOverlay');
         const pinContainer = pinOverlay.querySelector('.pin-container');
         
@@ -698,96 +727,65 @@
         }
     }
 
-    // Simple hash function for PIN (DEPRECATED - kept for migration)
-    function hashPinLegacy(pin) {
-        let hash = 0;
-        for (let i = 0; i < pin.length; i++) {
-            const char = pin.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return hash.toString();
-    }
+// ================================
+// 5. PIN VERIFICATION & AUTHENTICATION
+// ================================
 
-    // Secure PIN hashing using existing crypto infrastructure
-    async function hashPinSecure(pin, salt = null) {
-        try {
-            if (!salt) salt = generateSalt();
-            
-            // Use existing deriveKey function but make result extractable for storage
-            const encoder = new TextEncoder();
-            const keyMaterial = await crypto.subtle.importKey(
-                'raw',
-                encoder.encode(pin),
-                { name: 'PBKDF2' },
-                false,
-                ['deriveBits']
-            );
-            
-            // Derive bits instead of key to avoid extractability issues
-            const derivedBits = await crypto.subtle.deriveBits(
-                {
-                    name: 'PBKDF2',
-                    salt: salt,
-                    iterations: CONSTANTS.CRYPTO_PBKDF2_ITERATIONS,
-                    hash: 'SHA-256'
-                },
-                keyMaterial,
-                CONSTANTS.CRYPTO_KEY_LENGTH // 32 bytes
-            );
-            
-            // Convert to hex string
-            const hashArray = Array.from(new Uint8Array(derivedBits));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            // Convert salt to hex string  
-            const saltArray = Array.from(salt);
-            const saltHex = saltArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            return {
-                hash: hashHex,
-                salt: saltHex
-            };
-        } catch (error) {
-            console.error('Secure PIN hashing error:', error);
-            throw new Error('Failed to hash PIN securely');
-        }
-    }
-
-    // Detect if stored PIN data is old format (simple hash) or new format (secure)
-    function isLegacyPinFormat(storedData) {
-        // Legacy format is just a simple hash string
-        // New format is JSON with hash and salt properties
-        if (typeof storedData === 'string') {
-            try {
-                const parsed = JSON.parse(storedData);
-                return !(parsed && parsed.hash && parsed.salt);
-            } catch (e) {
-                return true; // Not JSON, so it's legacy
-            }
-        }
-        return true;
-    }
-
-    // PIN storage with fallback system (same as main app)
-    let pinStorage = {
-        hash: null,
-        resetTime: null
-    };
-
-    // Check if PIN is set up (with fallback storage)
-    function isPinSetup() {
-        // Try localStorage first
-        if (isLocalStorageAvailable()) {
-            return localStorage.getItem('dreamJournalPinHash') !== null;
+// Verify entered PIN against stored hash with format compatibility
+// Handles both legacy (simple hash) and secure (PBKDF2) formats
+async function verifyPinHash(enteredPin, storedData) {
+    if (!storedData || !enteredPin) return false;
+    
+    try {
+        // Check for legacy format first
+        if (isLegacyPinFormat(storedData)) {
+            const legacyHash = hashPinLegacy(enteredPin);
+            return legacyHash === storedData;
         }
         
-        // Fallback to memory storage
-        return pinStorage.hash !== null;
+        // Handle secure format
+        const stored = JSON.parse(storedData);
+        if (!stored.hash || !stored.salt) return false;
+        
+        // Convert hex salt back to Uint8Array
+        const saltArray = [];
+        for (let i = 0; i < stored.salt.length; i += 2) {
+            saltArray.push(parseInt(stored.salt.substr(i, 2), 16));
+        }
+        const salt = new Uint8Array(saltArray);
+        
+        // Hash the entered PIN with the stored salt
+        const hashedEntered = await hashPinSecure(enteredPin, salt);
+        return hashedEntered.hash === stored.hash;
+        
+    } catch (error) {
+        console.error('PIN verification error:', error);
+        return false;
     }
+}
 
-    // Store PIN hash (with fallback storage) - UPDATED for secure hashing
-    async function storePinHash(pin) {
+// ================================
+// 6. FALLBACK STORAGE SYSTEM
+// ================================
+
+// PIN storage with fallback system for when IndexedDB unavailable
+let pinStorage = {
+    hash: null,
+    resetTime: null
+};
+
+// Check if PIN is set up using fallback storage system
+// Prioritizes localStorage but falls back to memory storage
+function isPinSetup() {
+    if (isLocalStorageAvailable()) {
+        return localStorage.getItem('dreamJournalPinHash') !== null;
+    }
+    return pinStorage.hash !== null;
+}
+
+// Store PIN hash securely using PBKDF2 with fallback storage system
+// Uses secure hashing format with salt and returns success status
+async function storePinHash(pin) {
         if (!pin) {
             return false;
         }
@@ -817,8 +815,9 @@
         }
     }
 
-    // Get stored PIN hash (with fallback storage) - UPDATED for secure hashing
-    function getStoredPinData() {
+// Get stored PIN hash data from fallback storage system
+// Returns stored PIN data for verification or null if not found
+function getStoredPinData() {
         // Try localStorage first
         if (isLocalStorageAvailable()) {
             const data = localStorage.getItem('dreamJournalPinHash');
@@ -907,9 +906,14 @@
         pinStorage.resetTime = null;
     }
 
-    // Update security controls visibility
-    // Note: Lock button is ALWAYS visible for better UX - logic handled in toggleLock()
-    function updateSecurityControls() {
+// ================================
+// 8. UI CONTROLS & STATE MANAGEMENT 
+// ================================
+
+// TODO: Split into updateButtonStates(), updateButtonText(), and validateAppState() functions
+// Update security controls visibility and state across all UI locations
+// Note: Lock button is ALWAYS visible for better UX - logic handled in toggleLock()
+function updateSecurityControls() {
         const lockBtn = document.getElementById('lockBtn');
         const lockBtnSettings = document.getElementById('lockBtnSettings');
         const setupBtnSettings = document.getElementById('setupPinBtnSettings');
@@ -1084,10 +1088,13 @@
         }
     }
 
-    // LOCK SCREEN TAB FUNCTIONS
-        
-    // Verify PIN on lock screen
-    async function verifyLockScreenPin() {
+// ================================
+// 9. LOCK SCREEN INTERFACE SYSTEM
+// ================================
+
+// Verify PIN entered on lock screen tab
+// Handles PIN verification and unlocking transition from lock screen
+async function verifyLockScreenPin() {
         const pinInput = document.getElementById('lockScreenPinInput');
         if (!pinInput) return;
         
@@ -1358,8 +1365,13 @@
         setTimeout(returnToLockScreen, 3000);
     }
 
-    // Show PIN overlay
-    function showPinOverlay() {
+// ================================
+// 10. PIN OVERLAY MANAGEMENT
+// ================================
+
+// Show PIN overlay for authentication or setup
+// Resets to default state and handles focus management
+function showPinOverlay() {
         if (isUnlocked && isPinSetup()) return;
         
         failedPinAttempts = 0;
@@ -1398,7 +1410,13 @@
         document.getElementById('pinOverlay').style.display = 'flex';
     }
 
-    async function setupPin() {
+// ================================
+// 11. PIN SETUP & CHANGE WORKFLOW
+// ================================
+
+// Process PIN setup/change request with validation
+// Handles both new PIN creation and PIN changes
+async function setupPin() {
         const enteredPin = document.getElementById('pinInput').value;
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         

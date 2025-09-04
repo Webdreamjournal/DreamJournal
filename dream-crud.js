@@ -1,7 +1,15 @@
-    // --- 5.1 Dream CRUD ---
-    // --- All functions related to creating, reading, updating, and deleting dreams --- //
+// ================================
+// DREAM CRUD OPERATIONS MODULE
+// ================================
+// Complete dream management system including creation, editing, deletion,
+// display, filtering, sorting, pagination, and search functionality
 
-    // Save a new dream entry
+// ================================
+// 1. CORE DREAM CRUD OPERATIONS
+// ================================
+
+// Save a new dream entry to storage with validation and error handling
+// Handles both IndexedDB fast path and fallback storage methods
        async function saveDream() {
         const titleElement = document.getElementById('dreamTitle');
         const contentElement = document.getElementById('dreamContent');
@@ -60,7 +68,8 @@
             await saveDreams(dreams);
         }
         
-        // Clear form
+        // TODO: Split into clearDreamForm() and resetCurrentPage() functions
+        // Clear all form fields after successful save
         titleElement.value = '';
         contentElement.value = '';
         isLucidElement.checked = false;
@@ -68,11 +77,12 @@
         tagsElement.value = '';
         dreamSignsElement.value = '';
         
-        // Reset date to current time
+        // Reset date field to current timestamp for next entry
         const now = new Date();
         const localDatetimeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         dreamDateElement.value = localDatetimeString;
         
+        // Reset pagination to show newly added dream at top
         currentPage = 1;
         
         createInlineMessage('success', 'Dream saved successfully!', {
@@ -84,17 +94,22 @@
         await initializeAutocomplete();
     }
 
-    // Display dreams in the container with pagination
-    // MOVED FROM: Main functions area - Dream display management // Also affects UI (SECTION 3)
+// ================================
+// 2. DREAM DISPLAY SYSTEM
+// ================================
+
+// Main entry point for displaying dreams with mutex protection
+// Prevents race conditions during concurrent display operations
     async function displayDreams() {
         return withMutex('displayDreams', displayDreamsInternal);
     }
     
-    // Internal display dreams function (called with mutex protection)
+    // Internal implementation of dream display with full filtering and pagination
+    // Protected by mutex to prevent concurrent execution issues
     async function displayDreamsInternal() {
         try {
-            // Note: PIN protection is now handled by lock screen tab
-            // No need to check isUnlocked here since locked users can't access this tab
+            // Security note: PIN protection handled by lock screen tab system
+            // This function assumes user has valid access to the journal tab
             
             // Get filter values
             const { searchTerm, filterType, sortType, limitValue, startDate, endDate } = getFilterValues();
@@ -134,11 +149,12 @@
         }
     }
 
-    // DREAM DISPLAY & MANAGEMENT FUNCTIONS
-        
-    // Break down the large displayDreams function into smaller helper functions
+// ================================
+// 3. DREAM FILTERING & SORTING SYSTEM
+// ================================
     
-    // Filter dreams based on search and filter criteria
+    // Apply search term and filter criteria to dream collection
+    // Handles text search across multiple fields and date range filtering
     function filterDreams(dreams, searchTerm, filterType, startDate, endDate) {
         if (!Array.isArray(dreams)) return [];
 
@@ -188,7 +204,8 @@
         });
     }
     
-    // Sort dreams based on sort criteria
+    // Apply selected sort order to filtered dream collection
+    // Supports newest/oldest, lucid-first, and longest content sorting
     function sortDreams(dreams, sortType) {
         if (!Array.isArray(dreams) || dreams.length === 0) return dreams;
         
@@ -240,8 +257,12 @@
         }
     }
 
-    // Edit a dream entry (Updated for Event Delegation)
-    // MOVED FROM: Main functions area - Dream editing functionality
+// ================================
+// 4. DREAM EDITING OPERATIONS
+// ================================
+
+    // Display inline edit form for existing dream entry
+    // Converts dream display into editable form with pre-populated values
     async function editDream(dreamId) {
         try {
             const dreams = await loadDreams();
@@ -258,7 +279,8 @@
                 return;
             }
             
-            // Convert stored timestamp back to datetime-local format
+            // TODO: Extract formatDatetimeLocal() helper function for reuse
+            // Convert ISO timestamp to datetime-local input format
             let datetimeLocalValue = '';
             try {
                 const dreamDateTime = new Date(dream.timestamp);
@@ -266,7 +288,7 @@
                 if (!isNaN(dreamDateTime.getTime())) {
                     dateToFormat = dreamDateTime;
                 } else {
-                    dateToFormat = new Date(); // Fallback to now
+                    dateToFormat = new Date(); // Fallback to current time
                 }
                 const year = dateToFormat.getFullYear();
                 const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
@@ -275,7 +297,7 @@
                 const minutes = dateToFormat.getMinutes().toString().padStart(2, '0');
                 datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
             } catch (error) {
-                // If timestamp is invalid, use current time
+                // Fallback for invalid timestamps - use current time
                 const now = new Date();
                 const year = now.getFullYear();
                 const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -350,7 +372,8 @@
         }
     }
 
-    // Save dream edit
+    // Process and save changes from dream edit form
+    // Updates existing dream with new values and refreshes display
     async function saveDreamEdit(dreamId) {
         const newContentElement = document.getElementById(`edit-content-${dreamId}`);
         if (!newContentElement?.value.trim()) {
@@ -402,13 +425,18 @@
         await initializeAutocomplete();
     }
 
-    // Cancel dream edit
+    // Cancel dream edit operation and return to display view
+    // Discards any unsaved changes and refreshes the dream list
     async function cancelDreamEdit(dreamId) {
         await displayDreams();
     }
 
-    // Show delete confirmation button (Updated for Event Delegation)
-    // MOVED FROM: Main functions area - Dream deletion initiation
+// ================================
+// 5. DREAM DELETION SYSTEM
+// ================================
+
+    // Initiate dream deletion with confirmation UI
+    // Shows confirm button and sets auto-cancel timeout for safety
     function deleteDream(dreamId) {
         // Clear any existing timeout for this dream
         if (deleteTimeouts[dreamId]) {
@@ -437,7 +465,8 @@
         }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
     }
 
-    // Actually delete the dream after confirmation
+    // Execute confirmed dream deletion from storage
+    // Protected by mutex to prevent concurrent deletion operations
     async function confirmDelete(dreamId) {
         return withMutex('deleteOperations', async () => {
             try {
@@ -473,7 +502,8 @@
         });
     }
 
-    // Cancel delete and revert to normal state (Updated for Event Delegation)
+    // Cancel delete operation and restore original delete button
+    // Removes pending deletion state and clears timeout
     function cancelDelete(dreamId) {
         // Clear the timeout
         if (deleteTimeouts[dreamId]) {
@@ -496,9 +526,12 @@
         }
     }
 
-    // === HELPER FUNCTIONS FOR DREAM CRUD ===
+// ================================
+// 6. DREAM DISPLAY HELPER FUNCTIONS
+// ================================
     
-    // Get current filter values from UI
+    // Extract current search and filter settings from UI controls
+    // Returns object with all filter parameters for dream processing
     function getFilterValues() {
         const searchBox = document.getElementById('searchBox');
         const filterSelect = document.getElementById('filterSelect');
@@ -517,7 +550,8 @@
         };
     }
     
-    // Helper function to show loading message
+    // Display loading indicator for large datasets
+    // Provides user feedback during dream processing
     function showLoadingMessage(container, dreamCount) {
         container.innerHTML = `
             <div class="loading-state large">
@@ -527,7 +561,8 @@
         `;
     }
     
-    // Helper function to show no results message
+    // Generate contextual no-results message based on current filters
+    // Provides helpful guidance for different filter states
     function showNoResultsMessage(container, filterType, searchTerm) {
         const filterText = filterType === 'all' ? '' : 
             filterType === 'lucid' ? ' lucid' : ' non-lucid';
@@ -546,7 +581,8 @@
         container.innerHTML = `<div class="no-entries">${message}</div>`;
     }
     
-    // Helper function to clear pagination
+    // Remove pagination controls from display
+    // Used when no results are found or pagination is not needed
     function clearPagination() {
         const paginationContainer = document.getElementById('paginationContainer');
         if (paginationContainer) {
@@ -554,7 +590,14 @@
         }
     }
 
-    // Calculate pagination based on filter values and setup endless scroll if needed
+// ================================
+// 7. PAGINATION & ENDLESS SCROLL SYSTEM
+// ================================
+
+    // TODO: Split into calculatePaginationParams() and configurePaginationMode() functions
+    // This function handles both calculation logic and UI state management
+    // Calculate pagination parameters and configure endless scroll if enabled
+    // Handles different display modes: paginated, endless scroll, and show all
     function calculatePagination(filteredDreams, limitValue) {
         if (!Array.isArray(filteredDreams)) {
             return { paginatedDreams: [], totalPages: 1, totalDreams: 0, itemsPerPage: 1 };
@@ -607,7 +650,10 @@
         }
     }
     
-    // Render dream HTML safely
+    // TODO: Split into buildDreamDataForDisplay() and generateDreamHTML() functions
+    // Currently combines data processing and HTML template generation
+    // Generate secure HTML representation of a single dream entry
+    // Handles XSS prevention and proper formatting of all dream fields
     function renderDreamHTML(dream) {
         if (!dream || typeof dream !== 'object' || !dream.id) return '';
         
@@ -677,7 +723,8 @@
         }
     }
     
-    // Helper function to render pagination HTML
+    // Generate pagination status and controls based on current display mode
+    // Handles endless scroll status, traditional pagination, or no pagination
     function renderPaginationHTML(limitValue, totalPages, totalDreams, paginatedDreams) {
         const paginationContainer = document.getElementById('paginationContainer');
         if (!paginationContainer) return;
@@ -705,7 +752,12 @@
         }
     }
 
-    // Endless scroll functionality
+// ================================
+// 8. ENDLESS SCROLL IMPLEMENTATION
+// ================================
+
+    // Initialize endless scroll event listener with debouncing
+    // Removes existing listeners to prevent duplicates
     function setupEndlessScroll() {
         // Remove existing scroll listener to prevent duplicates
         removeEndlessScroll();
@@ -714,6 +766,8 @@
         window.addEventListener('scroll', handleEndlessScroll);
     }
 
+    // Clean up endless scroll event listener
+    // Called when switching away from endless scroll mode
     function removeEndlessScroll() {
         window.removeEventListener('scroll', handleEndlessScroll);
     }
@@ -753,8 +807,14 @@
         }, CONSTANTS.DEBOUNCE_SCROLL_MS);
     }
 
-    // Render pagination controls (Updated for Event Delegation)
+// ================================
+// 9. TRADITIONAL PAGINATION SYSTEM
+// ================================
+
+    // Generate traditional pagination controls with page numbers and navigation
+    // Creates Previous/Next buttons and numbered page buttons with ellipsis
     function renderPagination(page, totalPages, totalItems, currentItems) {
+        // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
         const limitSelect = document.getElementById('limitSelect');
         const limitValue = limitSelect ? limitSelect.value : '10';
         const itemsPerPage = Math.max(1, parseInt(limitValue) || 10);
@@ -798,7 +858,8 @@
         return paginationHTML;
     }
 
-    // Generate smart page numbers with ellipsis
+    // Create intelligent page number sequence with ellipsis for large page counts
+    // Shows current page context while keeping navigation manageable
     function generatePageNumbers(currentPage, totalPages) {
         const pages = [];
         
@@ -843,8 +904,10 @@
         return pages;
     }
 
-    // Navigate to specific page
+    // Navigate to specific page with validation and boundary checking
+    // Only works in traditional pagination mode (not endless scroll or show all)
     async function goToPage(page) {
+        // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
         const limitSelect = document.getElementById('limitSelect');
         const limitValue = limitSelect ? limitSelect.value : '10';
         
@@ -867,7 +930,8 @@
         }
     }
 
-    // Get count of filtered dreams
+    // Calculate total number of dreams matching current filter criteria
+    // Used for pagination calculations and display information
     async function getFilteredDreamsCount() {
         try {
             const { searchTerm, filterType, startDate, endDate } = getFilterValues();
@@ -882,7 +946,8 @@
         }
     }
 
-    // Reset to page 1 when filters change
+    // Reset pagination to first page when search/filter criteria change
+    // Also resets endless scroll state to initial load amount
     async function resetToPageOne() {
         currentPage = 1;
         
@@ -895,7 +960,12 @@
         await displayDreams();
     }
 
-    // Tag management functions
+// ================================
+// 10. TAG MANAGEMENT SYSTEM
+// ================================
+
+    // Parse comma-separated tag input into clean array with validation
+    // Removes duplicates, limits length, and enforces maximum tag count
     function parseTagsFromInput(input) {
         if (!input || typeof input !== 'string') return [];
         
@@ -921,6 +991,8 @@
         }
     }
 
+    // Format tags array as HTML spans for display
+    // Applies XSS protection and proper styling
     function formatTagsForDisplay(tags) {
         if (!Array.isArray(tags) || tags.length === 0) return '';
         return tags.map(tag => 
@@ -928,6 +1000,8 @@
         ).join('');
     }
 
+    // Format dream signs array as HTML spans for display
+    // Uses distinct styling from regular tags
     function formatDreamSignsForDisplay(dreamSigns) {
         if (!Array.isArray(dreamSigns) || dreamSigns.length === 0) return '';
         return dreamSigns.map(sign => 
@@ -935,7 +1009,12 @@
         ).join('');
     }
 
-    // Debounced search function for performance
+// ================================
+// 11. SEARCH & FILTER PERFORMANCE OPTIMIZATION
+// ================================
+
+    // Debounced search function to prevent excessive filtering during typing
+    // Shows loading state immediately for responsive user feedback
     function debouncedSearch(delay = CONSTANTS.DEBOUNCE_SEARCH_MS) {
         if (searchDebounceTimer) {
             clearTimeout(searchDebounceTimer);
@@ -950,7 +1029,8 @@
         }, delay);
     }
 
-    // Debounced filter function for performance  
+    // Debounced filter function to prevent excessive processing during selection changes
+    // Similar to search debouncing but for dropdown filter changes
     function debouncedFilter(delay = CONSTANTS.DEBOUNCE_FILTER_MS) {
         if (filterDebounceTimer) {
             clearTimeout(filterDebounceTimer);

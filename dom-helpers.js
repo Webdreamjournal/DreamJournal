@@ -1,34 +1,48 @@
-    // ===================================================================================
-    // SECTION 3: DOM & UI HELPERS
-    // ===================================================================================
+// ===================================================================================
+// DOM & UI HELPER FUNCTIONS
+// ===================================================================================
+// Comprehensive DOM manipulation and UI component utilities
+// Provides consistent styling, event handling, and user interface components
 
-    // DOM Helper Functions (defined early to be available everywhere)
+// ===================================================================================
+// BUTTON & ACTION ELEMENT CREATION
+// ===================================================================================
 
-    // Create action button with consistent data attributes
-    function createActionButton(action, id, text, className = 'btn', extraAttrs = {}) {
+// Create action button with consistent data attributes and styling
+// Automatically adds appropriate ID attributes based on action type
+function createActionButton(action, id, text, className = 'btn', extraAttrs = {}) {
+        // Build extra attributes string with proper escaping
         const attrs = Object.entries(extraAttrs)
             .map(([key, value]) => `${key}="${escapeAttr(value)}"`)
             .join(' ');
         
+        // Auto-detect and set appropriate ID attribute based on action type
         const idAttr = id ? `data-${action.includes('dream') ? 'dream' : 'voice-note'}-id="${escapeAttr(id)}"` : '';
         
         return `<button data-action="${action}" ${idAttr} class="${className}" ${attrs}>${text}</button>`;
     }
 
-    // Create inline message with consistent styling
-    function createInlineMessage(type, text, options = {}) {
+// ===================================================================================
+// MESSAGE & NOTIFICATION SYSTEM
+// ===================================================================================
+
+// Create inline notification message with consistent styling and auto-hide functionality
+// Supports success, error, warning, and info message types
+function createInlineMessage(type, text, options = {}) {
         const {
-            container = null,
-            position = 'top', // 'top' or 'bottom'
-            autoHide = true,
-            duration = type === 'success' ? 3000 : 5000,
-            className = ''
+            container = null, // Target container to append message
+            position = 'top', // Insert position: 'top' or 'bottom'
+            autoHide = true, // Whether to automatically remove message
+            duration = type === 'success' ? 3000 : 5000, // Auto-hide duration (success = 3s, others = 5s)
+            className = '' // Additional CSS classes
         } = options;
         
+        // Create message element with consistent styling
         const msg = document.createElement('div');
         msg.className = `message-base message-${type} ${className}`.trim();
         msg.textContent = text;
         
+        // Insert message into specified container
         if (container) {
             if (position === 'top') {
                 container.insertBefore(msg, container.firstChild);
@@ -36,6 +50,7 @@
                 container.appendChild(msg);
             }
             
+            // Set up auto-hide timer if enabled
             if (autoHide) {
                 setTimeout(() => {
                     if (msg && msg.parentNode) {
@@ -48,54 +63,69 @@
         return msg;
     }
 
-    // Create meta information display
-    function createMetaDisplay(items) {
+// Create formatted metadata display with labels and values
+// Filters out empty items and provides consistent formatting
+function createMetaDisplay(items) {
         return items
-            .filter(item => item && item.value)
+            .filter(item => item && item.value) // Remove empty/invalid items
             .map(item => {
                 if (item.label) {
+                    // Labeled item format: "Label: Value"
                     const labelHtml = escapeHtml(item.label);
                     const valueHtml = item.isHTML ? item.value : escapeHtml(item.value);
                     return `<span class="meta-item">${labelHtml}: ${valueHtml}</span>`;
                 } else {
+                    // Value-only format
                     const valueHtml = item.isHTML ? item.value : escapeHtml(item.value);
                     return `<span class="meta-item">${valueHtml}</span>`;
                 }
             })
-            .join(' • ');
+            .join(' • '); // Join with bullet separator
     }
 
-    // HTML escape function to prevent XSS
-    function escapeHtml(text) {
-        if (text == null) return '';
-        const div = document.createElement('div');
-        div.textContent = String(text);
-        return div.innerHTML;
-    }
+// ===================================================================================
+// SECURITY & SANITIZATION FUNCTIONS
+// ===================================================================================
 
-    // HTML escape for attributes (quotes and special chars)
-    function escapeAttr(text) {
-        if (text == null) return '';
-        return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-    }
+// HTML escape function to prevent XSS attacks in user content
+// Uses DOM API for safe and complete HTML entity encoding
+function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text); // Safely sets text content
+    return div.innerHTML; // Returns HTML-escaped version
+}
 
-    // Create pagination HTML
-    function createPaginationHTML(currentPage, totalPages, actionPrefix) {
+// HTML attribute escape function for safe attribute values
+// Specifically escapes quotes to prevent attribute injection
+function escapeAttr(text) {
+    if (text == null) return '';
+    return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ===================================================================================
+// PAGINATION SYSTEM
+// ===================================================================================
+
+// Generate complete pagination HTML with navigation buttons and page numbers
+// Includes ellipsis for large page counts and proper accessibility
+function createPaginationHTML(currentPage, totalPages, actionPrefix) {
+        // No pagination needed for single page
         if (totalPages <= 1) return '';
         
         let paginationHTML = '<div class="pagination">';
         
-        // Previous button
+        // Previous page button (only if not on first page)
         if (currentPage > 1) {
             paginationHTML += `<button data-action="${actionPrefix}" data-page="${currentPage - 1}" class="btn btn-outline btn-small">‹ Previous</button>`;
         }
         
-        // Page numbers
-        const maxVisiblePages = 5;
+        // Calculate visible page number range
+        const maxVisiblePages = 5; // Maximum page numbers to show
         let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
         let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
         
-        // Adjust start page if we're near the end
+        // Adjust start page if we're near the end to maintain max visible pages
         if (endPage - startPage < maxVisiblePages - 1) {
             startPage = Math.max(1, endPage - maxVisiblePages + 1);
         }
@@ -132,44 +162,56 @@
         return paginationHTML;
     }
 
-    // ADVICE TAB FUNCTIONS
-    function displayTip(index) {
+// ===================================================================================
+// ADVICE TAB & TIPS SYSTEM
+// ===================================================================================
+
+// Display tip at specified index with safe bounds checking
+// Updates both tip content and counter display
+function displayTip(index) {
         const tipTextElement = document.getElementById('tipText');
         const tipCounterElement = document.getElementById('tipCounter');
 
         if (tipTextElement && tipCounterElement && dailyTips && dailyTips.length > 0) {
-            // Ensure index is within bounds and handle negative numbers
+            // Ensure index is within bounds and handle negative numbers using modulo arithmetic
             const safeIndex = ((index % dailyTips.length) + dailyTips.length) % dailyTips.length;
 
             const tip = dailyTips[safeIndex];
+            // Display tip with proper HTML escaping for security
             tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
             tipCounterElement.textContent = `${safeIndex + 1} / ${dailyTips.length}`;
-            currentTipIndex = safeIndex;
+            currentTipIndex = safeIndex; // Update global state
         }
     }
 
-    function handleTipNavigation(direction) {
-        let newIndex = currentTipIndex;
-        if (direction === 'next') {
-            newIndex++;
-        } else {
-            newIndex--;
-        }
-        displayTip(newIndex);
+// Handle tip navigation in specified direction
+// Supports 'next' and 'prev' directions with automatic bounds handling
+function handleTipNavigation(direction) {
+    let newIndex = currentTipIndex;
+    if (direction === 'next') {
+        newIndex++;
+    } else {
+        newIndex--;
     }
+    displayTip(newIndex); // displayTip handles bounds checking
+}
 
-    // THEME MANAGEMENT SYSTEM
+// ===================================================================================
+// THEME MANAGEMENT SYSTEM
+// ===================================================================================
+// Complete theme switching system with localStorage persistence
+// Supports light and dark themes with fallback handling
 
-    // Get current theme from storage or default to dark
-    function getCurrentTheme() {
+// Get current theme preference from localStorage with dark theme default
+function getCurrentTheme() {
         if (isLocalStorageAvailable()) {
             return localStorage.getItem('dreamJournalTheme') || 'dark';
         }
         return 'dark';
     }
 
-    // Store theme preference
-    function storeTheme(theme) {
+// Store theme preference to localStorage with error handling
+function storeTheme(theme) {
         if (isLocalStorageAvailable()) {
             try {
                 localStorage.setItem('dreamJournalTheme', theme);
@@ -179,8 +221,9 @@
         }
     }
 
-    // Apply theme to document
-    function applyTheme(theme) {
+// Apply theme to document root and update UI controls
+// Validates theme value and provides fallback to dark theme
+function applyTheme(theme) {
         if (!theme || !['light', 'dark'].includes(theme)) {
             theme = 'dark';
         }
@@ -196,8 +239,10 @@
         storeTheme(theme);
     }
 
-    // Switch theme
-    function switchTheme(newTheme) {
+// Switch theme with validation and user feedback
+// Updates all theme selectors and shows confirmation message
+// TODO: Consider splitting into separate theme switching and UI feedback functions
+function switchTheme(newTheme) {
         if (!newTheme || !['light', 'dark'].includes(newTheme)) {
             return;
         }
@@ -265,8 +310,14 @@
         }
     }
 
-    // Switch main app tabs
-    function switchAppTab(tabName) {
+// ===================================================================================
+// TAB MANAGEMENT SYSTEM
+// ===================================================================================
+// Complete tab switching system with dynamic content generation
+// Handles lock screen transitions and tab-specific initialization
+// TODO: Consider splitting this large function into separate tab creation and switching functions
+
+function switchAppTab(tabName) {
         if (!tabName || !['journal', 'goals', 'stats', 'advice', 'settings', 'lock'].includes(tabName)) return;
         
         // Handle lock screen transitions
@@ -835,30 +886,39 @@
         }
     }
 
-    // Hide all tab buttons (when locked)
-        function hideAllTabButtons() {
-            const tabButtons = document.querySelectorAll('.app-tab');
-            tabButtons.forEach(button => {
-                if (button.dataset.tab !== 'lock') {
-                    button.style.display = 'none';
-                }
-            });
-            console.log('Hid all tab buttons except lock tab');
-        }
-        
-        // Show all tab buttons (when unlocked)
-        function showAllTabButtons() {
-            const tabButtons = document.querySelectorAll('.app-tab');
-            tabButtons.forEach(button => {
-                if (button.dataset.tab !== 'lock') {
-                    button.style.display = 'block';
-                }
-            });
-            console.log('Showed all tab buttons');
-        }
+// ===================================================================================
+// TAB BUTTON VISIBILITY CONTROL
+// ===================================================================================
 
-    // Settings display synchronization
-    function syncSettingsDisplay() {
+// Hide all tab buttons except lock tab (used when app is locked)
+function hideAllTabButtons() {
+    const tabButtons = document.querySelectorAll('.app-tab');
+    tabButtons.forEach(button => {
+        if (button.dataset.tab !== 'lock') {
+            button.style.display = 'none';
+        }
+    });
+    console.log('Hid all tab buttons except lock tab');
+}
+        
+// Show all tab buttons except lock tab (used when app is unlocked)
+function showAllTabButtons() {
+    const tabButtons = document.querySelectorAll('.app-tab');
+    tabButtons.forEach(button => {
+        if (button.dataset.tab !== 'lock') {
+            button.style.display = 'block';
+        }
+    });
+    console.log('Showed all tab buttons');
+}
+
+// ===================================================================================
+// SETTINGS SYNCHRONIZATION SYSTEM
+// ===================================================================================
+
+// Synchronize settings display elements across different UI contexts
+// TODO: Consider splitting into separate PIN, theme, and storage sync functions
+function syncSettingsDisplay() {
         // Sync PIN buttons
         const setupBtnSettings = document.getElementById('setupPinBtnSettings');
         const lockBtnSettings = document.getElementById('lockBtnSettings');
@@ -946,8 +1006,13 @@
         updateBrowserCompatibilityDisplay();
     }
 
-    // Browser compatibility display in settings
-    function updateBrowserCompatibilityDisplay() {
+// ===================================================================================
+// BROWSER COMPATIBILITY DISPLAY
+// ===================================================================================
+
+// Update browser compatibility information in settings interface
+// Shows voice recording and transcription support status
+function updateBrowserCompatibilityDisplay() {
         const voiceCapabilities = getVoiceCapabilities();
         
         // Voice Recording Status
@@ -993,8 +1058,13 @@
         }
     }
 
-    // Voice notes tab switching
-    function switchVoiceTab(tabName) {
+// ===================================================================================
+// VOICE TAB MANAGEMENT
+// ===================================================================================
+
+// Switch between voice recording tabs (record/stored)
+// Loads voice notes when switching to stored tab
+function switchVoiceTab(tabName) {
         if (!tabName || (tabName !== 'record' && tabName !== 'stored')) return;
         
         // Update tab buttons
@@ -1032,8 +1102,13 @@
         }
     }
 
-    // Dream form collapse/expand toggle
-    function toggleDreamForm() {
+// ===================================================================================
+// FORM STATE MANAGEMENT
+// ===================================================================================
+
+// Toggle dream form between expanded and collapsed states
+// Persists state to localStorage for user preference
+function toggleDreamForm() {
         const fullForm = document.getElementById('dreamFormFull');
         const collapsedForm = document.getElementById('dreamFormCollapsed');
         
@@ -1054,8 +1129,13 @@
         }
     }
 
-    // Show loading indicator for search/filter operations
-    function showSearchLoading() {
+// ===================================================================================
+// LOADING STATE MANAGEMENT
+// ===================================================================================
+
+// Display loading indicator during search/filter operations
+// Prevents duplicate loading indicators
+function showSearchLoading() {
         const container = document.getElementById('entriesContainer');
         if (container && !asyncMutex.displayDreams.locked) {
             const existingLoader = container.querySelector('.loading-state');
@@ -1068,8 +1148,9 @@
         }
     }
 
-    // Hide loading indicator
-    function hideSearchLoading() {
+// Hide search/filter loading indicator
+// Removes loading state from entries container
+function hideSearchLoading() {
         const container = document.getElementById('entriesContainer');
         if (container) {
             const loader = container.querySelector('.loading-state');
@@ -1081,7 +1162,13 @@
 
     
 
-    async function renderAutocompleteManagementList(type) {
+// ===================================================================================
+// AUTOCOMPLETE MANAGEMENT INTERFACE
+// ===================================================================================
+
+// Render autocomplete management list for tags or dream signs
+// Displays all items with delete functionality
+async function renderAutocompleteManagementList(type) {
         const containerId = type === 'tags' ? 'tagsManagementList' : 'dreamSignsManagementList';
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -1116,8 +1203,9 @@
         }
     }
 
-    // Setup tag autocomplete for form inputs
-    function setupTagAutocomplete(inputId, suggestions) {
+// Setup autocomplete functionality for tag input fields
+// Creates dropdown with suggestions and handles selection
+function setupTagAutocomplete(inputId, suggestions) {
         const input = document.getElementById(inputId);
         if (!input || !Array.isArray(suggestions)) return;
 
@@ -1201,10 +1289,15 @@
     }
 
 
-    // PIN SECURITY & ACCESS CONTROL SYSTEM
-    
-    // NEW UNIFIED PIN SCREEN RENDERER
-    function renderPinScreen(targetElement, config) {
+// ===================================================================================
+// PIN SECURITY & ACCESS CONTROL SYSTEM
+// ===================================================================================
+// Unified PIN interface rendering system for various PIN operations
+// Supports setup, verification, change, and removal workflows
+
+// Render unified PIN screen interface with configurable inputs and buttons
+// Provides consistent PIN UI across all security operations
+function renderPinScreen(targetElement, config) {
         if (!targetElement || !config) return;
 
         let inputsHTML = '';

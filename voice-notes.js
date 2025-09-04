@@ -35,15 +35,19 @@
             
             // Setup speech recognition if supported
             if (isSpeechRecognitionSupported()) {
-                speechRecognition = setupSpeechRecognition();
+                speechRecognition = await setupSpeechRecognition();
                 if (speechRecognition) {
                     try {
                         isTranscribing = true;
                         speechRecognition.start();
+                        console.log('Speech recognition started successfully');
                     } catch (speechError) {
                         console.error('Failed to start speech recognition:', speechError);
                         isTranscribing = false;
+                        updateVoiceStatus('Recording... (transcription start failed)', 'warning');
                     }
+                } else {
+                    updateVoiceStatus('Recording... (transcription not available)', 'info');
                 }
             }
             
@@ -136,10 +140,23 @@
             mediaRecorder.stop();
         }
         
-        // Stop speech recognition
+        // Stop speech recognition with proper state validation
         if (speechRecognition && isTranscribing) {
-            speechRecognition.stop();
-            isTranscribing = false;
+            try {
+                // Call cleanup function if available
+                if (typeof speechRecognition.cleanup === 'function') {
+                    speechRecognition.cleanup();
+                }
+                
+                // Only stop if recognition is in an active state
+                if (speechRecognition.state !== 'inactive') {
+                    speechRecognition.abort(); // Use abort for immediate stop
+                }
+            } catch (error) {
+                console.error('Error stopping speech recognition:', error);
+            } finally {
+                isTranscribing = false;
+            }
         }
         
         // Clear timer
@@ -398,22 +415,17 @@
                 }
                 
                 // Detect real duration during playback (Firefox often provides it after starting)
+                let needsHeaderUpdate = false;
                 if (!durationDetected) {
                     if (isFinite(audio.duration) && audio.duration > 0) {
                         // Firefox provided finite duration - use it!
                         actualDuration = audio.duration;
                         durationDetected = true;
+                        needsHeaderUpdate = true;
                         const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
                         if (totalTimeEl) {
                             totalTimeEl.textContent = formatDuration(audio.duration);
                             console.log(`Firefox: Real duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
-                        }
-                        
-                        // Also update the header duration display
-                        const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
-                        if (headerDurationEl) {
-                            headerDurationEl.textContent = formatDuration(audio.duration);
-                            console.log(`Firefox: Updated header duration to ${formatDuration(audio.duration)} for ${voiceNoteId}`);
                         }
                     } else if (audio.seekable && audio.seekable.length > 0) {
                         // Try to get duration from seekable range
@@ -421,18 +433,23 @@
                         if (isFinite(seekableDuration) && seekableDuration > 0) {
                             actualDuration = seekableDuration;
                             durationDetected = true;
+                            needsHeaderUpdate = true;
                             const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
                             if (totalTimeEl) {
                                 totalTimeEl.textContent = formatDuration(seekableDuration);
                                 console.log(`Firefox: Duration from seekable range: ${seekableDuration}s for ${voiceNoteId}`);
                             }
-                            // Also update the header duration display
-                            const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
-                            if (headerDurationEl) {
-                                headerDurationEl.textContent = formatDuration(seekableDuration);
-                                console.log(`Firefox: Updated header duration from seekable range to ${formatDuration(seekableDuration)} for ${voiceNoteId}`);
-                            }
                         }
+                    }
+                }
+                
+                // Update header duration display when new duration is detected OR always for Firefox fallback
+                if (needsHeaderUpdate || (isFirefox && actualDuration > 0)) {
+                    const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
+                    if (headerDurationEl) {
+                        const displayDuration = actualDuration || voiceNote.duration || 5;
+                        headerDurationEl.textContent = formatDuration(displayDuration);
+                        console.log(`Firefox: Updated header duration to ${formatDuration(displayDuration)} for ${voiceNoteId}`);
                     }
                 }
                 
@@ -582,48 +599,192 @@
             return getVoiceCapabilities().canTranscribe;
         }
         
-        // Setup speech recognition
-        function setupSpeechRecognition() {
+        // Enhanced speech recognition with better error handling and permissions
+        async function setupSpeechRecognition() {
             if (!isSpeechRecognitionSupported()) return null;
             
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
+            // Check if we're in a secure context (HTTPS required for Speech Recognition)
+            if (!window.isSecureContext) {
+                console.warn('Speech Recognition requires HTTPS');
+                updateVoiceStatus('Recording... (transcription requires HTTPS)', 'warning');
+                return null;
+            }
             
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-            
-            let finalTranscript = '';
-            
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
                 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript + ' ';
-                    } else {
-                        interimTranscript += transcript;
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                recognition.maxAlternatives = 1;
+                
+                let finalTranscript = '';
+                let recognitionTimeout = null;
+                let retryCount = 0;
+                const maxRetries = 2;
+                
+                // Set up timeout to prevent hanging recognition
+                const setupRecognitionTimeout = () => {
+                    if (recognitionTimeout) clearTimeout(recognitionTimeout);
+                    recognitionTimeout = setTimeout(() => {
+                        if (isTranscribing && recognition) {
+                            console.warn('Speech recognition timeout - restarting');
+                            try {
+                                recognition.stop();
+                                if (retryCount < maxRetries) {
+                                    retryCount++;
+                                    setTimeout(() => {
+                                        if (isTranscribing) {
+                                            recognition.start();
+                                            setupRecognitionTimeout();
+                                        }
+                                    }, 1000);
+                                } else {
+                                    updateVoiceStatus('Recording... (transcription timeout)', 'warning');
+                                }
+                            } catch (e) {
+                                console.error('Error during recognition timeout handling:', e);
+                            }
+                        }
+                    }, 30000); // 30 second timeout
+                };
+                
+                recognition.onstart = () => {
+                    console.log('Speech recognition started');
+                    setupRecognitionTimeout();
+                    retryCount = 0; // Reset retry count on successful start
+                };
+                
+                recognition.onresult = (event) => {
+                    if (recognitionTimeout) {
+                        clearTimeout(recognitionTimeout);
+                        setupRecognitionTimeout(); // Reset timeout on activity
                     }
-                }
+                    
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        const confidence = event.results[i][0].confidence;
+                        
+                        // Only use high-confidence results for final transcript
+                        if (event.results[i].isFinal) {
+                            if (!confidence || confidence > 0.3) { // Accept if confidence unavailable or > 30%
+                                finalTranscript += transcript + ' ';
+                            }
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    recognitionResults = finalTranscript + interimTranscript;
+                    if (recognitionResults.trim()) {
+                        updateVoiceStatus(`Recording... "${recognitionResults.slice(-CONSTANTS.TEXT_TRUNCATE_LENGTH)}${recognitionResults.length > CONSTANTS.TEXT_TRUNCATE_LENGTH ? '...' : ''}"`, 'info');
+                    }
+                };
                 
-                recognitionResults = finalTranscript + interimTranscript;
-                updateVoiceStatus(`Recording... "${recognitionResults.slice(-CONSTANTS.TEXT_TRUNCATE_LENGTH)}${recognitionResults.length > CONSTANTS.TEXT_TRUNCATE_LENGTH ? '...' : ''}"`, 'info');
-            };
-            
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                // Don't show error for network issues - transcription is optional
-                if (event.error !== 'network') {
-                    updateVoiceStatus('Recording... (transcription unavailable)', 'info');
-                }
-            };
-            
-            recognition.onend = () => {
-                isTranscribing = false;
-            };
-            
-            return recognition;
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error, event);
+                    
+                    if (recognitionTimeout) {
+                        clearTimeout(recognitionTimeout);
+                        recognitionTimeout = null;
+                    }
+                    
+                    // Categorize errors and handle appropriately
+                    switch (event.error) {
+                        case 'not-allowed':
+                        case 'service-not-allowed':
+                            updateVoiceStatus('Recording... (microphone permission required for transcription)', 'warning');
+                            isTranscribing = false;
+                            break;
+                        case 'network':
+                            // Network errors are common and can be retried
+                            if (retryCount < maxRetries && isTranscribing) {
+                                retryCount++;
+                                updateVoiceStatus('Recording... (transcription reconnecting)', 'warning');
+                                setTimeout(() => {
+                                    if (isTranscribing) {
+                                        try {
+                                            recognition.start();
+                                        } catch (e) {
+                                            console.error('Error restarting recognition after network error:', e);
+                                            updateVoiceStatus('Recording... (transcription unavailable)', 'warning');
+                                        }
+                                    }
+                                }, 2000);
+                            } else {
+                                updateVoiceStatus('Recording... (transcription network error)', 'warning');
+                            }
+                            break;
+                        case 'aborted':
+                            // Normal shutdown, don't show error
+                            break;
+                        case 'audio-capture':
+                            updateVoiceStatus('Recording... (transcription audio error)', 'warning');
+                            break;
+                        case 'no-speech':
+                            // No speech detected, retry if we're still recording
+                            if (isTranscribing && retryCount < maxRetries) {
+                                retryCount++;
+                                setTimeout(() => {
+                                    if (isTranscribing) {
+                                        try {
+                                            recognition.start();
+                                        } catch (e) {
+                                            console.error('Error restarting recognition after no-speech:', e);
+                                        }
+                                    }
+                                }, 1000);
+                            }
+                            break;
+                        default:
+                            updateVoiceStatus('Recording... (transcription error)', 'warning');
+                    }
+                };
+                
+                recognition.onend = () => {
+                    console.log('Speech recognition ended');
+                    if (recognitionTimeout) {
+                        clearTimeout(recognitionTimeout);
+                        recognitionTimeout = null;
+                    }
+                    
+                    // Only restart if we're still supposed to be transcribing and haven't hit max retries
+                    if (isTranscribing && retryCount < maxRetries) {
+                        retryCount++;
+                        setTimeout(() => {
+                            if (isTranscribing) {
+                                try {
+                                    recognition.start();
+                                } catch (e) {
+                                    console.error('Error restarting recognition on end:', e);
+                                    isTranscribing = false;
+                                }
+                            }
+                        }, 100);
+                    } else {
+                        isTranscribing = false;
+                    }
+                };
+                
+                // Store cleanup function
+                recognition.cleanup = () => {
+                    if (recognitionTimeout) {
+                        clearTimeout(recognitionTimeout);
+                        recognitionTimeout = null;
+                    }
+                    isTranscribing = false;
+                };
+                
+                return recognition;
+                
+            } catch (error) {
+                console.error('Error setting up speech recognition:', error);
+                updateVoiceStatus('Recording... (transcription setup failed)', 'warning');
+                return null;
+            }
         }
         
         // Format recording duration
