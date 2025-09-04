@@ -1020,6 +1020,9 @@
                 recordPanel.style.display = 'none';
                 storedPanel.classList.add('active');
                 storedPanel.style.display = 'block';
+                
+                // Load and display voice notes when switching to stored tab
+                displayVoiceNotes();
             }
             
             activeVoiceTab = tabName;
@@ -1271,3 +1274,4 @@
             }, CONSTANTS.FOCUS_DELAY_MS);
         }
     }
+

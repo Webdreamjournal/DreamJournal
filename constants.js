@@ -523,5 +523,4 @@
     ];
     
     // Goals pagination constants
-
     const GOALS_PER_PAGE = 5;

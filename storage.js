@@ -530,42 +530,27 @@
     
     // Load voice notes
     async function loadVoiceNotes() {
-        if (isIndexedDBAvailable()) {
-            const notes = await loadVoiceNotesFromIndexedDB();
-            if (notes !== null) return notes;
+        // Voice notes require IndexedDB due to Blob storage - localStorage cannot deserialize Blobs properly
+        if (!isIndexedDBAvailable()) {
+            console.warn('Voice notes require IndexedDB support. No voice notes available without IndexedDB.');
+            return [];
         }
         
-        // Fallback to localStorage
-        if (isLocalStorageAvailable()) {
-            try {
-                const stored = localStorage.getItem('dreamJournalVoiceNotes');
-                return stored ? JSON.parse(stored) : [];
-            } catch (error) {
-                console.error('Error loading voice notes from localStorage:', error);
-            }
-        }
-        
-        return [];
+        const notes = await loadVoiceNotesFromIndexedDB();
+        return notes || [];
     }
 
     // Save voice note
     async function saveVoiceNote(voiceNote) {
         return withMutex('saveVoiceNote', async () => {
-            // Try IndexedDB first
-            if (isIndexedDBAvailable()) {
-                const saved = await saveVoiceNoteToIndexedDB(voiceNote);
-                if (saved) return;
+            // Voice notes require IndexedDB due to Blob storage - localStorage fallback cannot handle Blobs
+            if (!isIndexedDBAvailable()) {
+                throw new Error('Voice notes require IndexedDB support. localStorage cannot store audio Blobs.');
             }
             
-            // Fallback to localStorage
-            if (isLocalStorageAvailable()) {
-                try {
-                    const existingNotes = await loadVoiceNotes();
-                    const updatedNotes = [...existingNotes.filter(note => note.id !== voiceNote.id), voiceNote];
-                    localStorage.setItem('dreamJournalVoiceNotes', JSON.stringify(updatedNotes));
-                } catch (error) {
-                    console.error('Error saving voice note to localStorage:', error);
-                }
+            const saved = await saveVoiceNoteToIndexedDB(voiceNote);
+            if (!saved) {
+                throw new Error('Failed to save voice note to IndexedDB');
             }
         });
     }

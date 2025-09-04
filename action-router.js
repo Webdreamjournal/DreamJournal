@@ -84,6 +84,7 @@
         'download-voice': (ctx) => downloadVoiceNote(ctx.voiceNoteId),
         'delete-voice': (ctx) => deleteVoiceNote(ctx.voiceNoteId),
         'confirm-delete-voice': (ctx) => confirmDeleteVoiceNote(ctx.voiceNoteId),
+        'cancel-delete-voice': (ctx) => cancelDeleteVoiceNote(ctx.voiceNoteId),
         'seek-audio': (ctx) => seekAudio(ctx.voiceNoteId, ctx.event),
         
         // Entries container actions
