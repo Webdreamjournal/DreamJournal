@@ -9,7 +9,7 @@ This is a **modular HTML application** that implements a privacy-focused dream j
 ## Architecture
 
 ### Current Modular Structure
-- **DreamJournal.html**: Main HTML structure and UI templates
+- **index.html**: Main HTML structure and UI templates
 - **dream-journal.css**: HSL-based theme system with utility classes for light/dark themes
 - **JavaScript Modules**: Separated into logical domains for maintainability
 
@@ -26,7 +26,6 @@ This is a **modular HTML application** that implements a privacy-focused dream j
 10. **import-export.js**: Data backup/restore functionality
 11. **action-router.js**: Centralized event handling and action routing
 12. **main.js**: Application initialization and theme management
-13. **dream-journal.js**: Legacy code and remaining utilities
 
 ### Core Systems
 
@@ -94,7 +93,7 @@ This is a **modular HTML application** that implements a privacy-focused dream j
 1. **Initialization** (main.js): DOM ready → compatibility checks → IndexedDB init → theme loading → UI display
 2. **Event Handling** (action-router.js): All user interactions routed through centralized `ACTION_MAP`
 3. **Data Persistence** (storage.js): Changes auto-saved to IndexedDB with migration support
-4. **Module Loading**: Scripts loaded in dependency order via DreamJournal.html
+4. **Module Loading**: Scripts loaded in dependency order via index.html
 
 ### Script Loading Order
 The application loads modules in this specific order to handle dependencies:
@@ -105,14 +104,14 @@ The application loads modules in this specific order to handle dependencies:
 ## Development Commands
 
 ### Running the Application
-- **Development**: Open DreamJournal.html in VS Code with Live Server extension
+- **Development**: Open index.html in VS Code with Live Server extension
 - **Testing**: Use browser dev tools for debugging (F12)
 - **Supported Browsers**: 
   - Chrome/Edge (full features including voice)
   - Firefox/Safari (basic functionality, no voice features)
 
 ### Version Management
-Current version: v1.43.19 (after duplication cleanup)
+Current version: v2.01.6
 
 ## Development Guidelines
 
@@ -136,6 +135,8 @@ Copyright (C) 2025 Dream Journal Contributors
             <p class="app-footer p">
                 Dream Journal vX.XX.X | Not a substitute for professional medical advice
             </p>
+
+DreamJournal - PRESPLIT.html IS NOT TO BE WORKED ON. IT IS FOR REFERENCE ONLY TO SEE CODE BEFORE THE SPLIT REFACTOR.
 
 ### Making Changes
 - **CSS**: Use existing HSL theme system - avoid hardcoded colors
