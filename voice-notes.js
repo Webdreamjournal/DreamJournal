@@ -206,12 +206,18 @@
                 transcription: (recognitionResults && recognitionResults.trim()) || null // Store transcribed text
             };
             
-            await saveVoiceNote(voiceNote);
-            await updateRecordButtonState();
-            await displayVoiceNotes();
-            
-            // Switch to stored notes tab to show the new recording
-            switchVoiceTab('stored');
+            try {
+                await saveVoiceNote(voiceNote);
+                await updateRecordButtonState();
+                await displayVoiceNotes();
+                
+                // Switch to stored notes tab to show the new recording
+                switchVoiceTab('stored');
+            } catch (saveError) {
+                console.error('Error saving voice note:', saveError);
+                updateVoiceStatus('Failed to save voice note: ' + saveError.message, 'error');
+                return;
+            }
             
             // Show different success messages based on transcription
             if (recognitionResults && recognitionResults.trim()) {
@@ -277,6 +283,13 @@
                 document.querySelectorAll('[id^="progress-container-"]').forEach(container => {
                     container.style.display = 'none';
                 });
+            }
+            
+            // Validate audioBlob before creating URL
+            if (!voiceNote.audioBlob || !(voiceNote.audioBlob instanceof Blob)) {
+                console.error('Invalid audioBlob for voice note:', voiceNote.id, 'Type:', typeof voiceNote.audioBlob);
+                updateVoiceStatus('Cannot play voice note: Invalid audio data. This may be due to browser storage limitations.', 'error');
+                return;
             }
             
             // Create audio element
@@ -565,88 +578,6 @@
             }
         }
         
-        
-        
-        
-        // Save completed recording
-        async function saveRecording(audioBlob) {
-            try {
-                if (!audioBlob || audioBlob.size === 0) {
-                    throw new Error('Invalid audio data');
-                }
-                
-                const now = new Date();
-                const duration = recordingStartTime ? (Date.now() - recordingStartTime) / 1000 : 0;
-                
-                const voiceNote = {
-                    id: `voice_${now.getTime()}_${Math.random().toString(36).slice(2, 11)}`,
-                    audioBlob: audioBlob,
-                    timestamp: now.toISOString(),
-                    duration: Math.round(Math.max(0, duration)),
-                    title: `Voice Note ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`,
-                    dateString: now.toLocaleDateString('en-AU', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }),
-                    size: audioBlob.size,
-                    transcription: (recognitionResults && recognitionResults.trim()) || null // Store transcribed text
-                };
-                
-                await saveVoiceNote(voiceNote);
-                await updateRecordButtonState();
-                await displayVoiceNotes();
-                
-                // Switch to stored notes tab to show the new recording
-                switchVoiceTab('stored');
-                
-                // Show different success messages based on transcription
-                if (recognitionResults && recognitionResults.trim()) {
-                    updateVoiceStatus(`Recording saved with transcription! Duration: ${formatDuration(duration)}`, 'info');
-                    
-                    // Show option to create dream entry
-                    const container = document.querySelector('.voice-recording-section');
-                    if (container) {
-                        const successMsg = document.createElement('div');
-                        successMsg.className = 'message-success mt-md';
-                        successMsg.innerHTML = `
-                            Voice note saved with transcription! (${formatDuration(duration)})<br>
-                            <button data-action="create-from-transcription" data-voice-note-id="${voiceNote.id}" class="btn btn-primary btn-small mt-sm">
-                                📝 Create Dream Entry
-                            </button>
-                        `;
-                        container.appendChild(successMsg);
-                        
-                        setTimeout(() => {
-                            if (successMsg.parentNode) {
-                                successMsg.remove();
-                            }
-                        }, 10000);
-                    }
-                } else {
-                    updateVoiceStatus(`Recording saved! Duration: ${formatDuration(duration)} (no transcription captured)`, 'info');
-                    
-                    // Show regular success message
-                    const container = document.querySelector('.voice-recording-section');
-                    if (container) {
-                        createInlineMessage('success', `Voice note saved! (${formatDuration(duration)})`, {
-                            container: container,
-                            position: 'bottom',
-                            duration: 3000
-                        });
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Error saving recording:', error);
-                updateVoiceStatus('Failed to save recording: ' + error.message, 'error');
-            } finally {
-                // Ensure button state is updated regardless of save success/failure
-                await updateRecordButtonState();
-            }
-        }
 
         // VOICE NOTES DISPLAY & PLAYBACK CONTROLS
         
@@ -830,6 +761,13 @@
                 
                 if (!voiceNote) {
                     updateVoiceStatus('Voice note not found', 'error');
+                    return;
+                }
+                
+                // Validate audioBlob before creating download URL
+                if (!voiceNote.audioBlob || !(voiceNote.audioBlob instanceof Blob)) {
+                    console.error('Invalid audioBlob for download:', voiceNote.id, 'Type:', typeof voiceNote.audioBlob);
+                    updateVoiceStatus('Cannot download voice note: Invalid audio data. This may be due to browser storage limitations.', 'error');
                     return;
                 }
                 
@@ -1049,4 +987,5 @@
             updateVoiceStatus('Failed to create dream entry', 'error');
         }
     }
+
 
