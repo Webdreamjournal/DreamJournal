@@ -165,7 +165,8 @@
             timerElement.textContent = '0:00';
         }
         
-        recordingStartTime = null;
+        // Don't reset recordingStartTime here - it's needed in saveRecording()
+        // recordingStartTime will be reset in saveRecording() after duration calculation
     }
 
     // Toggle recording state
@@ -190,6 +191,9 @@
             const duration = recordingStartTime ? (Date.now() - recordingStartTime) / 1000 : 0;
             console.log(`saveRecording: recordingStartTime=${recordingStartTime}, calculated duration=${duration}s`);
             
+            // Reset recordingStartTime now that we've calculated the duration
+            recordingStartTime = null;
+            
             const voiceNote = {
                 id: `voice_${now.getTime()}_${Math.random().toString(36).slice(2, 11)}`,
                 audioBlob: audioBlob,
@@ -211,6 +215,16 @@
                 await saveVoiceNote(voiceNote);
                 await updateRecordButtonState();
                 await displayVoiceNotes();
+
+                // NEW: Update stored duration with real value from blob
+                const realDuration = await getAudioDuration(audioBlob, voiceNote.duration);
+                if (realDuration && Math.abs(realDuration - voiceNote.duration) > 1) {
+                    // Update the stored note with the real duration
+                    voiceNote.duration = Math.round(realDuration);
+                    await saveVoiceNote(voiceNote); // Overwrite with updated duration
+                    await displayVoiceNotes(); // Refresh UI with correct duration
+                }
+
                 
                 // Switch to stored notes tab to show the new recording
                 switchVoiceTab('stored');
@@ -423,7 +437,7 @@
                 }
                 
                 // Update progress with best available duration
-                let effectiveDuration = actualDuration || 5; // Use detected duration or 5s fallback
+                let effectiveDuration = actualDuration || voiceNote.duration || 5; // Use detected duration, stored duration, or 5s fallback
                 
                 updateAudioProgress(voiceNoteId, audio.currentTime, effectiveDuration);
             };
@@ -622,7 +636,7 @@
         }
         
         // Get actual audio duration from blob - UPDATED VERSION FOR REAL DURATION DETECTION
-        async function getAudioDuration(audioBlob) {
+        async function getAudioDuration(audioBlob, storedDuration = null) {
             console.log('🔧 USING NEW DURATION DETECTION FUNCTION - v2.01.4');
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
@@ -671,10 +685,11 @@
                 // Timeout fallback after 3 seconds
                 setTimeout(() => {
                     if (!resolved) {
-                        console.log(`getAudioDuration: Timeout - using 5s fallback for WebM Infinity`);
+                        const fallbackDuration = storedDuration || 5;
+                        console.log(`getAudioDuration: Timeout - using ${fallbackDuration}s fallback (stored: ${storedDuration || 'none'})`);
                         resolved = true;
                         URL.revokeObjectURL(url);
-                        resolve(5); // Default duration for problematic WebM files
+                        resolve(fallbackDuration); // Use stored duration or 5s default for problematic WebM files
                     }
                 }, 3000);
                 
@@ -878,7 +893,7 @@
                 voiceNotes.forEach(async (note) => {
                     try {
                         console.log(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
-                        const actualDuration = await getAudioDuration(note.audioBlob);
+                        const actualDuration = await getAudioDuration(note.audioBlob, note.duration);
                         console.log(`Detected duration for note ${note.id}: ${actualDuration}s`);
                         
                         // Use detected duration or fall back to stored duration
@@ -1076,8 +1091,8 @@
                         // Wait for metadata to load, then seek
                         const seekWhenReady = () => {
                             if (audio.duration && (isFinite(audio.duration) || audio.duration === Infinity)) {
-                                // Use fallback duration for WebM Infinity
-                                const effectiveDuration = audio.duration === Infinity ? 5 : audio.duration;
+                                // Use fallback duration for WebM Infinity - try stored duration first
+                                const effectiveDuration = audio.duration === Infinity ? (voiceNote.duration || 5) : audio.duration;
                                 const seekTime = seekPercentage * effectiveDuration;
                                 audio.currentTime = seekTime;
                                 

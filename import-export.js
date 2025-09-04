@@ -421,7 +421,7 @@
             
             // Create comprehensive export object
             const exportData = {
-                version: "v2.01.6", // Fixed header duration display update for WebM files
+                version: "v2.01.8", // Fixed recording duration calculation timing issue
                 exportDate: new Date().toISOString(),
                 exportType: "complete",
                 data: {
