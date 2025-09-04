@@ -111,7 +111,7 @@ The application loads modules in this specific order to handle dependencies:
   - Firefox/Safari (basic functionality, no voice features)
 
 ### Version Management
-Current version: v2.01.7
+Current version: v2.01.6
 
 ## Development Guidelines
 

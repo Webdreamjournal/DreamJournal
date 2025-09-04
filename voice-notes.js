@@ -1,8 +1,8 @@
-// --- 5.2 Voice Notes System ---
+    // --- 5.2 Voice Notes System ---
     // --- All functions related to voice recording, playback, and storage --- //
 
     // === RECORDING OPERATIONS ===
-
+    
     // Start voice recording
     // MOVED FROM: Main functions area - Voice recording control
     async function startRecording() {
@@ -11,28 +11,28 @@
                 updateVoiceStatus('Voice recording not supported in this browser', 'error');
                 return;
             }
-
+            
             // Check storage limit
             const voiceNotes = await loadVoiceNotes();
             if (voiceNotes.length >= CONSTANTS.VOICE_STORAGE_LIMIT) {
                 updateVoiceStatus(`Cannot record: Storage full (${CONSTANTS.VOICE_STORAGE_LIMIT}/${CONSTANTS.VOICE_STORAGE_LIMIT}). Delete a recording first.`, 'error');
                 return;
             }
-
+            
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
+            
             // Determine the best MIME type
             const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
                            MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
                            MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
                            'audio/webm'; // fallback
-
+            
             mediaRecorder = new MediaRecorder(stream, { mimeType });
-
+            
             audioChunks = [];
             recordingStartTime = Date.now();
             recognitionResults = '';
-
+            
             // Setup speech recognition if supported
             if (isSpeechRecognitionSupported()) {
                 speechRecognition = setupSpeechRecognition();
@@ -46,13 +46,13 @@
                     }
                 }
             }
-
+            
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
                     audioChunks.push(event.data);
                 }
             };
-
+            
             mediaRecorder.onstop = async () => {
                 try {
                     if (audioChunks.length > 0) {
@@ -69,7 +69,7 @@
                     console.error('Error processing recording:', saveError);
                     updateVoiceStatus('Failed to save recording', 'error');
                 }
-
+                
                 // Stop all tracks to release microphone
                 if (stream) {
                     stream.getTracks().forEach(track => {
@@ -81,38 +81,38 @@
                     });
                 }
             };
-
+            
             mediaRecorder.onerror = (event) => {
                 console.error('MediaRecorder error:', event);
                 updateVoiceStatus('Recording error occurred', 'error');
                 stopRecording();
             };
-
+            
             mediaRecorder.start();
-
+            
             // Update UI to recording state
             const recordBtn = document.getElementById('recordBtn');
             const recordIcon = document.getElementById('recordIcon');
             const recordText = document.getElementById('recordText');
             const timerElement = document.getElementById('recordingTimer');
-
+            
             if (recordBtn) recordBtn.className = 'record-btn recording';
             if (recordIcon) recordIcon.textContent = '⏹️';
             if (recordText) recordText.textContent = 'Stop Recording';
             if (timerElement) timerElement.style.display = 'block';
-
+            
             if (isSpeechRecognitionSupported()) {
                 updateVoiceStatus('Recording with transcription... Speak clearly for best results', 'info');
             } else {
                 updateVoiceStatus('Recording... (transcription not available in this browser)', 'info');
             }
-
+            
             // Start timer
             recordingTimer = setInterval(updateRecordingTimer, 100);
-
+            
         } catch (error) {
             console.error('Error starting recording:', error);
-
+            
             // Handle specific permission errors
             if (error.name === 'NotAllowedError') {
                 updateVoiceStatus('Microphone access denied. Please allow microphone access and try again.', 'error');
@@ -123,7 +123,7 @@
             } else {
                 updateVoiceStatus('Failed to start recording. Check microphone permissions.', 'error');
             }
-
+            
             // Ensure UI is reset on error
             await updateRecordButtonState();
         }
@@ -135,36 +135,36 @@
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
         }
-
+        
         // Stop speech recognition
         if (speechRecognition && isTranscribing) {
             speechRecognition.stop();
             isTranscribing = false;
         }
-
+        
         // Clear timer
         if (recordingTimer) {
             clearInterval(recordingTimer);
             recordingTimer = null;
         }
-
+        
         // Reset UI elements
         const recordBtn = document.getElementById('recordBtn');
         const recordIcon = document.getElementById('recordIcon');
         const recordText = document.getElementById('recordText');
         const timerElement = document.getElementById('recordingTimer');
-
+        
         // Reset button to ready state
         if (recordBtn) recordBtn.className = 'record-btn ready';
         if (recordIcon) recordIcon.textContent = '🎤';
         if (recordText) recordText.textContent = 'Start Recording';
-
+        
         // Hide and reset timer
         if (timerElement) {
             timerElement.style.display = 'none';
             timerElement.textContent = '0:00';
         }
-
+        
         recordingStartTime = null;
     }
 
@@ -185,11 +185,11 @@
             if (!audioBlob || audioBlob.size === 0) {
                 throw new Error('Invalid audio data');
             }
-
+            
             const now = new Date();
             const duration = recordingStartTime ? (Date.now() - recordingStartTime) / 1000 : 0;
             console.log(`saveRecording: recordingStartTime=${recordingStartTime}, calculated duration=${duration}s`);
-
+            
             const voiceNote = {
                 id: `voice_${now.getTime()}_${Math.random().toString(36).slice(2, 11)}`,
                 audioBlob: audioBlob,
@@ -206,12 +206,12 @@
                 size: audioBlob.size,
                 transcription: (recognitionResults && recognitionResults.trim()) || null // Store transcribed text
             };
-
+            
             try {
                 await saveVoiceNote(voiceNote);
                 await updateRecordButtonState();
                 await displayVoiceNotes();
-
+                
                 // Switch to stored notes tab to show the new recording
                 switchVoiceTab('stored');
             } catch (saveError) {
@@ -219,11 +219,11 @@
                 updateVoiceStatus('Failed to save voice note: ' + saveError.message, 'error');
                 return;
             }
-
+            
             // Show different success messages based on transcription
             if (recognitionResults && recognitionResults.trim()) {
                 updateVoiceStatus(`Recording saved with transcription! Duration: ${formatDuration(duration)}`, 'info');
-
+                
                 // Show option to create dream entry
                 const container = document.querySelector('.voice-recording-section');
                 if (container) {
@@ -236,7 +236,7 @@
                         </button>
                     `;
                     container.appendChild(successMsg);
-
+                    
                     setTimeout(() => {
                         if (successMsg.parentNode) {
                             successMsg.remove();
@@ -246,7 +246,7 @@
             } else {
                 updateVoiceStatus(`Recording saved! Duration: ${formatDuration(duration)}`, 'success');
             }
-
+            
         } catch (error) {
             console.error('Error saving recording:', error);
             updateVoiceStatus('Failed to save recording', 'error');
@@ -254,27 +254,27 @@
     }
 
     // === PLAYBACK & MANAGEMENT ===
-
+    
     // Play voice note (Updated for Event Delegation)
     // MOVED FROM: Main functions area - Voice playback control
     async function playVoiceNote(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
             const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-
+            
             if (!voiceNote) {
                 updateVoiceStatus('Voice note not found', 'error');
                 return;
             }
-
+            
             const playBtn = document.getElementById(`play-btn-${voiceNoteId}`);
             const progressContainer = document.getElementById(`progress-container-${voiceNoteId}`);
-
+            
             // Stop any currently playing audio
             if (currentPlayingAudio) {
                 currentPlayingAudio.pause();
                 currentPlayingAudio = null;
-
+                
                 // Reset all play buttons (progress bars stay visible)
                 document.querySelectorAll('.voice-btn.pause').forEach(btn => {
                     btn.className = 'voice-btn play';
@@ -283,14 +283,14 @@
                 });
                 // Progress containers now stay visible
             }
-
+            
             // Validate audioBlob before creating URL
             if (!voiceNote.audioBlob || !(voiceNote.audioBlob instanceof Blob)) {
                 console.error('Invalid audioBlob for voice note:', voiceNote.id, 'Type:', typeof voiceNote.audioBlob);
                 updateVoiceStatus('Cannot play voice note: Invalid audio data. This may be due to browser storage limitations.', 'error');
                 return;
             }
-
+            
             // Use pre-loaded audio element if it exists (from seeking), otherwise create new one
             let audio, audioURL;
             if (audioElements[voiceNoteId]) {
@@ -304,20 +304,20 @@
                 audioURL = URL.createObjectURL(voiceNote.audioBlob);
                 audio.src = audioURL;
             }
-
+            
             // Update button to pause state and show progress bar
             if (playBtn) {
                 playBtn.className = 'voice-btn pause';
                 playBtn.innerHTML = '⏸️ Pause';
                 playBtn.dataset.action = 'pause-voice';
             }
-
+            
             // Progress container is now always visible
-
+            
             // Enhanced duration detection with multiple fallback mechanisms
             let durationDetected = false;
             let actualDuration = 0;
-
+            
             // Method 1: Try to get duration on loadedmetadata
             audio.onloadedmetadata = () => {
                 const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
@@ -330,7 +330,7 @@
                     }
                 }
             };
-
+            
             // Method 2: Try on canplaythrough event (more reliable for some formats)
             audio.oncanplaythrough = () => {
                 if (!durationDetected) {
@@ -343,7 +343,7 @@
                     }
                 }
             };
-
+            
             // Method 3: Try on loadeddata event
             audio.onloadeddata = () => {
                 if (!durationDetected) {
@@ -356,7 +356,7 @@
                     }
                 }
             };
-
+            
             // Method 4: Force duration check after play starts
             audio.onplaying = () => {
                 if (!durationDetected) {
@@ -376,13 +376,13 @@
                     }, 100);
                 }
             };
-
+            
             // Set up time update listener
             audio.ontimeupdate = () => {
                 if (isFirefox) {
                     console.log(`Firefox ontimeupdate: ${audio.currentTime.toFixed(2)}s / ${audio.duration}s`);
                 }
-
+                
                 // Detect real duration during playback (Firefox often provides it after starting)
                 if (!durationDetected) {
                     if (isFinite(audio.duration) && audio.duration > 0) {
@@ -394,7 +394,7 @@
                             totalTimeEl.textContent = formatDuration(audio.duration);
                             console.log(`Firefox: Real duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
                         }
-
+                        
                         // Also update the header duration display
                         const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
                         if (headerDurationEl) {
@@ -421,13 +421,13 @@
                         }
                     }
                 }
-
+                
                 // Update progress with best available duration
-                let effectiveDuration = actualDuration || 0; // Use detected duration or 0s fallback
-
+                let effectiveDuration = actualDuration || 5; // Use detected duration or 5s fallback
+                
                 updateAudioProgress(voiceNoteId, audio.currentTime, effectiveDuration);
             };
-
+            
             audio.onended = () => {
                 try {
                     URL.revokeObjectURL(audioURL);
@@ -435,34 +435,34 @@
                     console.warn('Failed to revoke audio URL:', e);
                 }
                 currentPlayingAudio = null;
-
+                
                 // Clean up cached audio element
                 if (audioElements[voiceNoteId]) {
                     delete audioElements[voiceNoteId];
                 }
-
+                
                 // Reset button to play state
                 if (playBtn) {
                     playBtn.className = 'voice-btn play';
                     playBtn.innerHTML = '▶️ Play';
                     playBtn.dataset.action = 'play-voice';
                 }
-
+                
                 // Progress container stays visible
-
+                
                 // Reset progress bar
                 const progressFill = document.getElementById(`progress-fill-${voiceNoteId}`);
                 if (progressFill) {
                     progressFill.style.width = '0%';
                 }
-
+                
                 // Reset time displays
                 const currentTimeEl = document.getElementById(`time-current-${voiceNoteId}`);
                 if (currentTimeEl) {
                     currentTimeEl.textContent = '0:00';
                 }
             };
-
+            
             audio.onerror = () => {
                 try {
                     URL.revokeObjectURL(audioURL);
@@ -470,33 +470,33 @@
                     console.warn('Failed to revoke audio URL on error:', e);
                 }
                 currentPlayingAudio = null;
-
+                
                 // Clean up cached audio element
                 if (audioElements[voiceNoteId]) {
                     delete audioElements[voiceNoteId];
                 }
-
+                
                 updateVoiceStatus('Error playing voice note', 'error');
-
+                
                 // Reset button state
                 if (playBtn) {
                     playBtn.className = 'voice-btn play';
                     playBtn.innerHTML = '▶️ Play';
                     playBtn.dataset.action = 'play-voice';
                 }
-
+                
                 // Progress container stays visible
             };
-
+            
             // Start playing
             currentPlayingAudio = audio;
-
+            
             // Preload the audio to ensure metadata is available
             audio.preload = 'metadata';
             audio.load(); // Force load metadata
-
+            
             await audio.play();
-
+            
         } catch (error) {
             console.error('Error playing voice note:', error);
             updateVoiceStatus('Failed to play voice note', 'error');
@@ -504,15 +504,15 @@
     }
 
       // VOICE RECORDING INTERFACE & CONTROLS
-
+        
         // Voice Recording Functions
-
+        
         // Enhanced browser detection for voice features
         function getVoiceCapabilities() {
             const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
             const hasMediaRecorder = !!(window.MediaRecorder);
             const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-
+            
             // Detect browser type
             const userAgent = navigator.userAgent.toLowerCase();
             const isFirefox = userAgent.includes('firefox');
@@ -521,7 +521,7 @@
             const isSafariMobile = isSafari && userAgent.includes('mobile');
             const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg');
             const isEdge = userAgent.includes('edg');
-
+            
             return {
                 canRecord: hasGetUserMedia && hasMediaRecorder,
                 canTranscribe: hasSpeechRecognition,
@@ -557,33 +557,33 @@
                 }
             };
         }
-
+        
         // Check if browser supports voice recording
         function isVoiceRecordingSupported() {
             return getVoiceCapabilities().canRecord;
         }
-
+        
         // Check if speech recognition is supported
         function isSpeechRecognitionSupported() {
             return getVoiceCapabilities().canTranscribe;
         }
-
+        
         // Setup speech recognition
         function setupSpeechRecognition() {
             if (!isSpeechRecognitionSupported()) return null;
-
+            
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
-
+            
             recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
-
+            
             let finalTranscript = '';
-
+            
             recognition.onresult = (event) => {
                 let interimTranscript = '';
-
+                
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
@@ -592,11 +592,11 @@
                         interimTranscript += transcript;
                     }
                 }
-
+                
                 recognitionResults = finalTranscript + interimTranscript;
                 updateVoiceStatus(`Recording... "${recognitionResults.slice(-CONSTANTS.TEXT_TRUNCATE_LENGTH)}${recognitionResults.length > CONSTANTS.TEXT_TRUNCATE_LENGTH ? '...' : ''}"`, 'info');
             };
-
+            
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 // Don't show error for network issues - transcription is optional
@@ -604,14 +604,14 @@
                     updateVoiceStatus('Recording... (transcription unavailable)', 'info');
                 }
             };
-
+            
             recognition.onend = () => {
                 isTranscribing = false;
             };
-
+            
             return recognition;
         }
-
+        
         // Format recording duration
         function formatDuration(seconds) {
             if (!seconds || isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return '0:00';
@@ -620,82 +620,96 @@
             const secs = safeSeconds % 60;
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
-
-        // Get actual audio duration from blob - MORE ROBUST VERSION
+        
+        // Get actual audio duration from blob - UPDATED VERSION FOR REAL DURATION DETECTION
         async function getAudioDuration(audioBlob) {
+            console.log('🔧 USING NEW DURATION DETECTION FUNCTION - v2.01.4');
             return new Promise((resolve) => {
-                if (!audioBlob || !(audioBlob instanceof Blob) || audioBlob.size === 0) {
-                    console.log('getAudioDuration: Invalid or empty audioBlob');
-                    return resolve(0);
+                if (!audioBlob || !(audioBlob instanceof Blob)) {
+                    console.log('getAudioDuration: Invalid audioBlob');
+                    resolve(0);
+                    return;
                 }
-
+                
+                console.log(`getAudioDuration: Starting for blob type: ${audioBlob.type}, size: ${audioBlob.size}`);
                 const audio = new Audio();
                 const url = URL.createObjectURL(audioBlob);
-                let timeout;
-
-                const cleanup = () => {
-                    audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-                    audio.removeEventListener('error', onError);
-                    audio.removeEventListener('timeupdate', onTimeUpdate);
-                    audio.removeEventListener('canplaythrough', onCanPlayThrough);
-                    clearTimeout(timeout);
-                    // Revoking the URL immediately can cause issues in some browsers
-                    // We'll let the browser handle garbage collection
-                    // URL.revokeObjectURL(url);
-                    audio.src = '';
-                };
-
-                const onLoadedMetadata = () => {
-                    if (isFinite(audio.duration) && audio.duration > 0) {
-                        cleanup();
-                        resolve(audio.duration);
-                    } else {
-                        // If duration is Infinity, try seeking to a large time
-                        audio.currentTime = 1e101;
-                    }
-                };
-
-                const onTimeUpdate = () => {
-                    // This event fires when seeking, and the duration becomes available
-                    if (audio.currentTime > 0) {
-                        audio.currentTime = 0; // Seek back to beginning
+                let resolved = false;
+                
+                // Try multiple events to get duration
+                const attemptDurationDetection = () => {
+                    console.log(`getAudioDuration: Checking - duration: ${audio.duration}, seekable: ${audio.seekable.length}`);
+                    if (!resolved) {
                         if (isFinite(audio.duration) && audio.duration > 0) {
-                            cleanup();
+                            console.log(`getAudioDuration: Valid duration detected: ${audio.duration}s`);
+                            resolved = true;
+                            URL.revokeObjectURL(url);
                             resolve(audio.duration);
+                        } else if (audio.seekable && audio.seekable.length > 0) {
+                            try {
+                                const seekableDuration = audio.seekable.end(0);
+                                console.log(`getAudioDuration: Raw seekable duration: ${seekableDuration}, finite: ${isFinite(seekableDuration)}`);
+                                if (isFinite(seekableDuration) && seekableDuration > 0) {
+                                    console.log(`getAudioDuration: ✅ Duration from seekable range: ${seekableDuration}s`);
+                                    resolved = true;
+                                    URL.revokeObjectURL(url);
+                                    resolve(seekableDuration);
+                                } else {
+                                    console.log(`getAudioDuration: ❌ Seekable duration invalid: ${seekableDuration}`);
+                                }
+                            } catch (e) {
+                                console.log(`getAudioDuration: ❌ Error getting seekable duration: ${e.message}`);
+                            }
                         }
                     }
                 };
-
-                const onCanPlayThrough = () => {
-                    // This is another reliable event for getting duration
-                    if (isFinite(audio.duration) && audio.duration > 0) {
-                         cleanup();
-                         resolve(audio.duration);
+                
+                audio.oncanplay = attemptDurationDetection;
+                audio.oncanplaythrough = attemptDurationDetection;
+                audio.onloadeddata = attemptDurationDetection;
+                
+                // Timeout fallback after 3 seconds
+                setTimeout(() => {
+                    if (!resolved) {
+                        console.log(`getAudioDuration: Timeout - using 5s fallback for WebM Infinity`);
+                        resolved = true;
+                        URL.revokeObjectURL(url);
+                        resolve(5); // Default duration for problematic WebM files
+                    }
+                }, 3000);
+                
+                audio.onerror = () => {
+                    if (!resolved) {
+                        console.error('getAudioDuration: Audio load error');
+                        resolved = true;
+                        URL.revokeObjectURL(url);
+                        resolve(0);
                     }
                 };
-
-                const onError = (e) => {
-                    console.error('getAudioDuration: Audio load error', e);
-                    cleanup();
-                    resolve(0); // Resolve with 0 on error
-                };
-
-                audio.addEventListener('loadedmetadata', onLoadedMetadata);
-                audio.addEventListener('error', onError);
-                audio.addEventListener('timeupdate', onTimeUpdate);
-                audio.addEventListener('canplaythrough', onCanPlayThrough);
-
-                timeout = setTimeout(() => {
-                    console.warn('getAudioDuration: Timeout waiting for duration');
-                    cleanup();
-                    resolve(0); // Resolve with 0 on timeout
-                }, 7000); // 7-second timeout
-
+                
+                // Load the audio and try playing briefly to force metadata
                 audio.preload = 'metadata';
                 audio.src = url;
+                audio.load();
+                
+                // Try playing very briefly to force duration detection
+                setTimeout(() => {
+                    if (!resolved) {
+                        console.log('getAudioDuration: Trying brief play to detect duration');
+                        audio.currentTime = 0;
+                        audio.play().then(() => {
+                            setTimeout(() => {
+                                audio.pause();
+                                attemptDurationDetection();
+                            }, 100);
+                        }).catch(() => {
+                            console.log('getAudioDuration: Brief play failed, continuing with other methods');
+                        });
+                    }
+                }, 500);
             });
         }
-
+        
         // Update recording timer
         function updateRecordingTimer() {
             if (!recordingStartTime || !recordingTimer) {
@@ -706,14 +720,14 @@
                 }
                 return;
             }
-
+            
             const elapsed = (Date.now() - recordingStartTime) / 1000;
             const timerElement = document.getElementById('recordingTimer');
             if (timerElement) {
                 timerElement.textContent = formatDuration(elapsed);
             }
         }
-
+        
         // Update voice status message
         function updateVoiceStatus(message, type = 'info') {
             const statusElement = document.getElementById('voiceStatus');
@@ -722,27 +736,27 @@
                 statusElement.className = `voice-status ${type}`;
             }
         }
-
+        
         // Update record button state
         async function updateRecordButtonState() {
             const recordBtn = document.getElementById('recordBtn');
             const recordIcon = document.getElementById('recordIcon');
             const recordText = document.getElementById('recordText');
-
+            
             if (!recordBtn || !recordIcon || !recordText) return;
-
+            
             try {
                 const voiceNotes = await loadVoiceNotes();
                 const voiceCount = voiceNotes.length;
-
+                
                 // Check if currently recording
                 const isCurrentlyRecording = mediaRecorder && mediaRecorder.state === 'recording';
-
+                
                 if (isCurrentlyRecording) {
                     // Don't change button state if recording is in progress
                     return;
                 }
-
+                
                 if (voiceCount >= CONSTANTS.VOICE_STORAGE_LIMIT) {
                     recordBtn.className = 'record-btn disabled';
                     recordBtn.disabled = true;
@@ -754,7 +768,7 @@
                     recordBtn.disabled = false;
                     recordIcon.textContent = '🎤';
                     recordText.textContent = 'Start Recording';
-
+                    
                     if (voiceCount >= 3) {
                         updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - ${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount} slot${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount === 1 ? '' : 's'} remaining`, 'warning');
                     } else {
@@ -771,25 +785,25 @@
                 updateVoiceStatus('Error checking voice note storage', 'error');
             }
         }
-
+        
 
         // VOICE NOTES DISPLAY & PLAYBACK CONTROLS
-
+        
         // Voice Notes Display and Controls
-
+        
         // Throttle progress updates to prevent excessive DOM manipulation
         let lastProgressUpdate = 0;
         const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
         const PROGRESS_UPDATE_THROTTLE = isFirefox ? 0 : 50; // ms - disable throttling for Firefox
-
+        
         // Display voice notes (Updated for Event Delegation)
         async function displayVoiceNotes() {
             const container = document.getElementById('voiceNotesContainer');
             if (!container) return;
-
+            
             try {
                 const voiceNotes = await loadVoiceNotes();
-
+                
                 if (voiceNotes.length === 0) {
                     container.innerHTML = `
                         <div class="no-voice-notes">
@@ -799,7 +813,7 @@
                     `;
                     return;
                 }
-
+                
                 // Show warning if at capacity
                 let warningHTML = '';
                 if (voiceNotes.length >= CONSTANTS.VOICE_STORAGE_LIMIT) {
@@ -809,27 +823,27 @@
                         </div>
                     `;
                 }
-
+                
                 const notesHTML = voiceNotes.map(note => {
                     const sizeKB = Math.round(note.size / CONSTANTS.BYTES_PER_KB);
                     const sizeMB = (note.size / CONSTANTS.BYTES_PER_MB).toFixed(1);
                     const sizeDisplay = note.size < CONSTANTS.BYTES_PER_MB ? `${sizeKB} KB` : `${sizeMB} MB`;
-
+                    
                     // Check if transcription is available
                     const hasTranscription = note.transcription && note.transcription.trim();
                     const transcriptionIndicator = hasTranscription ? ' • 📝 Transcribed' : '';
-
+                    
                     // Create meta information
                     const metaItems = [
                         { value: escapeHtml(note.dateString) },
                         { value: `<span id="header-duration-${escapeAttr(note.id)}">${formatDuration(note.duration || 0)}</span>`, isHTML: true },
                         { value: sizeDisplay }
                     ];
-
+                    
                     if (transcriptionIndicator) {
                         metaItems.push({ value: transcriptionIndicator });
                     }
-
+                    
                     // Create control buttons using utility classes
                     const controlButtons = [
                         `<button data-action="play-voice" data-voice-note-id="${escapeAttr(note.id)}" id="play-btn-${escapeAttr(note.id)}" class="voice-btn-base voice-btn-play">▶️ Play</button>`,
@@ -837,7 +851,7 @@
                         `<button data-action="download-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-download">⬇️ Download</button>`,
                         `<button data-action="delete-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`
                     ].join('');
-
+                    
                     return `
                         <div class="voice-note-container" id="voice-note-${escapeAttr(note.id)}">
                             <div class="voice-note-info">
@@ -857,19 +871,19 @@
                         </div>
                     `;
                 }).join('');
-
+                
                 container.innerHTML = warningHTML + notesHTML;
-
+                
                 // Update durations asynchronously with actual audio durations
                 voiceNotes.forEach(async (note) => {
                     try {
                         console.log(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
                         const actualDuration = await getAudioDuration(note.audioBlob);
                         console.log(`Detected duration for note ${note.id}: ${actualDuration}s`);
-
+                        
                         // Use detected duration or fall back to stored duration
                         const effectiveDuration = actualDuration > 0 ? actualDuration : note.duration;
-
+                        
                         if (effectiveDuration > 0) {
                             // Update the header duration display
                             const headerDurationEl = document.getElementById(`header-duration-${note.id}`);
@@ -879,7 +893,7 @@
                             } else {
                                 console.warn(`Could not find header duration element for ${note.id}`);
                             }
-
+                            
                             // Update the total time display in progress bar
                             const totalTimeEl = document.getElementById(`time-total-${note.id}`);
                             if (totalTimeEl) {
@@ -892,7 +906,7 @@
                         console.error('Error getting audio duration for note:', note.id, error);
                     }
                 });
-
+                
             } catch (error) {
                 console.error('Error displaying voice notes:', error);
                 container.innerHTML = `
@@ -902,8 +916,8 @@
                 `;
             }
         }
-
-
+        
+        
         // Pause voice note (Updated for Event Delegation)
         function pauseVoiceNote(voiceNoteId) {
             if (currentPlayingAudio) {
@@ -915,38 +929,38 @@
                 }
                 currentPlayingAudio = null;
             }
-
+            
             const playBtn = document.getElementById(`play-btn-${voiceNoteId}`);
             const progressContainer = document.getElementById(`progress-container-${voiceNoteId}`);
-
+            
             if (playBtn) {
                 playBtn.className = 'voice-btn play';
                 playBtn.innerHTML = '▶️ Play';
                 playBtn.dataset.action = 'play-voice';
             }
-
+            
             // Progress container stays visible
         }
-
+        
         // Update audio progress bar and time displays
         function updateAudioProgress(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
             }
-
+            
             // Throttle updates to prevent excessive DOM manipulation
             const now = Date.now();
             if (now - lastProgressUpdate < PROGRESS_UPDATE_THROTTLE) return;
             lastProgressUpdate = now;
-
+            
             const progressFill = document.getElementById(`progress-fill-${voiceNoteId}`);
             const currentTimeEl = document.getElementById(`time-current-${voiceNoteId}`);
-
+            
             if (progressFill) {
                 // Extra safety check to prevent division by zero and invalid values
                 const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
                 const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
-
+                
                 if (isFirefox) {
                     // Firefox: Use transform instead of width for better rendering
                     console.log(`Firefox progress update: ${(progressRatio * 100).toFixed(1)}%`);
@@ -960,31 +974,31 @@
                     progressFill.style.width = `${progressRatio * 100}%`;
                     progressFill.style.transform = 'none';
                 }
-
+                
                 // Force a reflow
                 progressFill.offsetHeight;
             }
-
+            
             if (currentTimeEl) {
                 const formattedTime = formatDuration(Math.max(0, currentTime));
                 currentTimeEl.textContent = formattedTime;
             }
         }
-
+        
         // Update progress with smooth transition for manual seeking
         function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
             }
-
+            
             const progressFill = document.getElementById(`progress-fill-${voiceNoteId}`);
             const currentTimeEl = document.getElementById(`time-current-${voiceNoteId}`);
-
+            
             if (progressFill) {
                 // Extra safety check to prevent division by zero and invalid values
                 const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
                 const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
-
+                
                 if (isFirefox) {
                     // Firefox: Use transform with transition for smooth seeking
                     progressFill.style.width = '100%';
@@ -998,39 +1012,39 @@
                     progressFill.style.transform = 'none';
                 }
             }
-
+            
             if (currentTimeEl) {
                 const formattedTime = formatDuration(Math.max(0, currentTime));
                 currentTimeEl.textContent = formattedTime;
             }
         }
-
+        
         // Store audio elements for seeking when paused
         let audioElements = {};
-
+        
         // Seek to specific position in audio
         async function seekAudio(voiceNoteId, event) {
             if (!event) return;
-
+            
             const progressBar = document.getElementById(`progress-bar-${voiceNoteId}`);
             if (!progressBar) return;
-
+            
             const rect = progressBar.getBoundingClientRect();
             const clickX = event.clientX - rect.left;
             const progressBarWidth = rect.width;
-
+            
             if (progressBarWidth <= 0) return; // Prevent division by zero
-
+            
             const clickPercentage = clickX / progressBarWidth;
-
+            
             // Ensure percentage is between 0 and 1
             const seekPercentage = Math.max(0, Math.min(1, clickPercentage));
-
+            
             // If audio is currently playing, seek it directly
             if (currentPlayingAudio && !isNaN(currentPlayingAudio.duration) && currentPlayingAudio.duration > 0) {
                 const seekTime = seekPercentage * currentPlayingAudio.duration;
                 currentPlayingAudio.currentTime = seekTime;
-
+                
                 // Update progress immediately for responsive feedback with smooth transition
                 updateAudioProgressWithTransition(voiceNoteId, seekTime, currentPlayingAudio.duration);
             } else {
@@ -1038,7 +1052,7 @@
                 try {
                     const voiceNotes = await loadVoiceNotes();
                     const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-
+                    
                     if (voiceNote) {
                         // Create or get existing audio element for this note
                         if (!audioElements[voiceNoteId]) {
@@ -1047,7 +1061,7 @@
                             audio.src = audioURL;
                             audio.preload = 'metadata';
                             audioElements[voiceNoteId] = { audio, url: audioURL };
-
+                            
                             // Clean up on audio end
                             audio.onended = () => {
                                 if (audioElements[voiceNoteId]) {
@@ -1056,24 +1070,24 @@
                                 }
                             };
                         }
-
+                        
                         const { audio } = audioElements[voiceNoteId];
-
+                        
                         // Wait for metadata to load, then seek
                         const seekWhenReady = () => {
                             if (audio.duration && (isFinite(audio.duration) || audio.duration === Infinity)) {
                                 // Use fallback duration for WebM Infinity
-                                const effectiveDuration = audio.duration === Infinity ? 0 : audio.duration;
+                                const effectiveDuration = audio.duration === Infinity ? 5 : audio.duration;
                                 const seekTime = seekPercentage * effectiveDuration;
                                 audio.currentTime = seekTime;
-
+                                
                                 // Update progress bar to show seek position with smooth transition
                                 updateAudioProgressWithTransition(voiceNoteId, seekTime, effectiveDuration);
-
+                                
                                 console.log(`Seeked to ${formatDuration(seekTime)} (paused) in voice note ${voiceNoteId}`);
                             }
                         };
-
+                        
                         if (audio.readyState >= 1) {
                             // Metadata already loaded
                             seekWhenReady();
@@ -1088,49 +1102,49 @@
                 }
             }
         }
-
+        
         // Download voice note
         async function downloadVoiceNote(voiceNoteId) {
             try {
                 const voiceNotes = await loadVoiceNotes();
                 const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-
+                
                 if (!voiceNote) {
                     updateVoiceStatus('Voice note not found', 'error');
                     return;
                 }
-
+                
                 // Validate audioBlob before creating download URL
                 if (!voiceNote.audioBlob || !(voiceNote.audioBlob instanceof Blob)) {
                     console.error('Invalid audioBlob for download:', voiceNote.id, 'Type:', typeof voiceNote.audioBlob);
                     updateVoiceStatus('Cannot download voice note: Invalid audio data. This may be due to browser storage limitations.', 'error');
                     return;
                 }
-
+                
                 const url = URL.createObjectURL(voiceNote.audioBlob);
                 const a = document.createElement('a');
                 a.href = url;
-
+                
                 // Generate filename with date
                 const date = new Date(voiceNote.timestamp);
                 const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
                 const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
                 const extension = voiceNote.audioBlob.type.includes('webm') ? 'webm' : 'mp4';
-
+                
                 a.download = `dream-voice-note-${dateStr}-${timeStr}.${extension}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-
+                
                 updateVoiceStatus('Voice note downloaded', 'info');
-
+                
             } catch (error) {
                 console.error('Error downloading voice note:', error);
                 updateVoiceStatus('Failed to download voice note', 'error');
             }
         }
-
+        
         // Show delete confirmation for voice note
         function deleteVoiceNote(voiceNoteId) {
             // Clear any existing timeout for this voice note
@@ -1138,19 +1152,19 @@
                 clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
                 delete voiceDeleteTimeouts[voiceNoteId];
             }
-
+            
             const voiceNoteElement = document.getElementById(`voice-note-${voiceNoteId}`);
             if (!voiceNoteElement) return; // Safety check
-
+            
             // Add pending delete styling
             voiceNoteElement.classList.add('delete-pending');
-
+            
             // Find and replace delete button with confirm button
             const deleteBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="delete-voice"]`);
             if (deleteBtn) {
                 deleteBtn.outerHTML = `<button data-action="confirm-delete-voice" data-voice-note-id="${voiceNoteId}" class="voice-btn-base voice-btn-delete" style="animation: pulse 0.5s ease-in-out;">Confirm Delete</button>`;
             }
-
+            
             // Set timeout to revert after specified time
             voiceDeleteTimeouts[voiceNoteId] = setTimeout(() => {
                 cancelDeleteVoiceNote(voiceNoteId);
@@ -1166,19 +1180,19 @@
                     clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
                     delete voiceDeleteTimeouts[voiceNoteId];
                 }
-
+                
                 // Stop playing if this note is currently playing
                 if (currentPlayingAudio) {
                     currentPlayingAudio.pause();
                     currentPlayingAudio = null;
                 }
-
+                
                 // Try to delete from IndexedDB first
                 let deleted = false;
                 if (isIndexedDBAvailable()) {
                     deleted = await deleteVoiceNoteFromIndexedDB(voiceNoteId);
                 }
-
+                
                 // If IndexedDB deletion failed or unavailable, delete from memory/fallback
                 if (!deleted) {
                     const allNotes = await loadVoiceNotes();
@@ -1186,7 +1200,7 @@
                     await saveVoiceNotes(updatedNotes); // Use the load/save fallback
                     deleted = true; // Mark as deleted since fallback was used
                 }
-
+                
                 if (deleted) {
                     await updateRecordButtonState();
                     await displayVoiceNotes();
@@ -1194,7 +1208,7 @@
                 } else {
                     updateVoiceStatus('Voice note not found', 'error');
                 }
-
+                
             } catch (error) {
                 console.error('Error deleting voice note:', error);
                 updateVoiceStatus('Failed to delete voice note', 'error');
@@ -1209,12 +1223,12 @@
                 clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
                 delete voiceDeleteTimeouts[voiceNoteId];
             }
-
+            
             const voiceNoteElement = document.getElementById(`voice-note-${voiceNoteId}`);
             if (voiceNoteElement) {
                 // Remove pending delete styling
                 voiceNoteElement.classList.remove('delete-pending');
-
+                
                 // Replace confirm button with original delete button
                 const confirmBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="confirm-delete-voice"]`);
                 if (confirmBtn) {
@@ -1224,7 +1238,7 @@
         }
 
     // VOICE RECORDING & TRANSCRIPTION SYSTEM
-
+    
     // Create dream entry from transcribed voice note
     // Create dream entry from transcribed voice note
     // Transcribe voice note (create dream entry if transcription exists)
@@ -1232,30 +1246,30 @@
         try {
             const voiceNotes = await loadVoiceNotes();
             const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-
+            
             if (!voiceNote) {
                 updateVoiceStatus('Voice note not found', 'error');
                 return;
             }
-
+            
             if (voiceNote.transcription && voiceNote.transcription.trim()) {
                 // Transcription already exists, create dream entry
                 await createDreamFromTranscription(voiceNoteId);
             } else {
                 // No transcription available
                 updateVoiceStatus('No transcription available. Transcription happens during recording when supported.', 'error');
-
+                
                 // Show helpful message
                 const container = document.querySelector('.main-content');
                 if (container) {
                     const msg = document.createElement('div');
                     msg.className = 'message-warning';
                     msg.innerHTML = `
-                        <strong>Transcription Tip:</strong> For automatic transcription, speak clearly during recording.
+                        <strong>Transcription Tip:</strong> For automatic transcription, speak clearly during recording. 
                         <br>Transcription works best with clear speech in quiet environments.
                     `;
                     container.insertBefore(msg, container.firstChild);
-
+                    
                     setTimeout(() => {
                         if (msg.parentNode) {
                             msg.remove();
@@ -1263,7 +1277,7 @@
                     }, 7000);
                 }
             }
-
+            
         } catch (error) {
             console.error('Error transcribing voice note:', error);
             updateVoiceStatus('Failed to process transcription', 'error');
@@ -1273,19 +1287,19 @@
         try {
             const voiceNotes = await loadVoiceNotes();
             const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-
+            
             if (!voiceNote || !voiceNote.transcription) {
                 updateVoiceStatus('No transcription available for this voice note', 'error');
                 return;
             }
-
+            
             // Set the current date/time as the dream date
             const now = new Date();
             const dreamDateInput = document.getElementById('dreamDate');
             if (dreamDateInput) {
                 dreamDateInput.value = now.toISOString().slice(0, 16);
             }
-
+            
             // Clear other form fields
             const titleInput = document.getElementById('dreamTitle');
             const emotionsInput = document.getElementById('dreamEmotions');
@@ -1293,20 +1307,20 @@
             const dreamSignsInput = document.getElementById('dreamSigns');
             const lucidCheckbox = document.getElementById('isLucid');
             const contentInput = document.getElementById('dreamContent');
-
+            
             if (titleInput) titleInput.value = '';
             if (emotionsInput) emotionsInput.value = '';
             if (tagsInput) tagsInput.value = '';
             if (dreamSignsInput) dreamSignsInput.value = '';
             if (lucidCheckbox) lucidCheckbox.checked = false;
-
+            
             // Populate with transcribed text
             if (contentInput) {
                 contentInput.value = voiceNote.transcription;
                 contentInput.focus();
                 contentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-
+            
             // Show success message
             const container = document.querySelector('.main-content');
             if (container) {
@@ -1316,9 +1330,11 @@
                     duration: 5000
                 });
             }
-
+            
         } catch (error) {
             console.error('Error creating dream from transcription:', error);
             updateVoiceStatus('Failed to create dream entry', 'error');
         }
     }
+
+
