@@ -423,7 +423,7 @@
                 }
 
                 // Update progress with best available duration
-                let effectiveDuration = actualDuration || voiceNote.duration || 0; // Use detected, then stored, then 0
+                let effectiveDuration = actualDuration || voiceNote.duration || 5; // Use detected, stored, or 5s fallback
 
                 updateAudioProgress(voiceNoteId, audio.currentTime, effectiveDuration);
             };
@@ -622,12 +622,12 @@
         }
 
         // Get actual audio duration from blob - UPDATED VERSION FOR REAL DURATION DETECTION
-        async function getAudioDuration(audioBlob) {
+        async function getAudioDuration(audioBlob, fallbackDuration) {
             console.log('🔧 USING NEW DURATION DETECTION FUNCTION - v2.01.4');
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
                     console.log('getAudioDuration: Invalid audioBlob');
-                    resolve(0);
+                    resolve(fallbackDuration || 0);
                     return;
                 }
 
@@ -671,10 +671,10 @@
                 // Timeout fallback after 1 second
                 setTimeout(() => {
                     if (!resolved) {
-                        console.log(`getAudioDuration: Timeout - resolving with 0 to allow fallback to stored duration`);
+                        console.log(`getAudioDuration: Timeout - using fallback duration: ${fallbackDuration}s`);
                         resolved = true;
                         URL.revokeObjectURL(url);
-                        resolve(0); // Resolve with 0 to allow fallback to stored duration
+                        resolve(fallbackDuration || 0); // Use provided fallback or 0
                     }
                 }, 1000);
 
@@ -683,7 +683,7 @@
                         console.error('getAudioDuration: Audio load error');
                         resolved = true;
                         URL.revokeObjectURL(url);
-                        resolve(0);
+                        resolve(fallbackDuration || 0);
                     }
                 };
 
@@ -877,30 +877,22 @@
                 // Update durations asynchronously with actual audio durations
                 voiceNotes.forEach(async (note) => {
                     try {
-                        console.log(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
-                        const actualDuration = await getAudioDuration(note.audioBlob);
-                        console.log(`Detected duration for note ${note.id}: ${actualDuration}s`);
+                        const actualDuration = await getAudioDuration(note.audioBlob, note.duration);
 
-                        // Use detected duration or fall back to stored duration
-                        const effectiveDuration = actualDuration > 0 ? actualDuration : note.duration;
-
-                        if (effectiveDuration > 0) {
+                        if (actualDuration > 0) {
                             // Update the header duration display
                             const headerDurationEl = document.getElementById(`header-duration-${note.id}`);
                             if (headerDurationEl) {
-                                headerDurationEl.textContent = formatDuration(effectiveDuration);
-                                console.log(`Updated header duration for ${note.id} to ${formatDuration(effectiveDuration)} (source: ${actualDuration > 0 ? 'detected' : 'stored'})`);
-                            } else {
-                                console.warn(`Could not find header duration element for ${note.id}`);
+                                headerDurationEl.textContent = formatDuration(actualDuration);
                             }
 
                             // Update the total time display in progress bar
                             const totalTimeEl = document.getElementById(`time-total-${note.id}`);
                             if (totalTimeEl) {
-                                totalTimeEl.textContent = formatDuration(effectiveDuration);
+                                totalTimeEl.textContent = formatDuration(actualDuration);
                             }
                         } else {
-                            console.warn(`No duration available for note ${note.id} (detected: ${actualDuration}, stored: ${note.duration})`);
+                            console.warn(`No valid duration could be determined for note ${note.id}. Stored: ${note.duration}, Detected: ${actualDuration}`);
                         }
                     } catch (error) {
                         console.error('Error getting audio duration for note:', note.id, error);
@@ -1077,7 +1069,7 @@
                         const seekWhenReady = () => {
                             if (audio.duration && (isFinite(audio.duration) || audio.duration === Infinity)) {
                                 // Use fallback duration for WebM Infinity
-                                const effectiveDuration = audio.duration === Infinity ? voiceNote.duration || 0 : audio.duration;
+                                const effectiveDuration = audio.duration === Infinity ? voiceNote.duration || 5 : audio.duration;
                                 const seekTime = seekPercentage * effectiveDuration;
                                 audio.currentTime = seekTime;
 
