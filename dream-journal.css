@@ -1455,7 +1455,7 @@
             background: var(--primary-color);
             border-radius: 3px;
             width: 0%;
-            transition: width 0.1s linear;
+            /* Transition removed - will be controlled via JavaScript for Firefox compatibility */
         }
         
         .voice-time-display {
@@ -2434,7 +2434,7 @@
             background: var(--primary-color);
             border-radius: 3px;
             width: 0%;
-            transition: width 0.1s linear;
+            /* Transition removed - will be controlled via JavaScript for Firefox compatibility */
         }
         .voice-time-display {
             font-family: monospace;

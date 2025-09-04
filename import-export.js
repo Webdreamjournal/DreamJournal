@@ -421,7 +421,7 @@
             
             // Create comprehensive export object
             const exportData = {
-                version: "v2.01.4", // Fixed voice note seeking to remain paused at seek position
+                version: "v2.01.6", // Fixed header duration display update for WebM files
                 exportDate: new Date().toISOString(),
                 exportType: "complete",
                 data: {

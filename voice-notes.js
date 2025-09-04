@@ -379,19 +379,52 @@
             
             // Set up time update listener
             audio.ontimeupdate = () => {
-                // Try to detect duration during playback if not yet detected
-                if (!durationDetected && isFinite(audio.duration) && audio.duration > 0) {
-                    actualDuration = audio.duration;
-                    durationDetected = true;
-                    const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
-                    if (totalTimeEl) {
-                        totalTimeEl.textContent = formatDuration(audio.duration);
-                        console.log(`Audio duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
+                if (isFirefox) {
+                    console.log(`Firefox ontimeupdate: ${audio.currentTime.toFixed(2)}s / ${audio.duration}s`);
+                }
+                
+                // Detect real duration during playback (Firefox often provides it after starting)
+                if (!durationDetected) {
+                    if (isFinite(audio.duration) && audio.duration > 0) {
+                        // Firefox provided finite duration - use it!
+                        actualDuration = audio.duration;
+                        durationDetected = true;
+                        const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                        if (totalTimeEl) {
+                            totalTimeEl.textContent = formatDuration(audio.duration);
+                            console.log(`Firefox: Real duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
+                        }
+                        
+                        // Also update the header duration display
+                        const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
+                        if (headerDurationEl) {
+                            headerDurationEl.textContent = formatDuration(audio.duration);
+                            console.log(`Firefox: Updated header duration to ${formatDuration(audio.duration)} for ${voiceNoteId}`);
+                        }
+                    } else if (audio.seekable && audio.seekable.length > 0) {
+                        // Try to get duration from seekable range
+                        const seekableDuration = audio.seekable.end(0);
+                        if (isFinite(seekableDuration) && seekableDuration > 0) {
+                            actualDuration = seekableDuration;
+                            durationDetected = true;
+                            const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
+                            if (totalTimeEl) {
+                                totalTimeEl.textContent = formatDuration(seekableDuration);
+                                console.log(`Firefox: Duration from seekable range: ${seekableDuration}s for ${voiceNoteId}`);
+                            }
+                            // Also update the header duration display
+                            const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
+                            if (headerDurationEl) {
+                                headerDurationEl.textContent = formatDuration(seekableDuration);
+                                console.log(`Firefox: Updated header duration from seekable range to ${formatDuration(seekableDuration)} for ${voiceNoteId}`);
+                            }
+                        }
                     }
                 }
                 
-                // Update progress with detected or fallback duration
-                const effectiveDuration = actualDuration || audio.duration || voiceNote.duration || 0;
+                // Update progress with best available duration
+                let effectiveDuration = actualDuration || 5; // Use detected duration or 5s fallback
+                
                 updateAudioProgress(voiceNoteId, audio.currentTime, effectiveDuration);
             };
             
@@ -588,8 +621,9 @@
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
         
-        // Get actual audio duration from blob - simplified version for WebM Infinity handling
+        // Get actual audio duration from blob - UPDATED VERSION FOR REAL DURATION DETECTION
         async function getAudioDuration(audioBlob) {
+            console.log('🔧 USING NEW DURATION DETECTION FUNCTION - v2.01.4');
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
                     console.log('getAudioDuration: Invalid audioBlob');
@@ -602,23 +636,37 @@
                 const url = URL.createObjectURL(audioBlob);
                 let resolved = false;
                 
-                // Simple approach: Just try to play the audio and get its duration
-                audio.oncanplay = () => {
-                    console.log(`getAudioDuration: canplay event - duration is ${audio.duration}`);
+                // Try multiple events to get duration
+                const attemptDurationDetection = () => {
+                    console.log(`getAudioDuration: Checking - duration: ${audio.duration}, seekable: ${audio.seekable.length}`);
                     if (!resolved) {
-                        if (audio.duration === Infinity) {
-                            console.log('getAudioDuration: WebM Infinity detected, returning 5 seconds as fallback');
-                            resolved = true;
-                            URL.revokeObjectURL(url);
-                            resolve(5); // Default 5 seconds for WebM with Infinity duration
-                        } else if (isFinite(audio.duration) && audio.duration > 0) {
+                        if (isFinite(audio.duration) && audio.duration > 0) {
                             console.log(`getAudioDuration: Valid duration detected: ${audio.duration}s`);
                             resolved = true;
                             URL.revokeObjectURL(url);
                             resolve(audio.duration);
+                        } else if (audio.seekable && audio.seekable.length > 0) {
+                            try {
+                                const seekableDuration = audio.seekable.end(0);
+                                console.log(`getAudioDuration: Raw seekable duration: ${seekableDuration}, finite: ${isFinite(seekableDuration)}`);
+                                if (isFinite(seekableDuration) && seekableDuration > 0) {
+                                    console.log(`getAudioDuration: ✅ Duration from seekable range: ${seekableDuration}s`);
+                                    resolved = true;
+                                    URL.revokeObjectURL(url);
+                                    resolve(seekableDuration);
+                                } else {
+                                    console.log(`getAudioDuration: ❌ Seekable duration invalid: ${seekableDuration}`);
+                                }
+                            } catch (e) {
+                                console.log(`getAudioDuration: ❌ Error getting seekable duration: ${e.message}`);
+                            }
                         }
                     }
                 };
+                
+                audio.oncanplay = attemptDurationDetection;
+                audio.oncanplaythrough = attemptDurationDetection;
+                audio.onloadeddata = attemptDurationDetection;
                 
                 // Timeout fallback after 3 seconds
                 setTimeout(() => {
@@ -639,10 +687,26 @@
                     }
                 };
                 
-                // Load the audio
+                // Load the audio and try playing briefly to force metadata
                 audio.preload = 'metadata';
                 audio.src = url;
                 audio.load();
+                
+                // Try playing very briefly to force duration detection
+                setTimeout(() => {
+                    if (!resolved) {
+                        console.log('getAudioDuration: Trying brief play to detect duration');
+                        audio.currentTime = 0;
+                        audio.play().then(() => {
+                            setTimeout(() => {
+                                audio.pause();
+                                attemptDurationDetection();
+                            }, 100);
+                        }).catch(() => {
+                            console.log('getAudioDuration: Brief play failed, continuing with other methods');
+                        });
+                    }
+                }, 500);
             });
         }
         
@@ -729,7 +793,8 @@
         
         // Throttle progress updates to prevent excessive DOM manipulation
         let lastProgressUpdate = 0;
-        const PROGRESS_UPDATE_THROTTLE = 50; // ms - reduced for smoother updates
+        const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+        const PROGRESS_UPDATE_THROTTLE = isFirefox ? 0 : 50; // ms - disable throttling for Firefox
         
         // Display voice notes (Updated for Event Delegation)
         async function displayVoiceNotes() {
@@ -894,8 +959,58 @@
             if (progressFill) {
                 // Extra safety check to prevent division by zero and invalid values
                 const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
-                const progress = Math.max(0, Math.min(100, (safeCurrentTime / duration) * 100));
-                progressFill.style.width = `${progress}%`;
+                const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
+                
+                if (isFirefox) {
+                    // Firefox: Use transform instead of width for better rendering
+                    console.log(`Firefox progress update: ${(progressRatio * 100).toFixed(1)}%`);
+                    progressFill.style.transition = 'none';
+                    progressFill.style.width = '100%';
+                    progressFill.style.transform = `scaleX(${progressRatio})`;
+                    progressFill.style.transformOrigin = 'left';
+                } else {
+                    // Chrome: Use width (original method)
+                    progressFill.style.transition = 'none';
+                    progressFill.style.width = `${progressRatio * 100}%`;
+                    progressFill.style.transform = 'none';
+                }
+                
+                // Force a reflow
+                progressFill.offsetHeight;
+            }
+            
+            if (currentTimeEl) {
+                const formattedTime = formatDuration(Math.max(0, currentTime));
+                currentTimeEl.textContent = formattedTime;
+            }
+        }
+        
+        // Update progress with smooth transition for manual seeking
+        function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
+            if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
+                return;
+            }
+            
+            const progressFill = document.getElementById(`progress-fill-${voiceNoteId}`);
+            const currentTimeEl = document.getElementById(`time-current-${voiceNoteId}`);
+            
+            if (progressFill) {
+                // Extra safety check to prevent division by zero and invalid values
+                const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
+                const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
+                
+                if (isFirefox) {
+                    // Firefox: Use transform with transition for smooth seeking
+                    progressFill.style.width = '100%';
+                    progressFill.style.transition = 'transform 0.1s linear';
+                    progressFill.style.transform = `scaleX(${progressRatio})`;
+                    progressFill.style.transformOrigin = 'left';
+                } else {
+                    // Chrome: Use width with transition (original method)
+                    progressFill.style.transition = 'width 0.1s linear';
+                    progressFill.style.width = `${progressRatio * 100}%`;
+                    progressFill.style.transform = 'none';
+                }
             }
             
             if (currentTimeEl) {
@@ -930,8 +1045,8 @@
                 const seekTime = seekPercentage * currentPlayingAudio.duration;
                 currentPlayingAudio.currentTime = seekTime;
                 
-                // Update progress immediately for responsive feedback
-                updateAudioProgress(voiceNoteId, seekTime, currentPlayingAudio.duration);
+                // Update progress immediately for responsive feedback with smooth transition
+                updateAudioProgressWithTransition(voiceNoteId, seekTime, currentPlayingAudio.duration);
             } else {
                 // If not playing, load audio but keep it paused at the seek position
                 try {
@@ -966,8 +1081,8 @@
                                 const seekTime = seekPercentage * effectiveDuration;
                                 audio.currentTime = seekTime;
                                 
-                                // Update progress bar to show seek position
-                                updateAudioProgress(voiceNoteId, seekTime, effectiveDuration);
+                                // Update progress bar to show seek position with smooth transition
+                                updateAudioProgressWithTransition(voiceNoteId, seekTime, effectiveDuration);
                                 
                                 console.log(`Seeked to ${formatDuration(seekTime)} (paused) in voice note ${voiceNoteId}`);
                             }
