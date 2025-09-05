@@ -1,9 +1,15 @@
-        /* === DREAM JOURNAL OPTIMIZED CSS === */
-        /* HSL Theme System + Utility Classes */
-        /* === OPTIMIZED HSL THEME SYSTEM === */
+        /* ================================ */
+        /* DREAM JOURNAL CSS ARCHITECTURE   */
+        /* ================================ */
+        /* Modern HSL-based theme system with comprehensive utility classes and responsive design */
+        /* Last Updated: 2025-01-15 */
         
+        /* ================================ */
+        /* CSS CUSTOM PROPERTIES SYSTEM     */
+        /* ================================ */
+
         :root {
-            /* Static values that don't change between themes */
+            /* Static design tokens - consistent across all themes */
             --border-radius: 8px;
             --border-radius-lg: 12px;
             --border-radius-xl: 15px;
@@ -11,44 +17,48 @@
             --font-weight-semibold: 600;
             --transition: all 0.3s ease;
             
-            /* === COLOR BASE SYSTEM (HSL) === */
-            /* Core color families - hue & saturation never change */
-            --primary-h: 238;    --primary-s: 84%;
-            --success-h: 158;    --success-s: 64%;
-            --error-h: 0;        --error-s: 84%;
-            --warning-h: 32;     --warning-s: 95%;
-            --info-h: 199;       --info-s: 89%;
+            /* HSL Color Foundation - Hue and Saturation values (never change between themes) */
+            /* Only lightness values change for light/dark theme switching */
+            --primary-h: 238;    --primary-s: 84%;    /* Deep blue for primary actions */
+            --success-h: 158;    --success-s: 64%;    /* Green for success states */
+            --error-h: 0;        --error-s: 84%;      /* Red for error states */
+            --warning-h: 32;     --warning-s: 95%;    /* Orange/yellow for warnings */
+            --info-h: 199;       --info-s: 89%;       /* Light blue for informational states */
             
-            /* Neutral grays */
-            --neutral-h: 222;    --neutral-s: 47%;
-            --slate-h: 215;      --slate-s: 20%;
-            --gray-h: 220;       --gray-s: 13%;
+            /* Neutral color families for backgrounds and text */
+            --neutral-h: 222;    --neutral-s: 47%;    /* Primary neutral base */
+            --slate-h: 215;      --slate-s: 20%;      /* Secondary neutral base */
+            --gray-h: 220;       --gray-s: 13%;       /* Tertiary neutral base */
             
-            /* === LIGHT THEME LIGHTNESS VALUES === */
-            /* Backgrounds */
-            --bg-primary-l: 100%;      --bg-secondary-l: 100%;
-            --bg-elevated-l: 100%;     --bg-input-l: 100%;
-            --bg-hover-l: 98%;         --bg-subtle-l: 95%;
-            --bg-light-l: 98%;         --bg-disabled-l: 99%;
-            --bg-selected-l: 97%;
+            /* ================================ */
+            /* LIGHT THEME LIGHTNESS VALUES    */
+            /* ================================ */
+            /* All lightness percentages for light theme appearance */
             
-            /* Text */
-            --text-primary-l: 11%;     --text-secondary-l: 38%;
-            --text-tertiary-l: 42%;    --text-muted-l: 64%;
-            --text-inverse-l: 100%;    --text-disabled-l: 42%;
+            /* Background hierarchy - from lightest to darker */
+            --bg-primary-l: 100%;      --bg-secondary-l: 100%;      /* Pure white backgrounds */
+            --bg-elevated-l: 100%;     --bg-input-l: 100%;          /* Form and elevated surfaces */
+            --bg-hover-l: 98%;         --bg-subtle-l: 95%;          /* Hover and subtle backgrounds */
+            --bg-light-l: 98%;         --bg-disabled-l: 99%;        /* Light and disabled states */
+            --bg-selected-l: 97%;      /* Selected state backgrounds */
             
-            /* Borders */
-            --border-light-l: 95%;     --border-color-l: 88%;
-            --border-dark-l: 82%;      --border-hover-l: 82%;
+            /* Text hierarchy - from darkest to lightest */
+            --text-primary-l: 11%;     --text-secondary-l: 38%;     /* Primary and secondary text */
+            --text-tertiary-l: 42%;    --text-muted-l: 64%;         /* Tertiary and muted text */
+            --text-inverse-l: 100%;    --text-disabled-l: 42%;      /* Inverse and disabled text */
             
-            /* Semantic colors - consistent lightness */
-            --primary-l: 59%;          --primary-hover-l: 52%;
-            --success-l: 30%;          --success-hover-l: 26%;
-            --error-l: 51%;            --error-hover-l: 44%;
-            --warning-l: 44%;          --info-l: 39%;
-            --secondary-l: 46%;        --secondary-hover-l: 35%;
+            /* Border system - from lightest to darkest */
+            --border-light-l: 95%;     --border-color-l: 88%;       /* Light and standard borders */
+            --border-dark-l: 82%;      --border-hover-l: 82%;       /* Dark and hover borders */
             
-            /* Component specific */
+            /* Semantic color lightness values */
+            --primary-l: 59%;          --primary-hover-l: 52%;      /* Primary action colors */
+            --success-l: 30%;          --success-hover-l: 26%;      /* Success state colors */
+            --error-l: 51%;            --error-hover-l: 44%;        /* Error state colors */
+            --warning-l: 44%;          --info-l: 39%;               /* Warning and info colors */
+            --secondary-l: 46%;        --secondary-hover-l: 35%;    /* Secondary action colors */
+            
+            /* Component-specific lightness values */
             --shadow-opacity: 0.1;     --modal-backdrop-opacity: 0.9;
             --voice-bg-l: 97%;         --voice-border-l: 86%;       --voice-text-l: 39%;
             --tag-bg-l: 97%;           --tag-text-l: 39%;           --tag-border-l: 86%;
@@ -57,21 +67,26 @@
             --notification-warning-l: 95%; --notification-info-l: 97%;
         }
         
-        /* === UTILITY CLASS SYSTEM === */
-        /* Layout & Structure */
+        /* ================================ */
+        /* UTILITY CLASS SYSTEM            */
+        /* ================================ */
+        /* Reusable utility classes for consistent styling and rapid development */
+        
+        /* Card component base classes */
         .card { background: var(--bg-secondary); border: 2px solid var(--border-color); }
         .card-elevated { background: var(--bg-elevated); border: 2px solid var(--border-color); }
-        .card-lg { border-radius: var(--border-radius-xl); padding: 40px; }
+        .card-lg { border-radius: var(--border-radius-xl); padding: 40px; }       /* TODO: Consider making padding responsive */
         .card-md { border-radius: var(--border-radius-lg); padding: 20px; }
         .card-sm { border-radius: var(--border-radius); padding: 15px; }
         
-        /* Flexbox utilities */
+        /* Flexbox layout utilities */
         .flex-center { display: flex; align-items: center; justify-content: center; }
         .flex-between { display: flex; align-items: center; justify-content: space-between; }
         .flex-col { display: flex; flex-direction: column; }
         .flex-wrap { flex-wrap: wrap; }
         
-        /* Spacing system */
+        /* Spacing system utilities */
+        /* TODO: Consider adding more gap sizes for better spacing control */
         .gap-xs { gap: 5px; } .gap-sm { gap: 8px; } .gap-md { gap: 15px; } .gap-lg { gap: 20px; }
         .p-sm { padding: 8px; } .p-md { padding: 15px; } .p-lg { padding: 20px; } .p-xl { padding: 40px; }
         .mb-sm { margin-bottom: 10px; } .mb-md { margin-bottom: 15px; } .mb-lg { margin-bottom: 20px; }
@@ -80,6 +95,7 @@
         
         /* Typography utilities */
         .text-center { text-align: center; } .text-left { text-align: left; }
+        /* TODO: Consider using rem units instead of em for more predictable sizing */
         .text-sm { font-size: 0.9em; } .text-base { font-size: 1em; } .text-lg { font-size: 1.2em; } 
         .text-xl { font-size: 1.6em; } .text-2xl { font-size: 1.8em; } .text-4xl { font-size: 4em; }
         .font-normal { font-weight: normal; } .font-semibold { font-weight: var(--font-weight-semibold); }
@@ -87,8 +103,8 @@
         .text-warning { color: var(--warning-color); }
         .line-height-relaxed { line-height: 1.5; } .line-height-loose { line-height: 1.6; }
         
-        /* Width utilities */
-        .w-full { width: 100%; } .max-w-sm { max-width: 400px; }
+        /* Width and sizing utilities */
+        .w-full { width: 100%; } .max-w-sm { max-width: 400px; }    /* TODO: Add max-width variables */
         
         /* Message utilities */
         .message-base { padding: 15px; border-radius: var(--border-radius); margin-bottom: 20px; 
@@ -200,11 +216,11 @@
         
         /* Voice button variants */
         .voice-btn-play { background: var(--info-color); color: var(--text-inverse); }
-        .voice-btn-play:hover { background: #0284c7; }
+        .voice-btn-play:hover { background: #0284c7; }                        /* TODO: Replace with CSS custom property */
         .voice-btn-pause { background: var(--warning-color); color: var(--text-inverse); }
-        .voice-btn-pause:hover { background: #d97706; }
-        .voice-btn-transcribe { background: #7c3aed; color: var(--text-inverse); }
-        .voice-btn-transcribe:hover { background: #6d28d9; }
+        .voice-btn-pause:hover { background: #d97706; }                     /* TODO: Replace with CSS custom property */
+        .voice-btn-transcribe { background: #7c3aed; color: var(--text-inverse); }    /* TODO: Add purple color to theme system */
+        .voice-btn-transcribe:hover { background: #6d28d9; }                /* TODO: Add purple hover to theme system */
         .voice-btn-transcribe:disabled { background: var(--text-muted); cursor: not-allowed; }
         .voice-btn-download { background: var(--success-color); color: var(--text-inverse); }
         .voice-btn-download:hover { background: var(--success-hover); }
@@ -575,17 +591,17 @@
         .search-loading {
             padding: 20px;
             text-align: center;
-            color: #64748b;
+            color: #64748b;                 /* TODO: Replace with var(--text-secondary) */
             font-style: italic;
-            background: #f8fafc;
-            border-radius: 8px;
+            background: #f8fafc;           /* TODO: Replace with var(--bg-light) */
+            border-radius: 8px;            /* TODO: Replace with var(--border-radius) */
             margin: 10px 0;
         }
         
         .loading-dreams {
             padding: 40px;
             text-align: center;
-            color: #64748b;
+            color: #64748b;                 /* TODO: Replace with var(--text-secondary) */
         }
         .loading-dreams div:first-child {
             font-size: 2em;
@@ -716,11 +732,12 @@
         }
         
         /* Dark theme specific button hover fixes */
+        /* TODO: Consider integrating these into the main theme system to avoid separate overrides */
         [data-theme='dark'] .btn-secondary {
             color: var(--text-inverse);
         }
         [data-theme='dark'] .btn-secondary:hover {
-            background: #64748b;
+            background: #64748b;           /* TODO: Replace with CSS custom property */
         }
         
         .btn-success {
@@ -959,9 +976,10 @@
         }
         
         /* Dark Theme Lucid Dreams - More prominent override */
+        /* TODO: Consider restructuring to avoid !important usage */
         [data-theme='dark'] .entry.lucid {
             border-color: var(--success-color) !important;
-            background: linear-gradient(135deg, #0f2e1a, var(--bg-secondary)) !important;
+            background: linear-gradient(135deg, #0f2e1a, var(--bg-secondary)) !important;   /* TODO: Add dark theme gradient to CSS variables */
             position: relative;
         }
         
@@ -1057,8 +1075,7 @@
             background: var(--notification-warning-bg);
             border-color: var(--warning-color) !important;
         }
-        /* STYLES FOR .edit-mode HAVE BEEN REMOVED AND CONSOLIDATED INTO .inline-edit-form */
-        /* This rule is now handled by .inline-edit-form .edit-actions */
+        /* Inline edit form styles managed by .inline-edit-form class below */
         .entry-content {
             color: var(--text-primary);
             line-height: 1.7;
@@ -2103,19 +2120,9 @@
             display: none;
             box-shadow: var(--shadow-md);
         }
-        .autocomplete-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid var(--border-light);
-            font-size: 14px;
-            transition: background-color 0.2s;
-        }
-        .autocomplete-item:hover {
-            background-color: var(--bg-hover);
-        }
-        .autocomplete-item:last-child {
-            border-bottom: none;
-        }
+        
+        /* Autocomplete styles consolidated above - duplicated instance removed */
+        
         .timer-warning {
             background: var(--error-color);
             color: var(--text-inverse);
@@ -2463,9 +2470,12 @@
             border-radius: var(--border-radius);
         }
         
-        /* RESPONSIVE DESIGN & MOBILE OPTIMIZATION */
+        /* ================================ */
+        /* RESPONSIVE DESIGN & MOBILE       */
+        /* ================================ */
+        /* Comprehensive mobile-first responsive design with breakpoint-specific optimizations */
         
-        /* Mobile Responsive Design */
+        /* Mobile Responsive Design (768px and below) */
         @media (max-width: 768px) {
             body {
                 padding: 10px;

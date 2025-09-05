@@ -1,15 +1,29 @@
-    // --- 5.3 Goal Management ---
-    // --- All functions related to goals (init, display, save, calculate) --- //
+// ================================
+// GOALS MANAGEMENT MODULE
+// ================================
+// Complete goal lifecycle management including creation, editing, deletion,
+// progress tracking, pagination, and template-based goal creation system
+//
+// TODO: Create standardized showGoalMessage() function to consolidate 12+ createInlineMessage calls
+// TODO: Extract common pagination calculation patterns to shared utility functions
 
-    // Goal system initialization
+// ================================
+// 1. GOALS SYSTEM INITIALIZATION
+// ================================
+
+    // Initialize goals system by loading goals from storage and displaying them
     async function initGoals() {
         allGoals = await loadGoals();
         if (document.getElementById('goalsTab')) {
             await displayGoals();
         }
     }
-    
-    // Display goals in the goals tab
+
+// ================================
+// 2. GOALS DISPLAY SYSTEM
+// ================================
+
+    // Display goals with pagination, filtering active/completed goals
     async function displayGoals() {
         const activeContainer = document.getElementById('activeGoalsContainer');
         const completedContainer = document.getElementById('completedGoalsContainer');
@@ -83,7 +97,11 @@
         }
     }
 
-    // Change active goals page
+// ================================
+// 3. PAGINATION MANAGEMENT SYSTEM
+// ================================
+
+    // Navigate to specific page in active goals with boundary validation
     function changeActiveGoalsPage(page) {
         if (page < 1) return;
         const activeGoals = allGoals.filter(goal => goal.status === 'active');
@@ -94,7 +112,7 @@
         displayGoals();
     }
     
-    // Change completed goals page
+    // Navigate to specific page in completed goals with boundary validation
     function changeCompletedGoalsPage(page) {
         if (page < 1) return;
         const completedGoals = allGoals.filter(goal => goal.status === 'completed');
@@ -104,8 +122,12 @@
         completedGoalsPage = page;
         displayGoals();
     }
-    
-    // Get clean label for goal type
+
+// ================================
+// 4. GOAL DISPLAY HELPER FUNCTIONS
+// ================================
+
+    // Get human-readable label for goal type for display purposes
     function getGoalTypeLabel(type) {
         const labels = {
             'lucid_count': 'lucid dreams',
@@ -117,7 +139,8 @@
         return labels[type] || '';
     }
     
-    // Create goal HTML element
+    // Create complete HTML element for goal display with progress bars and action buttons
+    // TODO: Split into buildGoalData() and renderGoalHTML() functions
     function createGoalElement(goal, progress, isCompleted = false) {
         const goalDiv = document.createElement('div');
         goalDiv.className = `card-md goal-card mb-md ${isCompleted ? 'completed' : ''}`;
@@ -169,8 +192,12 @@
         
         return goalDiv;
     }
-    
-    // Calculate goal progress based on dream data
+
+// ================================
+// 5. PROGRESS CALCULATION SYSTEM
+// ================================
+
+    // Calculate current progress for goal based on type and dream data analysis
     async function calculateGoalProgress(goal) {
         const dreams = await loadDreams();
         const now = new Date();
@@ -203,6 +230,7 @@
             case 'dream_signs_count':
                 const dreamSigns = new Set();
                 dreams.forEach(dream => {
+                    // TODO: Extract dream signs processing logic to parseAndNormalizeDreamSigns() utility function
                     if (dream.dreamSigns && typeof dream.dreamSigns === 'string') {
                         const signs = dream.dreamSigns.split(',').map(s => s.trim().toLowerCase());
                         signs.forEach(sign => {
@@ -230,7 +258,12 @@
         return { current, message };
     }
 
-    // Show create goal dialog
+// ================================
+// 6. GOAL CREATION & TEMPLATE SYSTEM
+// ================================
+
+    // Display modal dialog for creating new goals with optional template pre-population
+    // TODO: Split into buildGoalFormHTML() and showGoalDialog() functions
     function showCreateGoalDialog(template = null) {
         console.log('showCreateGoalDialog called with template:', template);
         
@@ -288,17 +321,23 @@
         document.getElementById('goalTitle').focus();
     }
     
-    // Create goal from template
+    // Create goal from predefined template with pre-filled values
     function createTemplateGoal(templateKey) {
         if (GOAL_TEMPLATES[templateKey]) {
             showCreateGoalDialog(templateKey);
         }
     }
-    
-    // Save goal
+
+// ================================
+// 7. GOAL CRUD OPERATIONS
+// ================================
+
+    // Save new goal or update existing goal with validation and error handling
+    // TODO: Split into validateGoalForm(), createNewGoal(), and updateExistingGoal() functions
     async function saveGoal() {
         console.log('saveGoal function called');
         
+        // TODO: Extract data integrity checking to validateGoalsDataIntegrity() utility function
         // Defensive check - ensure allGoals is still an array
         if (!Array.isArray(allGoals)) {
             console.warn('allGoals is not an array, reloading from storage');
@@ -365,6 +404,7 @@
                 await saveGoals(allGoals);
                 await displayGoals();
                 cancelGoalDialog();
+                // TODO: Replace with standardized showGoalMessage('success', 'Goal updated successfully!')
                 createInlineMessage('success', 'Goal updated successfully!', {
                     container: document.body,
                     position: 'top',
@@ -399,6 +439,7 @@
                 console.log('Goals display updated');
                 
                 cancelGoalDialog();
+                // TODO: Replace with standardized showGoalMessage('success', 'Goal created successfully!')
                 createInlineMessage('success', 'Goal created successfully!', {
                     container: document.body,
                     position: 'top',
@@ -415,7 +456,7 @@
         }
     }
     
-    // Edit goal
+    // Load existing goal data into edit form with dialog configuration
     function editGoal(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal) return;
@@ -423,6 +464,7 @@
         window.editingGoalId = goalId; // Store ID for save function
         showCreateGoalDialog();
         
+        // TODO: Extract form population to populateGoalEditForm() function
         // Fill current values
         setTimeout(() => {
             document.getElementById('goalTitle').value = goal.title;
@@ -441,7 +483,7 @@
         }, 10);
     }
     
-    // Complete goal
+    // Mark goal as completed with timestamp and display celebration message
     async function completeGoal(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal) return;
@@ -451,6 +493,7 @@
         
         await saveGoals(allGoals);
         await displayGoals();
+        // TODO: Replace with standardized showGoalMessage('celebration', goal.title)
         createInlineMessage('success', `🎉 Congratulations! Goal "${goal.title}" completed!`, {
             container: document.body,
             position: 'top',
@@ -458,7 +501,7 @@
         });
     }
     
-    // Reactivate goal (move back to active from completed)
+    // Reactivate completed goal back to active status with pagination adjustment
     async function reactivateGoal(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal || goal.status !== 'completed') return;
@@ -471,6 +514,7 @@
         try {
             await saveGoals(allGoals);
             
+            // TODO: Extract pagination adjustment logic to adjustPaginationAfterStatusChange() function
             // Check if we need to adjust pagination after reactivation
             const remainingCompleted = allGoals.filter(g => g.status === 'completed');
             const completedTotalPages = Math.ceil(remainingCompleted.length / GOALS_PER_PAGE);
@@ -479,6 +523,7 @@
             }
             
             await displayGoals();
+            // TODO: Replace with standardized showGoalMessage('reactivated', goal.title)
             createInlineMessage('success', `🔄 Goal "${goal.title}" reactivated!`, {
                 container: document.body,
                 position: 'top',
@@ -494,7 +539,7 @@
         }
     }
     
-    // Delete goal
+    // Initiate goal deletion with confirmation dialog
     function deleteGoal(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal) return;
@@ -502,7 +547,7 @@
         showDeleteGoalConfirmation(goal);
     }
     
-    // Show delete confirmation
+    // Display confirmation dialog for goal deletion with safety measures
     function showDeleteGoalConfirmation(goal) {
         const dialog = document.createElement('div');
         dialog.className = 'pin-overlay';
@@ -522,12 +567,13 @@
         document.body.appendChild(dialog);
     }
     
-    // Confirm delete goal
+    // Execute confirmed goal deletion from storage with cleanup
     async function confirmDeleteGoal(goalId) {
         allGoals = allGoals.filter(g => g.id !== goalId);
         await saveGoals(allGoals);
         await displayGoals();
         cancelGoalDialog();
+        // TODO: Replace with standardized showGoalMessage('success', 'Goal deleted successfully')
         createInlineMessage('success', 'Goal deleted successfully', {
             container: document.body,
             position: 'top',
@@ -535,7 +581,7 @@
         });
     }
     
-    // Cancel goal dialog
+    // Cancel goal dialog and clean up any editing state
     function cancelGoalDialog() {
         const dialog = document.querySelector('.pin-overlay:not(#pinOverlay)');
         if (dialog) {
@@ -546,8 +592,12 @@
             delete window.editingGoalId;
         }
     }
-    
-    // Increase goal progress (for custom goals)
+
+// ================================
+// 8. CUSTOM GOAL PROGRESS TRACKING
+// ================================
+
+    // Increase progress counter for custom goals with target boundary checking
     async function increaseGoalProgress(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal || goal.type !== 'custom') return;
@@ -581,7 +631,7 @@
         }
     }
     
-    // Decrease goal progress (for custom goals)
+    // Decrease progress counter for custom goals with zero boundary checking
     async function decreaseGoalProgress(goalId) {
         const goal = allGoals.find(g => g.id === goalId);
         if (!goal || goal.type !== 'custom') return;

@@ -1,10 +1,15 @@
-    // --- 5.2 Voice Notes System ---
-    // --- All functions related to voice recording, playback, and storage --- //
+// ================================
+// VOICE NOTES MODULE
+// ================================
+// Complete voice recording system with audio capture, playback, transcription,
+// storage management, and dream entry integration
 
-    // === RECORDING OPERATIONS ===
+// ================================
+// 1. VOICE RECORDING OPERATIONS
+// ================================
     
-    // Start voice recording
-    // MOVED FROM: Main functions area - Voice recording control
+// Initialize and start audio recording with transcription support
+// Handles microphone permissions, storage limits, and speech recognition setup
     async function startRecording() {
         try {
             if (!isVoiceRecordingSupported()) {
@@ -133,8 +138,8 @@
         }
     }
 
-    // Stop voice recording
-    // MOVED FROM: Main functions area - Voice recording control
+// Stop active audio recording and cleanup resources
+// Handles speech recognition cleanup and UI state reset
     function stopRecording() {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
@@ -186,8 +191,7 @@
         // recordingStartTime will be reset in saveRecording() after duration calculation
     }
 
-    // Toggle recording state
-    // MOVED FROM: Main functions area - Voice recording toggle
+// Toggle between recording and stopped states based on current recorder state
     async function toggleRecording() {
         console.log('Toggle recording called'); // Debug log
         if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -197,7 +201,8 @@
         }
     }
 
-    // Save completed recording
+// Process and save completed audio recording with metadata and transcription
+// Handles duration calculation, storage persistence, and user feedback
     async function saveRecording(audioBlob) {
         try {
             if (!audioBlob || audioBlob.size === 0) {
@@ -284,10 +289,12 @@
         }
     }
 
-    // === PLAYBACK & MANAGEMENT ===
-    
-    // Play voice note (Updated for Event Delegation)
-    // MOVED FROM: Main functions area - Voice playback control
+// ================================
+// 2. AUDIO PLAYBACK SYSTEM
+// ================================
+
+// Play stored voice note with progress tracking and duration detection
+// Handles multiple audio formats and browser-specific audio metadata issues
     async function playVoiceNote(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
@@ -410,7 +417,8 @@
             
             // Set up time update listener
             audio.ontimeupdate = () => {
-                if (isFirefox) {
+                const browserInfo = getVoiceCapabilities().browser;
+                if (browserInfo.isFirefox) {
                     console.log(`Firefox ontimeupdate: ${audio.currentTime.toFixed(2)}s / ${audio.duration}s`);
                 }
                 
@@ -444,7 +452,7 @@
                 }
                 
                 // Update header duration display when new duration is detected OR always for Firefox fallback
-                if (needsHeaderUpdate || (isFirefox && actualDuration > 0)) {
+                if (needsHeaderUpdate || (browserInfo.isFirefox && actualDuration > 0)) {
                     const headerDurationEl = document.getElementById(`header-duration-${voiceNoteId}`);
                     if (headerDurationEl) {
                         const displayDuration = actualDuration || voiceNote.duration || 5;
@@ -534,12 +542,13 @@
         }
     }
 
-      // VOICE RECORDING INTERFACE & CONTROLS
+// ================================
+// 3. BROWSER CAPABILITIES & COMPATIBILITY
+// ================================
         
-        // Voice Recording Functions
-        
-        // Enhanced browser detection for voice features
-        function getVoiceCapabilities() {
+// Comprehensive browser capability detection for voice recording and transcription
+// Returns detailed compatibility information for different browsers and platforms
+function getVoiceCapabilities() {
             const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
             const hasMediaRecorder = !!(window.MediaRecorder);
             const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -589,18 +598,23 @@
             };
         }
         
-        // Check if browser supports voice recording
-        function isVoiceRecordingSupported() {
+// Check if current browser supports MediaRecorder API for audio recording
+function isVoiceRecordingSupported() {
             return getVoiceCapabilities().canRecord;
         }
         
-        // Check if speech recognition is supported
-        function isSpeechRecognitionSupported() {
+// Check if current browser supports Speech Recognition API for transcription
+function isSpeechRecognitionSupported() {
             return getVoiceCapabilities().canTranscribe;
         }
         
-        // Enhanced speech recognition with better error handling and permissions
-        async function setupSpeechRecognition() {
+// ================================
+// 4. SPEECH RECOGNITION SYSTEM
+// ================================
+
+// Setup and configure Speech Recognition API with error handling and retry logic
+// Handles secure context requirements, timeouts, and recognition state management
+async function setupSpeechRecognition() {
             if (!isSpeechRecognitionSupported()) return null;
             
             // Check if we're in a secure context (HTTPS required for Speech Recognition)
@@ -787,8 +801,12 @@
             }
         }
         
-        // Format recording duration
-        function formatDuration(seconds) {
+// ================================
+// 5. UTILITY FUNCTIONS
+// ================================
+
+// Format seconds into MM:SS display format with validation
+function formatDuration(seconds) {
             if (!seconds || isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return '0:00';
             const safeSeconds = Math.max(0, Math.floor(seconds));
             const mins = Math.floor(safeSeconds / 60);
@@ -796,9 +814,10 @@
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
         
-        // Get actual audio duration from blob - UPDATED VERSION FOR REAL DURATION DETECTION
-        async function getAudioDuration(audioBlob, storedDuration = null) {
-            console.log('🔧 USING NEW DURATION DETECTION FUNCTION - v2.01.4');
+// TODO: Extract audio metadata detection logic into separate utility function
+// Get accurate audio duration from blob using multiple detection methods
+// Handles browser-specific metadata loading issues and provides fallback durations
+async function getAudioDuration(audioBlob, storedDuration = null) {
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
                     console.log('getAudioDuration: Invalid audioBlob');
@@ -886,8 +905,8 @@
             });
         }
         
-        // Update recording timer
-        function updateRecordingTimer() {
+// Update live recording timer display during active recording
+function updateRecordingTimer() {
             if (!recordingStartTime || !recordingTimer) {
                 // Safety check: if recording should be stopped, clear any lingering timer
                 if (recordingTimer) {
@@ -904,8 +923,8 @@
             }
         }
         
-        // Update voice status message
-        function updateVoiceStatus(message, type = 'info') {
+// Update voice system status message with type-based styling
+function updateVoiceStatus(message, type = 'info') {
             const statusElement = document.getElementById('voiceStatus');
             if (statusElement) {
                 statusElement.textContent = message;
@@ -913,8 +932,10 @@
             }
         }
         
-        // Update record button state
-        async function updateRecordButtonState() {
+// TODO: Split into calculateRecordingCapacity() and updateRecordButtonUI() functions
+// Update recording button state based on storage capacity and browser capabilities
+// Handles storage limits, capability detection, and UI state synchronization
+async function updateRecordButtonState() {
             const recordBtn = document.getElementById('recordBtn');
             const recordIcon = document.getElementById('recordIcon');
             const recordText = document.getElementById('recordText');
@@ -963,17 +984,19 @@
         }
         
 
-        // VOICE NOTES DISPLAY & PLAYBACK CONTROLS
-        
-        // Voice Notes Display and Controls
-        
-        // Throttle progress updates to prevent excessive DOM manipulation
-        let lastProgressUpdate = 0;
-        const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
-        const PROGRESS_UPDATE_THROTTLE = isFirefox ? 0 : 50; // ms - disable throttling for Firefox
-        
-        // Display voice notes (Updated for Event Delegation)
-        async function displayVoiceNotes() {
+// ================================
+// 6. VOICE NOTES DISPLAY SYSTEM
+// ================================
+
+// Throttle progress updates to prevent excessive DOM manipulation
+let lastProgressUpdate = 0;
+// Use centralized browser detection from getVoiceCapabilities
+const PROGRESS_UPDATE_THROTTLE = getVoiceCapabilities().browser.isFirefox ? 0 : 50; // ms - disable throttling for Firefox
+
+// TODO: Split into buildVoiceNotesHTML() and renderVoiceNotesContainer() functions
+// Display all stored voice notes with playback controls and metadata
+// Handles empty states, storage warnings, and asynchronous duration detection
+async function displayVoiceNotes() {
             const container = document.getElementById('voiceNotesContainer');
             if (!container) return;
             
@@ -1094,8 +1117,8 @@
         }
         
         
-        // Pause voice note (Updated for Event Delegation)
-        function pauseVoiceNote(voiceNoteId) {
+// Pause currently playing voice note and update UI controls
+function pauseVoiceNote(voiceNoteId) {
             if (currentPlayingAudio) {
                 try {
                     currentPlayingAudio.pause();
@@ -1118,8 +1141,8 @@
             // Progress container stays visible
         }
         
-        // Update audio progress bar and time displays
-        function updateAudioProgress(voiceNoteId, currentTime, duration) {
+// Update audio progress bar and time displays with throttling for performance
+function updateAudioProgress(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
             }
@@ -1137,7 +1160,8 @@
                 const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
                 const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
                 
-                if (isFirefox) {
+                const browserInfo = getVoiceCapabilities().browser;
+                if (browserInfo.isFirefox) {
                     // Firefox: Use transform instead of width for better rendering
                     console.log(`Firefox progress update: ${(progressRatio * 100).toFixed(1)}%`);
                     progressFill.style.transition = 'none';
@@ -1161,8 +1185,8 @@
             }
         }
         
-        // Update progress with smooth transition for manual seeking
-        function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
+// Update progress bar with smooth CSS transitions for manual seeking operations
+function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
             }
@@ -1175,7 +1199,8 @@
                 const safeCurrentTime = Math.max(0, Math.min(currentTime, duration));
                 const progressRatio = Math.max(0, Math.min(1, safeCurrentTime / duration));
                 
-                if (isFirefox) {
+                const browserInfo = getVoiceCapabilities().browser;
+                if (browserInfo.isFirefox) {
                     // Firefox: Use transform with transition for smooth seeking
                     progressFill.style.width = '100%';
                     progressFill.style.transition = 'transform 0.1s linear';
@@ -1195,11 +1220,17 @@
             }
         }
         
-        // Store audio elements for seeking when paused
-        let audioElements = {};
-        
-        // Seek to specific position in audio
-        async function seekAudio(voiceNoteId, event) {
+// ================================
+// 7. AUDIO SEEKING SYSTEM
+// ================================
+
+// Store audio elements for seeking when paused
+let audioElements = {};
+
+// TODO: Extract seekPercentageCalculation() and audioElementManagement() functions
+// Seek to specific position in audio based on progress bar click
+// Handles both playing and paused states with proper audio element caching
+async function seekAudio(voiceNoteId, event) {
             if (!event) return;
             
             const progressBar = document.getElementById(`progress-bar-${voiceNoteId}`);
@@ -1279,8 +1310,12 @@
             }
         }
         
-        // Download voice note
-        async function downloadVoiceNote(voiceNoteId) {
+// ================================
+// 8. FILE MANAGEMENT OPERATIONS
+// ================================
+
+// Download voice note as audio file with timestamp-based filename
+async function downloadVoiceNote(voiceNoteId) {
             try {
                 const voiceNotes = await loadVoiceNotes();
                 const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
@@ -1321,8 +1356,8 @@
             }
         }
         
-        // Show delete confirmation for voice note
-        function deleteVoiceNote(voiceNoteId) {
+// Show delete confirmation UI with timeout for safety
+function deleteVoiceNote(voiceNoteId) {
             // Clear any existing timeout for this voice note
             if (voiceDeleteTimeouts[voiceNoteId]) {
                 clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
@@ -1347,8 +1382,8 @@
             }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
         }
 
-        // Actually delete the voice note after confirmation (with mutex protection)
-        async function confirmDeleteVoiceNote(voiceNoteId) {
+// Execute confirmed voice note deletion with mutex protection for data consistency
+async function confirmDeleteVoiceNote(voiceNoteId) {
         return withMutex('voiceOperations', async () => {
             try {
                 // Clear the timeout
@@ -1392,8 +1427,8 @@
         });
     }
 
-        // Cancel voice note delete and revert to normal state
-        function cancelDeleteVoiceNote(voiceNoteId) {
+// Cancel voice note deletion and restore original UI state
+function cancelDeleteVoiceNote(voiceNoteId) {
             // Clear the timeout
             if (voiceDeleteTimeouts[voiceNoteId]) {
                 clearTimeout(voiceDeleteTimeouts[voiceNoteId]);
@@ -1413,12 +1448,13 @@
             }
         }
 
-    // VOICE RECORDING & TRANSCRIPTION SYSTEM
-    
-    // Create dream entry from transcribed voice note
-    // Create dream entry from transcribed voice note
-    // Transcribe voice note (create dream entry if transcription exists)
-    async function transcribeVoiceNote(voiceNoteId) {
+// ================================
+// 9. TRANSCRIPTION & DREAM INTEGRATION
+// ================================
+
+// Process voice note transcription and create dream entry if available
+// Handles both existing transcriptions and provides guidance for future recordings
+async function transcribeVoiceNote(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
             const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
@@ -1459,7 +1495,10 @@
             updateVoiceStatus('Failed to process transcription', 'error');
         }
     }
-    async function createDreamFromTranscription(voiceNoteId) {
+// TODO: Extract formFieldsPopulation() and dreamFormNavigation() functions
+// Create new dream entry from voice note transcription text
+// Handles form population, field clearing, and user interface navigation
+async function createDreamFromTranscription(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
             const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);

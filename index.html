@@ -1,5 +1,5 @@
 <!-- 
-Dream Journal v2.01.16 - A privacy-focused dream tracking application
+Dream Journal - A privacy-focused dream tracking application
 Copyright (C) 2025 Dream Journal Contributors
 
 This program is free software: you can redistribute it and/or modify
@@ -15,246 +15,398 @@ GNU Affero General Public License for more details.
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Basic document metadata and viewport configuration -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
+    
+    <!-- Main stylesheet for application styling and themes -->
     <link rel="stylesheet" href="dream-journal.css">
-        <script>
+    
+    <!-- Inline theme initialization script to prevent flash of unstyled content -->
+    <script>
         (function() {
             try {
-            var theme = localStorage.getItem('dreamJournalTheme') || 'dark';
-            document.documentElement.setAttribute('data-theme', theme);
-            } catch (e) {}
+                // Load saved theme preference or default to dark theme
+                var theme = localStorage.getItem('dreamJournalTheme') || 'dark';
+                // Apply theme immediately to document root for CSS custom properties
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                // Silently handle localStorage access errors (e.g., private browsing)
+            }
         })();
-        </script>
+    </script>
 </head>
 <body>
-    <!-- MAIN APPLICATION STRUCTURE -->
+    <!-- ================================ -->
+    <!-- MAIN APPLICATION STRUCTURE       -->
+    <!-- ================================ -->
     
+    <!-- Main application container - Initially hidden until initialization completes -->
     <div class="container" style="visibility: hidden;">
+        
+        <!-- PIN Reset Timer Warning Banner - Shows when PIN reset timer is active -->
         <div class="timer-warning" id="timerWarning">
             ⚠️ <strong>PIN RESET TIMER ACTIVE</strong> - Someone has initiated a PIN reset!
             <span id="timerWarningTime"></span>
             <button data-action="cancel-timer">Cancel Timer</button>
         </div>
         
+        <!-- Data Migration Notice - Shows during IndexedDB migration process -->
         <div id="migrationNotice" class="migration-notice">
             📦 Migrating your dreams to improved storage...
         </div>
         
+        <!-- Application Header - Logo and tagline -->
         <div class="header">
             <h1>🌙 Dream Journal</h1>
             <p>Capture your dreams and discover patterns for lucid dreaming</p>
         </div>
         
-        <!-- Main App Tabs Navigation -->
+        <!-- ================================ -->
+        <!-- MAIN APPLICATION TABS NAVIGATION -->
+        <!-- ================================ -->
         <div class="app-tabs">
+            <!-- Journal Tab - Main dream entry and viewing interface (default active) -->
             <button class="app-tab active" data-action="switch-app-tab" data-tab="journal">
                 📝 Journal
             </button>
+            
+            <!-- Goals Tab - Lucid dreaming goals and progress tracking -->
             <button class="app-tab" data-action="switch-app-tab" data-tab="goals">
                 🎯 Goals
             </button>
+            
+            <!-- Statistics Tab - Analytics, calendar view, and dream insights -->
             <button class="app-tab" data-action="switch-app-tab" data-tab="stats">
                 📊 Stats
             </button>
+            
+            <!-- Advice Tab - Daily tips and lucid dreaming guidance -->
             <button class="app-tab" data-action="switch-app-tab" data-tab="advice">
                 💡 Advice
             </button>
+            
+            <!-- Settings Tab - App configuration, theme, PIN setup, import/export -->
             <button class="app-tab" data-action="switch-app-tab" data-tab="settings">
                 ⚙️ Settings
             </button>
+            
+            <!-- Lock Tab - Security lock screen (hidden by default, shown when app is locked) -->
             <button class="app-tab" data-action="switch-app-tab" data-tab="lock" style="display: none;">
                 🔒 Locked
             </button>
         </div>
         
-        <!-- Tab Content Container -->
+        <!-- ================================ -->
+        <!-- TAB CONTENT CONTAINER            -->
+        <!-- ================================ -->
         <div class="tab-content-container">
-            <!-- Journal Tab (All existing functionality) -->
+            
+            <!-- ================================ -->
+            <!-- JOURNAL TAB - DREAM ENTRY FORM  -->
+            <!-- ================================ -->
             <div id="journalTab" class="tab-panel">
-        <div class="main-content">
-            <div class="entry-form" id="dreamFormFull">
-                <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
-                    🌙 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
-                </h3>
-                <div class="form-group">
-                    <label for="dreamDate">Dream Date & Time</label>
-                    <input type="datetime-local" id="dreamDate" class="form-control">
-                </div>
-                <div class="lucid-checkbox">
-                    <input type="checkbox" id="isLucid">
-                    <label for="isLucid">This was a lucid dream ✨</label>
-                </div>
-                <div class="form-group">
-                    <label for="dreamTitle">Dream Title (optional)</label>
-                    <input type="text" id="dreamTitle" class="form-control" placeholder="Give your dream a memorable title...">
-                </div>
-                <div class="form-group">
-                    <label for="dreamContent">Dream Description</label>
-                    <textarea id="dreamContent" class="form-control" placeholder="Describe your dream in as much detail as you can remember..." required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="dreamEmotions">Emotions Experienced (optional)</label>
-                    <input type="text" id="dreamEmotions" class="form-control" placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
-                    <small class="small-helper">
-                        Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label for="dreamTags">Tags & Themes (optional)</label>
-                    <div class="tag-input-group">
-                        <input type="text" id="dreamTags" class="form-control" placeholder="e.g., family, flying, school, animals (separate with commas)">
+                <div class="main-content">
+                    
+                    <!-- ================================ -->
+                    <!-- DREAM ENTRY FORM (EXPANDED)     -->
+                    <!-- ================================ -->
+                    <div class="entry-form" id="dreamFormFull">
+                        <!-- Collapsible form header with toggle functionality -->
+                        <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
+                            🌙 Record Your Dream 
+                            <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
+                        </h3>
+                        
+                        <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
+                        <div class="form-group">
+                            <label for="dreamDate">Dream Date & Time</label>
+                            <input type="datetime-local" id="dreamDate" class="form-control">
+                        </div>
+                        
+                        <!-- Lucidity Status Checkbox - Marks dream as lucid for statistics -->
+                        <div class="lucid-checkbox">
+                            <input type="checkbox" id="isLucid">
+                            <label for="isLucid">This was a lucid dream ✨</label>
+                        </div>
+                        
+                        <!-- Dream Title Field - Optional custom title (used for PIN recovery) -->
+                        <div class="form-group">
+                            <label for="dreamTitle">Dream Title (optional)</label>
+                            <input type="text" id="dreamTitle" class="form-control" placeholder="Give your dream a memorable title...">
+                        </div>
+                        
+                        <!-- Dream Description Field - Main content (required field) -->
+                        <div class="form-group">
+                            <label for="dreamContent">Dream Description</label>
+                            <textarea id="dreamContent" class="form-control" placeholder="Describe your dream in as much detail as you can remember..." required></textarea>
+                        </div>
+                        
+                        <!-- Emotions Field - Comma-separated emotional states with autocomplete -->
+                        <div class="form-group">
+                            <label for="dreamEmotions">Emotions Experienced (optional)</label>
+                            <input type="text" id="dreamEmotions" class="form-control" placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
+                            <small class="small-helper">
+                                Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
+                            </small>
+                        </div>
+                        
+                        <!-- Tags Field - Thematic categorization with autocomplete support -->
+                        <div class="form-group">
+                            <label for="dreamTags">Tags & Themes (optional)</label>
+                            <div class="tag-input-group">
+                                <input type="text" id="dreamTags" class="form-control" placeholder="e.g., family, flying, school, animals (separate with commas)">
+                            </div>
+                            <small class="small-helper">
+                                Tag your dream with themes, people, places, objects, or activities for easy searching
+                            </small>
+                        </div>
+                        
+                        <!-- Dream Signs Field - Lucidity trigger tracking with autocomplete -->
+                        <div class="form-group">
+                            <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
+                            <div class="tag-input-group">
+                                <input type="text" id="dreamSigns" class="form-control" placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
+                            </div>
+                            <small class="small-helper-warning">
+                                Elements that could trigger lucidity - track these to improve dream awareness!
+                            </small>
+                        </div>
+                        
+                        <!-- Save Button - Submits dream form via data-action event delegation -->
+                        <button data-action="save-dream" class="btn btn-primary">Save Dream</button>
                     </div>
-                    <small class="small-helper">
-                        Tag your dream with themes, people, places, objects, or activities for easy searching
-                    </small>
-                </div>
-                <div class="form-group">
-                    <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
-                    <div class="tag-input-group">
-                        <input type="text" id="dreamSigns" class="form-control" placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
+                    
+                    <!-- ================================ -->
+                    <!-- DREAM ENTRY FORM (COLLAPSED)    -->
+                    <!-- ================================ -->
+                    <div class="entry-form" id="dreamFormCollapsed" style="display: none;">
+                        <!-- Collapsed form header with expand functionality -->
+                        <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
+                            📝 Record Your Dream 
+                            <span class="text-xs text-secondary font-normal">(Click to expand)</span>
+                        </h3>
                     </div>
-                    <small class="small-helper-warning">
-                        Elements that could trigger lucidity - track these to improve dream awareness!
-                    </small>
-                </div>
-                <button data-action="save-dream" class="btn btn-primary">Save Dream</button>
-            </div>
-            
-            <!-- Collapsed Form State -->
-            <div class="entry-form" id="dreamFormCollapsed" style="display: none;">
-                <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
-                    📝 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Click to expand)</span>
-                </h3>
-            </div>
-            
-            <div class="voice-tabs-container">
-                <div class="voice-tabs">
-                    <button class="voice-tab active" data-action="switch-voice-tab" data-tab="record">
-                        🎤 Record
-                    </button>
-                    <button class="voice-tab" data-action="switch-voice-tab" data-tab="stored">
-                        🎵 Stored Notes
-                    </button>
-                </div>
-                
-                <div class="voice-tab-content">
-                    <!-- Record Tab -->
-                    <div id="voiceTabRecord" class="voice-tab-panel active">
-                        <div class="voice-controls">
-                            <button id="recordBtn" data-action="toggle-recording" class="record-btn ready">
-                                <span id="recordIcon">🎤</span>
-                                <span id="recordText">Start Recording</span>
+                    
+                    <!-- ================================ -->
+                    <!-- VOICE RECORDING SYSTEM           -->
+                    <!-- ================================ -->
+                    <div class="voice-tabs-container">
+                        <!-- Voice Tab Navigation -->
+                        <div class="voice-tabs">
+                            <!-- Recording Tab - Live voice recording with transcription -->
+                            <button class="voice-tab active" data-action="switch-voice-tab" data-tab="record">
+                                🎤 Record
                             </button>
-                            <div id="recordingTimer" class="recording-timer" style="display: none;">0:00</div>
-                            <div id="voiceStatus" class="voice-status info">Checking browser capabilities for voice features...</div>
+                            
+                            <!-- Stored Notes Tab - Previously recorded voice notes -->
+                            <button class="voice-tab" data-action="switch-voice-tab" data-tab="stored">
+                                🎵 Stored Notes
+                            </button>
+                        </div>
+                        
+                        <!-- Voice Tab Content Panels -->
+                        <div class="voice-tab-content">
+                            
+                            <!-- Recording Tab Panel - Live voice recording interface -->
+                            <div id="voiceTabRecord" class="voice-tab-panel active">
+                                <div class="voice-controls">
+                                    <!-- Recording Control Button - Toggles between start/stop -->
+                                    <button id="recordBtn" data-action="toggle-recording" class="record-btn ready">
+                                        <span id="recordIcon">🎤</span>
+                                        <span id="recordText">Start Recording</span>
+                                    </button>
+                                    
+                                    <!-- Recording Timer Display - Shows during active recording -->
+                                    <div id="recordingTimer" class="recording-timer" style="display: none;">0:00</div>
+                                    
+                                    <!-- Voice Status Messages - Browser compatibility and recording status -->
+                                    <div id="voiceStatus" class="voice-status info">Checking browser capabilities for voice features...</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Stored Notes Tab Panel - Previously recorded voice notes list -->
+                            <div id="voiceTabStored" class="voice-tab-panel" style="display: none;">
+                                <!-- Container for dynamically loaded voice notes -->
+                                <div id="voiceNotesContainer"></div>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Stored Notes Tab -->
-                    <div id="voiceTabStored" class="voice-tab-panel" style="display: none;">
-                        <div id="voiceNotesContainer"></div>
+                    <!-- ================================ -->
+                    <!-- DREAMS SECTION HEADER            -->
+                    <!-- ================================ -->
+                    <div class="dreams-section-header">
+                        <h3>Your Dreams</h3>
+                        
+                        <!-- Dreams Management Controls -->
+                        <div class="dreams-controls">
+                            <!-- Security Lock Button - PIN setup and app locking -->
+                            <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal">🔒 Setup & Lock</button>
+                            
+                            <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
+                            <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
+                        </div>
+                    </div>
+                    
+                    <!-- ================================ -->
+                    <!-- SEARCH & FILTER CONTROLS         -->
+                    <!-- ================================ -->
+                    <div class="controls">
+                        
+                        <!-- Primary Search and Filter Controls -->
+                        <div class="search-filter-group">
+                            <!-- Search Box - Full-text search across all dream fields -->
+                            <input type="text" id="searchBox" class="search-box" placeholder="Search dreams by title, content, emotions, tags, or dream signs...">
+                            
+                            <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
+                            <select id="filterSelect" class="filter-select">
+                                <option value="all">All Dreams</option>
+                                <option value="lucid">Lucid Dreams</option>
+                                <option value="non-lucid">Non-Lucid Dreams</option>
+                            </select>
+                            
+                            <!-- Sort Order Dropdown - Controls dream display order -->
+                            <select id="sortSelect" class="filter-select">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="lucid-first">Lucid First</option>
+                                <option value="longest">Longest First</option>
+                            </select>
+                            
+                            <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
+                            <select id="limitSelect" class="filter-select">
+                                <option value="5">Show 5</option>
+                                <option value="10">Show 10</option>
+                                <option value="20">Show 20</option>
+                                <option value="50">Show 50</option>
+                                <option value="endless" selected>Endless</option>
+                                <option value="all">Show All</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Date Range Filter Controls -->
+                        <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
+                            <!-- Start Date Filter -->
+                            <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
+                            <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                            
+                            <!-- End Date Filter -->
+                            <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
+                            <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                        </div>
+                        
+                        <!-- Visual Break Between Filter Controls and Dream List -->
+                        <div class="control-row-break"></div>
+                    </div>
+                    
+                    <!-- ================================ -->
+                    <!-- DREAMS DISPLAY SECTION           -->
+                    <!-- ================================ -->
+                    <div class="entries-section">
+                        <!-- Dreams List Container - Dynamically populated by dream-crud.js -->
+                        <div id="entriesContainer"></div>
+                        
+                        <!-- Pagination Controls Container - Shows page navigation when needed -->
+                        <div id="paginationContainer"></div>
                     </div>
                 </div>
-            </div>
-            <div class="dreams-section-header">
-                <h3>Your Dreams</h3>
-                <div class="dreams-controls">
-                    <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal">🔒 Setup & Lock</button>
-                    <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
-                </div>
-            </div>
-            <div class="controls">
-            <div class="search-filter-group">
-                <input type="text" id="searchBox" class="search-box" placeholder="Search dreams by title, content, emotions, tags, or dream signs...">
-                <select id="filterSelect" class="filter-select">
-                    <option value="all">All Dreams</option>
-                    <option value="lucid">Lucid Dreams</option>
-                    <option value="non-lucid">Non-Lucid Dreams</option>
-                </select>
-                <select id="sortSelect" class="filter-select">
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="lucid-first">Lucid First</option>
-                    <option value="longest">Longest First</option>
-                </select>
-                <select id="limitSelect" class="filter-select">
-                    <option value="5">Show 5</option>
-                    <option value="10">Show 10</option>
-                    <option value="20">Show 20</option>
-                    <option value="50">Show 50</option>
-                    <option value="endless" selected>Endless</option>
-                    <option value="all">Show All</option>
-                </select>
-            </div>
-            <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
-                <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
-                <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
-                <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
-                <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
-            </div>
-            <div class="control-row-break"></div>
-        </div>
-            <div class="entries-section">
-                <div id="entriesContainer"></div>
-                <div id="paginationContainer"></div>
             </div>
         </div>
     </div>
     
-    <!-- Footer -->
+    <!-- ================================ -->
+    <!-- APPLICATION FOOTER               -->
+    <!-- ================================ -->
     <footer class="app-footer">
         <div style="max-width: 800px; margin: 0 auto;">
+            <!-- Legal Disclaimer - Medical/psychological advice warning -->
             <p style="margin-bottom: 10px;">
                 <strong>Disclaimer:</strong> This application is for entertainment and personal journaling purposes only. 
                 It is not intended to provide medical, psychological, or therapeutic advice. 
                 If you have concerns about your sleep, dreams, or mental health, please consult a qualified healthcare professional.
             </p>
+            
+            <!-- License Information and Source Code Links -->
             <p style="margin-bottom: 10px; font-size: 12px;">
                 Licensed under <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" style="color: var(--primary-color);">AGPL v3.0</a> | <a href="https://github.com/Webdreamjournal/DreamJournal" target="_blank" style="color: var(--primary-color);">Source Code</a>
             </p>
+            
+            <!-- Version Information and Additional Medical Disclaimer -->
             <p class="app-footer p">
-                Dream Journal v2.01.16 | Not a substitute for professional medical advice
+                Dream Journal v2.01.25 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
 
-    <!-- PIN Protection Overlay -->
+    
+    <!-- ================================ -->
+    <!-- PIN PROTECTION OVERLAY SYSTEM    -->
+    <!-- ================================ -->
     <div id="pinOverlay" class="pin-overlay" style="display: none;">
         <div class="pin-container">
+            <!-- PIN Dialog Title - Dynamic based on operation type -->
             <h2 id="pinTitle">🔒 Enter PIN</h2>
+            
+            <!-- PIN Dialog Message - Context-specific instructions -->
             <p id="pinMessage">Your dreams are protected. Enter your PIN to access them.</p>
+            
+            <!-- PIN Input Field - Password input with 6-character limit -->
             <input type="password" id="pinInput" class="pin-input" placeholder="Enter PIN" maxlength="6">
+            
+            <!-- PIN Action Buttons -->
             <div class="pin-buttons">
+                <!-- Primary Action Button - Changes based on context (Unlock/Setup/etc.) -->
                 <button data-action="verify-pin" class="btn btn-primary" id="pinMainBtn">Unlock</button>
+                
+                <!-- Cancel Button - Closes PIN overlay -->
                 <button data-action="hide-pin-overlay" class="btn btn-secondary" id="cancelPinBtn">Cancel</button>
             </div>
+            
+            <!-- PIN Feedback Message Containers -->
             <div id="pinFeedback" class="notification-message error"></div>
             <div id="pinSuccess" class="notification-message success"></div>
             <div id="pinInfo" class="notification-message info"></div>
+            
+            <!-- PIN Management Links -->
             <span data-action="show-pin-setup" class="pin-setup-link" id="pinSetupLink">Setup new PIN</span>
             <span data-action="show-remove-pin" class="pin-setup-link" id="removePinLink" style="display: none;">Remove PIN protection</span>
             <span data-action="show-forgot-pin" class="pin-setup-link" id="forgotPinLink" style="display: none;">Forgot PIN?</span>
         </div>
     </div>
 
+    <!-- ================================ -->
+    <!-- HIDDEN FILE INPUT ELEMENTS       -->
+    <!-- ================================ -->
+    <!-- Dreams Import File Input - Triggered programmatically by import buttons -->
     <input type="file" id="importFile" class="file-input" accept=".txt,.enc">
+    
+    <!-- Complete Data Import File Input - Triggered programmatically by import buttons -->
     <input type="file" id="importAllDataFile" class="file-input" accept=".json,.enc">
-    <script src="constants.js"></script>
-    <script src="state.js"></script>
-    <script src="storage.js"></script>
-    <script src="dom-helpers.js"></script>
-    <script src="security.js"></script>
-    <script src="dream-crud.js"></script>
-    <script src="voice-notes.js"></script>
-    <script src="goals.js"></script>
-    <script src="stats.js"></script>
-    <script src="import-export.js"></script>
-    <script src="action-router.js"></script>
-    <script src="main.js"></script>
-    <script src="app.js"></script>
+    
+    <!-- ================================ -->
+    <!-- JAVASCRIPT MODULE LOADING        -->
+    <!-- ================================ -->
+    <!-- Core Configuration and State Management -->
+    <script src="constants.js"></script>          <!-- Application constants and configuration -->
+    <script src="state.js"></script>              <!-- Global application state management -->
+    
+    <!-- Data Layer and Utilities -->
+    <script src="storage.js"></script>            <!-- IndexedDB operations and data persistence -->
+    <script src="dom-helpers.js"></script>        <!-- DOM manipulation utilities and UI components -->
+    
+    <!-- Feature Modules -->
+    <script src="security.js"></script>           <!-- PIN protection and encryption functionality -->
+    <script src="dream-crud.js"></script>         <!-- Dream entry CRUD operations -->
+    <script src="voice-notes.js"></script>        <!-- Voice recording and transcription features -->
+    <script src="goals.js"></script>              <!-- Lucid dreaming goals system -->
+    <script src="stats.js"></script>              <!-- Statistics and analytics system -->
+    <script src="import-export.js"></script>      <!-- Data backup/restore functionality -->
+    
+    <!-- Application Core -->
+    <script src="action-router.js"></script>      <!-- Centralized event handling and action routing -->
+    <script src="main.js"></script>               <!-- Application initialization and lifecycle management -->
+    <script src="app.js"></script>                <!-- Additional application logic and features -->
 </body>
 </html>

@@ -1,13 +1,124 @@
-    // --- 5.5 Import, Export & Data Management ---
+// ================================
+// IMPORT-EXPORT & DATA MANAGEMENT MODULE
+// ================================
+// Complete data import/export functionality including dreams-only export,
+// complete data backup/restore, AI analysis export, and encryption support
+
+// ================================
+// UTILITY FUNCTIONS
+// ================================
+
+/**
+ * Validate app access and redirect to lock screen if needed
+ * Shared security check across all export functions
+ */
+function validateAppAccess(errorMessage) {
+    if (isAppLocked || (isPinSetup() && !isUnlocked)) {
+        switchAppTab('lock');
+        setTimeout(() => {
+            showLockScreenMessage('error', errorMessage);
+        }, 500);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Create and trigger file download with cleanup
+ * Standardized download logic for all export functions
+ */
+function createDownload(data, fileName, mimeType = 'text/plain') {
+    const blob = new Blob([data], { type: mimeType });
     
-    // Export dreams to text file (with optional encryption)
-    async function exportEntries() {
-        // Check if app is locked
-        if (isAppLocked || (isPinSetup() && !isUnlocked)) {
-            switchAppTab('lock');
-            setTimeout(() => {
-                showLockScreenMessage('error', 'Please unlock your journal first to export your dreams.');
-            }, 500);
+    if (blob.size === 0) {
+        throw new Error('Export file is empty - no data to export');
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.style.display = 'none';
+    
+    document.body.appendChild(a);
+    
+    try {
+        a.click();
+        
+        setTimeout(() => {
+            if (document.body.contains(a)) {
+                document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+        }, CONSTANTS.DOWNLOAD_CLEANUP_DELAY_MS);
+    } catch (clickError) {
+        if (document.body.contains(a)) {
+            document.body.removeChild(a);
+        }
+        URL.revokeObjectURL(url);
+        throw new Error('Failed to initiate download');
+    }
+}
+
+/**
+ * Read file with encryption detection and decryption support
+ * Unified file reading logic for import functions
+ */
+async function readFileWithEncryption(file, encryptionEnabled) {
+    const isEncryptedFile = file.name.endsWith('.enc');
+    
+    const fileData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        
+        if (encryptionEnabled || isEncryptedFile) {
+            reader.readAsArrayBuffer(file);
+        } else {
+            reader.readAsText(file);
+        }
+    });
+    
+    if (encryptionEnabled || isEncryptedFile) {
+        if (typeof fileData === 'string') {
+            throw new Error('Selected file appears to be unencrypted. Uncheck encryption or select an encrypted (.enc) file.');
+        }
+        
+        const password = await showPasswordDialog({
+            type: 'import',
+            title: '🔓 Enter Import Password',
+            description: 'Enter the password used to encrypt this export file.',
+            requireConfirm: false,
+            primaryButtonText: 'Decrypt & Import'
+        });
+        
+        if (!password) {
+            return null; // User cancelled
+        }
+        
+        try {
+            return await decryptData(new Uint8Array(fileData), password);
+        } catch (decryptError) {
+            throw new Error('Failed to decrypt file. Please check your password and try again.');
+        }
+    } else {
+        if (typeof fileData !== 'string') {
+            throw new Error('Selected file appears to be encrypted. Check encryption option or select a text file.');
+        }
+        return fileData;
+    }
+}
+
+// ================================
+// 1. DREAMS EXPORT SYSTEM
+// ================================
+
+/**
+ * Export dreams to text file with optional encryption
+ * Supports security checks, data validation, and user feedback
+ */
+async function exportEntries() {
+        if (!validateAppAccess('Please unlock your journal first to export your dreams.')) {
             return;
         }
         
@@ -90,42 +201,7 @@
                 mimeType = 'application/octet-stream';
             }
             
-            // Create and download file
-            const blob = new Blob([finalData], { type: mimeType });
-            
-            if (blob.size === 0) {
-                throw new Error('Export file is empty - no data to export');
-            }
-            
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.style.display = 'none';
-            
-            document.body.appendChild(a);
-            
-            // Mobile browsers need direct click without setTimeout
-            try {
-                a.click();
-                
-                // Clean up after a longer delay to ensure download starts
-                setTimeout(() => {
-                    if (document.body.contains(a)) {
-                        document.body.removeChild(a);
-                    }
-                    URL.revokeObjectURL(url);
-                }, CONSTANTS.DOWNLOAD_CLEANUP_DELAY_MS); // longer delay instead of 100ms
-                
-            } catch (clickError) {
-                console.error('Click error:', clickError);
-                // Clean up on error
-                if (document.body.contains(a)) {
-                    document.body.removeChild(a);
-                }
-                URL.revokeObjectURL(url);
-                throw new Error('Failed to initiate download');
-            }
+            createDownload(finalData, fileName, mimeType);
             
             // Show success message
             const successMessage = encryptionEnabled ? 
@@ -149,64 +225,27 @@
         }
     }
 
-    // Import dreams from text file (with optional decryption)
-    async function importEntries(event) {
+// ================================
+// 2. DREAMS IMPORT SYSTEM
+// ================================
+
+/**
+ * Import dreams from text file with optional decryption and format detection
+ * Handles both legacy and new export formats with comprehensive parsing
+ * Supports automatic duplicate detection and validation
+ * TODO: Split into readImportFile() and parseDreamEntries() functions for better modularity
+ */
+async function importEntries(event) {
         const file = event.target.files[0];
         if (!file) return;
         
         try {
-            // Check if encryption is enabled
             const encryptionEnabled = document.getElementById('encryptionEnabled').checked;
-            const isEncryptedFile = file.name.endsWith('.enc');
             
-            // Read file as appropriate type
-            const fileData = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                
-                if (encryptionEnabled || isEncryptedFile) {
-                    reader.readAsArrayBuffer(file);
-                } else {
-                    reader.readAsText(file);
-                }
-            });
-            
-            let text = '';
-            
-            // Handle encrypted files
-            if (encryptionEnabled || isEncryptedFile) {
-                if (typeof fileData === 'string') {
-                    throw new Error('Selected file appears to be unencrypted. Uncheck encryption or select an encrypted (.enc) file.');
-                }
-                
-                // Show password dialog
-                const password = await showPasswordDialog({
-                    type: 'import',
-                    title: '🔓 Enter Import Password',
-                    description: 'Enter the password used to encrypt this dream export file.',
-                    requireConfirm: false,
-                    primaryButtonText: 'Decrypt & Import'
-                });
-                
-                if (!password) {
-                    // User cancelled
-                    event.target.value = ''; // Clear file input
-                    return;
-                }
-                
-                try {
-                    // Decrypt the data
-                    text = await decryptData(new Uint8Array(fileData), password);
-                } catch (decryptError) {
-                    throw new Error('Failed to decrypt file. Please check your password and try again.');
-                }
-            } else {
-                // Handle unencrypted files
-                if (typeof fileData !== 'string') {
-                    throw new Error('Selected file appears to be encrypted. Check encryption option or select a text (.txt) file.');
-                }
-                text = fileData;
+            const text = await readFileWithEncryption(file, encryptionEnabled);
+            if (!text) {
+                event.target.value = '';
+                return; // User cancelled
             }
             
             // Process the decrypted/plain text
@@ -393,14 +432,18 @@
         }
     }
 
-    // Export ALL application data to JSON file (with optional password protection)
-    async function exportAllData() {
-        // Check if app is locked
-        if (isAppLocked || (isPinSetup() && !isUnlocked)) {
-            switchAppTab('lock');
-            setTimeout(() => {
-                showLockScreenMessage('error', 'Please unlock your journal first to export all data.');
-            }, 500);
+// ================================
+// 3. COMPLETE DATA EXPORT SYSTEM
+// ================================
+
+/**
+ * Export complete application data to JSON file with optional encryption
+ * Includes dreams, goals, voice notes metadata, and settings
+ * Creates comprehensive backup with version tracking and metadata
+ * TODO: Split into collectApplicationData() and exportToFile() functions for better separation of concerns
+ */
+async function exportAllData() {
+        if (!validateAppAccess('Please unlock your journal first to export all data.')) {
             return;
         }
         
@@ -421,7 +464,6 @@
             
             // Create comprehensive export object
             const exportData = {
-                version: "v2.01.16", // Cleaned up dream-crud.js documentation and structure
                 exportDate: new Date().toISOString(),
                 exportType: "complete",
                 data: {
@@ -524,8 +566,16 @@
         }
     }
 
-    // Import ALL application data from JSON file (with merge/overwrite options)
-    async function importAllData(event) {
+// ================================
+// 4. COMPLETE DATA IMPORT SYSTEM
+// ================================
+
+/**
+ * Import complete application data from JSON file with smart merge options
+ * Supports encrypted imports, duplicate detection, and merge/overwrite modes
+ * Handles dreams, goals, and settings with comprehensive validation
+ */
+async function importAllData(event) {
         const file = event.target.files[0];
         if (!file) return;
         
@@ -702,14 +752,18 @@
         }
     }
 
-    // Export dreams formatted for AI analysis
-    async function exportForAIAnalysis() {
-        // Check if app is locked
-        if (isAppLocked || (isPinSetup() && !isUnlocked)) {
-            switchAppTab('lock');
-            setTimeout(() => {
-                showLockScreenMessage('error', 'Please unlock your journal first to export for analysis.');
-            }, 500);
+// ================================
+// 5. AI ANALYSIS EXPORT SYSTEM
+// ================================
+
+/**
+ * Export dreams formatted for AI analysis with comprehensive prompt generation
+ * Applies current filters/sorting, optimizes dream selection, and creates
+ * detailed analysis prompt with lucidity statistics and dream metadata
+ * TODO: Split into filterAndSortDreams() and generateAnalysisPrompt() functions for better modularity
+ */
+async function exportForAIAnalysis() {
+        if (!validateAppAccess('Please unlock your journal first to export for analysis.')) {
             return;
         }
         
@@ -837,561 +891,166 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
         }
     }
 
-    // === COMPREHENSIVE DATA MANAGEMENT FUNCTIONS ===
-    
-    // - exportAllData()
-    
-    // - importAllData()
+// ================================
+// 6. PASSWORD DIALOG SYSTEM
+// ================================
 
-    async function importAllData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        try {
-            // Check if encryption is enabled
-            const encryptionEnabled = document.getElementById('fullDataEncryption').checked;
-            const isEncryptedFile = file.name.endsWith('.enc');
-            
-            // Read file
-            const fileData = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                
-                if (encryptionEnabled || isEncryptedFile) {
-                    reader.readAsArrayBuffer(file);
-                } else {
-                    reader.readAsText(file);
-                }
-            });
-            
-            let jsonText = '';
-            
-            // Handle encrypted files
-            if (encryptionEnabled || isEncryptedFile) {
-                if (typeof fileData === 'string') {
-                    throw new Error('Selected file appears to be unencrypted. Uncheck encryption or select an encrypted (.enc) file.');
-                }
-                
-                const password = await showPasswordDialog({
-                    type: 'import',
-                    title: '🔓 Enter Complete Import Password',
-                    description: 'Enter the password used to encrypt this complete data export file.',
-                    requireConfirm: false,
-                    primaryButtonText: 'Decrypt & Import'
-                });
-                
-                if (!password) {
-                    event.target.value = '';
-                    return;
-                }
-                
-                try {
-                    jsonText = await decryptData(new Uint8Array(fileData), password);
-                } catch (decryptError) {
-                    throw new Error('Failed to decrypt file. Please check your password and try again.');
-                }
-            } else {
-                if (typeof fileData !== 'string') {
-                    throw new Error('Selected file appears to be encrypted. Check encryption option or select a JSON (.json) file.');
-                }
-                jsonText = fileData;
-            }
-            
-            // Parse JSON data
-            let importData;
-            try {
-                importData = JSON.parse(jsonText);
-            } catch (parseError) {
-                throw new Error('Invalid JSON file format. Please select a valid Dream Journal export file.');
-            }
-            
-            // Validate export format
-            if (!importData.data || !importData.exportType) {
-                throw new Error('Invalid export file format. This does not appear to be a complete Dream Journal export.');
-            }
-            
-            // Show import options dialog
-            const importMode = await showImportOptionsDialog(importData);
-            if (!importMode) {
-                event.target.value = '';
-                return; // User cancelled
-            }
-            
-            // Process import based on selected mode
-            await processCompleteImport(importData, importMode);
-            
-            // Show success message
-            const stats = importData.data.metadata || {};
-            const successMessage = `Complete import ${importMode === 'merge' ? 'merged' : 'completed'}! ` +
-                `(${stats.totalDreams || 0} dreams, ${stats.totalGoals || 0} goals)`;
-                
-            createInlineMessage('success', successMessage, {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 4000
-            });
-            
-        } catch (error) {
-            console.error('Complete import error:', error);
-            createInlineMessage('error', 'Complete import failed: ' + error.message, {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 5000
-            });
-        } finally {
-            event.target.value = '';
-        }
-    }
-    
-    // Show import options dialog (merge vs overwrite)
-    async function showImportOptionsDialog(importData) {
-        return new Promise((resolve) => {
-            // Create import options overlay
-            const overlay = document.createElement('div');
-            overlay.className = 'password-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                z-index: 10000;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            `;
-            
-            const stats = importData.data.metadata || {};
-            const currentDreamsData = JSON.parse(localStorage.getItem('dreamJournalEntries') || '[]');
-            const currentDreams = currentDreamsData.length;
-            const currentLucidDreams = currentDreamsData.filter(d => d.isLucid).length;
-            const currentGoals = JSON.parse(localStorage.getItem('dreamJournalGoals') || '[]').length;
-            
-            overlay.innerHTML = `
-                <div class="password-dialog" style="max-width: 600px; width: 90%; background: var(--bg-elevated); border: 2px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);">
-                    <h3 style="margin-bottom: 20px; color: var(--text-primary); font-size: 20px; font-weight: 600;">📥 Import Options</h3>
-                    
-                    <div style="background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                        <h4 style="margin-bottom: 10px; color: var(--text-primary); font-size: 16px; font-weight: 600;">Import Data Preview:</h4>
-                        <div style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">
-                            • Dreams: ${stats.totalDreams || 0} (${stats.lucidDreams || 0} lucid)<br>
-                            • Goals: ${stats.totalGoals || 0}<br>
-                            • Voice Notes: ${stats.totalVoiceNotes || 0} (metadata only)<br>
-                            • Export Date: ${importData.exportDate ? new Date(importData.exportDate).toLocaleDateString() : 'Unknown'}
-                        </div>
-                    </div>
-                    
-                    <div style="background: var(--bg-light); border: 1px solid var(--border-light); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                        <h4 style="margin-bottom: 10px; color: var(--text-primary); font-size: 16px; font-weight: 600;">Current Data:</h4>
-                        <div style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">
-                            • Dreams: ${currentDreams} (${currentLucidDreams} lucid)<br>
-                            • Goals: ${currentGoals}
-                        </div>
-                    </div>
-                    
-                    <p style="margin-bottom: 20px; color: var(--text-primary); line-height: 1.5; font-weight: 500;">
-                        Choose how to handle this import:
-                    </p>
-                    
-                    <div class="import-options" style="margin-bottom: 25px;">
-                        <div style="background: var(--bg-secondary); border: 2px solid var(--primary-color); border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s;" onclick="this.querySelector('input').checked = true; document.querySelectorAll('.import-option-card').forEach(c => c.style.borderColor = 'var(--border-color)'); this.style.borderColor = 'var(--primary-color)';" class="import-option-card">
-                            <label style="cursor: pointer; display: flex; align-items: flex-start; gap: 12px;">
-                                <input type="radio" name="importMode" value="merge" checked style="margin-top: 3px; accent-color: var(--primary-color);">
-                                <div>
-                                    <strong style="color: var(--primary-color); font-size: 15px;">🔀 Smart Merge (Recommended)</strong>
-                                    <div style="color: var(--text-secondary); font-size: 13px; margin-top: 6px; line-height: 1.4;">
-                                        Add new items and update existing ones. Keeps all your current data safe.
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                        
-                        <div style="background: var(--bg-secondary); border: 2px solid var(--border-color); border-radius: 8px; padding: 15px; cursor: pointer; transition: border-color 0.2s;" onclick="this.querySelector('input').checked = true; document.querySelectorAll('.import-option-card').forEach(c => c.style.borderColor = 'var(--border-color)'); this.style.borderColor = 'var(--error-color)';" class="import-option-card">
-                            <label style="cursor: pointer; display: flex; align-items: flex-start; gap: 12px;">
-                                <input type="radio" name="importMode" value="overwrite" style="margin-top: 3px; accent-color: var(--error-color);">
-                                <div>
-                                    <strong style="color: var(--error-color); font-size: 15px;">⚠️ Complete Overwrite</strong>
-                                    <div style="color: var(--text-secondary); font-size: 13px; margin-top: 6px; line-height: 1.4;">
-                                        Replace ALL current data with imported data. Cannot be undone!
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="password-buttons" style="display: flex; gap: 12px; justify-content: flex-end;">
-                        <button onclick="window.completeImportResolve(document.querySelector('input[name=importMode]:checked').value)" 
-                                class="btn btn-primary" style="font-weight: 600;">Continue Import</button>
-                        <button onclick="window.completeImportResolve(null)" 
-                                class="btn btn-secondary">Cancel</button>
-                    </div>
+/**
+ * Unified password dialog system for import/export encryption
+ * Supports both export (with confirmation) and import (single password) modes
+ * Integrates with event delegation system for action handling
+ */
+function showPasswordDialog(config) {
+    return new Promise((resolve) => {
+        const existingOverlay = document.getElementById('passwordDialogOverlay');
+        if(existingOverlay) existingOverlay.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'passwordDialogOverlay';
+        overlay.className = 'pin-overlay';
+        overlay.style.display = 'flex';
+
+        const confirmInputHTML = config.requireConfirm ? `
+            <input type="password" id="${config.type}PasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="50" style="margin-top: 10px;">
+        ` : '';
+
+        overlay.innerHTML = `
+            <div class="pin-container">
+                <h2>${config.icon || '🔐'} ${escapeHtml(config.title)}</h2>
+                <p>${escapeHtml(config.description)}</p>
+                <input type="password" id="${config.type}Password" class="pin-input" placeholder="Enter password" maxlength="50">
+                ${confirmInputHTML}
+                <div class="pin-buttons">
+                    <button data-action="confirm-${config.type}-password" class="btn btn-primary">${escapeHtml(config.primaryButtonText)}</button>
+                    <button data-action="cancel-${config.type}-password" class="btn btn-secondary">Cancel</button>
                 </div>
-            `;
-            
-            document.body.appendChild(overlay);
-            
-            // Set up global resolver function
-            window.completeImportResolve = (mode) => {
-                document.body.removeChild(overlay);
-                delete window.completeImportResolve;
-                resolve(mode);
-            };
-            
-            // Handle radio button visual feedback
-            overlay.querySelectorAll('.import-option-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    // Reset all borders
-                    overlay.querySelectorAll('.import-option-card').forEach(c => {
-                        c.style.borderColor = 'var(--border-color)';
-                    });
-                    // Highlight selected
-                    const input = card.querySelector('input');
-                    if (input) {
-                        input.checked = true;
-                        if (input.value === 'overwrite') {
-                            card.style.borderColor = 'var(--error-color)';
-                        } else {
-                            card.style.borderColor = 'var(--primary-color)';
-                        }
-                    }
-                });
-            });
-            
-            // Set initial selection highlight - merge is already highlighted by default in HTML
+                <div id="${config.type}PasswordError" class="notification-message error"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+
+        window[`${config.type}PasswordResolve`] = resolve;
+
+        setTimeout(() => {
+            document.getElementById(`${config.type}Password`).focus();
+        }, 100);
+
+        overlay.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const action = `confirm-${config.type}-password`;
+                const handler = ACTION_MAP[action];
+                if(handler) handler();
+            }
         });
+    });
+}
+
+/**
+ * Show password input dialog for export operations
+ * Pre-configured with export-specific title and confirmation requirement
+ */
+function showExportPasswordDialog() {
+    return showPasswordDialog({
+        type: 'export',
+        title: 'Set Export Password',
+        description: 'Choose a password to encrypt your dream export. This password is not stored - remember it for importing!',
+        requireConfirm: true,
+        primaryButtonText: 'Encrypt & Export'
+    });
+}
+
+/**
+ * Confirm export password with validation and confirmation matching
+ * Validates password length and confirmation match before resolving
+ */
+function confirmExportPassword() {
+    const password = document.getElementById('exportPassword').value;
+    const confirm = document.getElementById('exportPasswordConfirm').value;
+    const errorDiv = document.getElementById('exportPasswordError');
+    
+    if (!password || password.length < 4) {
+        errorDiv.textContent = 'Password must be at least 4 characters long';
+        errorDiv.style.display = 'block';
+        return;
     }
     
-    // Process complete data import based on selected mode
-    async function processCompleteImport(importData, mode) {
-        const { dreams: importDreams = [], goals: importGoals = [], settings: importSettings = {} } = importData.data;
-        
-        if (mode === 'overwrite') {
-            // Complete replacement - clear everything first
-            await saveDreams(importDreams);
-            await saveGoals(importGoals);
-            
-            // Apply settings (theme only for now)
-            if (importSettings.theme) {
-                switchTheme(importSettings.theme);
-            }
-            
-        } else if (mode === 'merge') {
-            // Smart merge - combine with existing data
-            
-            // Merge dreams (avoid duplicates by ID and content)
-            const currentDreams = await loadDreams();
-            const existingIds = new Set(currentDreams.map(d => d.id));
-            const existingContentHashes = new Set(currentDreams.map(d => `${d.title}_${d.content}_${d.timestamp}`));
-            
-            const newDreams = importDreams.filter(dream => {
-                const contentHash = `${dream.title}_${dream.content}_${dream.timestamp}`;
-                return !existingIds.has(dream.id) && !existingContentHashes.has(contentHash);
-            });
-            
-            // Add new dreams
-            if (newDreams.length > 0) {
-                const mergedDreams = [...currentDreams, ...newDreams];
-                await saveDreams(mergedDreams);
-            }
-            
-            // Merge goals (avoid duplicates by title and description)
-            const currentGoals = await loadGoals();
-            const existingGoalKeys = new Set(currentGoals.map(g => `${g.title}_${g.description}`));
-            
-            const newGoals = importGoals.filter(goal => {
-                const goalKey = `${goal.title}_${goal.description}`;
-                return !existingGoalKeys.has(goalKey);
-            });
-            
-            // Add new goals
-            if (newGoals.length > 0) {
-                const mergedGoals = [...currentGoals, ...newGoals];
-                await saveGoals(mergedGoals);
-            }
-        }
-        
-        // Refresh all displays
-        await Promise.all([
-            displayDreams(),
-            displayGoals()
-        ]);
+    if (password !== confirm) {
+        errorDiv.textContent = 'Passwords do not match';
+        errorDiv.style.display = 'block';
+        return;
     }
-
-    // - exportForAIAnalysis()
-
-    async function exportForAIAnalysis() {
-        // Check if app is locked
-        if (isAppLocked || (isPinSetup() && !isUnlocked)) {
-            switchAppTab('lock');
-            setTimeout(() => {
-                showLockScreenMessage('error', 'Please unlock your journal first to export for analysis.');
-            }, 500);
-            return;
-        }
-        
-        const { searchTerm, filterType, sortType, startDate, endDate } = getFilterValues();
-        const allDreams = await loadDreams();
-        
-        // Apply same filtering as display
-        let dreams = filterDreams(allDreams, searchTerm, filterType, startDate, endDate);
-        
-        // Apply same sorting as display for consistency
-        dreams.sort((a, b) => {
-            switch (sortType) {
-                case 'oldest':
-                    return new Date(a.timestamp) - new Date(b.timestamp);
-                
-                case 'lucid-first':
-                    if (a.isLucid && !b.isLucid) return -1;
-                    if (!a.isLucid && b.isLucid) return 1;
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-                
-                case 'longest':
-                    return b.content.length - a.content.length;
-                
-                case 'newest':
-                default:
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-            }
-        });
-        
-        if (dreams.length === 0) {
-            const filterText = filterType === 'all' ? '' : 
-                filterType === 'lucid' ? ' lucid' : ' non-lucid';
-            
-            const noResultsMessage = `No${filterText} dreams to export for analysis${searchTerm ? ' matching your search' : ''}. ${filterType === 'lucid' ? 'Try recording some lucid dreams first!' : 'Record some dreams first!'}`;
-            
-            createInlineMessage('error', noResultsMessage, {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 5000
-            });
-            return;
-        }
-        
-        try {
-            // Performance optimization: Limit analysis to most recent dreams based on size
-            const maxDreams = dreams.length > CONSTANTS.AI_ANALYSIS_THRESHOLD ? CONSTANTS.AI_ANALYSIS_RECENT_LIMIT : CONSTANTS.AI_ANALYSIS_TOTAL_LIMIT;
-            const recentDreams = dreams.slice(0, maxDreams);
-            
-            // Format dreams for AI analysis
-            const dreamTexts = recentDreams.map(dream => {
-                const lucidStatus = dream.isLucid ? '[LUCID DREAM]' : '[REGULAR DREAM]';
-                const date = new Date(dream.timestamp).toLocaleDateString();
-                const emotions = dream.emotions ? ` [EMOTIONS: ${dream.emotions}]` : '';
-                const tags = Array.isArray(dream.tags) && dream.tags.length > 0 ? ` [TAGS: ${dream.tags.join(', ')}]` : '';
-                const dreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? ` [DREAM SIGNS: ${dream.dreamSigns.join(', ')}]` : '';
-                return `${lucidStatus}${emotions}${tags}${dreamSigns} ${date} - ${dream.title}: ${dream.content}`;
-            }).join('\n\n');
-            
-            const totalDreams = dreams.length;
-            const lucidCount = dreams.filter(d => d.isLucid).length;
-            const lucidPercentage = totalDreams > 0 ? ((lucidCount / totalDreams) * 100).toFixed(1) : 0;
-            
-            // Create the full AI analysis prompt
-            const aiAnalysisPrompt = `Analyze these dream journal entries for patterns, themes, and insights. The user has ${totalDreams} total dreams with ${lucidCount} lucid dreams (${lucidPercentage}% lucid rate). Each entry includes emotions, general tags/themes, and dream signs (specific lucidity triggers) when available.
-
-${dreamTexts}
-
-Please provide a comprehensive analysis including:
-
-1. **Dream Patterns & Themes**: What recurring elements, settings, characters, or situations appear across dreams? How do the user's tags reveal their most common dream themes?
-
-2. **Dream Signs Analysis**: What specific dream signs appear most frequently? Which dream signs correlate with lucid dreams vs regular dreams? What are the user's strongest personal lucidity triggers?
-
-3. **Emotional Patterns**: What emotional themes emerge across dreams? How do emotions correlate with dream content, lucidity, or timing? Are there emotional triggers or patterns?
-
-4. **Tag-Based Insights**: What do the user's tags reveal about their dream world? Are there tag patterns that correlate with lucidity, emotions, or specific time periods?
-
-5. **Lucid Dream Analysis**: What triggers or signs indicate increased lucidity? How do tagged elements, emotions, and dream signs work together to create lucid experiences?
-
-6. **Symbolic Interpretation**: What symbols or metaphors appear frequently and what might they represent? How do emotions and tags connect to symbolic content?
-
-7. **Practical Recommendations**: Specific techniques to improve dream recall, increase lucidity recognition, or work with recurring themes. How can the user leverage their personal dream signs for better lucidity?
-
-8. **Sleep & Dream Quality**: Any observations about dream complexity, vividness, timing patterns, and emotional intensity based on the available data?
-
-Make the analysis personal, insightful, and actionable. Focus on helping the user understand their unique dream patterns, recurring dream signs, emotional landscapes, and how to enhance their lucid dreaming practice using their personal data.
-
-${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams.length} most recent dreams of ${totalDreams} total)` : ''}`;
-            
-            // Create and download the analysis prompt file
-            const blob = new Blob([aiAnalysisPrompt], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `dream-analysis-prompt-${new Date().toISOString().split('T')[0]}.txt`;
-            a.style.display = 'none';
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            // Clean up
-            setTimeout(() => {
-                if (document.body.contains(a)) {
-                    document.body.removeChild(a);
-                }
-                URL.revokeObjectURL(url);
-            }, 3000);
-            
-            // Show success message
-            createInlineMessage('success', 'AI analysis prompt exported! Copy the text and paste it into your preferred AI for dream analysis.', {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 5000
-            });
-            
-        } catch (error) {
-            console.error('Export for AI analysis error:', error);
-            
-            createInlineMessage('error', 'Error creating AI analysis export: ' + error.message, {
-                container: document.querySelector('.main-content'),
-                position: 'top',
-                duration: 5000
-            });
-        }
+    
+    const overlay = document.getElementById('passwordDialogOverlay');
+    if (overlay) overlay.remove();
+    
+    if (window.exportPasswordResolve) {
+        window.exportPasswordResolve(password);
+        delete window.exportPasswordResolve;
     }
+}
 
-     // Password Dialog Functions for Export/Import (defined early to avoid reference errors)
-        
-        // NEW UNIFIED PASSWORD DIALOG
-        function showPasswordDialog(config) {
-            return new Promise((resolve) => {
-                const existingOverlay = document.getElementById('passwordDialogOverlay');
-                if(existingOverlay) existingOverlay.remove();
+/**
+ * Cancel export password dialog and resolve with null
+ * Cleans up overlay and promise resolver
+ */
+function cancelExportPassword() {
+    const overlay = document.getElementById('passwordDialogOverlay');
+    if (overlay) overlay.remove();
+    
+    if (window.exportPasswordResolve) {
+        window.exportPasswordResolve(null);
+        delete window.exportPasswordResolve;
+    }
+}
 
-                const overlay = document.createElement('div');
-                overlay.id = 'passwordDialogOverlay';
-                overlay.className = 'pin-overlay';
-                overlay.style.display = 'flex';
+/**
+ * Show password input dialog for import operations
+ * Pre-configured with import-specific title and no confirmation requirement
+ */
+function showImportPasswordDialog() {
+    return showPasswordDialog({
+        type: 'import',
+        title: 'Enter Import Password',
+        description: 'Enter the password used to encrypt this dream export file.',
+        requireConfirm: false,
+        primaryButtonText: 'Decrypt & Import'
+    });
+}
 
-                const confirmInputHTML = config.requireConfirm ? `
-                    <input type="password" id="${config.type}PasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="50" style="margin-top: 10px;">
-                ` : '';
+/**
+ * Confirm import password with basic validation
+ * Validates password presence before resolving
+ */
+function confirmImportPassword() {
+    const password = document.getElementById('importPassword').value;
+    const errorDiv = document.getElementById('importPasswordError');
+    
+    if (!password) {
+        errorDiv.textContent = 'Please enter the password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    const overlay = document.getElementById('passwordDialogOverlay');
+    if (overlay) overlay.remove();
+    
+    if (window.importPasswordResolve) {
+        window.importPasswordResolve(password);
+        delete window.importPasswordResolve;
+    }
+}
 
-                overlay.innerHTML = `
-                    <div class="pin-container">
-                        <h2>${config.icon || '🔐'} ${escapeHtml(config.title)}</h2>
-                        <p>${escapeHtml(config.description)}</p>
-                        <input type="password" id="${config.type}Password" class="pin-input" placeholder="Enter password" maxlength="50">
-                        ${confirmInputHTML}
-                        <div class="pin-buttons">
-                            <button data-action="confirm-${config.type}-password" class="btn btn-primary">${escapeHtml(config.primaryButtonText)}</button>
-                            <button data-action="cancel-${config.type}-password" class="btn btn-secondary">Cancel</button>
-                        </div>
-                        <div id="${config.type}PasswordError" class="notification-message error"></div>
-                    </div>
-                `;
-                
-                document.body.appendChild(overlay);
-
-                window[`${config.type}PasswordResolve`] = resolve;
-
-                setTimeout(() => {
-                    document.getElementById(`${config.type}Password`).focus();
-                }, 100);
-
-                overlay.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        const action = `confirm-${config.type}-password`;
-                        const handler = ACTION_MAP[action];
-                        if(handler) handler();
-                    }
-                });
-            });
-        }
-
-        // Show password input dialog for export (Updated for Event Delegation)
-        function showExportPasswordDialog() {
-            return showPasswordDialog({
-                type: 'export',
-                title: 'Set Export Password',
-                description: 'Choose a password to encrypt your dream export. This password is not stored - remember it for importing!',
-                requireConfirm: true,
-                primaryButtonText: 'Encrypt & Export'
-            });
-        }
-        
-        // Confirm export password
-        function confirmExportPassword() {
-            const password = document.getElementById('exportPassword').value;
-            const confirm = document.getElementById('exportPasswordConfirm').value;
-            const errorDiv = document.getElementById('exportPasswordError');
-            
-            if (!password || password.length < 4) {
-                errorDiv.textContent = 'Password must be at least 4 characters long';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            if (password !== confirm) {
-                errorDiv.textContent = 'Passwords do not match';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // Remove overlay and resolve with password
-            const overlay = document.getElementById('passwordDialogOverlay');
-            if (overlay) overlay.remove();
-            
-            if (window.exportPasswordResolve) {
-                window.exportPasswordResolve(password);
-                delete window.exportPasswordResolve;
-            }
-        }
-        
-        // Cancel export password
-        function cancelExportPassword() {
-            const overlay = document.getElementById('passwordDialogOverlay');
-            if (overlay) overlay.remove();
-            
-            if (window.exportPasswordResolve) {
-                window.exportPasswordResolve(null);
-                delete window.exportPasswordResolve;
-            }
-        }
-        
-        // Show password input dialog for import (Updated for Event Delegation)
-        function showImportPasswordDialog() {
-            return showPasswordDialog({
-                type: 'import',
-                title: 'Enter Import Password',
-                description: 'Enter the password used to encrypt this dream export file.',
-                requireConfirm: false,
-                primaryButtonText: 'Decrypt & Import'
-            });
-        }
-        
-        // Confirm import password
-        function confirmImportPassword() {
-            const password = document.getElementById('importPassword').value;
-            const errorDiv = document.getElementById('importPasswordError');
-            
-            if (!password) {
-                errorDiv.textContent = 'Please enter the password';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // Remove overlay and resolve with password
-            const overlay = document.getElementById('passwordDialogOverlay');
-            if (overlay) overlay.remove();
-            
-            if (window.importPasswordResolve) {
-                window.importPasswordResolve(password);
-                delete window.importPasswordResolve;
-            }
-        }
-        
-        // Cancel import password
-        function cancelImportPassword() {
-            const overlay = document.getElementById('passwordDialogOverlay');
-            if (overlay) overlay.remove();
-            
-            if (window.importPasswordResolve) {
-                window.importPasswordResolve(null);
-                delete window.importPasswordResolve;
-            }
-        }
+/**
+ * Cancel import password dialog and resolve with null
+ * Cleans up overlay and promise resolver
+ */
+function cancelImportPassword() {
+    const overlay = document.getElementById('passwordDialogOverlay');
+    if (overlay) overlay.remove();
+    
+    if (window.importPasswordResolve) {
+        window.importPasswordResolve(null);
+        delete window.importPasswordResolve;
+    }
+}
