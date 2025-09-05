@@ -79,6 +79,45 @@ async function initializeAutocomplete() {
 }
 
 /**
+ * Register service worker for PWA functionality
+ * Handles offline functionality, caching, and app installation
+ * @param {void}
+ * @returns {Promise<void>}
+ */
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            console.log('ServiceWorker registered successfully:', registration.scope);
+            
+            // Handle service worker updates
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // New service worker available, could show update notice
+                            console.log('New service worker available');
+                        }
+                    });
+                }
+            });
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'BACK_ONLINE') {
+                    console.log('App is back online');
+                    // Could show online status or refresh data
+                }
+            });
+            
+        } catch (error) {
+            console.log('ServiceWorker registration failed:', error);
+        }
+    }
+}
+
+/**
  * Check browser compatibility for modern CSS features
  * Shows upgrade notice for browsers that don't support CSS custom properties
  * @param {void}
@@ -316,6 +355,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // PHASE 2: DEFERRED INITIALIZATION
     // ================================
     // Slower initialization tasks that can happen after UI is visible
+
+    // Register service worker for PWA functionality
+    registerServiceWorker();
 
     setupEventDelegation();
     
