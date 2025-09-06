@@ -723,14 +723,6 @@ function switchAppTab(tabName) {
                             </div>
                         </div>
                     `;
-                    
-                    // After settings tab content is created, inject PWA section if available
-                    setTimeout(() => {
-                        if (window.pwaInstallAvailable && typeof window.createPWASection === 'function') {
-                            window.createPWASection();
-                        }
-                    }, 0);
-                    
                 } else if (tabId === 'lockTab') {
                     // Check if there's an active timer to show instructional text
                     const resetTime = getResetTime();
