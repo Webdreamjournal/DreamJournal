@@ -6,30 +6,30 @@
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1a1a2e",
-  "theme_color": "#4f46e5",
+  "theme_color": "#191970",
   "orientation": "portrait-primary",
   "scope": "./",
   "lang": "en",
   
-  "icons": [
+"icons": [
     {
-      "src": "/DreamJournal/icons/icon-192.png",
+      "src": "icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "/DreamJournal/icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     },
     {
-      "src": "/DreamJournal/icons/icon-192-maskable.png",
+      "src": "icons/icon-192-maskable.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/DreamJournal/icons/icon-512-maskable.png",
+      "src": "icons/icon-512-maskable.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
