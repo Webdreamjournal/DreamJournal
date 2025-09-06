@@ -1,0 +1,55 @@
+{
+  "name": "Dream Journal - Lucid Dreaming Tracker",
+  "short_name": "Dream Journal",
+  "description": "A privacy-focused dream journal for tracking dreams, lucid dreaming progress, and analyzing dream patterns",
+  
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#191970",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "lang": "en",
+  
+"icons": [
+    {
+      "src": "icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "icons/icon-192-maskable.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  
+  "categories": ["health", "lifestyle", "productivity"],
+  
+  "screenshots": [
+    {
+      "src": "screenshots/desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshots/mobile.png", 
+      "sizes": "1152x2164",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}
