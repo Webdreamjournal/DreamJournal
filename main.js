@@ -10,22 +10,43 @@
 
 /**
  * Initialize advice tab with deterministic tip of the day calculation
- * Uses fixed epoch to ensure same tip is shown consistently across sessions
+ * Uses first dream entry date as epoch, falling back to tip 1 if no dreams exist
  * @param {void}
  * @returns {Promise<void>}
  */
 async function initializeAdviceTab() {
-    const epoch = new Date('1900-01-01T00:00:00Z');
-    const now = new Date();
-    const diffTime = now - epoch;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
     // Load tips from JSON file and store globally
     dailyTips = await loadDailyTips();
-    if (dailyTips && dailyTips.length > 0) {
-        const tipOfTheDayIndex = diffDays % dailyTips.length;
-        displayTip(tipOfTheDayIndex);
+    if (!dailyTips || dailyTips.length === 0) {
+        return;
     }
+
+    // Try to get the first dream entry date as epoch
+    let epoch;
+    let tipOfTheDayIndex = 0; // Default to tip 1 (index 0)
+    
+    try {
+        const dreams = await loadDreams();
+        if (dreams && dreams.length > 0) {
+            // Find the earliest dream date
+            const dreamDates = dreams
+                .map(dream => new Date(dream.timestamp))
+                .filter(date => !isNaN(date.getTime())) // Filter out invalid dates
+                .sort((a, b) => a - b);
+            
+            if (dreamDates.length > 0) {
+                epoch = dreamDates[0];
+                const now = new Date();
+                const diffTime = now - epoch;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                tipOfTheDayIndex = diffDays % dailyTips.length;
+            }
+        }
+    } catch (error) {
+        console.warn('Error loading dreams for tip calculation, using default tip 1:', error);
+    }
+    
+    displayTip(tipOfTheDayIndex);
 }
 
 /**
@@ -263,7 +284,7 @@ async function initializeApplicationData(timerExpiredAndRemovedPin) {
     try {
         await displayDreams();
         await updateRecordButtonState();
-        await displayVoiceNotes();
+        // Only load voice notes if stored tab is active (removed unconditional displayVoiceNotes call)
         updateSecurityControls();
         
         setTimeout(() => updateRecordButtonState(), 100);
