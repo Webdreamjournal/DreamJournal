@@ -76,6 +76,7 @@ const ACTION_MAP = {
         'toggle-lock': () => toggleLock(),                                   // Toggle app lock state, handles PIN setup if needed
         'setup-pin': () => showPinSetup(),                                  // Show PIN setup interface
         'process-pin-setup': () => setupPin(),                              // Process PIN setup form submission
+        'install-pwa': () => installPWA(),                                  // Install Progressive Web App
         'switch-voice-tab': (ctx) => switchVoiceTab(ctx.element.dataset.tab), // Switch between voice recording tabs
         'switch-app-tab': (ctx) => switchAppTab(ctx.element.dataset.tab),   // Switch main application tabs
         'switch-theme': (ctx) => switchTheme(ctx.element.value),            // Switch application theme (light/dark)

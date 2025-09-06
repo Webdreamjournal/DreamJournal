@@ -140,6 +140,164 @@ async function registerServiceWorker() {
     }
 }
 
+// ================================
+// PWA INSTALLATION SYSTEM
+// ================================
+
+// Global variable to store the beforeinstallprompt event
+let deferredPrompt;
+
+// Make deferredPrompt accessible globally for other modules
+window.deferredPrompt = null;
+
+// Make PWA functions accessible globally for other modules
+window.createPWASection = null;
+window.removePWASection = null;
+
+/**
+ * Create and inject PWA installation section into settings page
+ * Only called when PWA installation becomes available
+ * @param {void}
+ * @returns {void}
+ */
+function createPWASection() {
+    // Check if PWA section already exists
+    const existingSection = document.querySelector('#pwaInstallSection');
+    if (existingSection) {
+        return;
+    }
+    
+    // Find the security section to insert PWA section before it
+    const securitySection = document.querySelector('.settings-section h3');
+    if (!securitySection || !securitySection.textContent.includes('Security')) {
+        return;
+    }
+    
+    const securitySectionContainer = securitySection.parentElement;
+    
+    // Create PWA section HTML
+    const pwaSection = document.createElement('div');
+    pwaSection.className = 'settings-section';
+    pwaSection.id = 'pwaInstallSection';
+    pwaSection.innerHTML = `
+        <h3>📱 Progressive Web App</h3>
+        <div class="settings-row">
+            <div>
+                <div class="settings-label">Install App</div>
+                <div class="settings-description">Install Dream Journal as a native app on your device</div>
+            </div>
+            <div class="settings-controls">
+                <button data-action="install-pwa" id="installPwaButton" class="btn btn-primary">📱 Install App</button>
+                <div id="pwaInstallStatus" class="text-secondary text-sm" style="display: none;"></div>
+            </div>
+        </div>
+    `;
+    
+    // Insert PWA section before security section
+    securitySectionContainer.parentElement.insertBefore(pwaSection, securitySectionContainer);
+}
+
+/**
+ * Remove PWA installation section from settings page
+ * Called when PWA is installed or no longer available
+ * @param {void}
+ * @returns {void}
+ */
+function removePWASection() {
+    const pwaSection = document.querySelector('#pwaInstallSection');
+    if (pwaSection) {
+        pwaSection.remove();
+    }
+}
+
+// Assign functions to window for global access
+window.createPWASection = createPWASection;
+window.removePWASection = removePWASection;
+
+/**
+ * Setup PWA installation system with beforeinstallprompt event listener
+ * Shows PWA section when installation is available
+ * @param {void}
+ * @returns {void}
+ */
+function setupPWAInstall() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Stash the event so it can be triggered later by the button
+        deferredPrompt = e;
+        window.deferredPrompt = e;
+
+        // Create and show the PWA section in settings if we're on settings tab
+        const settingsTab = document.getElementById('settingsTab');
+        if (settingsTab && settingsTab.style.display !== 'none') {
+            createPWASection();
+        }
+    });
+
+    // Listen for the app being installed
+    window.addEventListener('appinstalled', (e) => {
+        console.log('PWA was installed');
+        
+        // Show success message for a few seconds then remove the section
+        const statusDiv = document.querySelector('#pwaInstallStatus');
+        if (statusDiv) {
+            statusDiv.textContent = 'App has been installed successfully!';
+            statusDiv.style.display = 'block';
+            
+            // Remove entire section after showing success message
+            setTimeout(() => {
+                removePWASection();
+            }, 3000);
+        } else {
+            // If no status div, remove section immediately
+            removePWASection();
+        }
+        
+        // Clear the deferredPrompt
+        deferredPrompt = null;
+        window.deferredPrompt = null;
+    });
+}
+
+/**
+ * Handle PWA installation when user clicks the install button
+ * Shows browser's install prompt and handles the result
+ * @param {void}
+ * @returns {Promise<void>}
+ */
+async function installPWA() {
+    if (!deferredPrompt) {
+        console.log('No install prompt available');
+        return;
+    }
+
+    // Show the install prompt
+    deferredPrompt.prompt();
+
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+
+    // Clear the deferredPrompt
+    deferredPrompt = null;
+    
+    // Hide the install button regardless of user choice
+    const installButton = document.querySelector('#installPwaButton');
+    if (installButton) {
+        installButton.style.display = 'none';
+    }
+    
+    // Update status
+    const statusDiv = document.querySelector('#pwaInstallStatus');
+    if (statusDiv) {
+        if (outcome === 'accepted') {
+            statusDiv.textContent = 'Installing app...';
+        } else {
+            statusDiv.textContent = 'Installation cancelled';
+        }
+        statusDiv.style.display = 'block';
+    }
+}
+
 /**
  * Check browser compatibility for modern CSS features
  * Shows upgrade notice for browsers that don't support CSS custom properties
@@ -381,6 +539,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Register service worker for PWA functionality
     registerServiceWorker();
+    
+    // Setup PWA installation system
+    setupPWAInstall();
 
     setupEventDelegation();
     

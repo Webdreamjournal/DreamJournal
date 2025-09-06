@@ -877,6 +877,11 @@ function switchAppTab(tabName) {
                 // Render autocomplete management lists
                 renderAutocompleteManagementList('tags');
                 renderAutocompleteManagementList('dreamSigns');
+                
+                // Add PWA section if installation is available
+                if (window.deferredPrompt && window.createPWASection) {
+                    window.createPWASection();
+                }
             }, CONSTANTS.FOCUS_DELAY_MS);
         }
 
