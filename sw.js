@@ -9,7 +9,7 @@
 // ================================
 // Cache name includes version for automatic cache management
 // Update this version number when deploying new app versions
-const CACHE_NAME = 'dream-journal-v2-02-07';
+const CACHE_NAME = 'dream-journal-v2-02-08';
 
 // Files to cache for offline functionality
 // Includes all essential app files for complete offline experience

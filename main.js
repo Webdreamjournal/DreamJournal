@@ -148,7 +148,12 @@ async function registerServiceWorker() {
 let deferredPrompt;
 
 // Make deferredPrompt accessible globally for other modules
+let deferredPrompt = null;
 window.deferredPrompt = null;
+
+// Track PWA installation availability
+let pwaInstallAvailable = false;
+window.pwaInstallAvailable = false;
 
 // Make PWA functions accessible globally for other modules
 window.createPWASection = null;
@@ -167,13 +172,24 @@ function createPWASection() {
         return;
     }
     
-    // Find the security section to insert PWA section before it
-    const securitySection = document.querySelector('.settings-section h3');
-    if (!securitySection || !securitySection.textContent.includes('Security')) {
+    // Find all settings sections to determine where to insert PWA section
+    const settingsSections = document.querySelectorAll('.settings-section');
+    if (settingsSections.length === 0) {
         return;
     }
     
-    const securitySectionContainer = securitySection.parentElement;
+    // Find the security section (should contain text 'Security')
+    let securitySection = null;
+    for (const section of settingsSections) {
+        const h3 = section.querySelector('h3');
+        if (h3 && h3.textContent.includes('Security')) {
+            securitySection = section;
+            break;
+        }
+    }
+    
+    // If no security section found, insert after appearance section (first section)
+    const insertTarget = securitySection || settingsSections[0];
     
     // Create PWA section HTML
     const pwaSection = document.createElement('div');
@@ -193,8 +209,8 @@ function createPWASection() {
         </div>
     `;
     
-    // Insert PWA section before security section
-    securitySectionContainer.parentElement.insertBefore(pwaSection, securitySectionContainer);
+    // Insert PWA section before the target section
+    insertTarget.parentElement.insertBefore(pwaSection, insertTarget);
 }
 
 /**
@@ -225,8 +241,12 @@ function setupPWAInstall() {
         // Stash the event so it can be triggered later by the button
         deferredPrompt = e;
         window.deferredPrompt = e;
+        
+        // Mark PWA installation as available
+        pwaInstallAvailable = true;
+        window.pwaInstallAvailable = true;
 
-        // Create and show the PWA section in settings if we're on settings tab
+        // Create and show the PWA section if settings tab is currently visible
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && settingsTab.style.display !== 'none') {
             createPWASection();
@@ -236,6 +256,10 @@ function setupPWAInstall() {
     // Listen for the app being installed
     window.addEventListener('appinstalled', (e) => {
         console.log('PWA was installed');
+        
+        // Mark PWA installation as no longer available
+        pwaInstallAvailable = false;
+        window.pwaInstallAvailable = false;
         
         // Show success message for a few seconds then remove the section
         const statusDiv = document.querySelector('#pwaInstallStatus');
