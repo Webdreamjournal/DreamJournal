@@ -1,104 +1,318 @@
+/**
+ * @fileoverview Security module for Dream Journal application cryptography and PIN management.
+ * 
+ * This module provides comprehensive security functionality for the Dream Journal application,
+ * including data encryption/decryption, PIN-based authentication, recovery systems, and
+ * secure storage management. All cryptographic operations use the Web Crypto API with
+ * industry-standard algorithms (AES-GCM for encryption, PBKDF2 for key derivation).
+ * 
+ * Key Features:
+ * - AES-GCM data encryption with password-based key derivation
+ * - Secure PIN hashing with PBKDF2 and salt
+ * - Backwards compatibility with legacy PIN formats
+ * - Multi-factor recovery system (dream title verification + timer reset)
+ * - Fallback storage system (IndexedDB → localStorage → memory)
+ * - Complete PIN lifecycle management (setup, change, removal)
+ * - Lock screen interface with PIN verification
+ * - Password dialog system for import/export operations
+ * 
+ * @module Security
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ * @requires constants
+ * @requires storage
+ * @requires dom-helpers
+ * @example
+ * // Encrypt data for export
+ * const encrypted = await encryptData(JSON.stringify(data), password);
+ * 
+ * @example
+ * // Setup PIN protection
+ * const success = await storePinHash('123456');
+ * if (success) {
+ *   updateSecurityControls();
+ * }
+ */
+
 // ================================
-// SECURITY.JS - CRYPTOGRAPHY & PIN MANAGEMENT
+// TYPE DEFINITIONS
 // ================================
-// Handles encryption, decryption, PIN hashing, authentication, and recovery systems
-// Uses WebCrypto API for secure operations with PBKDF2 key derivation
+
+/**
+ * Configuration object for password dialog display.
+ * 
+ * @typedef {Object} PasswordDialogConfig
+ * @property {string} title - Dialog title text
+ * @property {string} description - Dialog description/instructions
+ * @property {boolean} [requireConfirm=false] - Whether to show password confirmation field
+ * @property {string} primaryButtonText - Text for primary action button
+ * @since 2.0.0
+ */
+
+/**
+ * Result object from secure PIN hashing operation.
+ * 
+ * @typedef {Object} SecurePinHashResult
+ * @property {string} hash - Hexadecimal string representation of derived hash
+ * @property {string} salt - Hexadecimal string representation of random salt
+ * @since 2.0.0
+ */
+
+/**
+ * PIN storage object for fallback memory storage system.
+ * 
+ * @typedef {Object} PinStorageState
+ * @property {string|null} hash - Stored PIN hash (JSON string or legacy hash)
+ * @property {number|null} resetTime - Timestamp for PIN reset timer expiration
+ * @since 2.0.0
+ */
+
+/**
+ * Configuration object for PIN screen rendering.
+ * 
+ * @typedef {Object} PinScreenConfig
+ * @property {string} title - Screen title
+ * @property {string} icon - Emoji or icon character
+ * @property {string} message - HTML message content
+ * @property {Array<Object>} [inputs] - Input field configurations
+ * @property {Array<Object>} [buttons] - Button configurations
+ * @property {Array<Object>} [links] - Link configurations
+ * @property {boolean} [feedbackContainer=false] - Whether to include feedback container
+ * @since 2.0.0
+ */
 
 // ================================
 // 1. CRYPTOGRAPHIC UTILITIES
 // ================================
     
-    // Generate cryptographically secure random salt
-    function generateSalt() {
-        return crypto.getRandomValues(new Uint8Array(16));
-    }
+/**
+ * Generates a cryptographically secure random salt for encryption operations.
+ * 
+ * Uses the Web Crypto API's getRandomValues method to generate a 16-byte (128-bit)
+ * salt for use in PBKDF2 key derivation. The salt ensures that identical passwords
+ * produce different encryption keys, preventing rainbow table attacks.
+ * 
+ * @returns {Uint8Array} 16-byte cryptographically secure random salt
+ * @throws {Error} When crypto.getRandomValues is not available
+ * @since 2.0.0
+ * @example
+ * const salt = generateSalt();
+ * console.log(salt.length); // 16
+ * console.log(salt instanceof Uint8Array); // true
+ */
+function generateSalt() {
+    return crypto.getRandomValues(new Uint8Array(16));
+}
     
-    // Generate cryptographically secure random IV
-    function generateIV() {
-        return crypto.getRandomValues(new Uint8Array(12));
-    }
+/**
+ * Generates a cryptographically secure random initialization vector (IV) for AES-GCM encryption.
+ * 
+ * Creates a 12-byte (96-bit) IV which is the recommended size for AES-GCM mode.
+ * Each encryption operation must use a unique IV to ensure semantic security.
+ * The IV is not secret and is stored alongside the encrypted data.
+ * 
+ * @returns {Uint8Array} 12-byte cryptographically secure random IV
+ * @throws {Error} When crypto.getRandomValues is not available
+ * @since 2.0.0
+ * @example
+ * const iv = generateIV();
+ * console.log(iv.length); // 12
+ * console.log(iv instanceof Uint8Array); // true
+ */
+function generateIV() {
+    return crypto.getRandomValues(new Uint8Array(12));
+}
     
-    // Derive encryption key from password using PBKDF2
-    async function deriveKey(password, salt) {
+/**
+ * Derives an AES-256-GCM encryption key from a password using PBKDF2.
+ * 
+ * Uses Password-Based Key Derivation Function 2 (PBKDF2) with SHA-256 hash function
+ * and 100,000 iterations to derive a 256-bit AES key from the provided password and salt.
+ * The high iteration count provides protection against brute-force attacks.
+ * 
+ * @async
+ * @param {string} password - User-provided password for key derivation
+ * @param {Uint8Array} salt - Cryptographically secure random salt (16 bytes)
+ * @returns {Promise<CryptoKey>} AES-256-GCM key suitable for encrypt/decrypt operations
+ * @throws {Error} When Web Crypto API operations fail
+ * @since 2.0.0
+ * @example
+ * const salt = generateSalt();
+ * const key = await deriveKey('mypassword', salt);
+ * // Key can now be used for AES-GCM encryption/decryption
+ */
+async function deriveKey(password, salt) {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(password),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveBits', 'deriveKey']
+    );
+    
+    return crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+    
+/**
+ * Encrypts string data using AES-256-GCM with password-based key derivation.
+ * 
+ * This function provides authenticated encryption of string data using a user-provided password.
+ * The encryption process:
+ * 1. Generates a random 16-byte salt and 12-byte IV
+ * 2. Derives an AES-256 key using PBKDF2 with 100,000 iterations
+ * 3. Encrypts the data using AES-GCM (provides both confidentiality and authenticity)
+ * 4. Concatenates salt + IV + encrypted data into a single Uint8Array
+ * 
+ * The resulting format is: [16-byte salt][12-byte IV][encrypted data + auth tag]
+ * 
+ * @async
+ * @param {string} data - Plain text data to encrypt
+ * @param {string} password - Password for key derivation
+ * @returns {Promise<Uint8Array>} Combined salt, IV, and encrypted data
+ * @throws {Error} When encryption operations fail or invalid inputs provided
+ * @since 2.0.0
+ * @example
+ * const plaintext = JSON.stringify({ dreams: [...] });
+ * const encrypted = await encryptData(plaintext, 'user_password');
+ * // encrypted can be saved to file or transmitted
+ */
+async function encryptData(data, password) {
+    try {
         const encoder = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            'raw',
-            encoder.encode(password),
-            { name: 'PBKDF2' },
-            false,
-            ['deriveBits', 'deriveKey']
+        const salt = generateSalt();
+        const iv = generateIV();
+        const key = await deriveKey(password, salt);
+        
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encoder.encode(data)
         );
         
-        return crypto.subtle.deriveKey(
-            {
-                name: 'PBKDF2',
-                salt: salt,
-                iterations: 100000,
-                hash: 'SHA-256'
-            },
-            keyMaterial,
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt']
+        // Combine salt, iv, and encrypted data
+        const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+        result.set(salt, 0);
+        result.set(iv, salt.length);
+        result.set(new Uint8Array(encrypted), salt.length + iv.length);
+        
+        return result;
+    } catch (error) {
+        console.error('Encryption error:', error);
+        throw new Error('Failed to encrypt data');
+    }
+}
+    
+/**
+ * Decrypts AES-256-GCM encrypted data using password-based key derivation.
+ * 
+ * This function reverses the encryption process performed by encryptData():
+ * 1. Extracts the salt (first 16 bytes) and IV (next 12 bytes) from the encrypted data
+ * 2. Derives the same AES-256 key using PBKDF2 with the extracted salt
+ * 3. Decrypts the remaining data using AES-GCM
+ * 4. Returns the original plaintext string
+ * 
+ * AES-GCM provides authenticated decryption, so this function will fail if the data
+ * has been tampered with or if the wrong password is used.
+ * 
+ * @async
+ * @param {Uint8Array} encryptedData - Combined salt, IV, and encrypted data from encryptData()
+ * @param {string} password - Password used for original encryption
+ * @returns {Promise<string>} Original plaintext data
+ * @throws {Error} When decryption fails due to incorrect password, corrupted data, or crypto errors
+ * @since 2.0.0
+ * @example
+ * const encrypted = await encryptData('secret data', 'password');
+ * const decrypted = await decryptData(encrypted, 'password');
+ * console.log(decrypted); // 'secret data'
+ * 
+ * @example
+ * // Handling decryption errors
+ * try {
+ *   const decrypted = await decryptData(encryptedData, userPassword);
+ *   console.log('Decryption successful:', decrypted);
+ * } catch (error) {
+ *   console.error('Wrong password or corrupted file');
+ * }
+ */
+async function decryptData(encryptedData, password) {
+    try {
+        const salt = encryptedData.slice(0, 16);
+        const iv = encryptedData.slice(16, 28);
+        const encrypted = encryptedData.slice(28);
+        
+        const key = await deriveKey(password, salt);
+        
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encrypted
         );
+        
+        const decoder = new TextDecoder();
+        return decoder.decode(decrypted);
+    } catch (error) {
+        console.error('Decryption error:', error);
+        throw new Error('Failed to decrypt data - incorrect password or corrupted file');
     }
-    
-    // Encrypt data with password
-    async function encryptData(data, password) {
-        try {
-            const encoder = new TextEncoder();
-            const salt = generateSalt();
-            const iv = generateIV();
-            const key = await deriveKey(password, salt);
-            
-            const encrypted = await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv: iv },
-                key,
-                encoder.encode(data)
-            );
-            
-            // Combine salt, iv, and encrypted data
-            const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
-            result.set(salt, 0);
-            result.set(iv, salt.length);
-            result.set(new Uint8Array(encrypted), salt.length + iv.length);
-            
-            return result;
-        } catch (error) {
-            console.error('Encryption error:', error);
-            throw new Error('Failed to encrypt data');
-        }
-    }
-    
-    // Decrypt data with password
-    async function decryptData(encryptedData, password) {
-        try {
-            const salt = encryptedData.slice(0, 16);
-            const iv = encryptedData.slice(16, 28);
-            const encrypted = encryptedData.slice(28);
-            
-            const key = await deriveKey(password, salt);
-            
-            const decrypted = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv: iv },
-                key,
-                encrypted
-            );
-            
-            const decoder = new TextDecoder();
-            return decoder.decode(decrypted);
-        } catch (error) {
-            console.error('Decryption error:', error);
-            throw new Error('Failed to decrypt data - incorrect password or corrupted file');
-        }
-    }
+}
     
 // ================================
 // 2. PASSWORD DIALOG SYSTEM
 // ================================
 
-// Show password dialog for export/import operations with configurable options
-// Supports both password entry and confirmation modes
+/**
+ * Displays a modal password dialog for export/import operations with configurable options.
+ * 
+ * Creates a customizable password entry dialog that supports both single password entry
+ * and password confirmation modes. The dialog is fully accessible with proper focus management,
+ * keyboard navigation (Enter key support), and inline error display. Returns a Promise that
+ * resolves with the entered password or null if cancelled.
+ * 
+ * @async
+ * @param {PasswordDialogConfig} config - Dialog configuration object
+ * @param {string} config.title - Dialog title text
+ * @param {string} config.description - Dialog description/instructions (supports HTML)
+ * @param {boolean} [config.requireConfirm=false] - Whether to show password confirmation field
+ * @param {string} config.primaryButtonText - Text for primary action button
+ * @returns {Promise<string|null>} Entered password string, or null if cancelled
+ * @since 2.0.0
+ * @example
+ * // Simple password entry
+ * const password = await showPasswordDialog({
+ *   title: 'Enter Password',
+ *   description: 'Please enter your password to encrypt the export file.',
+ *   primaryButtonText: 'Encrypt & Export'
+ * });
+ * 
+ * @example
+ * // Password entry with confirmation
+ * const password = await showPasswordDialog({
+ *   title: 'Create Password',
+ *   description: 'Create a password to protect your exported dreams.',
+ *   requireConfirm: true,
+ *   primaryButtonText: 'Create Export'
+ * });
+ * if (password) {
+ *   // User entered matching passwords
+ *   await exportWithPassword(password);
+ * } else {
+ *   // User cancelled
+ *   console.log('Export cancelled');
+ * }
+ */
 function showPasswordDialog(config) {
         return new Promise((resolve) => {
             const overlay = document.createElement('div');
@@ -147,10 +361,20 @@ function showPasswordDialog(config) {
             
             passwordInput.focus();
             
+/**
+             * Removes the password dialog from the DOM.
+             * @private
+             */
             function cleanup() {
                 document.body.removeChild(overlay);
             }
             
+            /**
+             * Handles password confirmation and validation.
+             * Validates password entries, shows inline errors for mismatched passwords,
+             * and resolves the Promise with the entered password.
+             * @private
+             */
             function handleConfirm() {
                 const password = passwordInput.value;
                 const confirmPassword = confirmInput ? confirmInput.value : password;
@@ -175,6 +399,11 @@ function showPasswordDialog(config) {
                 resolve(password);
             }
             
+            /**
+             * Handles dialog cancellation.
+             * Resolves the Promise with null to indicate cancellation.
+             * @private
+             */
             function handleCancel() {
                 cleanup();
                 resolve(null);
@@ -207,8 +436,25 @@ function showPasswordDialog(config) {
 // 3. PIN HASHING & VERIFICATION SYSTEM
 // ================================
 
-// Simple hash function for PIN (DEPRECATED - kept for legacy migration)
-// Used to verify old PIN hashes before upgrading to secure format
+/**
+ * Legacy PIN hashing function using simple character code accumulation.
+ * 
+ * @deprecated Since version 2.0.0 - kept only for backwards compatibility with existing PIN hashes.
+ * This function uses a weak hashing algorithm and should not be used for new PIN storage.
+ * New PINs should use hashPinSecure() which implements PBKDF2 with salt.
+ * 
+ * This function is only used during PIN verification to support users who set their
+ * PIN before the security upgrade. After successful verification, the PIN should be
+ * migrated to the secure format.
+ * 
+ * @param {string} pin - PIN string to hash (typically 4-6 digits)
+ * @returns {string} Simple hash as string (not cryptographically secure)
+ * @since 1.0.0
+ * @example
+ * // Only used internally for legacy PIN verification
+ * const legacyHash = hashPinLegacy('123456');
+ * console.log(typeof legacyHash); // 'string'
+ */
 function hashPinLegacy(pin) {
     let hash = 0;
     for (let i = 0; i < pin.length; i++) {
@@ -219,8 +465,33 @@ function hashPinLegacy(pin) {
     return hash.toString();
 }
 
-// Secure PIN hashing using PBKDF2 with salt and configurable iterations
-// Returns both hash and salt in hex format for secure storage
+/**
+ * Securely hashes a PIN using PBKDF2 with salt and configurable iterations.
+ * 
+ * This function implements secure PIN storage using industry-standard PBKDF2
+ * key derivation with SHA-256 hash function. Uses a random salt to prevent
+ * rainbow table attacks and configurable iteration count for adjustable security.
+ * The result includes both the derived hash and salt in hexadecimal format
+ * for easy storage and retrieval.
+ * 
+ * @async
+ * @param {string} pin - PIN string to hash (typically 4-6 digits)
+ * @param {Uint8Array} [salt] - Optional salt bytes; generates new salt if not provided
+ * @returns {Promise<SecurePinHashResult>} Object containing hex-encoded hash and salt
+ * @throws {Error} When Web Crypto API operations fail or PIN is invalid
+ * @since 2.0.0
+ * @example
+ * // Hash new PIN (generates random salt)
+ * const result = await hashPinSecure('123456');
+ * console.log(result.hash); // '3a7bd...' (64 hex characters)
+ * console.log(result.salt); // '7f2c1...' (32 hex characters)
+ * 
+ * @example
+ * // Hash PIN with existing salt (for verification)
+ * const existingSalt = new Uint8Array([...]);
+ * const result = await hashPinSecure('123456', existingSalt);
+ * // result.hash can be compared with stored hash
+ */
 async function hashPinSecure(pin, salt = null) {
     try {
         if (!salt) salt = generateSalt();
@@ -263,8 +534,40 @@ async function hashPinSecure(pin, salt = null) {
     }
 }
 
-// Detect PIN storage format for backwards compatibility
-// Legacy format: simple hash string | Secure format: JSON with hash and salt
+/**
+ * Detects whether stored PIN data uses legacy or secure format for backwards compatibility.
+ * 
+ * Determines the format of stored PIN data to handle migration from legacy (simple hash string)
+ * to secure format (JSON object with hash and salt). This enables seamless upgrade of existing
+ * user PINs without requiring re-entry.
+ * 
+ * Format detection rules:
+ * - Legacy: Plain string (simple hash) or non-JSON data
+ * - Secure: Valid JSON string containing 'hash' and 'salt' properties
+ * 
+ * @param {string} storedData - Stored PIN data from storage system
+ * @returns {boolean} True if data uses legacy format, false if secure format
+ * @since 2.0.0
+ * @example
+ * // Legacy format detection
+ * console.log(isLegacyPinFormat('12345678')); // true (plain hash string)
+ * 
+ * @example
+ * // Secure format detection
+ * const secureData = JSON.stringify({ hash: 'abc123...', salt: 'def456...' });
+ * console.log(isLegacyPinFormat(secureData)); // false (JSON with hash/salt)
+ * 
+ * @example
+ * // Usage in PIN verification
+ * if (isLegacyPinFormat(storedData)) {
+ *   // Use legacy verification method
+ *   return hashPinLegacy(enteredPin) === storedData;
+ * } else {
+ *   // Use secure verification method
+ *   const { hash, salt } = JSON.parse(storedData);
+ *   return await verifySecurePin(enteredPin, hash, salt);
+ * }
+ */
 function isLegacyPinFormat(storedData) {
     if (typeof storedData === 'string') {
         try {
@@ -281,8 +584,24 @@ function isLegacyPinFormat(storedData) {
 // 4. PIN STORAGE & MANAGEMENT
 // ================================
 
-// Check if PIN protection is currently enabled
-// Works with both IndexedDB and localStorage fallback systems
+/**
+ * Checks if PIN protection is currently enabled in the application.
+ * 
+ * Determines whether a PIN has been set up by checking the appropriate storage system.
+ * Works with both IndexedDB (preferred) and localStorage fallback systems to maintain
+ * functionality across different browser environments.
+ * 
+ * @returns {boolean} True if PIN protection is enabled, false otherwise
+ * @since 1.0.0
+ * @example
+ * if (isPinSetup()) {
+ *   console.log('PIN protection is active');
+ *   showLockButton();
+ * } else {
+ *   console.log('No PIN protection configured');
+ *   showSetupButton();
+ * }
+ */
 function isPinSetup() {
         if (storageType === 'indexeddb') {
             return pinStorage.hash !== null;
@@ -291,7 +610,27 @@ function isPinSetup() {
         }
     }
     
-    // Store PIN hash securely
+/**
+     * Stores a PIN hash securely using the secure PBKDF2 format.
+     * 
+     * Creates a secure hash of the provided PIN using hashPinSecure() and stores it
+     * in the appropriate storage system (IndexedDB or localStorage). Also stores
+     * version information to track the PIN format for future compatibility.
+     * 
+     * @async
+     * @param {string} pin - PIN string to hash and store (typically 4-6 digits)
+     * @returns {Promise<boolean>} True if storage successful, false if failed
+     * @throws {Error} When PIN hashing fails (re-thrown from hashPinSecure)
+     * @since 2.0.0
+     * @example
+     * const success = await storePinHash('123456');
+     * if (success) {
+     *   console.log('PIN stored successfully');
+     *   updateSecurityControls();
+     * } else {
+     *   console.error('Failed to store PIN');
+     * }
+     */
     async function storePinHash(pin) {
         try {
             const hashedData = await hashPinSecure(pin);
@@ -315,7 +654,24 @@ function isPinSetup() {
         }
     }
     
-    // Get stored PIN data
+/**
+     * Retrieves stored PIN data from the appropriate storage system.
+     * 
+     * Gets the stored PIN hash (either legacy format or secure JSON format)
+     * from IndexedDB or localStorage depending on available storage type.
+     * 
+     * @returns {string|null} Stored PIN data string, or null if no PIN is stored
+     * @since 1.0.0
+     * @example
+     * const storedData = getStoredPinData();
+     * if (storedData) {
+     *   if (isLegacyPinFormat(storedData)) {
+     *     console.log('Legacy PIN format detected');
+     *   } else {
+     *     console.log('Secure PIN format detected');
+     *   }
+     * }
+     */
     function getStoredPinData() {
         if (storageType === 'indexeddb') {
             return pinStorage.hash;
@@ -324,7 +680,29 @@ function isPinSetup() {
         }
     }
     
-    // Verify entered PIN against stored hash
+/**
+     * Verifies an entered PIN against stored hash data with format compatibility.
+     * 
+     * Handles verification for both legacy (simple hash) and secure (PBKDF2) PIN formats.
+     * For legacy format, uses simple hash comparison. For secure format, recreates
+     * the hash using the stored salt and compares with the stored hash.
+     * 
+     * @async
+     * @param {string} enteredPin - PIN entered by user for verification
+     * @param {string} storedData - Stored PIN data (legacy hash or secure JSON)
+     * @returns {Promise<boolean>} True if PIN matches stored data, false otherwise
+     * @since 1.0.0
+     * @example
+     * const storedData = getStoredPinData();
+     * const isValid = await verifyPinHash(userEnteredPin, storedData);
+     * if (isValid) {
+     *   console.log('PIN verified successfully');
+     *   unlockApplication();
+     * } else {
+     *   console.log('Invalid PIN');
+     *   showErrorMessage();
+     * }
+     */
     async function verifyPinHash(enteredPin, storedData) {
         if (!storedData || !enteredPin) return false;
         
@@ -356,7 +734,22 @@ function isPinSetup() {
         }
     }
     
-    // Remove PIN hash
+/**
+     * Removes stored PIN hash data from all storage systems.
+     * 
+     * Completely removes PIN protection by deleting the stored hash and version
+     * information from both IndexedDB and localStorage. This function effectively
+     * disables PIN protection for the application.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Remove PIN protection after user confirmation
+     * if (await verifyPinHash(enteredPin, storedData)) {
+     *   removePinHash();
+     *   console.log('PIN protection disabled');
+     *   updateSecurityControls();
+     * }
+     */
     function removePinHash() {
         if (storageType === 'indexeddb') {
             pinStorage.hash = null;
@@ -370,7 +763,21 @@ function isPinSetup() {
         }
     }
     
-    // Store reset time for forgot PIN feature
+/**
+     * Stores the expiration time for PIN reset timer feature.
+     * 
+     * Saves a timestamp indicating when the PIN reset timer will expire.
+     * This is used for the "forgot PIN" recovery feature that automatically
+     * removes PIN protection after a specified duration (typically 72 hours).
+     * 
+     * @param {number} time - Timestamp (milliseconds since epoch) when PIN reset should activate
+     * @since 2.0.0
+     * @example
+     * // Start 72-hour PIN reset timer
+     * const resetTime = Date.now() + (72 * 60 * 60 * 1000);
+     * storeResetTime(resetTime);
+     * console.log('PIN will be automatically removed in 72 hours');
+     */
     function storeResetTime(time) {
         if (storageType === 'indexeddb') {
             pinStorage.resetTime = time;
@@ -382,7 +789,25 @@ function isPinSetup() {
         }
     }
     
-    // Get reset time
+/**
+     * Retrieves the stored PIN reset timer expiration time.
+     * 
+     * Gets the timestamp when the PIN reset timer will expire and automatically
+     * remove PIN protection. Returns null if no reset timer is active.
+     * 
+     * @returns {number|null} Timestamp when PIN reset activates, or null if no timer set
+     * @since 2.0.0
+     * @example
+     * const resetTime = getResetTime();
+     * if (resetTime) {
+     *   const remainingMs = resetTime - Date.now();
+     *   if (remainingMs > 0) {
+     *     console.log(`PIN reset in ${Math.ceil(remainingMs / 1000 / 60 / 60)} hours`);
+     *   } else {
+     *     console.log('PIN reset timer has expired');
+     *   }
+     * }
+     */
     function getResetTime() {
         if (storageType === 'indexeddb') {
             return pinStorage.resetTime;
@@ -392,7 +817,20 @@ function isPinSetup() {
         }
     }
     
-    // Remove reset time
+/**
+     * Removes the stored PIN reset timer data.
+     * 
+     * Cancels any active PIN reset timer by removing the stored expiration time.
+     * This is used when the timer is cancelled by user action or when the timer
+     * expires and the PIN is automatically removed.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Cancel active PIN reset timer
+     * removeResetTime();
+     * updateTimerWarning(); // Hide timer warning banner
+     * console.log('PIN reset timer cancelled');
+     */
     function removeResetTime() {
         if (storageType === 'indexeddb') {
             pinStorage.resetTime = null;
@@ -404,7 +842,24 @@ function isPinSetup() {
         }
     }
     
-    // Update security controls UI
+/**
+     * Updates the visibility and state of security control UI elements.
+     * 
+     * Adjusts the display of PIN-related buttons and status indicators based on
+     * whether PIN protection is currently enabled. Shows setup button when no PIN
+     * is configured, and shows change/remove buttons when PIN is active.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Update UI after PIN setup/removal
+     * await storePinHash(newPin);
+     * updateSecurityControls(); // Shows change/remove buttons, hides setup
+     * 
+     * @example
+     * // Update UI after PIN removal
+     * removePinHash();
+     * updateSecurityControls(); // Shows setup button, hides change/remove
+     */
     function updateSecurityControls() {
         const setupBtn = document.getElementById('setupPinBtn');
         const removePinBtn = document.getElementById('removePinBtn');
@@ -426,7 +881,24 @@ function isPinSetup() {
         }
     }
 
-    // Show Forgot PIN options
+/**
+     * Displays the "Forgot PIN" recovery options interface.
+     * 
+     * Shows recovery options for users who have forgotten their PIN. Handles three scenarios:
+     * 1. Active timer - shows remaining time or auto-unlocks if expired
+     * 2. No timer - presents choice between dream title verification or timer start
+     * 
+     * Recovery methods:
+     * - Dream title verification: User enters 3 dream titles for immediate unlock
+     * - 72-hour timer: Automatically removes PIN after specified time period
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user clicks "Forgot PIN?" link
+     * await showForgotPin();
+     * // Displays appropriate recovery interface based on current state
+     */
     async function showForgotPin() {
         const resetTime = getResetTime();
         if (resetTime) {
@@ -474,7 +946,20 @@ function isPinSetup() {
         });
     }
 
-    // Start dream title recovery (Updated for Event Delegation)
+/**
+     * Initiates the dream title recovery process for PIN reset.
+     * 
+     * Loads user's dreams and filters for those with custom titles (excluding "Untitled Dream").
+     * If sufficient dreams exist (minimum 3), displays the title verification interface.
+     * If insufficient dreams, redirects to timer-based recovery.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user selects "Verify Dream Titles" option
+     * await startTitleRecovery();
+     * // Shows form with 3 title input fields or error message
+     */
     async function startTitleRecovery() {
         const dreams = await loadDreams();
         const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
@@ -511,7 +996,20 @@ function isPinSetup() {
         });
     }
 
-    // Verify dream titles for recovery - UPDATED for secure hashing
+/**
+     * Verifies entered dream titles against stored dreams for PIN recovery.
+     * 
+     * Validates that the user has entered exactly 3 different dream titles that match
+     * existing dreams in their journal. If verification succeeds, removes PIN protection
+     * and completes the recovery process. Titles must match exactly (case-sensitive).
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits dream title verification form
+     * await verifyDreamTitles();
+     * // Removes PIN if titles match, shows error if they don't
+     */
     async function verifyDreamTitles() {
         const title1 = document.getElementById('recovery1').value.trim();
         const title2 = document.getElementById('recovery2').value.trim();
@@ -559,7 +1057,19 @@ function isPinSetup() {
         }
     }
 
-    // Start timer recovery
+/**
+     * Initiates the timer-based PIN recovery process.
+     * 
+     * Displays a confirmation dialog explaining the 72-hour timer recovery method.
+     * Shows warning that PIN will be automatically removed after the timer expires,
+     * with assurance that dreams will remain safe during the process.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user selects "Start 72hr Timer" option
+     * startTimerRecovery();
+     * // Shows confirmation dialog with timer warning
+     */
     function startTimerRecovery() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         renderPinScreen(pinContainer, {
@@ -576,7 +1086,19 @@ function isPinSetup() {
         });
     }
 
-    // Confirm and actually start the timer
+/**
+     * Confirms and activates the PIN reset timer.
+     * 
+     * Calculates the expiration time based on configured hours (typically 72),
+     * stores the reset time, and displays the active timer interface. Also activates
+     * the warning banner to remind user of pending reset.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user confirms timer start
+     * confirmStartTimer();
+     * // Starts 72-hour countdown and shows timer interface
+     */
     function confirmStartTimer() {
         const resetTime = Date.now() + (CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000); // hours from now
         storeResetTime(resetTime);
@@ -588,8 +1110,26 @@ function isPinSetup() {
 // 7. PIN RECOVERY & RESET SYSTEM
 // ================================
 
-// TODO: Split into calculateRemainingTime() and updateTimerDisplay() functions
-// Update timer warning banner display and calculate remaining time
+/**
+ * Updates the PIN reset timer warning banner display and calculates remaining time.
+ * 
+ * Manages the visibility and content of the timer warning banner that appears when
+ * a PIN reset timer is active. Calculates remaining time and formats display text
+ * appropriately (days vs hours vs less than 1 hour). Hides banner when no timer
+ * is active or when timer has expired.
+ * 
+ * @todo Split into calculateRemainingTime() and updateTimerDisplay() functions for better separation of concerns
+ * @since 2.0.0
+ * @example
+ * // Update timer display after starting/cancelling timer
+ * storeResetTime(Date.now() + 72 * 60 * 60 * 1000);
+ * updateTimerWarning(); // Shows "3 days remaining" banner
+ * 
+ * @example
+ * // Hide timer warning after cancellation
+ * removeResetTime();
+ * updateTimerWarning(); // Hides warning banner
+ */
 function updateTimerWarning() {
     const warningBanner = document.getElementById('timerWarning');
     const warningTime = document.getElementById('timerWarningTime');
@@ -622,8 +1162,19 @@ function updateTimerWarning() {
     }
 }
 
-// Show PIN verification screen for timer cancellation
-// Renders PIN entry interface for reset timer cancellation
+/**
+ * Shows PIN verification screen for cancelling an active reset timer.
+ * 
+ * Displays a PIN entry interface that allows users to cancel a pending PIN reset
+ * timer by entering their current PIN. This provides a way to stop the automatic
+ * PIN removal if the user remembers their PIN before the timer expires.
+ * 
+ * @since 2.0.0
+ * @example
+ * // Called when user clicks "Cancel Timer" button
+ * cancelResetTimer();
+ * // Shows PIN entry form for timer cancellation
+ */
 function cancelResetTimer() {
         const pinOverlay = document.getElementById('pinOverlay');
         const pinContainer = pinOverlay.querySelector('.pin-container');
@@ -645,7 +1196,20 @@ function cancelResetTimer() {
         pinOverlay.style.display = 'flex';
     }
 
-    // Actually cancel the timer - NOW requires PIN verification
+/**
+     * Executes timer cancellation after PIN verification.
+     * 
+     * Verifies the entered PIN against stored data and cancels the active reset timer
+     * if verification succeeds. Shows success message and hides timer warning banner.
+     * If PIN is incorrect, timer remains active.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits PIN for timer cancellation
+     * await confirmCancelTimer();
+     * // Cancels timer if PIN is correct, shows error if not
+     */
     async function confirmCancelTimer() {
         const enteredPin = document.getElementById('pinInput').value;
         if (!enteredPin) {
@@ -675,7 +1239,23 @@ function cancelResetTimer() {
         }
     }
 
-    // Show timer recovery status
+/**
+     * Displays the active timer recovery status interface.
+     * 
+     * Shows the current status of an active PIN reset timer, including remaining time
+     * formatted as days or hours. Provides options to try dream title recovery as
+     * an alternative to waiting for timer expiration.
+     * 
+     * @param {number} remainingMs - Remaining time in milliseconds until PIN reset
+     * @since 2.0.0
+     * @example
+     * // Show timer with 48 hours remaining
+     * showTimerRecovery(48 * 60 * 60 * 1000); // Displays "2 days remaining"
+     * 
+     * @example
+     * // Show timer with 5 hours remaining  
+     * showTimerRecovery(5 * 60 * 60 * 1000); // Displays "5 hours remaining"
+     */
     function showTimerRecovery(remainingMs) {
         const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
         const days = Math.ceil(hours / 24);
@@ -701,7 +1281,22 @@ function cancelResetTimer() {
         });
     }
 
-    // Complete recovery process
+/**
+     * Completes the PIN recovery process and restores application access.
+     * 
+     * Resets PIN overlay, unlocks application, shows all tab buttons, updates UI controls,
+     * displays dreams, and shows success message. This is the final step after successful
+     * PIN recovery via either dream title verification or timer expiration.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called after successful dream title verification
+     * if (titlesMatchStored) {
+     *   removePinHash();
+     *   await completeRecovery(); // Unlocks app and shows success message
+     * }
+     */
     async function completeRecovery() {
         resetPinOverlay();
         hidePinOverlay();
@@ -731,8 +1326,30 @@ function cancelResetTimer() {
 // 5. PIN VERIFICATION & AUTHENTICATION
 // ================================
 
-// Verify entered PIN against stored hash with format compatibility
-// Handles both legacy (simple hash) and secure (PBKDF2) formats
+/**
+ * Verifies an entered PIN against stored hash data with backwards compatibility.
+ * 
+ * This is the main PIN verification function that handles both legacy and secure formats.
+ * Provides backwards compatibility for users who set their PIN before the security upgrade.
+ * Identical functionality to the previous verifyPinHash function but serves as the primary
+ * verification interface.
+ * 
+ * @async
+ * @param {string} enteredPin - PIN entered by user for verification
+ * @param {string} storedData - Stored PIN data (legacy hash or secure JSON)
+ * @returns {Promise<boolean>} True if PIN matches stored data, false otherwise
+ * @since 1.0.0
+ * @example
+ * // Primary PIN verification for all authentication flows
+ * const isValid = await verifyPinHash(userPin, getStoredPinData());
+ * if (isValid) {
+ *   console.log('Authentication successful');
+ *   unlockApplication();
+ * } else {
+ *   console.log('Authentication failed');
+ *   incrementFailedAttempts();
+ * }
+ */
 async function verifyPinHash(enteredPin, storedData) {
     if (!storedData || !enteredPin) return false;
     
@@ -768,14 +1385,40 @@ async function verifyPinHash(enteredPin, storedData) {
 // 6. FALLBACK STORAGE SYSTEM
 // ================================
 
-// PIN storage with fallback system for when IndexedDB unavailable
+/**
+ * PIN storage object for fallback memory storage system.
+ * 
+ * Provides in-memory storage for PIN data when IndexedDB is unavailable.
+ * This is a fallback mechanism to ensure PIN functionality works even in
+ * restricted browser environments. Data stored here is lost on page refresh.
+ * 
+ * @type {PinStorageState}
+ * @since 2.0.0
+ */
 let pinStorage = {
     hash: null,
     resetTime: null
 };
 
-// Check if PIN is set up using fallback storage system
-// Prioritizes localStorage but falls back to memory storage
+/**
+ * Checks if PIN protection is enabled using fallback storage system.
+ * 
+ * This is an alternative version of isPinSetup() that uses the fallback storage
+ * approach. Prioritizes localStorage over memory storage for PIN hash detection.
+ * Used when IndexedDB is not available.
+ * 
+ * @returns {boolean} True if PIN protection is enabled, false otherwise
+ * @since 2.0.0
+ * @example
+ * // Check PIN status with fallback storage
+ * if (isPinSetup()) {
+ *   console.log('PIN protection active (fallback storage)');
+ *   showLockButton();
+ * } else {
+ *   console.log('No PIN protection (fallback storage)');
+ *   showSetupPrompt();
+ * }
+ */
 function isPinSetup() {
     if (isLocalStorageAvailable()) {
         return localStorage.getItem('dreamJournalPinHash') !== null;
@@ -783,8 +1426,26 @@ function isPinSetup() {
     return pinStorage.hash !== null;
 }
 
-// Store PIN hash securely using PBKDF2 with fallback storage system
-// Uses secure hashing format with salt and returns success status
+/**
+ * Stores PIN hash securely using PBKDF2 with fallback storage system.
+ * 
+ * This is an alternative version of storePinHash() that uses the fallback storage
+ * approach. Attempts localStorage first, then falls back to memory storage if needed.
+ * Uses the secure PBKDF2 hashing format with salt for maximum security.
+ * 
+ * @async
+ * @param {string} pin - PIN string to hash and store
+ * @returns {Promise<boolean>} True if storage successful, false if failed
+ * @since 2.0.0
+ * @example
+ * // Store PIN with fallback storage system
+ * const success = await storePinHash('123456');
+ * if (success) {
+ *   console.log('PIN stored with fallback storage');
+ * } else {
+ *   console.error('Failed to store PIN');
+ * }
+ */
 async function storePinHash(pin) {
         if (!pin) {
             return false;
@@ -815,8 +1476,25 @@ async function storePinHash(pin) {
         }
     }
 
-// Get stored PIN hash data from fallback storage system
-// Returns stored PIN data for verification or null if not found
+/**
+ * Retrieves stored PIN hash data from fallback storage system.
+ * 
+ * This is an alternative version of getStoredPinData() that uses the fallback storage
+ * approach. Attempts localStorage first, then falls back to memory storage.
+ * Returns stored PIN data for verification or null if not found.
+ * 
+ * @returns {string|null} Stored PIN data string, or null if no PIN is stored
+ * @since 2.0.0
+ * @example
+ * // Get PIN data with fallback storage
+ * const storedData = getStoredPinData();
+ * if (storedData) {
+ *   const isValid = await verifyPinHash(enteredPin, storedData);
+ *   console.log('PIN verification result:', isValid);
+ * } else {
+ *   console.log('No PIN configured');
+ * }
+ */
 function getStoredPinData() {
         // Try localStorage first
         if (isLocalStorageAvailable()) {
@@ -855,7 +1533,20 @@ function getStoredPinData() {
         }
     }
 
-    // Remove PIN hash (with fallback storage) - works with both legacy and secure formats
+/**
+     * Removes PIN hash data using fallback storage system.
+     * 
+     * This is an alternative version of removePinHash() that uses the fallback storage
+     * approach. Removes PIN data from both localStorage and memory storage to ensure
+     * complete cleanup. Works with both legacy and secure PIN formats.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Remove PIN protection with fallback storage
+     * removePinHash();
+     * updateSecurityControls(); // Update UI to reflect PIN removal
+     * console.log('PIN protection removed (fallback storage)');
+     */
     function removePinHash() {
         // Remove from localStorage if available
         if (isLocalStorageAvailable()) {
@@ -866,7 +1557,22 @@ function getStoredPinData() {
         pinStorage.hash = null;
     }
 
-    // Store reset time (with fallback storage)
+/**
+     * Stores PIN reset timer expiration time using fallback storage system.
+     * 
+     * This is an alternative version of storeResetTime() that uses the fallback storage
+     * approach. Attempts localStorage first, then falls back to memory storage if needed.
+     * Returns success status to indicate whether storage was successful.
+     * 
+     * @param {number} time - Timestamp when PIN reset should activate
+     * @returns {boolean} True if storage was successful
+     * @since 2.0.0
+     * @example
+     * // Store reset time with fallback storage
+     * const resetTime = Date.now() + (72 * 60 * 60 * 1000);
+     * const success = storeResetTime(resetTime);
+     * console.log('Reset time stored:', success);
+     */
     function storeResetTime(time) {
         // Try localStorage first
         if (isLocalStorageAvailable()) {
@@ -883,7 +1589,23 @@ function getStoredPinData() {
         return true;
     }
 
-    // Get reset time (with fallback storage)
+/**
+     * Retrieves PIN reset timer expiration time using fallback storage system.
+     * 
+     * This is an alternative version of getResetTime() that uses the fallback storage
+     * approach. Attempts localStorage first, then falls back to memory storage.
+     * Returns null if no reset timer is active.
+     * 
+     * @returns {number|null} Timestamp when PIN reset activates, or null if no timer
+     * @since 2.0.0
+     * @example
+     * // Check reset timer with fallback storage
+     * const resetTime = getResetTime();
+     * if (resetTime && resetTime < Date.now()) {
+     *   console.log('PIN reset timer has expired');
+     *   removePinHash();
+     * }
+     */
     function getResetTime() {
         // Try localStorage first
         if (isLocalStorageAvailable()) {
@@ -895,7 +1617,20 @@ function getStoredPinData() {
         return pinStorage.resetTime;
     }
 
-    // Remove reset time (with fallback storage)
+/**
+     * Removes PIN reset timer data using fallback storage system.
+     * 
+     * This is an alternative version of removeResetTime() that uses the fallback storage
+     * approach. Removes timer data from both localStorage and memory storage to ensure
+     * complete cleanup when timer is cancelled or expired.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Cancel reset timer with fallback storage
+     * removeResetTime();
+     * updateTimerWarning(); // Hide warning banner
+     * console.log('PIN reset timer cancelled (fallback storage)');
+     */
     function removeResetTime() {
         // Remove from localStorage if available
         if (isLocalStorageAvailable()) {
@@ -910,9 +1645,25 @@ function getStoredPinData() {
 // 8. UI CONTROLS & STATE MANAGEMENT 
 // ================================
 
-// TODO: Split into updateButtonStates(), updateButtonText(), and validateAppState() functions
-// Update security controls visibility and state across all UI locations
-// Note: Lock button is ALWAYS visible for better UX - logic handled in toggleLock()
+/**
+ * Updates security control buttons visibility and state across all UI locations.
+ * 
+ * Manages the display and text of security-related buttons throughout the application.
+ * The lock button is always visible for better UX, with logic handled in toggleLock().
+ * Updates button text and tooltips based on current PIN status and lock state.
+ * 
+ * @todo Split into updateButtonStates(), updateButtonText(), and validateAppState() functions for better separation of concerns
+ * @since 1.0.0
+ * @example
+ * // Update UI after PIN setup
+ * await storePinHash(newPin);
+ * updateSecurityControls(); // Shows "Lock Journal" and "Change/Remove PIN"
+ * 
+ * @example
+ * // Update UI after PIN removal
+ * removePinHash();
+ * updateSecurityControls(); // Shows "Setup & Lock" and "Setup PIN"
+ */
 function updateSecurityControls() {
         const lockBtn = document.getElementById('lockBtn');
         const lockBtnSettings = document.getElementById('lockBtnSettings');
@@ -964,7 +1715,19 @@ function updateSecurityControls() {
         }
     }
 
-    // Show Remove PIN option
+/**
+     * Displays the PIN removal interface within the overlay.
+     * 
+     * Shows a confirmation screen for removing PIN protection. Requires current PIN
+     * verification before allowing removal. Warns user that dreams will no longer
+     * be secured after PIN removal.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Called when user clicks "Remove PIN" button
+     * showRemovePin();
+     * // Shows PIN entry form with removal warning
+     */
     function showRemovePin() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         renderPinScreen(pinContainer, {
@@ -983,7 +1746,20 @@ function updateSecurityControls() {
         document.getElementById('pinOverlay').style.display = 'flex';
     }
 
-    // Execute PIN removal after verification
+/**
+     * Executes PIN removal after successful verification.
+     * 
+     * Actually removes the PIN hash from storage and shows success confirmation.
+     * Sets application to unlocked state and prepares for completion workflow.
+     * Handles any errors that occur during the removal process.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called after PIN verification succeeds for removal
+     * await executePinRemoval();
+     * // Removes PIN and shows success screen
+     */
     async function executePinRemoval() {
         try {
             // Remove the PIN
@@ -1006,7 +1782,20 @@ function updateSecurityControls() {
         }
     }
 
-    // Confirm PIN removal - UPDATED for secure hashing
+/**
+     * Confirms PIN removal by verifying the entered current PIN.
+     * 
+     * Validates the user's current PIN before allowing removal. Supports both
+     * legacy and secure PIN formats. Proceeds to executePinRemoval() if verification
+     * succeeds, shows error message if PIN is incorrect.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits PIN for removal confirmation
+     * await confirmRemovePin();
+     * // Verifies PIN and removes if correct, shows error if not
+     */
     async function confirmRemovePin() {
         const enteredPin = document.getElementById('pinInput').value;
         
@@ -1035,7 +1824,20 @@ function updateSecurityControls() {
         }
     }
 
-    // Complete PIN removal and close overlay
+/**
+     * Completes PIN removal workflow and restores normal application state.
+     * 
+     * Final cleanup after successful PIN removal. Resets overlay, unlocks application,
+     * shows all UI elements, updates security controls, and refreshes dream display.
+     * Ensures application returns to fully functional state without PIN protection.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called after successful PIN removal completion
+     * await completePinRemoval();
+     * // Restores full application functionality without PIN protection
+     */
     async function completePinRemoval() {
         resetPinOverlay();
         hidePinOverlay();
@@ -1056,7 +1858,29 @@ function updateSecurityControls() {
         await displayDreams();
     }
 
-    // Show inline message
+/**
+     * Displays inline messages within the PIN overlay interface.
+     * 
+     * Shows feedback messages (error, success, info) in the appropriate message
+     * containers within the PIN overlay. Clears existing messages before showing
+     * new ones. Success messages automatically hide after configured duration.
+     * 
+     * @param {string} type - Message type ('error', 'success', 'info')
+     * @param {string} message - Message text to display
+     * @param {string} [elementId] - Optional specific element ID to use
+     * @since 1.0.0
+     * @example
+     * // Show error message in PIN overlay
+     * showMessage('error', 'Incorrect PIN. Please try again.');
+     * 
+     * @example
+     * // Show success message that auto-hides
+     * showMessage('success', 'PIN setup complete!');
+     * 
+     * @example
+     * // Show message in specific element
+     * showMessage('info', 'PIN must be 4-6 digits', 'customFeedback');
+     */
     function showMessage(type, message, elementId = null) {
         // Clear all messages first
         document.getElementById('pinFeedback').style.display = 'none';
@@ -1092,8 +1916,21 @@ function updateSecurityControls() {
 // 9. LOCK SCREEN INTERFACE SYSTEM
 // ================================
 
-// Verify PIN entered on lock screen tab
-// Handles PIN verification and unlocking transition from lock screen
+/**
+ * Verifies PIN entered on the lock screen tab interface.
+ * 
+ * Handles PIN verification specifically for the lock screen tab, managing the unlock
+ * transition and failed attempt tracking. On successful verification, unlocks the
+ * application and restores the previously active tab. Manages UI feedback and
+ * automatic form clearing.
+ * 
+ * @async
+ * @since 2.0.0
+ * @example
+ * // Called when user clicks "Unlock Journal" on lock screen
+ * await verifyLockScreenPin();
+ * // Verifies PIN and transitions to unlocked state if correct
+ */
 async function verifyLockScreenPin() {
         const pinInput = document.getElementById('lockScreenPinInput');
         if (!pinInput) return;
@@ -1142,7 +1979,20 @@ async function verifyLockScreenPin() {
         }
     }
     
-    // Show forgot PIN options on lock screen
+/**
+     * Displays "Forgot PIN" recovery options on the lock screen.
+     * 
+     * Shows recovery options specifically within the lock screen tab interface.
+     * Handles active timer detection, dream title verification setup, and timer-based
+     * recovery initiation. Provides inline recovery interface without overlay modals.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user clicks "Forgot PIN?" on lock screen
+     * await showLockScreenForgotPin();
+     * // Shows recovery options inline within lock screen tab
+     */
     async function showLockScreenForgotPin() {
         const resetTime = getResetTime();
         if (resetTime) {
@@ -1195,7 +2045,24 @@ async function verifyLockScreenPin() {
         }
     }
     
-    // Show message on lock screen
+/**
+     * Displays feedback messages on the lock screen interface.
+     * 
+     * Shows status messages (error, success, info) within the lock screen tab.
+     * Automatically hides success messages after a configured duration.
+     * Falls back to alternative feedback elements if primary element not found.
+     * 
+     * @param {string} type - Message type ('error', 'success', 'info')
+     * @param {string} message - Message text to display
+     * @since 2.0.0
+     * @example
+     * // Show error message on lock screen
+     * showLockScreenMessage('error', 'Incorrect PIN. Please try again.');
+     * 
+     * @example
+     * // Show success message that auto-hides
+     * showLockScreenMessage('success', 'PIN verified! Unlocking journal...');
+     */
     function showLockScreenMessage(type, message) {
         const feedbackDiv = document.getElementById('lockScreenFeedback') || document.getElementById('pinFeedback');
         if (!feedbackDiv) return;
@@ -1209,7 +2076,19 @@ async function verifyLockScreenPin() {
         }
     }
     
-    // Return to main lock screen
+/**
+     * Returns to the main lock screen interface from recovery screens.
+     * 
+     * Rebuilds the main lock screen interface with PIN entry form and recovery options.
+     * Includes active timer information if a reset timer is running. Ensures proper
+     * focus management and tab activation.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Return to main lock screen from recovery interface
+     * returnToLockScreen();
+     * // Shows main PIN entry interface with timer info if applicable
+     */
     function returnToLockScreen() {
         const lockTab = document.getElementById('lockTab');
         if (!lockTab) {
@@ -1269,7 +2148,20 @@ async function verifyLockScreenPin() {
         switchAppTab('lock');
     }
     
-    // Start dream title recovery on lock screen
+/**
+     * Initiates dream title recovery specifically on the lock screen.
+     * 
+     * Sets up the dream title verification interface within the lock screen tab.
+     * Similar to startTitleRecovery() but designed for inline lock screen display
+     * rather than overlay modal presentation.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user selects title recovery from lock screen
+     * await startLockScreenTitleRecovery();
+     * // Shows title input form within lock screen tab
+     */
     async function startLockScreenTitleRecovery() {
         const lockCard = document.querySelector('#lockTab > div > div');
         renderPinScreen(lockCard, {
@@ -1289,7 +2181,20 @@ async function verifyLockScreenPin() {
         });
     }
     
-    // Verify dream titles on lock screen
+/**
+     * Verifies dream titles entered on the lock screen recovery interface.
+     * 
+     * Validates entered dream titles specifically within the lock screen context.
+     * On successful verification, removes PIN protection and transitions to unlocked
+     * state. Handles error display and form management within lock screen interface.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits titles on lock screen recovery
+     * await verifyLockScreenDreamTitles();
+     * // Verifies titles and unlocks if valid, shows error if not
+     */
     async function verifyLockScreenDreamTitles() {
         const title1 = document.getElementById('recovery1')?.value.trim();
         const title2 = document.getElementById('recovery2')?.value.trim();
@@ -1335,7 +2240,19 @@ async function verifyLockScreenPin() {
         }
     }
     
-    // Start timer recovery on lock screen
+/**
+     * Initiates timer-based recovery specifically on the lock screen.
+     * 
+     * Shows timer recovery confirmation interface within the lock screen tab.
+     * Similar to startTimerRecovery() but designed for inline lock screen display
+     * rather than overlay modal presentation.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user selects timer recovery from lock screen
+     * startLockScreenTimerRecovery();
+     * // Shows timer confirmation within lock screen tab
+     */
     function startLockScreenTimerRecovery() {
         const lockCard = document.querySelector('#lockTab > div > div');
         renderPinScreen(lockCard, {
@@ -1356,7 +2273,19 @@ async function verifyLockScreenPin() {
         });
     }
     
-    // Confirm timer recovery on lock screen
+/**
+     * Confirms and activates the PIN reset timer from the lock screen.
+     * 
+     * Starts the PIN reset timer and shows confirmation within the lock screen interface.
+     * Updates timer warning banner and returns to main lock screen after showing
+     * success message. Provides user feedback about timer activation.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user confirms timer start from lock screen
+     * confirmLockScreenTimer();
+     * // Starts timer and shows success message on lock screen
+     */
     function confirmLockScreenTimer() {
         const resetTime = Date.now() + (CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000);
         storeResetTime(resetTime);
@@ -1369,8 +2298,26 @@ async function verifyLockScreenPin() {
 // 10. PIN OVERLAY MANAGEMENT
 // ================================
 
-// Show PIN overlay for authentication or setup
-// Resets to default state and handles focus management
+/**
+ * Shows the PIN overlay for authentication or setup procedures.
+ * 
+ * Displays the modal PIN overlay interface for various PIN operations.
+ * Resets to default state, clears failed attempt counter, and handles proper
+ * focus management. Skips display if application is already unlocked with PIN setup.
+ * 
+ * @since 1.0.0
+ * @example
+ * // Show PIN overlay for authentication
+ * if (!isUnlocked) {
+ *   showPinOverlay(); // Displays PIN entry interface
+ * }
+ * 
+ * @example
+ * // Show PIN overlay when trying to access secured feature
+ * if (requiresAuthentication && !isUnlocked) {
+ *   showPinOverlay();
+ * }
+ */
 function showPinOverlay() {
         if (isUnlocked && isPinSetup()) return;
         
@@ -1383,13 +2330,48 @@ function showPinOverlay() {
         }, CONSTANTS.FOCUS_DELAY_MS);
     }
 
-    // Hide PIN overlay
+/**
+     * Hides the PIN overlay modal interface.
+     * 
+     * Conceals the PIN overlay and resets it to default state for next use.
+     * Used when PIN operations are completed, cancelled, or when application
+     * needs to return to normal operation.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Hide overlay after successful authentication
+     * if (pinVerified) {
+     *   hidePinOverlay();
+     *   showMainInterface();
+     * }
+     * 
+     * @example
+     * // Hide overlay on user cancellation
+     * hidePinOverlay();
+     * returnToPreviousState();
+     */
     function hidePinOverlay() {
         document.getElementById('pinOverlay').style.display = 'none';
         resetPinOverlay();
     }
 
-    // Show PIN setup
+/**
+     * Displays the PIN setup interface within the overlay.
+     * 
+     * Shows the appropriate PIN setup screen based on current PIN status.
+     * For new PIN setup, shows creation interface. For existing PIN, shows
+     * current PIN verification before allowing changes. Handles proper UI
+     * state and focus management.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Show PIN setup for new user
+     * showPinSetup(); // Shows "Create PIN" interface
+     * 
+     * @example
+     * // Show PIN setup for existing user (change PIN)
+     * showPinSetup(); // Shows "Enter current PIN" interface first
+     */
     function showPinSetup() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         const isChangingPin = isPinSetup();
@@ -1414,8 +2396,26 @@ function showPinOverlay() {
 // 11. PIN SETUP & CHANGE WORKFLOW
 // ================================
 
-// Process PIN setup/change request with validation
-// Handles both new PIN creation and PIN changes
+/**
+ * Processes PIN setup or change requests with comprehensive validation.
+ * 
+ * Main function for handling PIN setup and modification workflows. Validates PIN format
+ * (4-6 digits), handles both new PIN creation and existing PIN changes. For new PINs,
+ * proceeds to confirmation step. For existing PINs, verifies current PIN first.
+ * 
+ * @async
+ * @since 1.0.0
+ * @example
+ * // Called when user submits PIN setup form
+ * await setupPin();
+ * // Validates input and proceeds to next step based on PIN status
+ * 
+ * @example
+ * // PIN format validation
+ * // Input: '12345' -> Proceeds to confirmation
+ * // Input: '123' -> Shows error (too short)
+ * // Input: 'abcd' -> Shows error (not digits)
+ */
 async function setupPin() {
         const enteredPin = document.getElementById('pinInput').value;
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
@@ -1461,7 +2461,19 @@ async function setupPin() {
         }
     }
 
-    // Step 2 of change PIN: Enter new PIN
+/**
+     * Displays the "Enter New PIN" screen during PIN change workflow.
+     * 
+     * Second step of PIN change process after current PIN verification.
+     * Shows interface for entering a new PIN with validation requirements.
+     * Part of the multi-step PIN change workflow.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called after successful current PIN verification
+     * showSetNewPinScreen();
+     * // Shows "Enter new PIN" interface
+     */
     function showSetNewPinScreen() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         renderPinScreen(pinContainer, {
@@ -1477,6 +2489,19 @@ async function setupPin() {
         });
     }
 
+/**
+     * Processes new PIN entry during PIN change workflow.
+     * 
+     * Third step of PIN change process. Validates new PIN format and proceeds
+     * to confirmation step. Temporarily stores new PIN for final confirmation.
+     * Includes comprehensive format validation (length, digit-only).
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user submits new PIN during change process
+     * setupNewPin();
+     * // Validates format and proceeds to confirmation if valid
+     */
     function setupNewPin() {
         const enteredPin = document.getElementById('pinInput').value;
         if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH || !/^\d+$/.test(enteredPin)) {
@@ -1500,7 +2525,21 @@ async function setupPin() {
         });
     }
 
-    // Final step: Confirm the new PIN - UPDATED for secure hashing
+/**
+     * Final confirmation step for new PIN creation or change.
+     * 
+     * Validates that entered PIN matches the temporary PIN, then securely hashes
+     * and stores the new PIN using PBKDF2. Shows success interface on completion
+     * and handles cleanup of temporary data. This is the final step in both
+     * PIN setup and PIN change workflows.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user confirms new PIN
+     * await confirmNewPin();
+     * // Stores PIN securely and shows success message
+     */
     async function confirmNewPin() {
         const enteredPin = document.getElementById('pinInput').value;
         if (enteredPin !== window.tempNewPin) {
@@ -1535,7 +2574,21 @@ async function setupPin() {
         }
     }
 
-    // Complete PIN setup and close overlay
+/**
+     * Completes PIN setup workflow and restores normal application state.
+     * 
+     * Final cleanup and state management after successful PIN setup or change.
+     * Resets overlay, unlocks application, shows all UI elements, updates security
+     * controls, and refreshes dream display. Ensures application returns to
+     * fully functional state after PIN operations.
+     * 
+     * @async
+     * @since 1.0.0
+     * @example
+     * // Called after successful PIN setup completion
+     * await completePinSetup();
+     * // Restores full application functionality with PIN protection active
+     */
     async function completePinSetup() {
         resetPinOverlay();
         hidePinOverlay();
@@ -1548,7 +2601,24 @@ async function setupPin() {
         await displayDreams();
     }
 
-    // Reset PIN overlay to default state
+/**
+     * Resets PIN overlay to default authentication state.
+     * 
+     * Restores the PIN overlay to its standard PIN entry interface with default
+     * buttons and links. Clears failed attempt counter and configures appropriate
+     * visibility for setup/removal options based on current PIN status.
+     * 
+     * @since 1.0.0
+     * @example
+     * // Reset overlay after completed operation
+     * resetPinOverlay();
+     * // Shows standard "Enter PIN" interface
+     * 
+     * @example
+     * // Reset overlay before showing for authentication
+     * resetPinOverlay();
+     * showPinOverlay();
+     */
     function resetPinOverlay() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         if (!pinContainer) return;
@@ -1573,7 +2643,26 @@ async function setupPin() {
         });
     }
 
-    // Toggle lock state
+/**
+     * Toggles the application lock state between locked and unlocked.
+     * 
+     * Main function for locking/unlocking the application. If no PIN is set up,
+     * prompts user to create one first. If PIN exists, toggles between locked
+     * (showing lock screen) and unlocked (normal operation) states. Manages
+     * tab visibility and preserves user's active tab for restoration.
+     * 
+     * @async
+     * @since 1.0.0
+     * @example
+     * // Lock application (if PIN is set up)
+     * await toggleLock();
+     * // Switches to lock screen and hides other tabs
+     * 
+     * @example
+     * // Attempt lock without PIN setup
+     * await toggleLock();
+     * // Shows message and prompts PIN setup
+     */
     async function toggleLock() {
         if (!isPinSetup()) {
             const container = document.querySelector('.main-content');

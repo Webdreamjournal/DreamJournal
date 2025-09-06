@@ -1,3 +1,40 @@
+/**
+ * @fileoverview Action routing and centralized event delegation system for Dream Journal.
+ * 
+ * This module provides a unified event handling architecture using data-action attributes
+ * to route user interactions to appropriate handler functions. It implements a centralized
+ * action dispatcher pattern that eliminates the need for scattered event listeners
+ * throughout the application.
+ * 
+ * The system consists of three main components:
+ * 1. Action context extraction - Traverses DOM to find action elements and extract data
+ * 2. Action mapping - Comprehensive registry of all application actions and handlers
+ * 3. Unified event delegation - Single click and change handlers for the entire app
+ * 
+ * @module ActionRouter
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 2.0.0
+ * @requires constants
+ * @requires state
+ * @requires storage
+ * @requires dom-helpers
+ * @requires security
+ * @requires dream-crud
+ * @requires voice-notes
+ * @requires goals
+ * @requires stats
+ * @requires import-export
+ * @example
+ * // HTML elements with data-action attributes are automatically handled
+ * <button data-action="save-dream">Save Dream</button>
+ * <select data-action="switch-theme">...</select>
+ * 
+ * // Event delegation is set up in main.js
+ * document.addEventListener('click', handleUnifiedClick);
+ * document.addEventListener('change', handleUnifiedChange);
+ */
+
 // ================================
 // ACTION ROUTER & EVENT DELEGATION MODULE
 // ================================
@@ -9,14 +46,59 @@
 // ================================
 
 /**
- * Extract action context from DOM element with data-action attribute traversal
- * Searches up the DOM tree to find elements with data-action attributes and 
- * extracts all relevant data attributes for action handling
- * @param {Element} target - The clicked/changed DOM element
- * @returns {Object|null} Action context object or null if no action found
+ * Represents the context extracted from a DOM action element.
+ * Contains all data attributes needed for action execution.
  * 
- * TODO: Consider splitting into findActionElement() and extractContextData() functions
- * for better separation of DOM traversal and data extraction logic
+ * @typedef {Object} ActionContext
+ * @property {string} action - The action to perform (from data-action attribute)
+ * @property {Element} element - The DOM element containing the data-action attribute
+ * @property {string} [dreamId] - Dream ID for dream-related actions (from data-dream-id)
+ * @property {string} [voiceNoteId] - Voice note ID for audio actions (from data-voice-note-id)
+ * @property {string} [goalId] - Goal ID for goal management actions (from data-goal-id)
+ * @property {string} [page] - Page number for pagination actions (from data-page)
+ * @property {string} [type] - Type parameter for various actions (from data-type)
+ * @property {Element} originalTarget - The original clicked/changed element
+ * @property {Event} [event] - Original event object (for actions that need it)
+ * @since 2.0.0
+ */
+
+/**
+ * Extracts action context from DOM element with data-action attribute traversal.
+ * 
+ * Searches up the DOM tree to find elements with data-action attributes and 
+ * extracts all relevant data attributes for action handling. This enables flexible
+ * HTML structures where child elements can trigger actions on their parents.
+ * 
+ * The traversal is limited by CONSTANTS.DOM_TRAVERSAL_LEVELS to prevent infinite
+ * loops and maintain performance. All data attributes are extracted to provide
+ * comprehensive context for action handlers.
+ * 
+ * @param {Element} target - The clicked or changed DOM element to start traversal from
+ * @returns {ActionContext|null} Complete action context object with all data attributes, or null if no action found
+ * @throws {TypeError} When target is not a valid DOM element
+ * @since 2.0.0
+ * @example
+ * // Button with direct action
+ * <button data-action="save-dream" data-dream-id="123">Save</button>
+ * 
+ * // Child element triggering parent action
+ * <div data-action="edit-dream" data-dream-id="456">
+ *   <span>Click me</span> <!-- clicking this will find parent action -->
+ * </div>
+ * 
+ * // Usage in event handler
+ * function handleClick(event) {
+ *   const context = extractActionContext(event.target);
+ *   if (context) {
+ *     console.log(context.action); // "save-dream"
+ *     console.log(context.dreamId); // "123"
+ *   }
+ * }
+ * 
+ * @example
+ * // Returns null when no action found
+ * const context = extractActionContext(document.body);
+ * console.log(context); // null
  */
 function extractActionContext(target) {
         let actionElement = target;
@@ -56,9 +138,44 @@ function extractActionContext(target) {
 // ================================
 
 /**
- * Complete mapping of all application actions to their respective handler functions
- * Organized by functional areas for maintainability and easy reference
- * Each action corresponds to a data-action attribute value in the HTML
+ * Action handler function type for ACTION_MAP values.
+ * Handles specific user actions with optional context parameter.
+ * 
+ * @callback ActionHandler
+ * @param {ActionContext} [context] - Action context object containing relevant data
+ * @returns {void|Promise<void>} May be synchronous or asynchronous
+ * @throws {Error} When action execution fails
+ * @since 2.0.0
+ */
+
+/**
+ * Complete mapping of all application actions to their respective handler functions.
+ * 
+ * This comprehensive registry maps data-action attribute values to their corresponding
+ * handler functions. Actions are organized by functional areas for maintainability
+ * and easy reference. Each handler receives an ActionContext object containing
+ * all relevant data extracted from the DOM element.
+ * 
+ * The mapping supports both synchronous and asynchronous handlers, with automatic
+ * Promise handling in the action router. Handlers can access context data like
+ * dream IDs, voice note IDs, page numbers, and other parameters through the context object.
+ * 
+ * @constant {Object<string, ActionHandler>}
+ * @since 2.0.0
+ * @example
+ * // Adding a new action handler
+ * ACTION_MAP['my-action'] = (ctx) => {
+ *   console.log('Handling action:', ctx.action);
+ *   if (ctx.dreamId) {
+ *     handleDreamAction(ctx.dreamId);
+ *   }
+ * };
+ * 
+ * // Async handler example
+ * ACTION_MAP['async-action'] = async (ctx) => {
+ *   const result = await someAsyncOperation();
+ *   updateUI(result);
+ * };
  */
 const ACTION_MAP = {
         // ================================
@@ -243,13 +360,44 @@ const ACTION_MAP = {
 // ================================
 
 /**
- * Route action context to appropriate handler function with comprehensive error handling
- * Handles both synchronous and asynchronous action handlers with proper error catching
- * @param {Object} context - Action context object from extractActionContext
- * @param {Event|null} event - Optional event object for actions that need it
+ * Routes action context to appropriate handler function with comprehensive error handling.
  * 
- * TODO: Consider splitting into validateAction() and executeAction() functions
- * for better separation of validation logic and execution handling
+ * This central dispatcher function takes an action context and routes it to the
+ * corresponding handler in ACTION_MAP. It provides robust error handling for both
+ * synchronous and asynchronous operations, ensuring that errors don't crash the
+ * entire application.
+ * 
+ * The function handles special cases like the 'seek-audio' action which requires
+ * the original event object. It also properly catches and logs errors from both
+ * sync and async handlers, providing detailed error information for debugging.
+ * 
+ * @param {ActionContext} context - Action context object from extractActionContext containing action and data
+ * @param {Event|null} [event=null] - Optional event object for actions that need direct event access
+ * @returns {void} No return value, but may trigger async operations
+ * @throws {Error} Only throws if ACTION_MAP handler throws synchronously (errors are logged, not thrown)
+ * @since 2.0.0
+ * @example
+ * // Basic action routing
+ * const context = extractActionContext(clickedElement);
+ * if (context) {
+ *   routeAction(context);
+ * }
+ * 
+ * @example
+ * // Action routing with event object
+ * function handleClick(event) {
+ *   const context = extractActionContext(event.target);
+ *   if (context) {
+ *     routeAction(context, event); // Some actions need the event
+ *   }
+ * }
+ * 
+ * @example
+ * // Error handling is automatic
+ * ACTION_MAP['failing-action'] = () => {
+ *   throw new Error('This will be caught and logged');
+ * };
+ * routeAction({ action: 'failing-action' }); // Error logged, app continues
  */
 function routeAction(context, event = null) {
         const handler = ACTION_MAP[context.action];
@@ -281,10 +429,35 @@ function routeAction(context, event = null) {
 // ================================
 
 /**
- * Unified click event handler for all interactive elements with data-action attributes
- * Prevents handling select elements (which should use change events only)
- * Routes valid actions through the central dispatcher
- * @param {Event} event - Click event object
+ * Unified click event handler for all interactive elements with data-action attributes.
+ * 
+ * This function serves as the single click event listener for the entire application,
+ * implementing event delegation to handle all data-action clicks. It extracts the
+ * action context from the clicked element and routes it to the appropriate handler.
+ * 
+ * The function specifically excludes SELECT elements from click handling, as these
+ * should only respond to change events to avoid conflicts with dropdown behavior.
+ * This prevents double-handling of select interactions.
+ * 
+ * @param {Event} event - The click event object from the browser
+ * @returns {void} No return value, but may trigger action execution
+ * @since 2.0.0
+ * @example
+ * // Set up in main.js during initialization
+ * document.addEventListener('click', handleUnifiedClick);
+ * 
+ * @example
+ * // HTML structure that triggers this handler
+ * <button data-action="save-dream" data-dream-id="123">
+ *   <i class="icon"></i> Save Dream <!-- clicking icon also works -->
+ * </button>
+ * 
+ * @example
+ * // SELECT elements are ignored (use change events instead)
+ * <select data-action="switch-theme">
+ *   <option value="light">Light</option>
+ *   <option value="dark">Dark</option>
+ * </select>
  */
 function handleUnifiedClick(event) {
         // Skip click handling for select elements - they should only use change events
@@ -299,10 +472,43 @@ function handleUnifiedClick(event) {
     }
 
 /**
- * Unified change event handler for form elements with data-action attributes
- * Handles dropdown selections, checkbox changes, and other form interactions
- * Routes valid actions through the central dispatcher
- * @param {Event} event - Change event object
+ * Unified change event handler for form elements with data-action attributes.
+ * 
+ * This function handles change events for form controls like select dropdowns,
+ * checkboxes, radio buttons, and input fields that have data-action attributes.
+ * It extracts the action context from the changed element and routes it to
+ * the appropriate handler function.
+ * 
+ * Unlike the click handler, this function doesn't exclude any element types
+ * since all form elements can legitimately trigger change events. This is
+ * particularly important for SELECT elements which should only use change
+ * events, not click events.
+ * 
+ * @param {Event} event - The change event object from the browser
+ * @returns {void} No return value, but may trigger action execution
+ * @since 2.0.0
+ * @example
+ * // Set up in main.js during initialization
+ * document.addEventListener('change', handleUnifiedChange);
+ * 
+ * @example
+ * // HTML elements that trigger this handler
+ * <select data-action="switch-theme">
+ *   <option value="light">Light Theme</option>
+ *   <option value="dark">Dark Theme</option>
+ * </select>
+ * 
+ * <input type="checkbox" data-action="toggle-option" data-option="notifications">
+ * 
+ * <input type="range" data-action="adjust-volume" data-voice-note-id="456">
+ * 
+ * @example
+ * // Context extraction works the same as click events
+ * // Change on select will extract action and element.value
+ * function handleThemeChange(context) {
+ *   const newTheme = context.element.value; // "light" or "dark"
+ *   switchTheme(newTheme);
+ * }
  */
 function handleUnifiedChange(event) {
         const context = extractActionContext(event.target);

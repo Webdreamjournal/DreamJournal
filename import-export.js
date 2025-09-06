@@ -1,3 +1,31 @@
+/**
+ * @fileoverview Import-export and data management module for Dream Journal.
+ * 
+ * This module provides comprehensive data import/export functionality including:
+ * - Dreams-only text export with encryption support
+ * - Complete data backup/restore with JSON format
+ * - AI analysis export with formatted prompts
+ * - Unified password dialog system for encryption/decryption
+ * - File validation and duplicate detection
+ * 
+ * All export functions support optional encryption using Web Crypto API.
+ * Import functions handle both encrypted and plain text formats with
+ * automatic format detection and user validation.
+ * 
+ * @module ImportExport
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ * @requires constants
+ * @requires state
+ * @requires storage
+ * @requires dom-helpers
+ * @requires security
+ * @requires dream-crud
+ * @requires goals
+ * @requires action-router
+ */
+
 // ================================
 // IMPORT-EXPORT & DATA MANAGEMENT MODULE
 // ================================
@@ -9,8 +37,18 @@
 // ================================
 
 /**
- * Validate app access and redirect to lock screen if needed
- * Shared security check across all export functions
+ * Validates app access and redirects to lock screen if needed.
+ * 
+ * Shared security check across all export functions to ensure user
+ * has proper access before allowing data export operations.
+ * 
+ * @param {string} errorMessage - Error message to display on lock screen
+ * @returns {boolean} True if app is accessible, false if locked
+ * @since 2.0.0
+ * @example
+ * if (!validateAppAccess('Please unlock to export dreams')) {
+ *   return; // Export cancelled
+ * }
  */
 function validateAppAccess(errorMessage) {
     if (isAppLocked || (isPinSetup() && !isUnlocked)) {
@@ -24,8 +62,22 @@ function validateAppAccess(errorMessage) {
 }
 
 /**
- * Create and trigger file download with cleanup
- * Standardized download logic for all export functions
+ * Creates and triggers file download with automatic cleanup.
+ * 
+ * Standardized download logic for all export functions that handles
+ * blob creation, download link generation, and memory cleanup.
+ * 
+ * @param {string|Uint8Array} data - Data to download (text or binary)
+ * @param {string} fileName - Name for the downloaded file
+ * @param {string} [mimeType='text/plain'] - MIME type for the file
+ * @throws {Error} When export file is empty or download fails
+ * @since 2.0.0
+ * @example
+ * createDownload(jsonData, 'backup.json', 'application/json');
+ * 
+ * @example
+ * // For encrypted data
+ * createDownload(encryptedBuffer, 'data.enc', 'application/octet-stream');
  */
 function createDownload(data, fileName, mimeType = 'text/plain') {
     const blob = new Blob([data], { type: mimeType });
@@ -61,8 +113,23 @@ function createDownload(data, fileName, mimeType = 'text/plain') {
 }
 
 /**
- * Read file with encryption detection and decryption support
- * Unified file reading logic for import functions
+ * Reads file with encryption detection and decryption support.
+ * 
+ * Unified file reading logic for import functions that automatically
+ * detects encrypted files (.enc extension), prompts for passwords,
+ * and handles both text and binary file formats.
+ * 
+ * @async
+ * @param {File} file - File object from input element
+ * @param {boolean} encryptionEnabled - Whether encryption checkbox is checked
+ * @returns {Promise<string|null>} Decrypted file content or null if cancelled
+ * @throws {Error} When file reading, decryption, or format detection fails
+ * @since 2.0.0
+ * @example
+ * const content = await readFileWithEncryption(file, true);
+ * if (content) {
+ *   // Process decrypted content
+ * }
  */
 async function readFileWithEncryption(file, encryptionEnabled) {
     const isEncryptedFile = file.name.endsWith('.enc');
@@ -114,8 +181,30 @@ async function readFileWithEncryption(file, encryptionEnabled) {
 // ================================
 
 /**
- * Export dreams to text file with optional encryption
- * Supports security checks, data validation, and user feedback
+ * Exports dreams to text file with optional encryption.
+ * 
+ * Creates a formatted text export of all user dreams with comprehensive
+ * metadata including title, timestamp, type (lucid/regular), emotions,
+ * tags, and dream signs. Supports optional encryption with user-defined
+ * passwords and provides detailed user feedback.
+ * 
+ * @async
+ * @throws {Error} When app is locked, no dreams exist, or export fails
+ * @since 1.0.0
+ * @example
+ * // Called via action delegation system
+ * await exportEntries();
+ * 
+ * @example
+ * // Exports dreams in format:
+ * // Title: My Dream
+ * // Timestamp: 2023-12-01T10:30:00.000Z
+ * // Type: Lucid Dream ✨
+ * // Emotions: excited, curious
+ * // Tags: flying, adventure
+ * // Dream Signs: hands looked strange
+ * // Content: I realized I was dreaming when...
+ * // ==================================================
  */
 async function exportEntries() {
         if (!validateAppAccess('Please unlock your journal first to export your dreams.')) {
@@ -230,10 +319,27 @@ async function exportEntries() {
 // ================================
 
 /**
- * Import dreams from text file with optional decryption and format detection
- * Handles both legacy and new export formats with comprehensive parsing
- * Supports automatic duplicate detection and validation
- * TODO: Split into readImportFile() and parseDreamEntries() functions for better modularity
+ * Imports dreams from text file with optional decryption and format detection.
+ * 
+ * Handles both legacy and new export formats with comprehensive parsing.
+ * Supports automatic duplicate detection, data validation, and statistics
+ * reporting. Processes entries separated by equals delimiters and extracts
+ * all available metadata including emotions, tags, and dream signs.
+ * 
+ * @async
+ * @param {Event} event - File input change event containing selected file
+ * @throws {Error} When file reading, parsing, decryption, or saving fails
+ * @since 1.0.0
+ * @todo Split into readImportFile() and parseDreamEntries() functions for better modularity
+ * @example
+ * // Called via file input change event
+ * document.getElementById('importFile').addEventListener('change', importEntries);
+ * 
+ * @example
+ * // Handles multiple formats:
+ * // New format: Title: Dream\nTimestamp: ISO\nType: Lucid\nContent: Text
+ * // Legacy format: Title: Dream\nDate: Display Date\nContent: Text
+ * // Mixed format: Both timestamp and date fields
  */
 async function importEntries(event) {
         const file = event.target.files[0];
@@ -437,10 +543,33 @@ async function importEntries(event) {
 // ================================
 
 /**
- * Export complete application data to JSON file with optional encryption
- * Includes dreams, goals, voice notes metadata, and settings
- * Creates comprehensive backup with version tracking and metadata
- * TODO: Split into collectApplicationData() and exportToFile() functions for better separation of concerns
+ * Exports complete application data to JSON file with optional encryption.
+ * 
+ * Creates comprehensive backup including dreams, goals, voice notes metadata,
+ * and application settings. Generates detailed export metadata with statistics
+ * and timestamps. Voice note audio data is not exported due to size limitations,
+ * only metadata is preserved.
+ * 
+ * @async
+ * @throws {Error} When app is locked, no data exists, or export fails
+ * @since 2.0.0
+ * @todo Split into collectApplicationData() and exportToFile() functions for better separation of concerns
+ * @example
+ * await exportAllData();
+ * 
+ * @example
+ * // Export structure:
+ * // {
+ * //   exportDate: "2023-12-01T10:30:00.000Z",
+ * //   exportType: "complete",
+ * //   data: {
+ * //     dreams: [...],
+ * //     voiceNotes: [{ id, timestamp, duration, transcription, hasAudio }],
+ * //     goals: [...],
+ * //     settings: { theme, storageType },
+ * //     metadata: { totalDreams, totalGoals, lucidDreams }
+ * //   }
+ * // }
  */
 async function exportAllData() {
         if (!validateAppAccess('Please unlock your journal first to export all data.')) {
@@ -571,9 +700,25 @@ async function exportAllData() {
 // ================================
 
 /**
- * Import complete application data from JSON file with smart merge options
- * Supports encrypted imports, duplicate detection, and merge/overwrite modes
- * Handles dreams, goals, and settings with comprehensive validation
+ * Imports complete application data from JSON file with smart merge options.
+ * 
+ * Supports encrypted imports, automatic duplicate detection, and intelligent
+ * merging of dreams and goals. Validates import data structure and provides
+ * detailed import statistics. Does not import PIN data for security reasons.
+ * 
+ * @async
+ * @param {Event} event - File input change event containing selected JSON file
+ * @throws {Error} When file reading, parsing, decryption, validation, or saving fails
+ * @since 2.0.0
+ * @example
+ * // Called via file input change event
+ * document.getElementById('fullImportFile').addEventListener('change', importAllData);
+ * 
+ * @example
+ * // Import statistics reported:
+ * // "Added 5 dreams and 3 goals, skipped 2 duplicates"
+ * // "All 8 items were already in your journal"
+ * // "Successfully imported 10 dreams and 5 goals!"
  */
 async function importAllData(event) {
         const file = event.target.files[0];
@@ -757,10 +902,27 @@ async function importAllData(event) {
 // ================================
 
 /**
- * Export dreams formatted for AI analysis with comprehensive prompt generation
- * Applies current filters/sorting, optimizes dream selection, and creates
- * detailed analysis prompt with lucidity statistics and dream metadata
- * TODO: Split into filterAndSortDreams() and generateAnalysisPrompt() functions for better modularity
+ * Exports dreams formatted for AI analysis with comprehensive prompt generation.
+ * 
+ * Applies current display filters and sorting, optimizes dream selection for
+ * analysis (limits to most recent dreams for large datasets), and creates
+ * a detailed analysis prompt with lucidity statistics, dream metadata, and
+ * specific analysis instructions for AI systems.
+ * 
+ * @async
+ * @throws {Error} When app is locked, no dreams match filters, or export fails
+ * @since 2.0.0
+ * @todo Split into filterAndSortDreams() and generateAnalysisPrompt() functions for better modularity
+ * @example
+ * await exportForAIAnalysis();
+ * 
+ * @example
+ * // Generated prompt includes:
+ * // - Dream entries with [LUCID DREAM] or [REGULAR DREAM] tags
+ * // - Emotions, tags, and dream signs metadata
+ * // - Lucidity statistics and patterns
+ * // - Specific analysis instructions for AI systems
+ * // - Performance optimization for large datasets
  */
 async function exportForAIAnalysis() {
         if (!validateAppAccess('Please unlock your journal first to export for analysis.')) {
@@ -896,9 +1058,39 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
 // ================================
 
 /**
- * Unified password dialog system for import/export encryption
- * Supports both export (with confirmation) and import (single password) modes
- * Integrates with event delegation system for action handling
+ * Creates unified password dialog for import/export encryption operations.
+ * 
+ * Supports both export mode (with password confirmation) and import mode
+ * (single password entry). Integrates with the action delegation system
+ * for event handling and provides consistent user experience across all
+ * encryption/decryption operations.
+ * 
+ * @param {Object} config - Dialog configuration object
+ * @param {string} config.type - Dialog type ('export' or 'import')
+ * @param {string} config.title - Dialog title text
+ * @param {string} config.description - Dialog description text
+ * @param {boolean} config.requireConfirm - Whether to show password confirmation field
+ * @param {string} config.primaryButtonText - Text for primary action button
+ * @param {string} [config.icon='🔐'] - Icon to display in dialog header
+ * @returns {Promise<string|null>} Entered password or null if cancelled
+ * @since 2.0.0
+ * @example
+ * const password = await showPasswordDialog({
+ *   type: 'export',
+ *   title: 'Set Export Password',
+ *   description: 'Choose a password to encrypt your export.',
+ *   requireConfirm: true,
+ *   primaryButtonText: 'Encrypt & Export'
+ * });
+ * 
+ * @example
+ * const password = await showPasswordDialog({
+ *   type: 'import',
+ *   title: 'Enter Import Password', 
+ *   description: 'Enter the decryption password.',
+ *   requireConfirm: false,
+ *   primaryButtonText: 'Decrypt & Import'
+ * });
  */
 function showPasswordDialog(config) {
     return new Promise((resolve) => {
@@ -947,8 +1139,20 @@ function showPasswordDialog(config) {
 }
 
 /**
- * Show password input dialog for export operations
- * Pre-configured with export-specific title and confirmation requirement
+ * Shows password input dialog for export operations.
+ * 
+ * Pre-configured wrapper for showPasswordDialog() with export-specific
+ * settings including password confirmation requirement and appropriate
+ * messaging for encryption operations.
+ * 
+ * @returns {Promise<string|null>} Export password or null if cancelled
+ * @since 2.0.0
+ * @deprecated Use showPasswordDialog() directly with export config
+ * @example
+ * const password = await showExportPasswordDialog();
+ * if (password) {
+ *   // Proceed with encrypted export
+ * }
  */
 function showExportPasswordDialog() {
     return showPasswordDialog({
@@ -961,8 +1165,18 @@ function showExportPasswordDialog() {
 }
 
 /**
- * Confirm export password with validation and confirmation matching
- * Validates password length and confirmation match before resolving
+ * Confirms export password with validation and confirmation matching.
+ * 
+ * Validates password meets minimum length requirements and confirms
+ * that password and confirmation fields match before resolving the
+ * password dialog promise. Displays inline errors for validation failures.
+ * 
+ * @throws {Error} Implicitly through promise rejection for validation failures
+ * @since 2.0.0
+ * @example
+ * // Called via action delegation system
+ * // data-action="confirm-export-password"
+ * confirmExportPassword();
  */
 function confirmExportPassword() {
     const password = document.getElementById('exportPassword').value;
@@ -991,8 +1205,17 @@ function confirmExportPassword() {
 }
 
 /**
- * Cancel export password dialog and resolve with null
- * Cleans up overlay and promise resolver
+ * Cancels export password dialog and resolves with null.
+ * 
+ * Cleans up password dialog overlay and resolves the dialog promise
+ * with null to indicate user cancellation. Handles cleanup of DOM
+ * elements and promise resolver functions.
+ * 
+ * @since 2.0.0
+ * @example
+ * // Called via action delegation system
+ * // data-action="cancel-export-password"
+ * cancelExportPassword();
  */
 function cancelExportPassword() {
     const overlay = document.getElementById('passwordDialogOverlay');
@@ -1005,8 +1228,20 @@ function cancelExportPassword() {
 }
 
 /**
- * Show password input dialog for import operations
- * Pre-configured with import-specific title and no confirmation requirement
+ * Shows password input dialog for import operations.
+ * 
+ * Pre-configured wrapper for showPasswordDialog() with import-specific
+ * settings including single password entry (no confirmation) and
+ * appropriate messaging for decryption operations.
+ * 
+ * @returns {Promise<string|null>} Import password or null if cancelled
+ * @since 2.0.0
+ * @deprecated Use showPasswordDialog() directly with import config
+ * @example
+ * const password = await showImportPasswordDialog();
+ * if (password) {
+ *   // Proceed with decryption
+ * }
  */
 function showImportPasswordDialog() {
     return showPasswordDialog({
@@ -1019,8 +1254,19 @@ function showImportPasswordDialog() {
 }
 
 /**
- * Confirm import password with basic validation
- * Validates password presence before resolving
+ * Confirms import password with basic validation.
+ * 
+ * Validates that a password has been entered before resolving the
+ * password dialog promise. Displays inline error for empty passwords.
+ * Less strict validation than export confirmation since import passwords
+ * are validated against the encrypted data itself.
+ * 
+ * @throws {Error} Implicitly through promise rejection for validation failures
+ * @since 2.0.0
+ * @example
+ * // Called via action delegation system
+ * // data-action="confirm-import-password"
+ * confirmImportPassword();
  */
 function confirmImportPassword() {
     const password = document.getElementById('importPassword').value;
@@ -1042,8 +1288,17 @@ function confirmImportPassword() {
 }
 
 /**
- * Cancel import password dialog and resolve with null
- * Cleans up overlay and promise resolver
+ * Cancels import password dialog and resolves with null.
+ * 
+ * Cleans up password dialog overlay and resolves the dialog promise
+ * with null to indicate user cancellation. Handles cleanup of DOM
+ * elements and promise resolver functions.
+ * 
+ * @since 2.0.0
+ * @example
+ * // Called via action delegation system
+ * // data-action="cancel-import-password"
+ * cancelImportPassword();
  */
 function cancelImportPassword() {
     const overlay = document.getElementById('passwordDialogOverlay');

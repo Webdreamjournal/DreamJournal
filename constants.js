@@ -1,14 +1,97 @@
+/**
+ * @fileoverview Dream Journal Constants & Configuration
+ * 
+ * Central repository for all application constants, templates, and configuration values.
+ * Maintains single source of truth for consistent behavior across modules.
+ * 
+ * @module constants
+ * @version 2.02.09
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ */
+
 // ===================================================================================
 // DREAM JOURNAL CONSTANTS & CONFIGURATION
 // ===================================================================================
-// Central repository for all application constants, templates, and configuration values
-// Maintains single source of truth for consistent behavior across modules
 
-// UI State Management Keys
+/**
+ * Storage key for dream form collapse state.
+ * 
+ * Used to persist whether the dream entry form is collapsed or expanded
+ * across browser sessions for better user experience.
+ * 
+ * @constant {string}
+ * @since 2.0.0
+ */
 const DREAM_FORM_COLLAPSE_KEY = 'dreamFormCollapsed';
     
-// Core Application Constants
-// Centralized configuration values used throughout the application
+/**
+ * Core application constants and configuration values.
+ * 
+ * Centralized configuration object containing all timing, limits, validation rules,
+ * and system parameters used throughout the Dream Journal application. Organized
+ * by functional domain for easy maintenance and reference.
+ * 
+ * @constant {Object}
+ * @readonly
+ * @property {number} VOICE_STORAGE_LIMIT - Maximum number of stored voice notes
+ * @property {number} PIN_RESET_HOURS - Hours before PIN reset timer expires
+ * @property {number} PIN_MIN_LENGTH - Minimum PIN length requirement
+ * @property {number} PIN_MAX_LENGTH - Maximum PIN length allowed
+ * @property {number} PASSWORD_MIN_LENGTH - Minimum password length for encryption
+ * @property {number} FAILED_PIN_ATTEMPT_LIMIT - Max failed PIN attempts before lockout
+ * @property {number} CRYPTO_SALT_SIZE - Salt size in bytes for PBKDF2 key derivation
+ * @property {number} CRYPTO_IV_SIZE - Initialization vector size for AES-GCM encryption
+ * @property {number} CRYPTO_PBKDF2_ITERATIONS - PBKDF2 iterations for security hardening
+ * @property {number} CRYPTO_KEY_LENGTH - AES encryption key length in bits
+ * @property {number} DEBOUNCE_SEARCH_MS - Search input debounce delay
+ * @property {number} DEBOUNCE_FILTER_MS - Filter change debounce delay
+ * @property {number} DEBOUNCE_SCROLL_MS - Scroll event debounce delay
+ * @property {number} ENDLESS_SCROLL_THRESHOLD_PX - Distance from bottom to trigger infinite scroll
+ * @property {number} ENDLESS_SCROLL_INCREMENT - Items to load per scroll event
+ * @property {number} MAX_TAGS_PER_DREAM - Maximum tags allowed per dream entry
+ * @property {number} MAX_TAG_LENGTH - Maximum characters allowed per tag
+ * @property {number} AI_ANALYSIS_RECENT_LIMIT - Recent dreams included in AI export
+ * @property {number} AI_ANALYSIS_TOTAL_LIMIT - Total dreams exported for AI analysis
+ * @property {number} AI_ANALYSIS_THRESHOLD - Minimum word count for AI analysis inclusion
+ * @property {number} LARGE_DATASET_THRESHOLD - Dream count considered large dataset
+ * @property {number} AUTOCOMPLETE_MIN_CHARS - Minimum characters to trigger autocomplete
+ * @property {number} AUTOCOMPLETE_MAX_RESULTS - Maximum autocomplete suggestions displayed
+ * @property {number} DOM_TRAVERSAL_LEVELS - Maximum DOM levels traversed for action contexts
+ * @property {number} TEXT_TRUNCATE_LENGTH - Character limit for text truncation
+ * @property {number} PAGINATION_MAX_VISIBLE_PAGES - Maximum page numbers shown in pagination
+ * @property {number} PAGINATION_CURRENT_PAGE_PROXIMITY - Pages shown around current page
+ * @property {number} PAGINATION_ELLIPSIS_THRESHOLD - Threshold for showing pagination ellipsis
+ * @property {number} BYTES_PER_KB - Bytes per kilobyte conversion factor
+ * @property {number} BYTES_PER_MB - Bytes per megabyte conversion factor
+ * @property {number} DB_VERSION - Current IndexedDB schema version
+ * @property {number} DATETIME_LOCAL_SLICE_LENGTH - Length of datetime-local string slice
+ * @property {number} MESSAGE_DURATION_SHORT - Short notification display duration (ms)
+ * @property {number} MESSAGE_DURATION_MEDIUM - Medium notification display duration (ms)
+ * @property {number} MESSAGE_DURATION_LONG - Long notification display duration (ms)
+ * @property {number} MESSAGE_DURATION_EXTENDED - Extended notification display duration (ms)
+ * @property {number} CLEANUP_DELAY_MS - Delay before cleaning up temporary elements
+ * @property {number} FOCUS_DELAY_MS - Delay before focusing elements (prevents race conditions)
+ * @property {number} BACKUP_UPDATE_DELAY_MS - Delay between backup progress updates
+ * @property {number} DOWNLOAD_CLEANUP_DELAY_MS - Delay before cleaning up download URLs
+ * @property {number} GOALS_PER_PAGE - Goals displayed per page in interface
+ * @since 1.0.0
+ * @example
+ * // Access configuration values
+ * const maxTags = CONSTANTS.MAX_TAGS_PER_DREAM; // 20
+ * const searchDelay = CONSTANTS.DEBOUNCE_SEARCH_MS; // 300ms
+ * 
+ * @example
+ * // Use in validation
+ * if (dreamTags.length > CONSTANTS.MAX_TAGS_PER_DREAM) {
+ *   showError('Too many tags');
+ * }
+ * 
+ * @example
+ * // Use in cryptographic operations
+ * const saltArray = new Uint8Array(CONSTANTS.CRYPTO_SALT_SIZE);
+ * crypto.getRandomValues(saltArray);
+ */
 const CONSTANTS = {
         // Voice Recording System Limits
         VOICE_STORAGE_LIMIT: 5, // Maximum number of stored voice notes
@@ -76,8 +159,37 @@ const CONSTANTS = {
         GOALS_PER_PAGE: 5 // Number of goals displayed per page in goals interface
     };
     
-// Predefined Goal Templates
-// Template configurations for common lucid dreaming goals
+/**
+ * Predefined goal templates for common lucid dreaming objectives.
+ * 
+ * Template configurations that users can select to create standardized goals
+ * for tracking lucid dreaming progress. Each template defines the goal type,
+ * tracking period, target values, and visual representation.
+ * 
+ * @constant {Object}
+ * @readonly
+ * @property {GoalTemplate} lucid-monthly - Monthly lucid dream achievement goal
+ * @property {GoalTemplate} recall-streak - Consecutive dream recall tracking
+ * @property {GoalTemplate} journal-habit - Daily journaling consistency goal
+ * @property {GoalTemplate} dream-signs - Dream signs identification and collection
+ * @property {GoalTemplate} custom - User-defined custom goal template
+ * @since 2.0.0
+ * @example
+ * // Access goal templates
+ * const lucidGoal = GOAL_TEMPLATES['lucid-monthly'];
+ * console.log(lucidGoal.title); // "Monthly Lucid Dreams"
+ * 
+ * @example
+ * // Create goal from template
+ * function createGoalFromTemplate(templateKey, customTarget) {
+ *   const template = GOAL_TEMPLATES[templateKey];
+ *   return {
+ *     ...template,
+ *     target: customTarget || template.target,
+ *     createdAt: new Date()
+ *   };
+ * }
+ */
 const GOAL_TEMPLATES = {
         'lucid-monthly': {
             title: 'Monthly Lucid Dreams',
@@ -122,8 +234,29 @@ const GOAL_TEMPLATES = {
     };
 
 /**
- * Load daily tips from external JSON file
- * @returns {Promise<Array>} Promise that resolves to array of tip objects
+ * Loads daily tips from external JSON file for the tips system.
+ * 
+ * Asynchronously fetches tip data from the tips.json file to populate
+ * the daily tips feature. Handles network errors gracefully by returning
+ * an empty array as fallback, ensuring the application continues to function
+ * even if tips cannot be loaded.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<Array<TipObject>>} Promise that resolves to array of tip objects
+ * @throws {Error} When fetch fails or response is not ok
+ * @since 2.0.0
+ * @example
+ * const tips = await loadDailyTips();
+ * if (tips.length > 0) {
+ *   displayRandomTip(tips);
+ * }
+ * 
+ * @example
+ * // Handle loading errors gracefully
+ * loadDailyTips()
+ *   .then(tips => console.log(`Loaded ${tips.length} tips`))
+ *   .catch(error => console.warn('Tips unavailable:', error));
  */
 async function loadDailyTips() {
     try {
@@ -141,11 +274,67 @@ async function loadDailyTips() {
 }
 
 // ===================================================================================
+// TYPE DEFINITIONS
+// ===================================================================================
+
+/**
+ * @typedef {Object} GoalTemplate
+ * @property {string} title - Display name for the goal template
+ * @property {string} description - Detailed description of the goal
+ * @property {GoalType} type - Type of goal tracking mechanism
+ * @property {GoalPeriod} period - Time period or tracking scope for the goal
+ * @property {number} target - Target value or count to achieve
+ * @property {string} icon - Emoji icon representing the goal visually
+ * @since 2.0.0
+ */
+
+/**
+ * Goal tracking type enumeration.
+ * 
+ * @typedef {('lucid_count'|'recall_streak'|'journal_streak'|'dream_signs_count'|'custom')} GoalType
+ */
+
+/**
+ * Goal period/scope enumeration.
+ * 
+ * @typedef {('monthly'|'streak'|'total')} GoalPeriod
+ */
+
+// ===================================================================================
 // TAGS & AUTOCOMPLETE SYSTEM
 // ===================================================================================
 
-// Common Dream Tags for Autocomplete
-// Predefined tag suggestions to help users categorize dreams consistently
+/**
+ * @typedef {Object} TipObject
+ * @property {string} id - Unique identifier for the tip
+ * @property {string} title - Tip title or category
+ * @property {string} content - Main tip content
+ * @property {string[]} [tags] - Optional tags for categorization
+ * @property {string} [difficulty] - Difficulty level (beginner, intermediate, advanced)
+ * @since 2.0.0
+ */
+
+/**
+ * Common dream tags for autocomplete suggestions.
+ * 
+ * Predefined tag collection that provides autocomplete suggestions to help users
+ * categorize their dreams consistently. Tags are organized by thematic categories
+ * (people, places, objects, activities, themes) to cover the most common dream
+ * elements reported in dream research.
+ * 
+ * @constant {string[]}
+ * @readonly
+ * @since 1.0.0
+ * @example
+ * // Used in autocomplete functionality
+ * const matchingTags = commonTags.filter(tag => 
+ *   tag.toLowerCase().includes(userInput.toLowerCase())
+ * );
+ * 
+ * @example
+ * // Get random dream tag suggestion
+ * const randomTag = commonTags[Math.floor(Math.random() * commonTags.length)];
+ */
 const commonTags = [
         // People
         'family', 'friends', 'strangers', 'children', 'elderly', 'celebrities', 'deceased-relatives',
@@ -159,9 +348,33 @@ const commonTags = [
         'adventure', 'romance', 'horror', 'fantasy', 'sci-fi', 'mystery', 'spiritual', 'nostalgic', 'surreal'
     ];
 
-// Dream Signs Database
-// Common elements that can trigger lucidity when recognized in dreams
-// Organized by type for systematic reality check training
+/**
+ * Common dream signs database for lucidity training.
+ * 
+ * Comprehensive collection of dream elements that commonly appear in dreams
+ * and can serve as reality check triggers for lucid dreaming practice.
+ * Organized by categories to help users systematically train their awareness
+ * of dream inconsistencies and impossibilities.
+ * 
+ * Based on lucid dreaming research and common dream themes reported
+ * in dream journals and scientific literature.
+ * 
+ * @constant {string[]}
+ * @readonly
+ * @since 2.0.0
+ * @example
+ * // Check if dream contains common dream signs
+ * const dreamSigns = findDreamSigns(dreamContent, commonDreamSigns);
+ * if (dreamSigns.length > 0) {
+ *   suggestRealityChecks(dreamSigns);
+ * }
+ * 
+ * @example
+ * // Filter dream signs by category
+ * const realityCheckSigns = commonDreamSigns.filter(sign => 
+ *   ['text-changing', 'clocks-wrong', 'hands-distorted'].includes(sign)
+ * );
+ */
 const commonDreamSigns = [
         // Reality Check Triggers
         'flying', 'impossible-architecture', 'text-changing', 'clocks-wrong', 'hands-distorted', 'light-switches-broken',
@@ -174,4 +387,12 @@ const commonDreamSigns = [
         // Recurring Personal Signs
         'teeth-falling-out', 'being-chased', 'cant-run-fast', 'naked-in-public', 'late-for-exam', 'lost-vehicle'
     ];
-    
+
+// ===================================================================================
+// MODULE EXPORTS
+// ===================================================================================
+
+// Note: This module uses implicit global exports for browser compatibility.
+// All constants, templates, and functions declared above are automatically
+// available to other modules loaded after this one in the HTML document.
+

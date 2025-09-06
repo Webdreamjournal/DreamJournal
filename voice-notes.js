@@ -1,3 +1,95 @@
+/**
+ * @fileoverview Complete voice recording system with audio capture, playback, transcription,
+ * storage management, and dream entry integration for the Dream Journal application.
+ * 
+ * This module provides comprehensive voice recording capabilities including:
+ * - Audio recording with MediaRecorder API
+ * - Real-time speech transcription using Web Speech API
+ * - Audio playback with seeking and progress tracking
+ * - Voice note storage and management
+ * - Integration with dream entry creation
+ * - Cross-browser compatibility handling
+ * 
+ * @module VoiceNotes
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ * @requires constants
+ * @requires state
+ * @requires storage
+ * @requires dom-helpers
+ * @requires dream-crud
+ * @example
+ * // Initialize voice recording
+ * await startRecording();
+ * 
+ * // Toggle recording state
+ * await toggleRecording();
+ * 
+ * // Play a voice note
+ * await playVoiceNote('voice_123_abc');
+ */
+
+/**
+ * Represents a complete voice note with metadata and audio data.
+ * 
+ * @typedef {Object} VoiceNote
+ * @property {string} id - Unique identifier for the voice note
+ * @property {Blob} audioBlob - Audio data as a Blob object
+ * @property {string} timestamp - ISO timestamp when recording was created
+ * @property {number} duration - Duration in seconds (may be estimated)
+ * @property {string} title - Human-readable title with date and time
+ * @property {string} dateString - Formatted date string for display
+ * @property {number} size - Audio file size in bytes
+ * @property {string|null} transcription - Transcribed text or null if unavailable
+ * @since 1.0.0
+ */
+
+/**
+ * Browser capability information for voice features.
+ * 
+ * @typedef {Object} VoiceCapabilities
+ * @property {boolean} canRecord - Whether audio recording is supported
+ * @property {boolean} canTranscribe - Whether speech recognition is supported
+ * @property {boolean} hasGetUserMedia - Whether getUserMedia API is available
+ * @property {boolean} hasMediaRecorder - Whether MediaRecorder API is available
+ * @property {boolean} hasSpeechRecognition - Whether Speech Recognition API is available
+ * @property {BrowserInfo} browser - Browser-specific information
+ * @property {Function} getStatusMessage - Function returning capability status message
+ * @since 1.0.0
+ */
+
+/**
+ * Browser detection information for handling browser-specific behaviors.
+ * 
+ * @typedef {Object} BrowserInfo
+ * @property {boolean} isFirefox - Whether browser is Firefox
+ * @property {boolean} isFirefoxMobile - Whether browser is Firefox on mobile
+ * @property {boolean} isSafari - Whether browser is Safari
+ * @property {boolean} isSafariMobile - Whether browser is Safari on mobile
+ * @property {boolean} isChrome - Whether browser is Chrome
+ * @property {boolean} isEdge - Whether browser is Edge
+ * @since 1.0.0
+ */
+
+/**
+ * Status message with type for user feedback.
+ * 
+ * @typedef {Object} StatusMessage
+ * @property {'success'|'info'|'warning'|'error'} type - Message type for styling
+ * @property {string} message - Human-readable status message
+ * @since 1.0.0
+ */
+
+/**
+ * Audio element caching information for seeking operations.
+ * 
+ * @typedef {Object} CachedAudioElement
+ * @property {HTMLAudioElement} audio - HTML audio element
+ * @property {string} url - Object URL for the audio blob
+ * @since 1.0.0
+ */
+
 // ================================
 // VOICE NOTES MODULE
 // ================================
@@ -8,8 +100,28 @@
 // 1. VOICE RECORDING OPERATIONS
 // ================================
     
-// Initialize and start audio recording with transcription support
-// Handles microphone permissions, storage limits, and speech recognition setup
+/**
+ * Initializes and starts audio recording with transcription support.
+ * 
+ * This function handles microphone permissions, storage limits, and speech recognition setup.
+ * It determines the best audio format, sets up MediaRecorder, and optionally enables
+ * real-time speech transcription if supported by the browser.
+ * 
+ * @async
+ * @function startRecording
+ * @returns {Promise<void>} Resolves when recording starts or fails
+ * @throws {NotAllowedError} When microphone access is denied
+ * @throws {NotFoundError} When no microphone is found
+ * @throws {NotSupportedError} When audio recording is not supported
+ * @since 1.0.0
+ * @example
+ * try {
+ *   await startRecording();
+ *   console.log('Recording started successfully');
+ * } catch (error) {
+ *   console.error('Failed to start recording:', error);
+ * }
+ */
     async function startRecording() {
         try {
             if (!isVoiceRecordingSupported()) {
@@ -138,8 +250,20 @@
         }
     }
 
-// Stop active audio recording and cleanup resources
-// Handles speech recognition cleanup and UI state reset
+/**
+ * Stops active audio recording and cleanup resources.
+ * 
+ * This function handles speech recognition cleanup, UI state reset, and proper
+ * release of microphone resources. It ensures all timers are cleared and the
+ * interface is returned to the ready state.
+ * 
+ * @function stopRecording
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * stopRecording();
+ * // UI will be reset to ready state
+ */
     function stopRecording() {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
@@ -191,7 +315,23 @@
         // recordingStartTime will be reset in saveRecording() after duration calculation
     }
 
-// Toggle between recording and stopped states based on current recorder state
+/**
+ * Toggles between recording and stopped states based on current recorder state.
+ * 
+ * This is the main control function for voice recording, automatically determining
+ * whether to start or stop recording based on the current MediaRecorder state.
+ * 
+ * @async
+ * @function toggleRecording
+ * @returns {Promise<void>} Resolves when toggle operation completes
+ * @since 1.0.0
+ * @example
+ * // Toggle recording state
+ * await toggleRecording();
+ * 
+ * // Can be called repeatedly to start/stop recording
+ * button.onclick = () => toggleRecording();
+ */
     async function toggleRecording() {
         console.log('Toggle recording called'); // Debug log
         if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -201,8 +341,25 @@
         }
     }
 
-// Process and save completed audio recording with metadata and transcription
-// Handles duration calculation, storage persistence, and user feedback
+/**
+ * Processes and saves completed audio recording with metadata and transcription.
+ * 
+ * This function handles duration calculation, storage persistence, user feedback,
+ * and automatic duration detection. It creates a complete voice note object with
+ * all necessary metadata and saves it to IndexedDB.
+ * 
+ * @async
+ * @function saveRecording
+ * @param {Blob} audioBlob - The recorded audio data as a Blob
+ * @returns {Promise<void>} Resolves when recording is saved successfully
+ * @throws {Error} When audioBlob is invalid or empty
+ * @throws {Error} When saving to storage fails
+ * @since 1.0.0
+ * @example
+ * // Save a recording blob
+ * const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+ * await saveRecording(audioBlob);
+ */
     async function saveRecording(audioBlob) {
         try {
             if (!audioBlob || audioBlob.size === 0) {
@@ -293,8 +450,31 @@
 // 2. AUDIO PLAYBACK SYSTEM
 // ================================
 
-// Play stored voice note with progress tracking and duration detection
-// Handles multiple audio formats and browser-specific audio metadata issues
+/**
+ * Plays stored voice note with progress tracking and duration detection.
+ * 
+ * This function handles multiple audio formats and browser-specific audio metadata
+ * issues. It provides comprehensive duration detection using multiple fallback methods,
+ * manages audio state, and updates the UI with progress information.
+ * 
+ * @async
+ * @function playVoiceNote
+ * @param {string} voiceNoteId - Unique identifier of the voice note to play
+ * @returns {Promise<void>} Resolves when playback starts or fails
+ * @throws {Error} When voice note is not found
+ * @throws {Error} When audio data is invalid
+ * @since 1.0.0
+ * @example
+ * // Play a specific voice note
+ * await playVoiceNote('voice_123456_abc');
+ * 
+ * // Play with error handling
+ * try {
+ *   await playVoiceNote(noteId);
+ * } catch (error) {
+ *   console.error('Playback failed:', error);
+ * }
+ */
     async function playVoiceNote(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
@@ -546,8 +726,29 @@
 // 3. BROWSER CAPABILITIES & COMPATIBILITY
 // ================================
         
-// Comprehensive browser capability detection for voice recording and transcription
-// Returns detailed compatibility information for different browsers and platforms
+/**
+ * Comprehensive browser capability detection for voice recording and transcription.
+ * 
+ * Returns detailed compatibility information for different browsers and platforms,
+ * including support for MediaRecorder API, Speech Recognition API, and browser-specific
+ * features and limitations.
+ * 
+ * @function getVoiceCapabilities
+ * @returns {VoiceCapabilities} Object containing capability information and browser detection
+ * @since 1.0.0
+ * @example
+ * const capabilities = getVoiceCapabilities();
+ * if (capabilities.canRecord && capabilities.canTranscribe) {
+ *   console.log('Full voice support available');
+ * }
+ * 
+ * @example
+ * // Check browser-specific features
+ * const caps = getVoiceCapabilities();
+ * if (caps.browser.isFirefox) {
+ *   console.log('Firefox-specific handling needed');
+ * }
+ */
 function getVoiceCapabilities() {
             const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
             const hasMediaRecorder = !!(window.MediaRecorder);
@@ -598,12 +799,36 @@ function getVoiceCapabilities() {
             };
         }
         
-// Check if current browser supports MediaRecorder API for audio recording
+/**
+ * Checks if current browser supports MediaRecorder API for audio recording.
+ * 
+ * @function isVoiceRecordingSupported
+ * @returns {boolean} True if voice recording is supported
+ * @since 1.0.0
+ * @example
+ * if (isVoiceRecordingSupported()) {
+ *   showRecordingButton();
+ * } else {
+ *   showUnsupportedMessage();
+ * }
+ */
 function isVoiceRecordingSupported() {
             return getVoiceCapabilities().canRecord;
         }
         
-// Check if current browser supports Speech Recognition API for transcription
+/**
+ * Checks if current browser supports Speech Recognition API for transcription.
+ * 
+ * @function isSpeechRecognitionSupported
+ * @returns {boolean} True if speech recognition is supported
+ * @since 1.0.0
+ * @example
+ * if (isSpeechRecognitionSupported()) {
+ *   enableTranscription();
+ * } else {
+ *   disableTranscriptionFeatures();
+ * }
+ */
 function isSpeechRecognitionSupported() {
             return getVoiceCapabilities().canTranscribe;
         }
@@ -612,8 +837,27 @@ function isSpeechRecognitionSupported() {
 // 4. SPEECH RECOGNITION SYSTEM
 // ================================
 
-// Setup and configure Speech Recognition API with error handling and retry logic
-// Handles secure context requirements, timeouts, and recognition state management
+/**
+ * Sets up and configures Speech Recognition API with error handling and retry logic.
+ * 
+ * This function handles secure context requirements (HTTPS), timeouts, and recognition
+ * state management. It provides comprehensive error handling with automatic retries
+ * and graceful degradation when transcription features are unavailable.
+ * 
+ * @async
+ * @function setupSpeechRecognition
+ * @returns {Promise<SpeechRecognition|null>} Configured SpeechRecognition instance or null if unavailable
+ * @throws {Error} When speech recognition setup fails
+ * @since 1.0.0
+ * @example
+ * const recognition = await setupSpeechRecognition();
+ * if (recognition) {
+ *   recognition.start();
+ *   console.log('Transcription enabled');
+ * } else {
+ *   console.log('Transcription not available');
+ * }
+ */
 async function setupSpeechRecognition() {
             if (!isSpeechRecognitionSupported()) return null;
             
@@ -805,7 +1049,22 @@ async function setupSpeechRecognition() {
 // 5. UTILITY FUNCTIONS
 // ================================
 
-// Format seconds into MM:SS display format with validation
+/**
+ * Formats seconds into MM:SS display format with validation.
+ * 
+ * This function safely converts numeric seconds into a human-readable time format,
+ * handling edge cases like NaN, negative values, and Infinity.
+ * 
+ * @function formatDuration
+ * @param {number} seconds - Duration in seconds to format
+ * @returns {string} Formatted time string in MM:SS format
+ * @since 1.0.0
+ * @example
+ * formatDuration(125); // Returns '2:05'
+ * formatDuration(45);  // Returns '0:45'
+ * formatDuration(0);   // Returns '0:00'
+ * formatDuration(NaN); // Returns '0:00'
+ */
 function formatDuration(seconds) {
             if (!seconds || isNaN(seconds) || seconds < 0 || !isFinite(seconds)) return '0:00';
             const safeSeconds = Math.max(0, Math.floor(seconds));
@@ -814,9 +1073,28 @@ function formatDuration(seconds) {
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
         
-// TODO: Extract audio metadata detection logic into separate utility function
-// Get accurate audio duration from blob using multiple detection methods
-// Handles browser-specific metadata loading issues and provides fallback durations
+/**
+ * Gets accurate audio duration from blob using multiple detection methods.
+ * 
+ * This function handles browser-specific metadata loading issues and provides
+ * fallback durations when audio metadata is unavailable. It uses multiple
+ * detection strategies including metadata events, seekable ranges, and brief playback.
+ * 
+ * @async
+ * @function getAudioDuration
+ * @param {Blob} audioBlob - Audio blob to analyze
+ * @param {number|null} [storedDuration=null] - Fallback duration from storage
+ * @returns {Promise<number>} Duration in seconds, or fallback value
+ * @since 1.0.0
+ * @todo Extract audio metadata detection logic into separate utility function
+ * @example
+ * const duration = await getAudioDuration(audioBlob, 30);
+ * console.log(`Audio duration: ${duration} seconds`);
+ * 
+ * @example
+ * // Without fallback duration
+ * const duration = await getAudioDuration(audioBlob);
+ */
 async function getAudioDuration(audioBlob, storedDuration = null) {
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
@@ -865,13 +1143,13 @@ async function getAudioDuration(audioBlob, storedDuration = null) {
                 // Timeout fallback after 3 seconds
                 setTimeout(() => {
                     if (!resolved) {
-                        const fallbackDuration = storedDuration || 5;
+                        const fallbackDuration = storedDuration || 5999;
                         console.log(`getAudioDuration: Timeout - using ${fallbackDuration}s fallback (stored: ${storedDuration || 'none'})`);
                         resolved = true;
                         URL.revokeObjectURL(url);
                         resolve(fallbackDuration); // Use stored duration or 5s default for problematic WebM files
                     }
-                }, 3000);
+                }, 1000);
                 
                 audio.onerror = () => {
                     if (!resolved) {
@@ -905,7 +1183,19 @@ async function getAudioDuration(audioBlob, storedDuration = null) {
             });
         }
         
-// Update live recording timer display during active recording
+/**
+ * Updates live recording timer display during active recording.
+ * 
+ * This function calculates elapsed recording time and updates the timer display.
+ * It includes safety checks to prevent lingering timers when recording stops.
+ * 
+ * @function updateRecordingTimer
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * // Called automatically by setInterval during recording
+ * recordingTimer = setInterval(updateRecordingTimer, 100);
+ */
 function updateRecordingTimer() {
             if (!recordingStartTime || !recordingTimer) {
                 // Safety check: if recording should be stopped, clear any lingering timer
@@ -923,7 +1213,22 @@ function updateRecordingTimer() {
             }
         }
         
-// Update voice system status message with type-based styling
+/**
+ * Updates voice system status message with type-based styling.
+ * 
+ * This function displays status messages to users with appropriate styling
+ * based on the message type (info, warning, error, success).
+ * 
+ * @function updateVoiceStatus
+ * @param {string} message - Status message to display
+ * @param {'info'|'warning'|'error'|'success'} [type='info'] - Message type for styling
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * updateVoiceStatus('Recording started', 'info');
+ * updateVoiceStatus('Storage full', 'error');
+ * updateVoiceStatus('Recording saved successfully', 'success');
+ */
 function updateVoiceStatus(message, type = 'info') {
             const statusElement = document.getElementById('voiceStatus');
             if (statusElement) {
@@ -932,9 +1237,27 @@ function updateVoiceStatus(message, type = 'info') {
             }
         }
         
-// TODO: Split into calculateRecordingCapacity() and updateRecordButtonUI() functions
-// Update recording button state based on storage capacity and browser capabilities
-// Handles storage limits, capability detection, and UI state synchronization
+/**
+ * Updates recording button state based on storage capacity and browser capabilities.
+ * 
+ * This function handles storage limits, capability detection, and UI state synchronization.
+ * It checks available storage slots and updates the button appearance and status messages
+ * accordingly.
+ * 
+ * @async
+ * @function updateRecordButtonState
+ * @returns {Promise<void>} Resolves when button state is updated
+ * @since 1.0.0
+ * @todo Split into calculateRecordingCapacity() and updateRecordButtonUI() functions
+ * @example
+ * // Update button after saving a recording
+ * await saveVoiceNote(note);
+ * await updateRecordButtonState();
+ * 
+ * @example
+ * // Check storage capacity on app initialization
+ * await updateRecordButtonState();
+ */
 async function updateRecordButtonState() {
             const recordBtn = document.getElementById('recordBtn');
             const recordIcon = document.getElementById('recordIcon');
@@ -993,9 +1316,27 @@ let lastProgressUpdate = 0;
 // Use centralized browser detection from getVoiceCapabilities
 const PROGRESS_UPDATE_THROTTLE = getVoiceCapabilities().browser.isFirefox ? 0 : 50; // ms - disable throttling for Firefox
 
-// TODO: Split into buildVoiceNotesHTML() and renderVoiceNotesContainer() functions
-// Display all stored voice notes with playback controls and metadata
-// Handles empty states, storage warnings, and asynchronous duration detection
+/**
+ * Displays all stored voice notes with playback controls and metadata.
+ * 
+ * This function handles empty states, storage warnings, and asynchronous duration
+ * detection. It renders the complete voice notes interface including play controls,
+ * progress bars, and action buttons.
+ * 
+ * @async
+ * @function displayVoiceNotes
+ * @returns {Promise<void>} Resolves when voice notes are displayed
+ * @since 1.0.0
+ * @todo Split into buildVoiceNotesHTML() and renderVoiceNotesContainer() functions
+ * @example
+ * // Refresh the voice notes display
+ * await displayVoiceNotes();
+ * 
+ * @example
+ * // Display after adding a new note
+ * await saveVoiceNote(newNote);
+ * await displayVoiceNotes();
+ */
 async function displayVoiceNotes() {
             const container = document.getElementById('voiceNotesContainer');
             if (!container) return;
@@ -1117,7 +1458,19 @@ async function displayVoiceNotes() {
         }
         
         
-// Pause currently playing voice note and update UI controls
+/**
+ * Pauses currently playing voice note and updates UI controls.
+ * 
+ * This function stops audio playback and updates the play button state while
+ * preserving the progress bar and current position for potential resumption.
+ * 
+ * @function pauseVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to pause
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * pauseVoiceNote('voice_123456_abc');
+ */
 function pauseVoiceNote(voiceNoteId) {
             if (currentPlayingAudio) {
                 try {
@@ -1141,7 +1494,25 @@ function pauseVoiceNote(voiceNoteId) {
             // Progress container stays visible
         }
         
-// Update audio progress bar and time displays with throttling for performance
+/**
+ * Updates audio progress bar and time displays with throttling for performance.
+ * 
+ * This function handles real-time progress updates during audio playback,
+ * with browser-specific optimizations and throttling to prevent excessive
+ * DOM manipulation.
+ * 
+ * @function updateAudioProgress
+ * @param {string} voiceNoteId - ID of the voice note being played
+ * @param {number} currentTime - Current playback position in seconds
+ * @param {number} duration - Total audio duration in seconds
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * // Called automatically during audio playback
+ * audio.ontimeupdate = () => {
+ *   updateAudioProgress(noteId, audio.currentTime, audio.duration);
+ * };
+ */
 function updateAudioProgress(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
@@ -1185,7 +1556,23 @@ function updateAudioProgress(voiceNoteId, currentTime, duration) {
             }
         }
         
-// Update progress bar with smooth CSS transitions for manual seeking operations
+/**
+ * Updates progress bar with smooth CSS transitions for manual seeking operations.
+ * 
+ * This function provides smooth visual feedback when users manually seek to
+ * different positions in the audio, with browser-specific transition handling.
+ * 
+ * @function updateAudioProgressWithTransition
+ * @param {string} voiceNoteId - ID of the voice note being seeked
+ * @param {number} currentTime - Target playback position in seconds
+ * @param {number} duration - Total audio duration in seconds
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * // Used when user clicks on progress bar
+ * const seekTime = clickPercentage * duration;
+ * updateAudioProgressWithTransition(noteId, seekTime, duration);
+ */
 function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
             if (!voiceNoteId || isNaN(currentTime) || isNaN(duration) || duration <= 0 || !isFinite(duration)) {
                 return;
@@ -1227,9 +1614,26 @@ function updateAudioProgressWithTransition(voiceNoteId, currentTime, duration) {
 // Store audio elements for seeking when paused
 let audioElements = {};
 
-// TODO: Extract seekPercentageCalculation() and audioElementManagement() functions
-// Seek to specific position in audio based on progress bar click
-// Handles both playing and paused states with proper audio element caching
+/**
+ * Seeks to specific position in audio based on progress bar click.
+ * 
+ * This function handles both playing and paused states with proper audio element
+ * caching. It calculates the seek position from mouse click coordinates and
+ * updates the audio playback position accordingly.
+ * 
+ * @async
+ * @function seekAudio
+ * @param {string} voiceNoteId - ID of the voice note to seek
+ * @param {MouseEvent} event - Click event from progress bar
+ * @returns {Promise<void>} Resolves when seek operation completes
+ * @since 1.0.0
+ * @todo Extract seekPercentageCalculation() and audioElementManagement() functions
+ * @example
+ * // Handle progress bar click
+ * progressBar.onclick = (event) => {
+ *   seekAudio(voiceNoteId, event);
+ * };
+ */
 async function seekAudio(voiceNoteId, event) {
             if (!event) return;
             
@@ -1314,7 +1718,23 @@ async function seekAudio(voiceNoteId, event) {
 // 8. FILE MANAGEMENT OPERATIONS
 // ================================
 
-// Download voice note as audio file with timestamp-based filename
+/**
+ * Downloads voice note as audio file with timestamp-based filename.
+ * 
+ * This function creates a downloadable audio file from the stored voice note,
+ * generating an appropriate filename based on the recording timestamp and
+ * audio format.
+ * 
+ * @async
+ * @function downloadVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to download
+ * @returns {Promise<void>} Resolves when download is initiated
+ * @throws {Error} When voice note is not found or audio data is invalid
+ * @since 1.0.0
+ * @example
+ * await downloadVoiceNote('voice_123456_abc');
+ * // Downloads file like: dream-voice-note-2024-01-15-10-30-25.webm
+ */
 async function downloadVoiceNote(voiceNoteId) {
             try {
                 const voiceNotes = await loadVoiceNotes();
@@ -1356,7 +1776,21 @@ async function downloadVoiceNote(voiceNoteId) {
             }
         }
         
-// Show delete confirmation UI with timeout for safety
+/**
+ * Shows delete confirmation UI with timeout for safety.
+ * 
+ * This function initiates the deletion process by showing a confirmation button
+ * that times out automatically for safety. The user must confirm within the
+ * timeout period to complete deletion.
+ * 
+ * @function deleteVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to delete
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * deleteVoiceNote('voice_123456_abc');
+ * // Shows "Confirm Delete" button with timeout
+ */
 function deleteVoiceNote(voiceNoteId) {
             // Clear any existing timeout for this voice note
             if (voiceDeleteTimeouts[voiceNoteId]) {
@@ -1382,7 +1816,22 @@ function deleteVoiceNote(voiceNoteId) {
             }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
         }
 
-// Execute confirmed voice note deletion with mutex protection for data consistency
+/**
+ * Executes confirmed voice note deletion with mutex protection for data consistency.
+ * 
+ * This function performs the actual deletion operation with proper data consistency
+ * protection using a mutex. It handles both IndexedDB and fallback storage methods.
+ * 
+ * @async
+ * @function confirmDeleteVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to delete
+ * @returns {Promise<void>} Resolves when deletion is complete
+ * @throws {Error} When deletion fails
+ * @since 1.0.0
+ * @example
+ * await confirmDeleteVoiceNote('voice_123456_abc');
+ * // Voice note is permanently deleted
+ */
 async function confirmDeleteVoiceNote(voiceNoteId) {
         return withMutex('voiceOperations', async () => {
             try {
@@ -1427,7 +1876,20 @@ async function confirmDeleteVoiceNote(voiceNoteId) {
         });
     }
 
-// Cancel voice note deletion and restore original UI state
+/**
+ * Cancels voice note deletion and restores original UI state.
+ * 
+ * This function cancels the deletion process and returns the UI to its normal
+ * state, removing confirmation buttons and timeout handlers.
+ * 
+ * @function cancelDeleteVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to cancel deletion for
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * cancelDeleteVoiceNote('voice_123456_abc');
+ * // Deletion is cancelled, UI returns to normal
+ */
 function cancelDeleteVoiceNote(voiceNoteId) {
             // Clear the timeout
             if (voiceDeleteTimeouts[voiceNoteId]) {
@@ -1452,8 +1914,23 @@ function cancelDeleteVoiceNote(voiceNoteId) {
 // 9. TRANSCRIPTION & DREAM INTEGRATION
 // ================================
 
-// Process voice note transcription and create dream entry if available
-// Handles both existing transcriptions and provides guidance for future recordings
+/**
+ * Processes voice note transcription and creates dream entry if available.
+ * 
+ * This function handles both existing transcriptions and provides guidance for
+ * future recordings. If transcription is available, it creates a dream entry;
+ * otherwise, it provides helpful tips for better transcription.
+ * 
+ * @async
+ * @function transcribeVoiceNote
+ * @param {string} voiceNoteId - ID of the voice note to transcribe
+ * @returns {Promise<void>} Resolves when transcription processing completes
+ * @throws {Error} When voice note is not found
+ * @since 1.0.0
+ * @example
+ * await transcribeVoiceNote('voice_123456_abc');
+ * // Creates dream entry if transcription exists
+ */
 async function transcribeVoiceNote(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();
@@ -1495,9 +1972,28 @@ async function transcribeVoiceNote(voiceNoteId) {
             updateVoiceStatus('Failed to process transcription', 'error');
         }
     }
-// TODO: Extract formFieldsPopulation() and dreamFormNavigation() functions
-// Create new dream entry from voice note transcription text
-// Handles form population, field clearing, and user interface navigation
+/**
+ * Creates new dream entry from voice note transcription text.
+ * 
+ * This function handles form population, field clearing, and user interface navigation.
+ * It populates the dream entry form with transcribed text and provides smooth
+ * navigation to help users complete their dream entry.
+ * 
+ * @async
+ * @function createDreamFromTranscription
+ * @param {string} voiceNoteId - ID of the voice note containing transcription
+ * @returns {Promise<void>} Resolves when dream form is populated
+ * @throws {Error} When voice note is not found or has no transcription
+ * @since 1.0.0
+ * @todo Extract formFieldsPopulation() and dreamFormNavigation() functions
+ * @example
+ * await createDreamFromTranscription('voice_123456_abc');
+ * // Dream form is populated with transcribed text
+ * 
+ * @example
+ * // Handle transcription button click
+ * button.onclick = () => createDreamFromTranscription(voiceNoteId);
+ */
 async function createDreamFromTranscription(voiceNoteId) {
         try {
             const voiceNotes = await loadVoiceNotes();

@@ -1,3 +1,41 @@
+/**
+ * @fileoverview Dream Journal Progressive Web App Service Worker.
+ * 
+ * This service worker provides comprehensive PWA functionality including offline support,
+ * resource caching, automatic updates, and background synchronization. It implements a
+ * cache-first strategy with network fallback to ensure optimal performance and reliability
+ * even when the user is offline or has poor connectivity.
+ * 
+ * The service worker manages:
+ * - Installation and activation lifecycle with automatic cache updates
+ * - Cache-first network request interception with intelligent fallbacks
+ * - Automatic cleanup of outdated caches during updates
+ * - Background synchronization for connectivity restoration
+ * - Push notification handling and app focusing
+ * - Cross-client messaging for status updates
+ * 
+ * **Caching Strategy:**
+ * 1. **Cache First**: Always check cache before network for faster loading
+ * 2. **Network Fallback**: Fetch from network if not cached, then cache the result
+ * 3. **Offline Fallback**: Serve main app from cache if network fails completely
+ * 4. **Selective Caching**: Only cache same-origin GET requests for security
+ * 
+ * **Update Strategy:**
+ * - Version-based cache names enable automatic updates
+ * - Old caches are automatically cleaned up during activation
+ * - Service worker can be force-updated via message passing
+ * 
+ * @version 2.02.20
+ * @author Dream Journal Development Team
+ * @since 2.0.0
+ * @example
+ * // Service worker is registered automatically by main.js:
+ * // navigator.serviceWorker.register('./sw.js')
+ * 
+ * // Force service worker update:
+ * // navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'})
+ */
+
 // ================================
 // DREAM JOURNAL SERVICE WORKER
 // ================================
@@ -7,16 +45,42 @@
 // ================================
 // CACHE CONFIGURATION
 // ================================
-// Cache name includes version for automatic cache management
-// Update this version number when deploying new app versions
-const CACHE_NAME = 'dream-journal-v2-02-07';
 
-// Files to cache for offline functionality
-// Includes all essential app files for complete offline experience
+/**
+ * Cache name with version identifier for automatic cache management.
+ * 
+ * The version number is incremented with each app deployment to ensure users
+ * receive updates automatically. When this changes, old caches are cleaned up
+ * during the service worker activation phase.
+ * 
+ * @constant {string}
+ * @since 2.0.0
+ */
+const CACHE_NAME = 'dream-journal-v2-02-21';
+
+/**
+ * List of essential files to cache for complete offline functionality.
+ * 
+ * This array contains all critical application resources needed for the app
+ * to function completely offline. The cache includes:
+ * - Core HTML/CSS/JS files
+ * - Application modules and dependencies
+ * - Static assets (icons, data files)
+ * - All JavaScript modules for full functionality
+ * 
+ * Files are cached during service worker installation and serve as the foundation
+ * for offline operation. The cache-first strategy ensures these files load quickly
+ * from cache even when online.
+ * 
+ * @constant {string[]}
+ * @since 2.0.0
+ */
 const urlsToCache = [
   './',                    // Root directory
   './index.html',          // Main HTML file
   './dream-journal.css',   // Application styles
+  './icons/logo.png',      // App logo
+  './tips.json',           // Dream tips data
   './constants.js',        // App constants
   './state.js',           // Global state management
   './storage.js',         // IndexedDB operations
@@ -36,9 +100,28 @@ const urlsToCache = [
 // ================================
 
 /**
- * INSTALL EVENT
- * Triggered when service worker is first installed
- * Caches all essential files for offline use
+ * Service worker installation event handler.
+ * 
+ * Triggered when the service worker is first installed or when a new version
+ * becomes available. This handler caches all essential application files to
+ * enable complete offline functionality.
+ * 
+ * The installation process:
+ * 1. Opens the versioned cache storage
+ * 2. Adds all files from urlsToCache to the cache
+ * 3. Calls skipWaiting() to activate immediately
+ * 4. Handles any caching errors gracefully
+ * 
+ * The event.waitUntil() ensures the installation doesn't complete until all
+ * files are successfully cached, preventing incomplete offline functionality.
+ * 
+ * @function
+ * @param {ExtendableEvent} event - Service worker install event
+ * @listens install
+ * @since 2.0.0
+ * @example
+ * // Triggered automatically by browser when service worker updates
+ * // self.addEventListener('install', (event) => { ... })
  */
 self.addEventListener('install', (event) => {
   console.log('Dream Journal SW: Installing service worker');
@@ -62,9 +145,28 @@ self.addEventListener('install', (event) => {
 });
 
 /**
- * ACTIVATE EVENT
- * Triggered when service worker becomes active
- * Cleans up old caches and takes control of clients
+ * Service worker activation event handler.
+ * 
+ * Triggered when the service worker becomes active, either for the first time
+ * or after an update. This handler performs cleanup operations and takes control
+ * of all app instances.
+ * 
+ * The activation process:
+ * 1. Identifies and deletes outdated Dream Journal caches
+ * 2. Preserves the current cache version
+ * 3. Takes immediate control of all open app instances
+ * 4. Logs cleanup operations for debugging
+ * 
+ * Cache cleanup ensures that storage space isn't consumed by obsolete cached
+ * resources while maintaining the current version's cache for optimal performance.
+ * 
+ * @function
+ * @param {ExtendableEvent} event - Service worker activate event
+ * @listens activate
+ * @since 2.0.0
+ * @example
+ * // Triggered automatically after service worker installation
+ * // self.addEventListener('activate', (event) => { ... })
  */
 self.addEventListener('activate', (event) => {
   console.log('Dream Journal SW: Activating service worker');
@@ -94,9 +196,35 @@ self.addEventListener('activate', (event) => {
 // ================================
 
 /**
- * FETCH EVENT
- * Intercepts all network requests and serves from cache first
- * Cache-first strategy with network fallback for optimal performance
+ * Network request interception handler implementing cache-first strategy.
+ * 
+ * This handler intercepts all network requests and serves them using a cache-first
+ * approach with intelligent fallbacks. The strategy provides optimal performance
+ * by serving cached resources immediately while maintaining up-to-date content.
+ * 
+ * **Request Flow:**
+ * 1. Check if resource exists in cache
+ * 2. If cached, serve immediately (fast response)
+ * 3. If not cached, fetch from network
+ * 4. Cache successful network responses for future use
+ * 5. If network fails, attempt offline fallback to main app
+ * 
+ * **Filtering Logic:**
+ * - Only processes GET requests (safe operations)
+ * - Skips non-HTTP(S) requests (extensions, file://, etc.)
+ * - Only caches same-origin responses for security
+ * - Validates response status before caching
+ * 
+ * This approach ensures the app loads quickly from cache while keeping content
+ * fresh and providing graceful offline fallbacks.
+ * 
+ * @function
+ * @param {FetchEvent} event - Service worker fetch event containing request details
+ * @listens fetch
+ * @since 2.0.0
+ * @example
+ * // Triggered automatically for all network requests
+ * // self.addEventListener('fetch', (event) => { ... })
  */
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
@@ -158,8 +286,28 @@ self.addEventListener('fetch', (event) => {
 // ================================
 
 /**
- * BACKGROUND SYNC EVENT
- * Handles background synchronization when app comes back online
+ * Background synchronization event handler.
+ * 
+ * Handles background sync events triggered when the app regains connectivity
+ * after being offline. This enables the app to perform deferred operations
+ * and notify all open instances that connectivity has been restored.
+ * 
+ * **Sync Process:**
+ * 1. Listens for 'background-sync' tagged events
+ * 2. Finds all open app instances (clients)
+ * 3. Posts 'BACK_ONLINE' message to each client
+ * 4. Allows app instances to refresh data or retry failed operations
+ * 
+ * This feature enables graceful handling of connectivity changes and helps
+ * maintain data consistency across network interruptions.
+ * 
+ * @function
+ * @param {SyncEvent} event - Background sync event with tag identifier
+ * @listens sync
+ * @since 2.0.0
+ * @example
+ * // Triggered when network connectivity is restored
+ * // navigator.serviceWorker.ready.then(reg => reg.sync.register('background-sync'))
  */
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
@@ -179,8 +327,26 @@ self.addEventListener('sync', (event) => {
 });
 
 /**
- * MESSAGE EVENT
- * Handles messages from the main application
+ * Inter-context messaging handler.
+ * 
+ * Handles messages sent from the main application to the service worker,
+ * enabling bidirectional communication between the app and service worker contexts.
+ * This allows the app to control service worker behavior and request specific actions.
+ * 
+ * **Supported Message Types:**
+ * - `SKIP_WAITING`: Forces immediate service worker activation
+ * - Future: Could handle cache refresh, sync triggers, etc.
+ * 
+ * The messaging system enables the app to control update timing and trigger
+ * service worker operations as needed for optimal user experience.
+ * 
+ * @function
+ * @param {ExtendableMessageEvent} event - Message event containing data from main app
+ * @listens message
+ * @since 2.0.0
+ * @example
+ * // Send message from main app to service worker:
+ * // navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'})
  */
 self.addEventListener('message', (event) => {
   console.log('Dream Journal SW: Received message:', event.data);
@@ -196,9 +362,29 @@ self.addEventListener('message', (event) => {
 // ================================
 
 /**
- * NOTIFICATION CLICK EVENT
- * Handles user clicks on push notifications
- * Focuses or opens the app when notifications are clicked
+ * Push notification click event handler.
+ * 
+ * Handles user interactions with push notifications by managing app window focus
+ * and navigation. When users click notifications, this handler ensures they're
+ * taken to the appropriate app instance or opens a new one if needed.
+ * 
+ * **Click Handling Process:**
+ * 1. Closes the clicked notification
+ * 2. Searches for existing app windows/tabs
+ * 3. Focuses existing window if found
+ * 4. Opens new app window if no existing instance
+ * 5. Ensures smooth user experience across notification interactions
+ * 
+ * This provides seamless notification-to-app navigation, preventing multiple
+ * app instances while ensuring users can always access the app from notifications.
+ * 
+ * @function
+ * @param {NotificationEvent} event - Notification click event with notification details
+ * @listens notificationclick
+ * @since 2.0.0
+ * @example
+ * // Triggered automatically when user clicks push notifications
+ * // self.addEventListener('notificationclick', (event) => { ... })
  */
 self.addEventListener('notificationclick', (event) => {
   console.log('Dream Journal SW: Notification clicked');

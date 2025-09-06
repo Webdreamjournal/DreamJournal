@@ -1,3 +1,46 @@
+/**
+ * @fileoverview Main application initialization and lifecycle management module.
+ * 
+ * This module handles the complete application startup sequence, theme management,
+ * event delegation setup, PWA functionality, browser compatibility checks, and
+ * cleanup operations. It orchestrates the two-phase initialization process:
+ * immediate setup for UI responsiveness and deferred setup for heavier operations.
+ * 
+ * The module manages:
+ * - Application startup and initialization sequence
+ * - Theme system initialization and persistence
+ * - Event delegation and keyboard shortcuts
+ * - PWA installation system and service worker registration
+ * - Browser compatibility detection and fallbacks
+ * - Memory cleanup and resource management
+ * - PIN security system integration
+ * - Tab container management and dynamic content
+ * 
+ * @module MainApplication
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ * @requires constants
+ * @requires state
+ * @requires storage
+ * @requires dom-helpers
+ * @requires security
+ * @requires dream-crud
+ * @requires voice-notes
+ * @requires goals
+ * @requires stats
+ * @requires import-export
+ * @requires action-router
+ * @example
+ * // The module initializes automatically on DOMContentLoaded
+ * // No manual initialization required
+ * 
+ * // PWA installation can be triggered programmatically:
+ * if (window.deferredPrompt) {
+ *   await installPWA();
+ * }
+ */
+
 // ================================
 // MAIN APPLICATION INITIALIZATION MODULE
 // ================================
@@ -9,10 +52,25 @@
 // ================================
 
 /**
- * Initialize advice tab with deterministic tip of the day calculation
- * Uses first dream entry date as epoch, falling back to tip 1 if no dreams exist
- * @param {void}
- * @returns {Promise<void>}
+ * Initialize advice tab with deterministic tip of the day calculation.
+ * 
+ * This function loads daily tips from the JSON configuration and calculates which tip
+ * to display based on the number of days since the user's first dream entry. This ensures
+ * that users see a consistent "tip of the day" that advances daily but remains deterministic.
+ * If no dreams exist, defaults to displaying tip 1 (index 0).
+ * 
+ * The calculation uses the earliest dream entry date as an epoch, then calculates the
+ * number of days between that epoch and today, using modulo arithmetic to cycle through
+ * the available tips.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when advice tab is initialized
+ * @throws {Error} When daily tips JSON cannot be loaded
+ * @since 2.0.0
+ * @example
+ * await initializeAdviceTab();
+ * // Advice tab now displays deterministic tip based on user's dream history
  */
 async function initializeAdviceTab() {
     // Load tips from JSON file and store globally
@@ -50,9 +108,21 @@ async function initializeAdviceTab() {
 }
 
 /**
- * Initialize theme system by loading saved theme preference and applying it
- * @param {void}
+ * Initialize theme system by loading saved theme preference and applying it.
+ * 
+ * This function retrieves the user's saved theme preference from storage and applies
+ * it to the application. It handles both light and dark themes using the HSL-based
+ * CSS custom property system. If no saved theme exists, defaults to the system preference.
+ * 
+ * The theme system uses CSS custom properties for consistent theming across all components
+ * and supports smooth transitions between theme changes.
+ * 
+ * @function
  * @returns {void}
+ * @since 1.0.0
+ * @example
+ * initializeTheme();
+ * // Theme is now loaded and applied to the application
  */
 function initializeTheme() {
     const savedTheme = getCurrentTheme();
@@ -60,10 +130,29 @@ function initializeTheme() {
 }
 
 /**
- * Setup centralized event delegation system for all user interactions
- * Registers unified handlers for click and change events plus file inputs
- * @param {void}
+ * Setup centralized event delegation system for all user interactions.
+ * 
+ * This function establishes the core event handling architecture using event delegation.
+ * It registers unified handlers for click and change events on the document level,
+ * allowing dynamic content to automatically inherit event handling without requiring
+ * explicit event listener registration.
+ * 
+ * Additionally sets up specific file input handlers for data import functionality
+ * that require direct event listener attachment due to their specialized nature.
+ * 
+ * The event delegation system uses data-action attributes to route events to
+ * appropriate handlers via the ACTION_MAP in action-router.js.
+ * 
+ * @function
  * @returns {void}
+ * @since 1.0.0
+ * @example
+ * setupEventDelegation();
+ * // All interactive elements with data-action attributes now respond to events
+ * 
+ * @see {@link module:ActionRouter} For event routing implementation
+ * @see {@link handleUnifiedClick} For click event handling
+ * @see {@link handleUnifiedChange} For change event handling
  */
 function setupEventDelegation() {
     document.addEventListener('click', handleUnifiedClick);
@@ -81,10 +170,27 @@ function setupEventDelegation() {
 }
 
 /**
- * Initialize autocomplete system with tag and dream sign suggestions
- * Loads suggestions from storage and falls back to defaults on error
- * @param {void}
- * @returns {Promise<void>}
+ * Initialize autocomplete system with tag and dream sign suggestions.
+ * 
+ * This function sets up the autocomplete functionality for dream tags and dream signs
+ * input fields. It loads previously used suggestions from IndexedDB storage to provide
+ * personalized autocomplete options based on the user's history. If storage access fails,
+ * it falls back to predefined common tags and dream signs from the constants module.
+ * 
+ * The autocomplete system helps users quickly enter consistent tags and dream signs,
+ * improving data quality and user experience during dream entry creation.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when autocomplete is initialized
+ * @throws {Error} When storage access fails (handled gracefully with fallback)
+ * @since 1.5.0
+ * @example
+ * await initializeAutocomplete();
+ * // Tag and dream sign inputs now have autocomplete functionality
+ * 
+ * @see {@link getAutocompleteSuggestions} For suggestion retrieval
+ * @see {@link setupTagAutocomplete} For autocomplete UI setup
  */
 async function initializeAutocomplete() {
     try {
@@ -102,10 +208,31 @@ async function initializeAutocomplete() {
 }
 
 /**
- * Register service worker for PWA functionality
- * Handles offline functionality, caching, and app installation
- * @param {void}
- * @returns {Promise<void>}
+ * Register service worker for PWA functionality.
+ * 
+ * This function registers the service worker that enables Progressive Web App features
+ * including offline functionality, resource caching, background sync, and automatic
+ * updates. It sets up event listeners for service worker lifecycle events and handles
+ * update notifications.
+ * 
+ * The service worker provides:
+ * - Offline functionality with cached resources
+ * - Automatic background updates
+ * - Push notification capability (if implemented)
+ * - Network status detection and recovery
+ * 
+ * Gracefully handles browsers that don't support service workers by silently failing.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when service worker is registered
+ * @throws {Error} When service worker registration fails (logged but not thrown)
+ * @since 2.0.0
+ * @example
+ * await registerServiceWorker();
+ * // PWA functionality is now active with offline support
+ * 
+ * @see {@link sw.js} For service worker implementation
  */
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
@@ -144,21 +271,69 @@ async function registerServiceWorker() {
 // PWA INSTALLATION SYSTEM
 // ================================
 
-// Global variable to store the beforeinstallprompt event
+/**
+ * Global variable to store the browser's beforeinstallprompt event.
+ * This event is captured and deferred until the user explicitly chooses to install the PWA.
+ * 
+ * @type {Event|null}
+ * @global
+ * @since 2.0.0
+ */
 let deferredPrompt;
 
-// Make deferredPrompt accessible globally for other modules
+/**
+ * Global reference to the deferred PWA install prompt for cross-module access.
+ * Allows other modules to check PWA installation availability.
+ * 
+ * @type {Event|null}
+ * @global
+ * @memberof window
+ * @since 2.0.0
+ */
 window.deferredPrompt = null;
 
-// Make PWA functions accessible globally for other modules
+/**
+ * Global reference to PWA section creation function for cross-module access.
+ * Allows other modules to dynamically create the PWA installation UI.
+ * 
+ * @type {Function|null}
+ * @global
+ * @memberof window
+ * @since 2.0.0
+ */
 window.createPWASection = null;
+
+/**
+ * Global reference to PWA section removal function for cross-module access.
+ * Allows other modules to clean up the PWA installation UI.
+ * 
+ * @type {Function|null}
+ * @global
+ * @memberof window
+ * @since 2.0.0
+ */
 window.removePWASection = null;
 
 /**
- * Create and inject PWA installation section into settings page
- * Only called when PWA installation becomes available
- * @param {void}
+ * Create and inject PWA installation section into settings page.
+ * 
+ * This function dynamically creates and injects a PWA installation section into the
+ * settings page when PWA installation becomes available (triggered by the beforeinstallprompt
+ * event). The section includes an install button and status display.
+ * 
+ * The function prevents duplicate sections by checking for existing PWA sections and
+ * strategically places the new section before the security section for optimal UX flow.
+ * 
+ * Only called when the browser indicates PWA installation is available, ensuring the
+ * UI only appears when the feature is actually usable.
+ * 
+ * @function
  * @returns {void}
+ * @since 2.0.0
+ * @example
+ * // Typically called automatically by setupPWAInstall()
+ * createPWASection();
+ * // PWA installation UI now appears in settings
  */
 function createPWASection() {
     // Check if PWA section already exists
@@ -198,10 +373,21 @@ function createPWASection() {
 }
 
 /**
- * Remove PWA installation section from settings page
- * Called when PWA is installed or no longer available
- * @param {void}
+ * Remove PWA installation section from settings page.
+ * 
+ * This function removes the PWA installation section from the settings page when it's
+ * no longer needed. This occurs when the app has been successfully installed or when
+ * the browser indicates PWA installation is no longer available.
+ * 
+ * Provides clean UI management by removing installation prompts after they've served
+ * their purpose, preventing user confusion and interface clutter.
+ * 
+ * @function
  * @returns {void}
+ * @since 2.0.0
+ * @example
+ * removePWASection();
+ * // PWA installation UI is removed from settings
  */
 function removePWASection() {
     const pwaSection = document.querySelector('#pwaInstallSection');
@@ -215,10 +401,25 @@ window.createPWASection = createPWASection;
 window.removePWASection = removePWASection;
 
 /**
- * Setup PWA installation system with beforeinstallprompt event listener
- * Shows PWA section when installation is available
- * @param {void}
+ * Setup PWA installation system with beforeinstallprompt event listener.
+ * 
+ * This function establishes the complete PWA installation workflow by setting up
+ * event listeners for the browser's install prompt events. It captures the
+ * beforeinstallprompt event to control when installation prompts are shown and
+ * manages the UI state throughout the installation process.
+ * 
+ * The system provides a user-friendly installation experience by:
+ * - Deferring the browser's automatic install prompt
+ * - Showing custom UI when appropriate
+ * - Handling installation success and cancellation
+ * - Managing UI cleanup after installation
+ * 
+ * @function
  * @returns {void}
+ * @since 2.0.0
+ * @example
+ * setupPWAInstall();
+ * // PWA installation system is now active and will respond to browser events
  */
 function setupPWAInstall() {
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -259,10 +460,24 @@ function setupPWAInstall() {
 }
 
 /**
- * Handle PWA installation when user clicks the install button
- * Shows browser's install prompt and handles the result
- * @param {void}
- * @returns {Promise<void>}
+ * Handle PWA installation when user clicks the install button.
+ * 
+ * This function manages the actual PWA installation process when the user chooses
+ * to install the app. It displays the browser's native install prompt, waits for
+ * the user's decision, and updates the UI accordingly.
+ * 
+ * The function handles both acceptance and rejection of the install prompt,
+ * providing appropriate feedback and cleaning up the UI state. It requires a
+ * previously captured beforeinstallprompt event to function.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when installation handling is complete
+ * @since 2.0.0
+ * @example
+ * // Called automatically when user clicks install button
+ * await installPWA();
+ * // Installation prompt shown and result handled
  */
 async function installPWA() {
     if (!deferredPrompt) {
@@ -299,10 +514,25 @@ async function installPWA() {
 }
 
 /**
- * Check browser compatibility for modern CSS features
- * Shows upgrade notice for browsers that don't support CSS custom properties
- * @param {void}
+ * Check browser compatibility for modern CSS features.
+ * 
+ * This function tests the browser's support for CSS custom properties (CSS variables)
+ * which are essential for the application's theme system. If the browser doesn't
+ * support these features, it displays a prominent upgrade notice to inform users
+ * that their browsing experience may be degraded.
+ * 
+ * The compatibility check specifically tests for HSL color function support with
+ * CSS variables, which is required for the dynamic theme system to function properly.
+ * 
+ * The upgrade notice is styled to be highly visible and encourages users to update
+ * to a modern browser for the best experience.
+ * 
+ * @function
  * @returns {void}
+ * @since 1.0.0
+ * @example
+ * checkBrowserCompatibility();
+ * // Upgrade notice shown if browser lacks CSS custom property support
  */
 function checkBrowserCompatibility() {
     if (!CSS.supports('color', 'hsl(var(--test))')) {
@@ -322,12 +552,25 @@ function checkBrowserCompatibility() {
 }
 
 /**
- * Ensure tab container exists for dynamic tab content creation
- * Creates tab container if missing to prevent tab switching errors
- * @param {void}
- * @returns {Promise<void>}
+ * Ensure tab container exists for dynamic tab content creation.
  * 
- * TODO: Consider moving to dom-helpers.js as createTabContainer() utility function
+ * This function verifies that the tab content container element exists in the DOM
+ * and creates it if missing. This prevents errors during tab switching operations
+ * and ensures consistent layout structure for dynamic tab content.
+ * 
+ * The container is created with appropriate styling to match the application's
+ * design system and is positioned correctly within the main application layout.
+ * This function is particularly important for handling edge cases where the
+ * DOM structure might be incomplete during initialization.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when tab container is ensured
+ * @since 2.0.0
+ * @todo Consider moving to dom-helpers.js as createTabContainer() utility function
+ * @example
+ * await ensureTabContainerExists();
+ * // Tab container now exists and tab switching will work properly
  */
 async function ensureTabContainerExists() {
     let tabContainer = document.querySelector('.tab-content-container');
@@ -348,10 +591,22 @@ async function ensureTabContainerExists() {
 }
 
 /**
- * Set current date and time as default for new dream entries
- * Formats datetime for HTML datetime-local input compatibility
- * @param {void}
+ * Set current date and time as default for new dream entries.
+ * 
+ * This function sets the dream date input field to the current date and time,
+ * providing a sensible default for new dream entries. The datetime is formatted
+ * specifically for HTML datetime-local input compatibility (ISO format without timezone).
+ * 
+ * This improves user experience by eliminating the need to manually set the date
+ * and time for dreams that occurred recently, while still allowing users to modify
+ * the timestamp for dreams from previous days.
+ * 
+ * @function
  * @returns {void}
+ * @since 1.0.0
+ * @example
+ * setDefaultDreamDateTime();
+ * // Dream date input now shows current date/time as default
  */
 function setDefaultDreamDateTime() {
     const dreamDateInput = document.getElementById('dreamDate');
@@ -368,10 +623,27 @@ function setDefaultDreamDateTime() {
 }
 
 /**
- * Setup cleanup handlers for page unload to prevent memory leaks
- * Clears all timers, stops media, and removes event listeners
- * @param {number} timerWarningInterval - Timer interval ID for warning updates
+ * Setup cleanup handlers for page unload to prevent memory leaks.
+ * 
+ * This function registers a beforeunload event listener that performs comprehensive
+ * cleanup of all application resources when the page is about to be unloaded.
+ * This prevents memory leaks and ensures proper resource management.
+ * 
+ * The cleanup process handles:
+ * - Clearing all timeout and interval timers
+ * - Stopping any active audio playback
+ * - Stopping any active media recording
+ * - Removing scroll event listeners
+ * - Cleaning up any other dynamic resources
+ * 
+ * @function
+ * @param {number} timerWarningInterval - Timer interval ID for PIN warning updates
  * @returns {void}
+ * @since 1.0.0
+ * @example
+ * const timerInterval = setInterval(updateTimerWarning, 60000);
+ * setupCleanupHandlers(timerInterval);
+ * // Cleanup handlers now registered for page unload
  */
 function setupCleanupHandlers(timerWarningInterval) {
     window.addEventListener('beforeunload', function() {
@@ -393,13 +665,26 @@ function setupCleanupHandlers(timerWarningInterval) {
 }
 
 /**
- * Setup additional event listeners for search, filtering, and keyboard shortcuts
- * Handles input events not covered by the main event delegation system
- * @param {void}
- * @returns {void}
+ * Setup additional event listeners for search, filtering, and keyboard shortcuts.
  * 
- * TODO: Consider splitting into setupSearchEventListeners() and setupKeyboardShortcuts() functions
- * for better separation of search input handling vs keyboard interaction handling
+ * This function sets up specialized event listeners that require direct attachment
+ * rather than event delegation. These include input field listeners for search
+ * functionality, filter controls, and keyboard shortcuts that enhance user productivity.
+ * 
+ * The function handles:
+ * - Search input with debouncing for performance
+ * - Filter and sort control changes with debouncing
+ * - Date range filter inputs
+ * - Keyboard shortcuts (Ctrl+Enter for saving, Enter for PIN verification)
+ * - Global keyboard interactions for accessibility
+ * 
+ * @function
+ * @returns {void}
+ * @since 1.0.0
+ * @todo Consider splitting into setupSearchEventListeners() and setupKeyboardShortcuts() functions for better separation of search input handling vs keyboard interaction handling
+ * @example
+ * setupAdditionalEventListeners();
+ * // Search, filter, and keyboard shortcut functionality now active
  */
 function setupAdditionalEventListeners() {
     const searchBox = document.getElementById('searchBox');
@@ -433,10 +718,28 @@ function setupAdditionalEventListeners() {
 }
 
 /**
- * Initialize application data display and handle PIN timer expiration messaging
- * Loads dreams, voice notes, and voice capabilities with error handling
- * @param {boolean} timerExpiredAndRemovedPin - Whether PIN timer expired on this load
- * @returns {Promise<void>}
+ * Initialize application data display and handle PIN timer expiration messaging.
+ * 
+ * This function loads and displays the core application data including dreams,
+ * voice recording capabilities, and security controls. It handles the initial
+ * data presentation to the user and manages error states gracefully.
+ * 
+ * The function also handles PIN timer expiration messaging, showing an informative
+ * message when the user's PIN has been automatically removed due to the reset timer
+ * expiring, allowing them to set a new PIN if desired.
+ * 
+ * @async
+ * @function
+ * @param {boolean} timerExpiredAndRemovedPin - Whether PIN timer expired during this session load
+ * @returns {Promise<void>} Promise that resolves when application data is initialized
+ * @throws {Error} When dream loading fails (handled gracefully with error UI)
+ * @since 1.0.0
+ * @example
+ * await initializeApplicationData(false);
+ * // Application data loaded and displayed to user
+ * 
+ * await initializeApplicationData(true);
+ * // Application data loaded and PIN expiration message shown
  */
 async function initializeApplicationData(timerExpiredAndRemovedPin) {
     try {
@@ -465,10 +768,22 @@ async function initializeApplicationData(timerExpiredAndRemovedPin) {
 }
 
 /**
- * Restore dream form collapse state from localStorage preference
- * Handles localStorage access errors gracefully
- * @param {void}
+ * Restore dream form collapse state from localStorage preference.
+ * 
+ * This function restores the user's preferred dream form collapse state from
+ * localStorage, maintaining UI consistency across browser sessions. If the user
+ * previously collapsed the dream form, it will be restored to that state.
+ * 
+ * The function handles localStorage access errors gracefully by silently ignoring
+ * them, ensuring that localStorage issues don't prevent application functionality.
+ * This provides a smooth degradation when localStorage is unavailable.
+ * 
+ * @function
  * @returns {void}
+ * @since 1.5.0
+ * @example
+ * restoreDreamFormState();
+ * // Dream form collapse state restored from user preference
  */
 function restoreDreamFormState() {
     try {
@@ -486,11 +801,38 @@ function restoreDreamFormState() {
 // ================================
 
 /**
- * Main application initialization sequence
- * Handles two-phase startup: immediate setup then slower initialization tasks
+ * Main application initialization sequence.
  * 
- * TODO: Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions
- * for better separation of fast startup vs slower initialization tasks
+ * This is the primary entry point for application initialization, triggered by the
+ * DOMContentLoaded event. It orchestrates a two-phase startup process designed to
+ * optimize perceived performance and prevent content flashing:
+ * 
+ * **Phase 1: Immediate Setup**
+ * - Fast, synchronous operations that must complete before UI is visible
+ * - Browser compatibility checks
+ * - Theme initialization
+ * - PIN security state determination
+ * - Initial UI state configuration
+ * 
+ * **Phase 2: Deferred Initialization**  
+ * - Slower, asynchronous operations that can happen after UI is responsive
+ * - Service worker registration
+ * - Database initialization
+ * - Data migration
+ * - Event listener setup
+ * - Application data loading
+ * 
+ * This approach ensures the user sees a responsive interface immediately while
+ * heavier initialization tasks complete in the background.
+ * 
+ * @async
+ * @function
+ * @listens DOMContentLoaded
+ * @since 1.0.0
+ * @todo Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions for better separation of fast startup vs slower initialization tasks
+ * @example
+ * // Initialization happens automatically:
+ * // document.addEventListener('DOMContentLoaded', async function() { ... });
  */
 document.addEventListener('DOMContentLoaded', async function() {
     

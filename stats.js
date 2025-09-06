@@ -1,3 +1,43 @@
+/**
+ * @fileoverview Statistics and Analytics Module for Dream Journal Application.
+ * 
+ * This module provides comprehensive statistics calculation, calendar rendering, and data visualization
+ * system including dream analysis, goal tracking, charts, and insights. It handles all statistical
+ * computations for the dream journal including streak calculations, goal progress tracking, calendar
+ * visualization, pie chart generation, and dream sign analysis.
+ * 
+ * The module is organized into 10 main systems:
+ * 1. Utility Functions - Shared utilities for date formatting and chart creation
+ * 2. Streak Calculation - Dream recall and journaling streak algorithms
+ * 3. Goal Statistics - Goal completion rate analysis and filtering
+ * 4. Overview Statistics - Main dashboard with comprehensive analysis
+ * 5. Calendar System - Interactive calendar with dream visualization
+ * 6. Chart Rendering - Pie chart generation for dream type visualization
+ * 7. Monthly Statistics - Detailed monthly analysis with recall rates
+ * 8. Tab Switching - Statistics tab management with lazy loading
+ * 9. Yearly Statistics - Comprehensive yearly analysis with leap year handling
+ * 10. Lifetime Statistics - All-time analytics with date range calculations
+ * 11. Dream Signs Analysis - Dream sign frequency and lucidity effectiveness
+ * 
+ * @module StatisticsModule
+ * @version 2.02.05
+ * @author Dream Journal Development Team
+ * @since 1.0.0
+ * @requires storage
+ * @requires dom-helpers
+ * @requires constants
+ * @requires state
+ * @example
+ * // Initialize calendar system
+ * await initCalendar();
+ * 
+ * // Update main statistics display
+ * await updateStatsDisplay();
+ * 
+ * // Switch to yearly statistics tab
+ * await switchStatsTab('year');
+ */
+
 // ================================
 // STATISTICS & ANALYTICS MODULE
 // ================================
@@ -10,11 +50,86 @@
 // Shared utility functions for statistics calculations and formatting
 
 /**
- * Format date as YYYY-MM-DD string for consistent date key generation
+ * @typedef {Object} PieChartColors
+ * @property {string} lucidColor - CSS color variable for lucid dreams
+ * @property {string} regularColor - CSS color variable for regular dreams  
+ * @property {string} gradient - CSS conic-gradient string for chart background
+ */
+
+/**
+ * @typedef {Object} GoalStatistics
+ * @property {number} total - Total number of goals
+ * @property {number} completed - Number of completed goals
+ * @property {number} active - Number of active goals
+ * @property {string} completionRate - Completion rate as percentage string
+ */
+
+/**
+ * @typedef {Object} DreamSignStat
+ * @property {string} sign - The dream sign text (original case preserved)
+ * @property {number} total - Total number of appearances
+ * @property {number} lucid - Number of lucid dream appearances
+ * @property {number} lucidityRate - Lucidity trigger rate (0.0 to 1.0)
+ */
+
+/**
+ * @typedef {Object} CalendarDreamData
+ * @property {number} count - Total number of dreams on this date
+ * @property {number} lucid - Number of lucid dreams on this date
+ */
+
+/**
+ * HTML escape utility function for preventing XSS in generated HTML.
+ * 
+ * Uses the browser's built-in HTML escaping by creating a temporary div element
+ * and using its textContent property, then reading back the innerHTML. This safely
+ * escapes HTML special characters to prevent XSS attacks in dynamically generated content.
+ * 
+ * @param {string} text - Text to escape for safe HTML insertion
+ * @returns {string} HTML-escaped text with special characters converted to entities
+ * @throws {TypeError} When text parameter is not a string
+ * @since 2.0.0
+ * @example
+ * const userInput = '<script>alert("xss")</script>';
+ * const safe = escapeHtml(userInput);
+ * console.log(safe); // "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;"
+ * 
+ * @example
+ * // Used in dream sign rendering
+ * const dreamSignHTML = `<span>${escapeHtml(stat.sign)}</span>`;
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        throw new TypeError('escapeHtml expects a string parameter');
+    }
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Format date as YYYY-MM-DD string for consistent date key generation.
+ * 
+ * This utility function ensures consistent date formatting across the application,
+ * handling timezone issues and providing zero-padded output suitable for use as
+ * object keys in date-based grouping operations.
+ * 
  * @param {Date} date - Date object to format
- * @returns {string} Formatted date string for use as object keys
- * @features Consistent zero-padding, handles timezone issues
- * @integration Used by multiple stats functions for date grouping
+ * @returns {string} Formatted date string in YYYY-MM-DD format
+ * @throws {TypeError} When date parameter is not a Date object
+ * @since 1.0.0
+ * @example
+ * const key = formatDateKey(new Date('2024-01-05'));
+ * console.log(key); // '2024-01-05'
+ * 
+ * @example
+ * // Used for grouping dreams by date
+ * const dreamsByDate = {};
+ * dreams.forEach(dream => {
+ *   const key = formatDateKey(new Date(dream.timestamp));
+ *   if (!dreamsByDate[key]) dreamsByDate[key] = [];
+ *   dreamsByDate[key].push(dream);
+ * });
  */
 function formatDateKey(date) {
     const y = date.getFullYear();
@@ -24,11 +139,26 @@ function formatDateKey(date) {
 }
 
 /**
- * Create standardized pie chart colors and gradient for dream type visualization
+ * Create standardized pie chart colors and gradient for dream type visualization.
+ * 
+ * Generates consistent color scheme using CSS custom properties to ensure
+ * all pie charts maintain visual consistency across the application. Uses
+ * CSS conic-gradient for smooth chart rendering.
+ * 
  * @param {number} lucidPercentage - Percentage of lucid dreams (0-100)
- * @returns {Object} Object with lucidColor, regularColor, and gradient properties
- * @features Consistent color scheme using CSS variables
- * @integration Used by all pie chart rendering functions
+ * @returns {PieChartColors} Object with color and gradient properties
+ * @throws {RangeError} When lucidPercentage is not between 0 and 100
+ * @since 1.0.0
+ * @example
+ * const colors = createPieChartColors(35.5);
+ * console.log(colors.lucidColor); // 'var(--success-color)'
+ * console.log(colors.gradient); // 'conic-gradient(var(--success-color) 0% 35.50%, ...)'
+ * 
+ * @example
+ * // Used in chart rendering
+ * const lucidPercentage = (lucidDreams / totalDreams) * 100;
+ * const colors = createPieChartColors(lucidPercentage);
+ * element.style.background = colors.gradient;
  */
 function createPieChartColors(lucidPercentage) {
     const lucidColor = 'var(--success-color)';
@@ -38,17 +168,31 @@ function createPieChartColors(lucidPercentage) {
 }
 
 /**
- * Generate standardized pie chart HTML with legend
- * @param {string} title - Chart title
- * @param {number} totalDreams - Total number of dreams
- * @param {number} lucidDreams - Number of lucid dreams
- * @param {number} regularDreams - Number of regular dreams
- * @param {string} gradient - CSS gradient string for chart background
- * @param {string} lucidColor - Color for lucid dreams legend
- * @param {string} regularColor - Color for regular dreams legend
+ * Generate standardized pie chart HTML with legend.
+ * 
+ * Creates complete HTML structure for pie charts including the chart visual,
+ * center display, and color-coded legend. Ensures consistent formatting and
+ * accessibility across all chart implementations in the application.
+ * 
+ * @param {string} title - Chart title displayed above the chart
+ * @param {number} totalDreams - Total number of dreams for center display
+ * @param {number} lucidDreams - Number of lucid dreams for legend
+ * @param {number} regularDreams - Number of regular dreams for legend
+ * @param {string} gradient - CSS conic-gradient string for chart background
+ * @param {string} lucidColor - CSS color for lucid dreams legend box
+ * @param {string} regularColor - CSS color for regular dreams legend box
  * @returns {string} Complete HTML string for pie chart with legend
- * @features Consistent chart structure, legend formatting, percentage display
- * @integration Used by monthly, yearly, and lifetime pie chart functions
+ * @throws {TypeError} When title is not a string or numbers are not valid
+ * @since 1.0.0
+ * @example
+ * const chartHTML = createPieChartHTML(
+ *   'Monthly Dreams',
+ *   25, 10, 15,
+ *   'conic-gradient(...)',
+ *   'var(--success-color)',
+ *   'var(--info-color)'
+ * );
+ * container.innerHTML = chartHTML;
  */
 function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, gradient, lucidColor, regularColor) {
     const lucidPercentage = (lucidDreams / totalDreams) * 100;
@@ -82,12 +226,31 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // ================================
 // Dream recall and journaling streak calculation algorithms
     /**
-     * Calculate consecutive days of dream recall streak starting from today backwards
-     * Used by goals system for tracking recall consistency
-     * @param {Array} dreams - Array of dream objects with timestamp property
-     * @returns {number} Number of consecutive days with dream entries
-     * @features Handles timezone issues, works backwards from today, max 365 days check
-     * @integration Called by goals.js for recall streak goal progress calculation
+     * Calculate consecutive days of dream recall streak starting from today backwards.
+     * 
+     * Analyzes dream entries to determine the current streak of consecutive days
+     * with recorded dreams. Works backwards from today to find the longest unbroken
+     * sequence of dream recall. Used by the goals system for tracking recall consistency
+     * and measuring progress towards recall-based goals.
+     * 
+     * @param {Array<Object>} dreams - Array of dream objects with timestamp property
+     * @param {string|number|Date} dreams[].timestamp - Dream entry timestamp
+     * @returns {number} Number of consecutive days with dream entries (0-365)
+     * @throws {TypeError} When dreams parameter is not an array
+     * @since 1.0.0
+     * @example
+     * const dreams = [
+     *   { timestamp: '2024-01-10T08:00:00Z' },
+     *   { timestamp: '2024-01-09T07:30:00Z' },
+     *   { timestamp: '2024-01-08T09:15:00Z' }
+     * ];
+     * const streak = calculateDreamRecallStreak(dreams);
+     * console.log(streak); // 3 (if today is 2024-01-10)
+     * 
+     * @example
+     * // Used by goals system
+     * const currentStreak = calculateDreamRecallStreak(allDreams);
+     * const progress = Math.min(currentStreak / goalTarget, 1.0);
      */
     function calculateDreamRecallStreak(dreams) {
         const today = new Date();
@@ -120,13 +283,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
     
     /**
-     * Calculate consecutive days of journaling activity (same as dream recall)
-     * Currently uses same logic as dream recall streak
-     * @param {Array} dreams - Array of dream objects with timestamp property
-     * @returns {number} Number of consecutive days with journaling activity
-     * @features Currently aliases to calculateDreamRecallStreak
-     * @integration Called by goals.js for journal streak goal progress calculation
-     * @todo Consider separate logic if journaling != dream entry in future
+     * Calculate consecutive days of journaling activity (currently same as dream recall).
+     * 
+     * Currently implements the same logic as dream recall streak calculation, treating
+     * dream entries as journaling activity. This function exists as a separate endpoint
+     * to allow for future differentiation between dream recall and general journaling
+     * activities if the application expands to include other journal types.
+     * 
+     * @param {Array<Object>} dreams - Array of dream objects with timestamp property
+     * @param {string|number|Date} dreams[].timestamp - Dream entry timestamp
+     * @returns {number} Number of consecutive days with journaling activity (0-365)
+     * @throws {TypeError} When dreams parameter is not an array
+     * @since 1.0.0
+     * @todo Consider separate logic if journaling includes non-dream entries in future
+     * @example
+     * const journalStreak = calculateJournalingStreak(dreams);
+     * console.log(journalStreak); // Same result as calculateDreamRecallStreak
+     * 
+     * @example
+     * // Used by goals system for journal-based goals
+     * const progress = calculateJournalingStreak(dreams) / targetDays;
      */
     function calculateJournalingStreak(dreams) {
         return calculateDreamRecallStreak(dreams); // Same logic for now
@@ -138,13 +314,37 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Goal completion rate analysis and filtering by time periods
 
     /**
-     * Calculate goal completion statistics for specified time period with filtering
-     * @param {Array} goals - Array of goal objects
-     * @param {Date|null} startDate - Optional start date filter
-     * @param {Date|null} endDate - Optional end date filter
-     * @returns {Object} Goal statistics with total, completed, active counts and completion rate
-     * @features Date range filtering, completion rate calculation, active/completed categorization
-     * @integration Used by monthly, yearly, and lifetime stats functions
+     * Calculate goal completion statistics for specified time period with filtering.
+     * 
+     * Processes an array of goal objects to calculate comprehensive statistics including
+     * total counts, completion rates, and active goal tracking. Supports optional date
+     * range filtering for time-based analysis. Handles both completed and active goals
+     * with appropriate date logic for each status.
+     * 
+     * @param {Array<Object>} goals - Array of goal objects to analyze
+     * @param {string} goals[].status - Goal status ('completed' or 'active')
+     * @param {string|Date} [goals[].completedAt] - Completion timestamp (for completed goals)
+     * @param {string|Date} [goals[].createdAt] - Creation timestamp
+     * @param {Date|null} [startDate=null] - Optional start date filter (inclusive)
+     * @param {Date|null} [endDate=null] - Optional end date filter (inclusive)
+     * @returns {GoalStatistics} Goal statistics object
+     * @throws {TypeError} When goals parameter is not an array
+     * @since 1.0.0
+     * @example
+     * const goals = [
+     *   { status: 'completed', completedAt: '2024-01-15T10:00:00Z' },
+     *   { status: 'active', createdAt: '2024-01-01T09:00:00Z' }
+     * ];
+     * const stats = calculateGoalStats(goals);
+     * console.log(stats); // { total: 2, completed: 1, active: 1, completionRate: '50.0' }
+     * 
+     * @example
+     * // With date filtering
+     * const monthStats = calculateGoalStats(
+     *   goals,
+     *   new Date('2024-01-01'),
+     *   new Date('2024-01-31')
+     * );
      */
     function calculateGoalStats(goals, startDate = null, endDate = null) {
         if (!Array.isArray(goals)) {
@@ -186,13 +386,27 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
     
     /**
-     * Get goal completion statistics for specific month period
-     * @param {Array} goals - Array of goal objects
-     * @param {number} year - Target year
-     * @param {number} month - Target month (0-indexed)
-     * @returns {Object} Goal statistics for the specified month
-     * @features Month-based date range filtering
-     * @integration Used by monthly stats display functions
+     * Get goal completion statistics for specific month period.
+     * 
+     * Convenience wrapper around calculateGoalStats that sets up appropriate date
+     * range filtering for a specific month. Handles month boundary calculations
+     * including proper end-of-month timestamp for filtering.
+     * 
+     * @param {Array<Object>} goals - Array of goal objects to analyze
+     * @param {number} year - Target year (e.g., 2024)
+     * @param {number} month - Target month (0-indexed: 0=January, 11=December)
+     * @returns {GoalStatistics} Goal statistics for the specified month
+     * @throws {TypeError} When parameters are not valid numbers
+     * @throws {RangeError} When month is not between 0-11
+     * @since 1.0.0
+     * @example
+     * const januaryStats = getMonthlyGoalStats(goals, 2024, 0);
+     * console.log(januaryStats.completionRate); // '75.0'
+     * 
+     * @example
+     * // Used in monthly statistics display
+     * const stats = getMonthlyGoalStats(allGoals, selectedYear, selectedMonth);
+     * updateMonthlyGoalDisplay(stats);
      */
     function getMonthlyGoalStats(goals, year, month) {
         const startDate = new Date(year, month, 1);
@@ -201,12 +415,25 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
     
     /**
-     * Get goal completion statistics for specific year period
-     * @param {Array} goals - Array of goal objects
-     * @param {number} year - Target year
-     * @returns {Object} Goal statistics for the specified year
-     * @features Year-based date range filtering
-     * @integration Used by yearly stats display functions
+     * Get goal completion statistics for specific year period.
+     * 
+     * Convenience wrapper around calculateGoalStats that sets up appropriate date
+     * range filtering for a complete calendar year (January 1st to December 31st).
+     * Handles year boundary calculations with precise timestamp filtering.
+     * 
+     * @param {Array<Object>} goals - Array of goal objects to analyze
+     * @param {number} year - Target year (e.g., 2024)
+     * @returns {GoalStatistics} Goal statistics for the specified year
+     * @throws {TypeError} When year parameter is not a valid number
+     * @since 1.0.0
+     * @example
+     * const yearStats = getYearlyGoalStats(goals, 2024);
+     * console.log(yearStats.total); // 12
+     * 
+     * @example
+     * // Used in yearly statistics display
+     * const stats = getYearlyGoalStats(allGoals, currentYear);
+     * renderYearlyGoalProgress(stats);
      */
     function getYearlyGoalStats(goals, year) {
         const startDate = new Date(year, 0, 1);
@@ -215,11 +442,24 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
     
     /**
-     * Get lifetime goal completion statistics (all time)
-     * @param {Array} goals - Array of goal objects
-     * @returns {Object} Goal statistics for entire goal history
-     * @features No date filtering, includes all goals ever created
-     * @integration Used by lifetime stats display functions
+     * Get lifetime goal completion statistics (all time).
+     * 
+     * Convenience wrapper around calculateGoalStats that processes all goals
+     * without any date filtering, providing comprehensive lifetime statistics
+     * for the entire goal history of the user.
+     * 
+     * @param {Array<Object>} goals - Array of all goal objects to analyze
+     * @returns {GoalStatistics} Goal statistics for entire goal history
+     * @throws {TypeError} When goals parameter is not an array
+     * @since 1.0.0
+     * @example
+     * const lifetimeStats = getLifetimeGoalStats(allGoals);
+     * console.log(`${lifetimeStats.completed}/${lifetimeStats.total} goals completed`);
+     * 
+     * @example
+     * // Used in lifetime statistics display
+     * const stats = getLifetimeGoalStats(userGoals);
+     * displayLifetimeAchievements(stats);
      */
     function getLifetimeGoalStats(goals) {
         return calculateGoalStats(goals);
@@ -231,12 +471,29 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Main statistics dashboard with dream counts, top emotions, tags, and voice notes
 
     /**
-     * Update main stats display with comprehensive dream and voice note analysis
-     * Calculates and displays total dreams, lucid percentage, recent activity, top emotions/tags
+     * Update main stats display with comprehensive dream and voice note analysis.
+     * 
+     * Calculates and displays comprehensive statistics including total dreams, lucid percentage,
+     * recent activity, top emotions and tags, and voice note usage. Handles all DOM element
+     * updates with safety checks and graceful fallbacks for missing elements. This is the
+     * primary function for updating the main statistics dashboard.
+     * 
+     * @async
      * @returns {Promise<void>} Resolves when all statistics are calculated and displayed
-     * @features Dream counting, emotion analysis, tag analysis, voice note tracking, recent activity
-     * @integration Main stats tab display, handles DOM element updates with safety checks
-     * @todo Split into calculateStatsData() and updateStatsDOM() functions
+     * @throws {Error} When data loading fails or DOM manipulation errors occur
+     * @since 1.0.0
+     * @todo Split into calculateStatsData() and updateStatsDOM() functions for better separation
+     * @example
+     * // Update main dashboard when tab is loaded
+     * await updateStatsDisplay();
+     * 
+     * @example
+     * // Refresh stats after adding new dream
+     * try {
+     *   await updateStatsDisplay();
+     * } catch (error) {
+     *   console.error('Failed to update stats:', error);
+     * }
      */
     async function updateStatsDisplay() {
         try {
@@ -335,10 +592,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Interactive calendar with dream visualization and navigation
 
     /**
-     * Initialize calendar system with data loading and current month rendering
+     * Initialize calendar system with data loading and current month rendering.
+     * 
+     * Performs complete calendar initialization including loading dream data,
+     * organizing it by date, and rendering the calendar for the current month.
+     * This is the main entry point for the calendar system and should be called
+     * when the stats tab is first loaded.
+     * 
+     * @async
      * @returns {Promise<void>} Resolves when calendar is fully initialized and rendered
-     * @features Calendar data loading, current date detection, initial render
-     * @integration Called when stats tab is first loaded
+     * @throws {Error} When data loading or calendar rendering fails
+     * @since 1.0.0
+     * @example
+     * // Initialize calendar when stats tab loads
+     * document.addEventListener('DOMContentLoaded', async () => {
+     *   await initCalendar();
+     * });
+     * 
+     * @example
+     * // Reinitialize after data changes
+     * await initCalendar();
      */
     async function initCalendar() {
         await updateCalendarData();
@@ -347,13 +620,29 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
 
     /**
-     * Render interactive calendar for specified year and month with dream indicators
-     * @param {number} year - Year to render
-     * @param {number} month - Month to render (0-indexed)
-     * @returns {Promise<void>} Resolves when calendar and related charts are rendered
-     * @features Full calendar grid generation, dream indicators, navigation controls, chart rendering
-     * @integration Central calendar rendering function, calls multiple chart and stats functions
+     * Render interactive calendar for specified year and month with dream indicators.
+     * 
+     * Generates complete calendar display including header with navigation controls,
+     * calendar grid with dream indicators, and triggers rendering of associated charts
+     * and statistics. Handles both current month and other month displays with proper
+     * day highlighting and dream count visualization.
+     * 
+     * @async
+     * @param {number} year - Year to render (e.g., 2024)
+     * @param {number} month - Month to render (0-indexed: 0=January, 11=December)
+     * @returns {Promise<void>} Resolves when calendar and all related components are rendered
+     * @throws {TypeError} When year or month parameters are invalid
+     * @throws {Error} When DOM manipulation or chart rendering fails
+     * @since 1.0.0
      * @todo Split into generateCalendarHTML() and renderCalendarComponents() functions
+     * @example
+     * // Render calendar for January 2024
+     * await renderCalendar(2024, 0);
+     * 
+     * @example
+     * // Navigate to previous month
+     * const currentDate = new Date();
+     * await renderCalendar(currentDate.getFullYear(), currentDate.getMonth() - 1);
      */
     async function renderCalendar(year, month) {
         const calendarContainer = document.getElementById('calendarContainer');
@@ -442,13 +731,29 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Pie chart generation for dream type visualization
 
     /**
-     * Render monthly pie chart showing lucid vs regular dream distribution
-     * @param {number} year - Target year for chart data
-     * @param {number} month - Target month for chart data (0-indexed)
-     * @returns {Promise<void>} Resolves when chart is rendered
-     * @features CSS conic-gradient charts, percentage calculations, legend generation
-     * @integration Monthly stats display, handles empty state gracefully
-     * @todo Extract chart generation logic to createPieChartHTML() utility function
+     * Render monthly pie chart showing lucid vs regular dream distribution.
+     * 
+     * Creates and displays a CSS conic-gradient based pie chart showing the ratio
+     * of lucid to regular dreams for the specified month. Includes proper legend,
+     * percentage calculations, and graceful handling of empty states when no dreams
+     * are recorded for the target month.
+     * 
+     * @async
+     * @param {number} year - Target year for chart data (e.g., 2024)
+     * @param {number} month - Target month for chart data (0-indexed: 0=January)
+     * @returns {Promise<void>} Resolves when chart is rendered or empty state displayed
+     * @throws {TypeError} When year or month parameters are invalid
+     * @throws {Error} When data loading or DOM manipulation fails
+     * @since 1.0.0
+     * @todo Chart generation logic already extracted to createPieChartHTML() utility
+     * @example
+     * // Render pie chart for current month
+     * const now = new Date();
+     * await renderPieChart(now.getFullYear(), now.getMonth());
+     * 
+     * @example
+     * // Used by calendar rendering system
+     * await renderPieChart(selectedYear, selectedMonth);
      */
     async function renderPieChart(year, month) {
         const pieChartContainer = document.getElementById('pieChartContainer');
@@ -500,11 +805,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
     }
 
     /**
-     * Update calendar data by processing all dreams and organizing by date
-     * Creates dreamsByDate object with counts and lucid indicators for calendar display
-     * @returns {Promise<void>} Resolves when calendar data is processed and stored
-     * @features Date string formatting, dream counting by date, lucid dream tracking
-     * @integration Called before calendar rendering to prepare display data
+     * Update calendar data by processing all dreams and organizing by date.
+     * 
+     * Loads all dreams from storage and processes them into a date-indexed structure
+     * for efficient calendar display. Creates the calendarState.dreamsByDate object
+     * with dream counts and lucid dream indicators for each date that has entries.
+     * This preprocessing step optimizes calendar rendering performance.
+     * 
+     * @async
+     * @returns {Promise<void>} Resolves when calendar data is processed and stored in calendarState
+     * @throws {Error} When dream data loading fails
+     * @since 1.0.0
+     * @example
+     * // Called before calendar rendering
+     * await updateCalendarData();
+     * console.log(calendarState.dreamsByDate['2024-01-15']); // { count: 2, lucid: 1 }
+     * 
+     * @example
+     * // Refresh calendar data after dream changes
+     * await updateCalendarData();
+     * await renderCalendar(year, month);
      */
     async function updateCalendarData() {
             const dreams = await loadDreams();
@@ -526,11 +846,25 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 
 
         /**
-         * Generate year dropdown options for calendar navigation
+         * Generate year dropdown options for calendar navigation.
+         * 
+         * Creates HTML option elements for year selection dropdown in calendar header.
+         * Intelligently includes years that have dream data, the current year, the
+         * selected year, and a buffer of 5 years before and after current year to
+         * allow for future planning and historical viewing.
+         * 
          * @param {number} selectedYear - Currently selected year to mark as selected
-         * @returns {string} HTML option elements for year selection dropdown
-         * @features Includes years from dream data, current year, selected year, and 5 years buffer
-         * @integration Used by calendar header generation for year navigation
+         * @returns {string} HTML option elements string for dropdown
+         * @throws {TypeError} When selectedYear is not a valid number
+         * @since 1.0.0
+         * @example
+         * const yearOptions = getYearOptions(2024);
+         * console.log(yearOptions);
+         * // '<option value="2029">2029</option><option value="2024" selected>2024</option>...'
+         * 
+         * @example
+         * // Used in calendar header generation
+         * const yearDropdown = `<select>${getYearOptions(currentYear)}</select>`;
          */
         function getYearOptions(selectedYear) {
             let years = new Set();
@@ -554,13 +888,28 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Detailed monthly dream and goal statistics with recall rate analysis
 
         /**
-         * Update monthly statistics display with dream analysis and goal progress
-         * @param {number} year - Target year for monthly stats
-         * @param {number} month - Target month for stats (0-indexed)
+         * Update monthly statistics display with dream analysis and goal progress.
+         * 
+         * Calculates and displays comprehensive monthly statistics including dream counts,
+         * lucid dream analysis, recall rates, and goal completion progress. Generates HTML
+         * for stats cards showing total dreams, lucid dreams, recall percentage, and goal
+         * achievements. Handles empty states gracefully when no data is available.
+         * 
+         * @async
+         * @param {number} year - Target year for monthly stats (e.g., 2024)
+         * @param {number} month - Target month for stats (0-indexed: 0=January)
          * @returns {Promise<void>} Resolves when monthly stats are calculated and displayed
-         * @features Dream filtering, recall rate calculation, goal statistics, HTML generation
-         * @integration Called by calendar rendering for monthly stats display
+         * @throws {TypeError} When year or month parameters are invalid
+         * @throws {Error} When data loading or DOM manipulation fails
+         * @since 1.0.0
          * @todo Split into calculateMonthlyStatsData() and renderMonthlyStatsHTML() functions
+         * @example
+         * // Update stats for January 2024
+         * await updateMonthlyStats(2024, 0);
+         * 
+         * @example
+         * // Called by calendar rendering system
+         * await updateMonthlyStats(selectedYear, selectedMonth);
          */
         async function updateMonthlyStats(year, month) {
             const monthlyStatsContainer = document.getElementById('monthlyStatsContainer');
@@ -653,10 +1002,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 
         
         /**
-         * Update dream signs tab with latest statistical data and visualizations
-         * @returns {Promise<void>} Resolves when dream signs tab is fully updated
-         * @features Calculates dream sign stats, renders word cloud and effectiveness list
-         * @integration Called by tab switching system for dream signs tab
+         * Update dream signs tab with latest statistical data and visualizations.
+         * 
+         * Orchestrates the complete update of the dream signs analysis tab by calculating
+         * dream sign statistics and rendering both the word cloud visualization and the
+         * effectiveness list. This function serves as the main coordinator for dream signs
+         * tab content updates.
+         * 
+         * @async
+         * @returns {Promise<void>} Resolves when dream signs tab is fully updated with all visualizations
+         * @throws {Error} When dream sign calculation or rendering fails
+         * @since 2.0.0
+         * @example
+         * // Update dream signs tab when selected
+         * await updateDreamSignsTab();
+         * 
+         * @example
+         * // Called by tab switching system
+         * if (tabName === 'dream-signs') {
+         *   await updateDreamSignsTab();
+         * }
          */
         async function updateDreamSignsTab() {
             const stats = await calculateDreamSignStats();
@@ -670,12 +1035,36 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Statistics tab management with lazy loading optimization
 
         /**
-         * Switch between statistics tabs with lazy loading optimization
-         * @param {string} tabName - Target tab name ('year', 'lifetime', 'dream-signs')
+         * Switch between statistics tabs with lazy loading optimization.
+         * 
+         * Manages tab switching in the statistics interface with intelligent lazy loading
+         * to optimize performance. Updates tab UI states, shows target panel, and loads
+         * content only when needed (first time or when data changes). Uses data-loaded
+         * attribute to cache loaded content and avoid unnecessary recalculations.
+         * 
+         * @async
+         * @param {('year'|'lifetime'|'dream-signs')} tabName - Target tab name
          * @returns {Promise<void>} Resolves when tab switch is complete and content loaded
-         * @features Tab UI updates, lazy loading, content caching with data-loaded attribute
-         * @integration Central tab switching for stats interface
-         * @todo Split into switchTabsUI() and loadTabContent() functions
+         * @throws {TypeError} When tabName is not a valid tab name
+         * @throws {Error} When DOM manipulation or content loading fails
+         * @since 1.0.0
+         * @todo Split into switchTabsUI() and loadTabContent() functions for better separation
+         * @example
+         * // Switch to yearly statistics
+         * await switchStatsTab('year');
+         * 
+         * @example
+         * // Switch to dream signs analysis
+         * await switchStatsTab('dream-signs');
+         * 
+         * @example
+         * // Handle tab click events
+         * document.querySelectorAll('.stats-tab').forEach(tab => {
+         *   tab.addEventListener('click', () => {
+         *     const tabName = tab.dataset.tab;
+         *     switchStatsTab(tabName);
+         *   });
+         * });
          */
         async function switchStatsTab(tabName) {
     
@@ -725,12 +1114,28 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // ================================
 // Comprehensive yearly dream and goal analysis with leap year handling
         /**
-         * Update yearly statistics display with comprehensive dream and goal analysis
-         * @param {number} year - Target year for yearly statistics
+         * Update yearly statistics display with comprehensive dream and goal analysis.
+         * 
+         * Calculates and displays comprehensive yearly statistics with intelligent handling
+         * of leap years, current vs. past years, and goal integration. For the current year,
+         * calculates stats from January 1st to today. For past years, uses the full 365/366
+         * day period. Includes dream counts, recall rates, and goal completion statistics.
+         * 
+         * @async
+         * @param {number} year - Target year for yearly statistics (e.g., 2024)
          * @returns {Promise<void>} Resolves when yearly stats are calculated and displayed
-         * @features Year filtering, leap year handling, current year vs past year logic, goal integration
-         * @integration Called by tab switching and calendar year selection
+         * @throws {TypeError} When year parameter is not a valid number
+         * @throws {Error} When data loading or DOM manipulation fails
+         * @since 1.0.0
          * @todo Split into calculateYearlyStatsData() and renderYearlyStatsHTML() functions
+         * @example
+         * // Update stats for current year
+         * const currentYear = new Date().getFullYear();
+         * await updateYearlyStats(currentYear);
+         * 
+         * @example
+         * // Update stats for specific past year
+         * await updateYearlyStats(2023);
          */
         async function updateYearlyStats(year) {
             const yearlyStatsContainer = document.getElementById('yearlyStatsContainer');
@@ -850,12 +1255,27 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
         }
         
         /**
-         * Render yearly pie chart showing lucid vs regular dream distribution for specific year
-         * @param {number} year - Target year for chart data
-         * @returns {Promise<void>} Resolves when yearly chart is rendered
-         * @features Year-based dream filtering, CSS conic-gradient charts, empty state handling
-         * @integration Called by yearly stats updates and tab switching
-         * @todo Extract chart generation logic to createPieChartHTML() utility function
+         * Render yearly pie chart showing lucid vs regular dream distribution for specific year.
+         * 
+         * Creates and displays a CSS conic-gradient based pie chart showing the ratio of
+         * lucid to regular dreams for an entire year. Filters dreams by year, calculates
+         * percentages, and generates appropriate visualization. Handles empty states when
+         * no dreams are recorded for the target year.
+         * 
+         * @async
+         * @param {number} year - Target year for chart data (e.g., 2024)
+         * @returns {Promise<void>} Resolves when yearly chart is rendered or empty state displayed
+         * @throws {TypeError} When year parameter is not a valid number
+         * @throws {Error} When data loading or DOM manipulation fails
+         * @since 1.0.0
+         * @todo Chart generation logic already extracted to createPieChartHTML() utility
+         * @example
+         * // Render chart for current year
+         * await renderYearlyPieChart(new Date().getFullYear());
+         * 
+         * @example
+         * // Used by yearly stats system
+         * await renderYearlyPieChart(selectedYear);
          */
         async function renderYearlyPieChart(year) {
             const yearlyPieChartContainer = document.getElementById('yearlyPieChartContainer');
@@ -909,11 +1329,27 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // ================================
 // All-time dream and goal analytics with comprehensive date range calculations
         /**
-         * Update lifetime statistics display with comprehensive all-time analysis
+         * Update lifetime statistics display with comprehensive all-time analysis.
+         * 
+         * Calculates and displays comprehensive lifetime statistics covering the user's
+         * entire dream journaling history. Analyzes date ranges from first dream entry
+         * to present, calculates recall rates over entire lifetime, and integrates goal
+         * completion statistics. Handles empty states when no data exists.
+         * 
+         * @async
          * @returns {Promise<void>} Resolves when lifetime stats are calculated and displayed
-         * @features Complete dream history analysis, date range calculations, goal integration
-         * @integration Called by tab switching for lifetime overview
+         * @throws {Error} When data loading or DOM manipulation fails
+         * @since 1.0.0
          * @todo Split into calculateLifetimeStatsData() and renderLifetimeStatsHTML() functions
+         * @example
+         * // Update lifetime overview
+         * await updateLifetimeStats();
+         * 
+         * @example
+         * // Called by tab switching system
+         * if (tabName === 'lifetime') {
+         *   await updateLifetimeStats();
+         * }
          */
         async function updateLifetimeStats() {
             const lifetimeStatsContainer = document.getElementById('lifetimeStatsContainer');
@@ -1027,11 +1463,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
         }
         
         /**
-         * Render lifetime pie chart showing all-time lucid vs regular dream distribution
-         * @returns {Promise<void>} Resolves when lifetime chart is rendered
-         * @features All dreams analysis, CSS conic-gradient charts, lifetime empty state handling
-         * @integration Called by lifetime stats updates and tab switching
-         * @todo Extract chart generation logic to createPieChartHTML() utility function
+         * Render lifetime pie chart showing all-time lucid vs regular dream distribution.
+         * 
+         * Creates and displays a CSS conic-gradient based pie chart showing the ratio of
+         * lucid to regular dreams across the user's entire dream journaling history.
+         * Analyzes all dreams without date filtering and generates comprehensive lifetime
+         * visualization. Handles empty states when no dreams exist.
+         * 
+         * @async
+         * @returns {Promise<void>} Resolves when lifetime chart is rendered or empty state displayed
+         * @throws {Error} When data loading or DOM manipulation fails
+         * @since 1.0.0
+         * @todo Chart generation logic already extracted to createPieChartHTML() utility
+         * @example
+         * // Render lifetime overview chart
+         * await renderLifetimePieChart();
+         * 
+         * @example
+         * // Used by lifetime stats system
+         * await updateLifetimeStats();
+         * await renderLifetimePieChart();
          */
         async function renderLifetimePieChart() {
             const lifetimePieChartContainer = document.getElementById('lifetimePieChartContainer');
@@ -1080,11 +1531,29 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
 // Dream sign frequency analysis and lucidity trigger effectiveness tracking
 
         /**
-         * Calculate comprehensive dream sign statistics including frequency and lucidity rates
-         * @returns {Promise<Array>} Array of dream sign statistics with frequency and effectiveness data
-         * @features Dream sign extraction, lucidity correlation, duplicate handling, case preservation
-         * @integration Used by dream signs tab for word cloud and effectiveness list
+         * Calculate comprehensive dream sign statistics including frequency and lucidity rates.
+         * 
+         * Analyzes all dreams to extract dream signs, calculate frequency statistics, and
+         * determine lucidity trigger effectiveness rates. Handles case normalization while
+         * preserving original casing, removes duplicates within individual dreams, and
+         * calculates correlation between dream signs and lucid dream occurrence.
+         * 
+         * @async
+         * @returns {Promise<Array<DreamSignStat>>} Array of dream sign statistics with frequency and effectiveness data
+         * @throws {Error} When dream data loading fails
+         * @since 2.0.0
          * @todo Extract dream sign normalization logic to normalizeDreamSigns() utility function
+         * @example
+         * const stats = await calculateDreamSignStats();
+         * stats.forEach(stat => {
+         *   console.log(`${stat.sign}: ${stat.total} appearances, ${(stat.lucidityRate * 100).toFixed(1)}% lucid`);
+         * });
+         * 
+         * @example
+         * // Used by dream signs analysis system
+         * const dreamSignData = await calculateDreamSignStats();
+         * renderDreamSignWordCloud(dreamSignData);
+         * renderDreamSignList(dreamSignData);
          */
         async function calculateDreamSignStats() {
             const dreams = await loadDreams();
@@ -1134,11 +1603,26 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
         }
 
         /**
-         * Render detailed list of dream signs sorted by lucidity trigger effectiveness
-         * @param {Array} stats - Array of dream sign statistics from calculateDreamSignStats
+         * Render detailed list of dream signs sorted by lucidity trigger effectiveness.
+         * 
+         * Creates a detailed effectiveness list showing dream signs that have successfully
+         * triggered lucid dreams, sorted by their success rate. Displays progress bars,
+         * percentage success rates, and appearance counts. Filters out dream signs that
+         * have never triggered lucidity and handles empty states appropriately.
+         * 
+         * @param {Array<DreamSignStat>} stats - Array of dream sign statistics from calculateDreamSignStats
          * @returns {void} Updates DOM with dream sign effectiveness list
-         * @features Lucidity rate filtering, effectiveness sorting, progress bars, HTML generation
-         * @integration Called by updateDreamSignsTab for detailed analysis display
+         * @throws {TypeError} When stats parameter is not an array
+         * @since 2.0.0
+         * @example
+         * const stats = await calculateDreamSignStats();
+         * renderDreamSignList(stats);
+         * 
+         * @example
+         * // Used in dream signs tab update
+         * const dreamSignData = await calculateDreamSignStats();
+         * renderDreamSignList(dreamSignData);
+         * renderDreamSignWordCloud(dreamSignData);
          */
         function renderDreamSignList(stats) {
             const container = document.getElementById('dreamSignListContainer');
@@ -1186,12 +1670,27 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
         }
 
         /**
-         * Render visual word cloud of dream signs sized by frequency with color coding
-         * @param {Array} stats - Array of dream sign statistics from calculateDreamSignStats
+         * Render visual word cloud of dream signs sized by frequency with color coding.
+         * 
+         * Creates a visually appealing word cloud where dream signs are sized according
+         * to their frequency and colored using a 6-tier HSL color progression system.
+         * Most frequent signs appear larger and in warmer colors (red/orange), while
+         * less frequent signs appear smaller and in cooler colors (blue/purple).
+         * 
+         * @param {Array<DreamSignStat>} stats - Array of dream sign statistics from calculateDreamSignStats
          * @returns {void} Updates DOM with color-coded word cloud visualization
-         * @features Frequency-based sizing, 6-tier color system, HSL color progression, empty state handling
-         * @integration Called by updateDreamSignsTab for visual dream sign display
+         * @throws {TypeError} When stats parameter is not an array
+         * @since 2.0.0
          * @todo Extract color tier calculation to calculateWordCloudTiers() utility function
+         * @example
+         * const stats = await calculateDreamSignStats();
+         * renderDreamSignWordCloud(stats);
+         * 
+         * @example
+         * // Color tier system: Red > Orange > Yellow > Blue > Green > Purple
+         * // Font sizes: 2.5em > 2.1em > 1.8em > 1.5em > 1.2em > 1.0em
+         * const dreamSignData = await calculateDreamSignStats();
+         * renderDreamSignWordCloud(dreamSignData); // Renders tiered visualization
          */
         function renderDreamSignWordCloud(stats) {
             const container = document.getElementById('dreamSignWordCloudContainer');

@@ -1,3 +1,43 @@
+/**
+ * @fileoverview Dream CRUD Operations Module - Complete dream management system.
+ * 
+ * This module provides comprehensive dream management functionality including creation,
+ * editing, deletion, display, filtering, sorting, pagination, and search capabilities.
+ * It handles both IndexedDB fast path operations and fallback storage methods for
+ * optimal performance and reliability.
+ * 
+ * @module DreamCRUD
+ * @version 2.02.05
+ * @since 1.0.0
+ * @requires constants
+ * @requires state
+ * @requires storage
+ * @requires dom-helpers
+ * @requires security
+ */
+
+/**
+ * Filter values extracted from UI controls for dream processing.
+ * 
+ * @typedef {Object} FilterValues
+ * @property {string} searchTerm - Lowercase search term for text matching
+ * @property {string} filterType - Filter type: 'all', 'lucid', or 'non-lucid'
+ * @property {string} sortType - Sort order: 'newest', 'oldest', 'lucid-first', or 'longest'
+ * @property {string} limitValue - Display limit: numeric string, 'endless', or 'all'
+ * @property {string} startDate - Start date for date range filter (ISO format)
+ * @property {string} endDate - End date for date range filter (ISO format)
+ */
+
+/**
+ * Pagination calculation result containing paginated dreams and metadata.
+ * 
+ * @typedef {Object} PaginationResult
+ * @property {Object[]} paginatedDreams - Array of dream objects for current page/view
+ * @property {number} totalPages - Total number of pages available
+ * @property {number} totalDreams - Total number of dreams in filtered set
+ * @property {number} itemsPerPage - Number of items displayed per page
+ */
+
 // ================================
 // DREAM CRUD OPERATIONS MODULE
 // ================================
@@ -8,8 +48,27 @@
 // 1. CORE DREAM CRUD OPERATIONS
 // ================================
 
-// Save a new dream entry to storage with validation and error handling
-// Handles both IndexedDB fast path and fallback storage methods
+/**
+ * Saves a new dream entry to storage with comprehensive validation and error handling.
+ * 
+ * This function collects dream data from the form UI, validates the content,
+ * processes tags and dream signs for autocomplete learning, and saves the dream
+ * using either IndexedDB fast path or fallback storage methods. It also handles
+ * form clearing, pagination reset, and UI feedback.
+ * 
+ * @async
+ * @function saveDream
+ * @returns {Promise<void>} Resolves when dream is saved and UI is updated
+ * @throws {Error} When form elements are not found or storage operations fail
+ * @since 1.0.0
+ * @example
+ * // Called when user clicks save button on dream form
+ * await saveDream();
+ * 
+ * @example
+ * // Form validation will show error if content is empty
+ * // and prevent saving until user enters content
+ */
        async function saveDream() {
         const titleElement = document.getElementById('dreamTitle');
         const contentElement = document.getElementById('dreamContent');
@@ -98,14 +157,49 @@
 // 2. DREAM DISPLAY SYSTEM
 // ================================
 
-// Main entry point for displaying dreams with mutex protection
-// Prevents race conditions during concurrent display operations
+/**
+ * Main entry point for displaying dreams with mutex protection to prevent race conditions.
+ * 
+ * This function serves as a thread-safe wrapper around the internal display implementation,
+ * ensuring that only one display operation can run at a time to prevent UI corruption
+ * and data inconsistencies during concurrent operations.
+ * 
+ * @async
+ * @function displayDreams
+ * @returns {Promise<void>} Resolves when dreams are displayed and UI is updated
+ * @throws {Error} When mutex operations fail or display rendering encounters errors
+ * @since 1.0.0
+ * @example
+ * // Refresh dream display after adding new dream
+ * await displayDreams();
+ * 
+ * @example
+ * // Safe to call multiple times - mutex prevents concurrent execution
+ * displayDreams(); // First call
+ * displayDreams(); // Queued until first completes
+ */
     async function displayDreams() {
         return withMutex('displayDreams', displayDreamsInternal);
     }
     
-    // Internal implementation of dream display with full filtering and pagination
-    // Protected by mutex to prevent concurrent execution issues
+    /**
+     * Internal implementation of dream display with comprehensive filtering and pagination.
+     * 
+     * This function handles the complete dream display pipeline including loading dreams,
+     * applying search filters, sorting results, calculating pagination, rendering HTML,
+     * and updating pagination controls. It's protected by mutex to prevent concurrent
+     * execution issues and includes performance optimizations for large datasets.
+     * 
+     * @async
+     * @function displayDreamsInternal
+     * @private
+     * @returns {Promise<void>} Resolves when display pipeline is complete
+     * @throws {Error} When dream loading, filtering, or rendering fails
+     * @since 1.0.0
+     * @example
+     * // Called internally by displayDreams() with mutex protection
+     * await withMutex('displayDreams', displayDreamsInternal);
+     */
     async function displayDreamsInternal() {
         try {
             // Security note: PIN protection handled by lock screen tab system
@@ -153,8 +247,29 @@
 // 3. DREAM FILTERING & SORTING SYSTEM
 // ================================
     
-    // Apply search term and filter criteria to dream collection
-    // Handles text search across multiple fields and date range filtering
+    /**
+     * Applies search terms and filter criteria to filter the dream collection.
+     * 
+     * This function performs comprehensive filtering including text search across
+     * multiple dream fields (title, content, emotions, tags, dream signs), lucidity
+     * filtering, and date range filtering. It handles invalid data gracefully and
+     * provides detailed error logging for debugging.
+     * 
+     * @function filterDreams
+     * @param {Object[]} dreams - Array of dream objects to filter
+     * @param {string} searchTerm - Lowercase search term to match against dream fields
+     * @param {string} filterType - Filter type: 'all', 'lucid', or 'non-lucid'
+     * @param {string} startDate - Start date for date range filter (ISO format)
+     * @param {string} endDate - End date for date range filter (ISO format)
+     * @returns {Object[]} Filtered array of dream objects matching all criteria
+     * @since 1.0.0
+     * @example
+     * const filtered = filterDreams(dreams, 'flying', 'lucid', '2024-01-01', '2024-12-31');
+     * 
+     * @example
+     * // Search all dreams for 'nightmare' keyword
+     * const nightmares = filterDreams(dreams, 'nightmare', 'all', '', '');
+     */
     function filterDreams(dreams, searchTerm, filterType, startDate, endDate) {
         if (!Array.isArray(dreams)) return [];
 
@@ -204,8 +319,26 @@
         });
     }
     
-    // Apply selected sort order to filtered dream collection
-    // Supports newest/oldest, lucid-first, and longest content sorting
+    /**
+     * Applies the selected sort order to the filtered dream collection.
+     * 
+     * This function supports multiple sorting strategies including chronological
+     * (newest/oldest), lucidity-based (lucid dreams first), and content-based
+     * (longest content first) sorting. It handles invalid timestamps gracefully
+     * and maintains sort stability for equal elements.
+     * 
+     * @function sortDreams
+     * @param {Object[]} dreams - Array of dream objects to sort
+     * @param {string} sortType - Sort type: 'newest', 'oldest', 'lucid-first', or 'longest'
+     * @returns {Object[]} New sorted array of dream objects (original array unchanged)
+     * @since 1.0.0
+     * @example
+     * const sorted = sortDreams(dreams, 'lucid-first');
+     * 
+     * @example
+     * // Sort by content length for detailed analysis
+     * const byLength = sortDreams(dreams, 'longest');
+     */
     function sortDreams(dreams, sortType) {
         if (!Array.isArray(dreams) || dreams.length === 0) return dreams;
         
@@ -261,8 +394,28 @@
 // 4. DREAM EDITING OPERATIONS
 // ================================
 
-    // Display inline edit form for existing dream entry
-    // Converts dream display into editable form with pre-populated values
+    /**
+     * Displays an inline edit form for an existing dream entry.
+     * 
+     * This function converts a dream's display view into an editable form with
+     * all fields pre-populated with current values. It handles datetime formatting,
+     * XSS prevention, and provides a complete editing interface with save/cancel
+     * actions. The form is inserted directly into the dream's container element.
+     * 
+     * @async
+     * @function editDream
+     * @param {string|number} dreamId - Unique identifier of the dream to edit
+     * @returns {Promise<void>} Resolves when edit form is displayed and focused
+     * @throws {Error} When dream is not found or DOM manipulation fails
+     * @since 1.0.0
+     * @example
+     * // Edit dream with ID '123'
+     * await editDream('123');
+     * 
+     * @example
+     * // Called from action button click
+     * await editDream(dreamId);
+     */
     async function editDream(dreamId) {
         try {
             const dreams = await loadDreams();
@@ -372,8 +525,28 @@
         }
     }
 
-    // Process and save changes from dream edit form
-    // Updates existing dream with new values and refreshes display
+    /**
+     * Processes and saves changes from the dream edit form.
+     * 
+     * This function validates the edited dream content, processes tags and dream signs
+     * for autocomplete learning, updates the dream object with new values including
+     * a last modified timestamp, and saves using either IndexedDB fast path or
+     * fallback storage. It then refreshes the display and autocomplete data.
+     * 
+     * @async
+     * @function saveDreamEdit
+     * @param {string|number} dreamId - Unique identifier of the dream being edited
+     * @returns {Promise<void>} Resolves when dream is saved and display is refreshed
+     * @throws {Error} When validation fails or storage operations encounter errors
+     * @since 1.0.0
+     * @example
+     * // Save edited dream with ID '123'
+     * await saveDreamEdit('123');
+     * 
+     * @example
+     * // Called when user clicks 'Save Changes' button
+     * await saveDreamEdit(dreamId);
+     */
     async function saveDreamEdit(dreamId) {
         const newContentElement = document.getElementById(`edit-content-${dreamId}`);
         if (!newContentElement?.value.trim()) {
@@ -425,8 +598,26 @@
         await initializeAutocomplete();
     }
 
-    // Cancel dream edit operation and return to display view
-    // Discards any unsaved changes and refreshes the dream list
+    /**
+     * Cancels the dream edit operation and returns to display view.
+     * 
+     * This function discards any unsaved changes made in the edit form and
+     * refreshes the dream list to restore the original display. It's called
+     * when the user clicks the cancel button or wants to abort editing.
+     * 
+     * @async
+     * @function cancelDreamEdit
+     * @param {string|number} dreamId - Unique identifier of the dream being edited
+     * @returns {Promise<void>} Resolves when display is restored
+     * @since 1.0.0
+     * @example
+     * // Cancel editing dream with ID '123'
+     * await cancelDreamEdit('123');
+     * 
+     * @example
+     * // Called when user clicks 'Cancel' button
+     * await cancelDreamEdit(dreamId);
+     */
     async function cancelDreamEdit(dreamId) {
         await displayDreams();
     }
@@ -435,8 +626,26 @@
 // 5. DREAM DELETION SYSTEM
 // ================================
 
-    // Initiate dream deletion with confirmation UI
-    // Shows confirm button and sets auto-cancel timeout for safety
+    /**
+     * Initiates the dream deletion process with confirmation UI.
+     * 
+     * This function begins the two-step deletion process by replacing the delete
+     * button with a confirmation button and adding visual styling to indicate
+     * pending deletion. It includes an auto-cancel safety timeout to prevent
+     * accidental deletions and manages deletion state for the specific dream.
+     * 
+     * @function deleteDream
+     * @param {string|number} dreamId - Unique identifier of the dream to delete
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Initiate deletion for dream with ID '123'
+     * deleteDream('123');
+     * 
+     * @example
+     * // Called when user clicks initial 'Delete' button
+     * deleteDream(dreamId);
+     */
     function deleteDream(dreamId) {
         // Clear any existing timeout for this dream
         if (deleteTimeouts[dreamId]) {
@@ -465,8 +674,28 @@
         }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
     }
 
-    // Execute confirmed dream deletion from storage
-    // Protected by mutex to prevent concurrent deletion operations
+    /**
+     * Executes the confirmed dream deletion from storage with mutex protection.
+     * 
+     * This function performs the actual deletion operation after user confirmation,
+     * using either IndexedDB fast path or fallback storage methods. It's protected
+     * by mutex to prevent concurrent deletion operations that could cause data
+     * corruption. After deletion, it resets pagination and refreshes the display.
+     * 
+     * @async
+     * @function confirmDelete
+     * @param {string|number} dreamId - Unique identifier of the dream to delete
+     * @returns {Promise<void>} Resolves when dream is deleted and display is updated
+     * @throws {Error} When deletion fails or storage operations encounter errors
+     * @since 1.0.0
+     * @example
+     * // Execute confirmed deletion for dream with ID '123'
+     * await confirmDelete('123');
+     * 
+     * @example
+     * // Called when user clicks 'Confirm Delete' button
+     * await confirmDelete(dreamId);
+     */
     async function confirmDelete(dreamId) {
         return withMutex('deleteOperations', async () => {
             try {
@@ -502,8 +731,26 @@
         });
     }
 
-    // Cancel delete operation and restore original delete button
-    // Removes pending deletion state and clears timeout
+    /**
+     * Cancels the delete operation and restores the original delete button.
+     * 
+     * This function aborts the deletion process by removing pending deletion
+     * styling, clearing the auto-cancel timeout, and replacing the confirmation
+     * button with the original delete button. It's called either by user action
+     * or automatically by the safety timeout.
+     * 
+     * @function cancelDelete
+     * @param {string|number} dreamId - Unique identifier of the dream deletion to cancel
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Cancel deletion for dream with ID '123'
+     * cancelDelete('123');
+     * 
+     * @example
+     * // Automatically called by timeout after extended delay
+     * setTimeout(() => cancelDelete(dreamId), CONSTANTS.MESSAGE_DURATION_EXTENDED);
+     */
     function cancelDelete(dreamId) {
         // Clear the timeout
         if (deleteTimeouts[dreamId]) {
@@ -530,8 +777,27 @@
 // 6. DREAM DISPLAY HELPER FUNCTIONS
 // ================================
     
-    // Extract current search and filter settings from UI controls
-    // Returns object with all filter parameters for dream processing
+    /**
+     * Extracts current search and filter settings from UI controls.
+     * 
+     * This function reads values from all filter-related DOM elements including
+     * search box, filter dropdowns, sort selection, pagination limits, and date
+     * range inputs. It provides default values for missing elements and formats
+     * the search term to lowercase for case-insensitive searching.
+     * 
+     * @function getFilterValues
+     * @returns {FilterValues} Object containing all current filter parameters
+     * @since 1.0.0
+     * @example
+     * const filters = getFilterValues();
+     * console.log(filters.searchTerm); // 'flying'
+     * console.log(filters.filterType); // 'lucid'
+     * 
+     * @example
+     * // Use extracted values for filtering
+     * const { searchTerm, filterType, sortType } = getFilterValues();
+     * const filtered = filterDreams(dreams, searchTerm, filterType);
+     */
     function getFilterValues() {
         const searchBox = document.getElementById('searchBox');
         const filterSelect = document.getElementById('filterSelect');
@@ -550,8 +816,28 @@
         };
     }
     
-    // Display loading indicator for large datasets
-    // Provides user feedback during dream processing
+    /**
+     * Displays a loading indicator for large datasets to provide user feedback.
+     * 
+     * This function shows a loading message with dream count when processing
+     * large numbers of dreams. It helps users understand that the application
+     * is working and provides an estimate of the processing scope.
+     * 
+     * @function showLoadingMessage
+     * @param {HTMLElement} container - DOM container element to display loading message in
+     * @param {number} dreamCount - Number of dreams being processed
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * const container = document.getElementById('entriesContainer');
+     * showLoadingMessage(container, 1500);
+     * 
+     * @example
+     * // Show loading for datasets exceeding threshold
+     * if (dreams.length > CONSTANTS.LARGE_DATASET_THRESHOLD) {
+     *   showLoadingMessage(container, dreams.length);
+     * }
+     */
     function showLoadingMessage(container, dreamCount) {
         container.innerHTML = `
             <div class="loading-state large">
@@ -561,8 +847,28 @@
         `;
     }
     
-    // Generate contextual no-results message based on current filters
-    // Provides helpful guidance for different filter states
+    /**
+     * Generates a contextual no-results message based on current filter state.
+     * 
+     * This function creates user-friendly messages that explain why no dreams
+     * are displayed and provides helpful guidance based on the active filters.
+     * Different messages are shown for search results, lucid/non-lucid filters,
+     * and empty journals to guide user actions appropriately.
+     * 
+     * @function showNoResultsMessage
+     * @param {HTMLElement} container - DOM container element to display message in
+     * @param {string} filterType - Current filter type: 'all', 'lucid', or 'non-lucid'
+     * @param {string} searchTerm - Current search term (empty string if no search)
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * showNoResultsMessage(container, 'lucid', '');
+     * // Shows: "No lucid dreams recorded yet. Mark dreams as lucid when you achieve lucidity!"
+     * 
+     * @example
+     * showNoResultsMessage(container, 'all', 'flying');
+     * // Shows: "No dreams found matching your search."
+     */
     function showNoResultsMessage(container, filterType, searchTerm) {
         const filterText = filterType === 'all' ? '' : 
             filterType === 'lucid' ? ' lucid' : ' non-lucid';
@@ -581,8 +887,26 @@
         container.innerHTML = `<div class="no-entries">${message}</div>`;
     }
     
-    // Remove pagination controls from display
-    // Used when no results are found or pagination is not needed
+    /**
+     * Removes pagination controls from display when not needed.
+     * 
+     * This function clears the pagination container HTML when no results are
+     * found or when pagination is not applicable (e.g., showing all dreams).
+     * It ensures a clean UI state without unnecessary navigation controls.
+     * 
+     * @function clearPagination
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Clear pagination when no dreams found
+     * if (filteredDreams.length === 0) {
+     *   clearPagination();
+     * }
+     * 
+     * @example
+     * // Clear pagination when switching to "show all" mode
+     * clearPagination();
+     */
     function clearPagination() {
         const paginationContainer = document.getElementById('paginationContainer');
         if (paginationContainer) {
@@ -596,8 +920,29 @@
 
     // TODO: Split into calculatePaginationParams() and configurePaginationMode() functions
     // This function handles both calculation logic and UI state management
-    // Calculate pagination parameters and configure endless scroll if enabled
-    // Handles different display modes: paginated, endless scroll, and show all
+    /**
+     * Calculates pagination parameters and configures endless scroll mode if enabled.
+     * 
+     * This function handles multiple display modes including traditional pagination,
+     * endless scroll, and "show all" modes. It calculates page counts, items per page,
+     * and manages endless scroll state. The function also includes safety bounds
+     * checking and error recovery for robust pagination handling.
+     * 
+     * @function calculatePagination
+     * @param {Object[]} filteredDreams - Array of filtered dream objects to paginate
+     * @param {string} limitValue - Display limit: numeric string, 'endless', or 'all'
+     * @returns {PaginationResult} Object containing pagination parameters and dream subset
+     * @since 1.0.0
+     * @example
+     * const result = calculatePagination(dreams, '10');
+     * console.log(result.totalPages); // 5
+     * console.log(result.paginatedDreams.length); // 10
+     * 
+     * @example
+     * // Endless scroll mode
+     * const endless = calculatePagination(dreams, 'endless');
+     * console.log(endless.totalPages); // 1 (endless mode)
+     */
     function calculatePagination(filteredDreams, limitValue) {
         if (!Array.isArray(filteredDreams)) {
             return { paginatedDreams: [], totalPages: 1, totalDreams: 0, itemsPerPage: 1 };
@@ -652,8 +997,39 @@
     
     // TODO: Split into buildDreamDataForDisplay() and generateDreamHTML() functions
     // Currently combines data processing and HTML template generation
-    // Generate secure HTML representation of a single dream entry
-    // Handles XSS prevention and proper formatting of all dream fields
+    /**
+     * Generates secure HTML representation of a single dream entry.
+     * 
+     * This function converts a dream object into a complete HTML structure with
+     * proper XSS prevention, formatted display of all dream fields including
+     * emotions, tags, and dream signs, and action buttons. It handles missing
+     * or invalid data gracefully and applies appropriate styling for lucid dreams.
+     * 
+     * @function renderDreamHTML
+     * @param {Object} dream - Dream object to render
+     * @param {string|number} dream.id - Unique dream identifier
+     * @param {string} [dream.title] - Dream title
+     * @param {string} [dream.content] - Dream content/description
+     * @param {string} [dream.dateString] - Formatted date string for display
+     * @param {string} [dream.emotions] - Emotions experienced in dream
+     * @param {string[]} [dream.tags] - Array of dream tags
+     * @param {string[]} [dream.dreamSigns] - Array of dream signs
+     * @param {boolean} [dream.isLucid] - Whether dream was lucid
+     * @returns {string} Complete HTML string for dream entry, empty string if invalid
+     * @since 1.0.0
+     * @example
+     * const htmlString = renderDreamHTML({
+     *   id: '123',
+     *   title: 'Flying Dream',
+     *   content: 'I was flying over the city...',
+     *   isLucid: true,
+     *   tags: ['flying', 'city']
+     * });
+     * 
+     * @example
+     * // Handles invalid dreams gracefully
+     * const empty = renderDreamHTML(null); // Returns ''
+     */
     function renderDreamHTML(dream) {
         if (!dream || typeof dream !== 'object' || !dream.id) return '';
         
@@ -723,8 +1099,29 @@
         }
     }
     
-    // Generate pagination status and controls based on current display mode
-    // Handles endless scroll status, traditional pagination, or no pagination
+    /**
+     * Generates pagination status and controls based on current display mode.
+     * 
+     * This function creates appropriate pagination UI for different display modes:
+     * endless scroll status with load progress, traditional pagination with
+     * page controls, or no pagination for "show all" mode. It dynamically
+     * updates the pagination container with relevant information and controls.
+     * 
+     * @function renderPaginationHTML
+     * @param {string} limitValue - Display limit: numeric string, 'endless', or 'all'
+     * @param {number} totalPages - Total number of pages in traditional pagination
+     * @param {number} totalDreams - Total number of dreams in filtered set
+     * @param {Object[]} paginatedDreams - Array of dreams currently displayed
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * renderPaginationHTML('10', 5, 47, currentPageDreams);
+     * // Renders: "Showing 1-10 of 47 dreams" with page controls
+     * 
+     * @example
+     * renderPaginationHTML('endless', 1, 100, loadedDreams);
+     * // Renders: "Showing 25 of 100 dreams\nScroll down to load 5 more..."
+     */
     function renderPaginationHTML(limitValue, totalPages, totalDreams, paginatedDreams) {
         const paginationContainer = document.getElementById('paginationContainer');
         if (!paginationContainer) return;
@@ -756,8 +1153,26 @@
 // 8. ENDLESS SCROLL IMPLEMENTATION
 // ================================
 
-    // Initialize endless scroll event listener with debouncing
-    // Removes existing listeners to prevent duplicates
+    /**
+     * Initializes endless scroll event listener with debouncing protection.
+     * 
+     * This function sets up the scroll event listener for endless scroll mode,
+     * ensuring no duplicate listeners exist by removing any existing ones first.
+     * The scroll handling includes debouncing to prevent excessive event firing.
+     * 
+     * @function setupEndlessScroll
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Enable endless scroll when user selects endless mode
+     * setupEndlessScroll();
+     * 
+     * @example
+     * // Called automatically when pagination mode switches to endless
+     * if (limitValue === 'endless') {
+     *   setupEndlessScroll();
+     * }
+     */
     function setupEndlessScroll() {
         // Remove existing scroll listener to prevent duplicates
         removeEndlessScroll();
@@ -766,12 +1181,48 @@
         window.addEventListener('scroll', handleEndlessScroll);
     }
 
-    // Clean up endless scroll event listener
-    // Called when switching away from endless scroll mode
+    /**
+     * Cleans up endless scroll event listener when switching display modes.
+     * 
+     * This function removes the scroll event listener to prevent memory leaks
+     * and unwanted scroll handling when not in endless scroll mode. It's called
+     * when switching to traditional pagination or "show all" modes.
+     * 
+     * @function removeEndlessScroll
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Disable endless scroll when switching to paginated mode
+     * removeEndlessScroll();
+     * 
+     * @example
+     * // Called automatically when pagination mode changes
+     * if (limitValue !== 'endless') {
+     *   removeEndlessScroll();
+     * }
+     */
     function removeEndlessScroll() {
         window.removeEventListener('scroll', handleEndlessScroll);
     }
 
+    /**
+     * Handles endless scroll events with debouncing and threshold detection.
+     * 
+     * This function processes scroll events to determine when to load more dreams
+     * in endless scroll mode. It includes throttling to prevent excessive API calls,
+     * threshold detection for triggering loads, and mutex protection for loading
+     * operations. The function calculates scroll position and triggers incremental
+     * dream loading when the user approaches the bottom of the page.
+     * 
+     * @function handleEndlessScroll
+     * @private
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Automatically called when user scrolls near bottom
+     * // Loads CONSTANTS.ENDLESS_SCROLL_INCREMENT more dreams
+     * window.addEventListener('scroll', handleEndlessScroll);
+     */
     function handleEndlessScroll() {
         if (scrollDebounceTimer) {
             clearTimeout(scrollDebounceTimer);
@@ -811,8 +1262,30 @@
 // 9. TRADITIONAL PAGINATION SYSTEM
 // ================================
 
-    // Generate traditional pagination controls with page numbers and navigation
-    // Creates Previous/Next buttons and numbered page buttons with ellipsis
+    /**
+     * Generates traditional pagination controls with page numbers and navigation.
+     * 
+     * This function creates a complete pagination interface including Previous/Next
+     * buttons, numbered page buttons with intelligent ellipsis for large page counts,
+     * and status information showing current range of displayed items. It handles
+     * the full pagination UI generation for traditional paginated display modes.
+     * 
+     * @function renderPagination
+     * @param {number} page - Current page number (1-indexed)
+     * @param {number} totalPages - Total number of pages available
+     * @param {number} totalItems - Total number of items across all pages
+     * @param {number} currentItems - Number of items displayed on current page
+     * @returns {string} Complete HTML string for pagination controls
+     * @since 1.0.0
+     * @example
+     * const paginationHTML = renderPagination(3, 10, 95, 10);
+     * // Returns: Previous/Next buttons, page numbers 1...2,3,4...10, "Showing 21-30 of 95 dreams"
+     * 
+     * @example
+     * // For small page counts, shows all pages
+     * const simple = renderPagination(2, 5, 42, 10);
+     * // Returns: Previous, 1,2,3,4,5, Next
+     */
     function renderPagination(page, totalPages, totalItems, currentItems) {
         // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
         const limitSelect = document.getElementById('limitSelect');
@@ -858,8 +1331,28 @@
         return paginationHTML;
     }
 
-    // Create intelligent page number sequence with ellipsis for large page counts
-    // Shows current page context while keeping navigation manageable
+    /**
+     * Creates intelligent page number sequence with ellipsis for large page counts.
+     * 
+     * This function generates an optimal page number display that shows the current
+     * page context while keeping navigation manageable. It uses ellipsis to condense
+     * large page ranges and always shows first page, last page, and pages around
+     * the current selection for intuitive navigation.
+     * 
+     * @function generatePageNumbers
+     * @param {number} currentPage - Current active page number (1-indexed)
+     * @param {number} totalPages - Total number of pages available
+     * @returns {(number|string)[]} Array of page numbers and ellipsis strings
+     * @since 1.0.0
+     * @example
+     * const pages = generatePageNumbers(5, 20);
+     * // Returns: [1, '...', 4, 5, 6, '...', 20]
+     * 
+     * @example
+     * // For small page counts, returns all pages
+     * const allPages = generatePageNumbers(3, 7);
+     * // Returns: [1, 2, 3, 4, 5, 6, 7]
+     */
     function generatePageNumbers(currentPage, totalPages) {
         const pages = [];
         
@@ -904,8 +1397,28 @@
         return pages;
     }
 
-    // Navigate to specific page with validation and boundary checking
-    // Only works in traditional pagination mode (not endless scroll or show all)
+    /**
+     * Navigates to a specific page with validation and boundary checking.
+     * 
+     * This function handles page navigation in traditional pagination mode with
+     * comprehensive validation including page number bounds checking, pagination
+     * mode verification, and error handling. It calculates total pages dynamically
+     * and updates the current page state before triggering a display refresh.
+     * 
+     * @async
+     * @function goToPage
+     * @param {string|number} page - Target page number to navigate to
+     * @returns {Promise<void>} Resolves when navigation is complete and display updated
+     * @throws {Error} When page calculation or display update fails
+     * @since 1.0.0
+     * @example
+     * // Navigate to page 3
+     * await goToPage(3);
+     * 
+     * @example
+     * // Called from pagination button click
+     * await goToPage(nextPage);
+     */
     async function goToPage(page) {
         // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
         const limitSelect = document.getElementById('limitSelect');
@@ -930,8 +1443,26 @@
         }
     }
 
-    // Calculate total number of dreams matching current filter criteria
-    // Used for pagination calculations and display information
+    /**
+     * Calculates the total number of dreams matching current filter criteria.
+     * 
+     * This function applies the same filtering logic as the main display function
+     * but only returns the count of matching dreams. It's used for pagination
+     * calculations, display information, and determining whether to show pagination
+     * controls. The function handles errors gracefully and returns 0 on failure.
+     * 
+     * @async
+     * @function getFilteredDreamsCount
+     * @returns {Promise<number>} Total count of dreams matching current filters
+     * @since 1.0.0
+     * @example
+     * const count = await getFilteredDreamsCount();
+     * console.log(`Found ${count} dreams matching filters`);
+     * 
+     * @example
+     * // Use for pagination calculation
+     * const totalPages = Math.ceil(await getFilteredDreamsCount() / itemsPerPage);
+     */
     async function getFilteredDreamsCount() {
         try {
             const { searchTerm, filterType, startDate, endDate } = getFilterValues();
@@ -946,8 +1477,28 @@
         }
     }
 
-    // Reset pagination to first page when search/filter criteria change
-    // Also resets endless scroll state to initial load amount
+    /**
+     * Resets pagination to first page when search or filter criteria change.
+     * 
+     * This function resets the pagination state to page 1 and also resets endless
+     * scroll state to initial load amount when filters change. It ensures users
+     * see results from the beginning when applying new search or filter criteria
+     * and then refreshes the display with updated results.
+     * 
+     * @async
+     * @function resetToPageOne
+     * @returns {Promise<void>} Resolves when pagination is reset and display updated
+     * @since 1.0.0
+     * @example
+     * // Reset when user enters new search term
+     * await resetToPageOne();
+     * 
+     * @example
+     * // Called by debounced search/filter functions
+     * searchDebounceTimer = setTimeout(async () => {
+     *   await resetToPageOne();
+     * }, delay);
+     */
     async function resetToPageOne() {
         currentPage = 1;
         
@@ -964,8 +1515,26 @@
 // 10. TAG MANAGEMENT SYSTEM
 // ================================
 
-    // Parse comma-separated tag input into clean array with validation
-    // Removes duplicates, limits length, and enforces maximum tag count
+    /**
+     * Parses comma-separated tag input into a clean validated array.
+     * 
+     * This function processes raw tag input by splitting on commas, trimming
+     * whitespace, removing duplicates (case-insensitive), enforcing length limits,
+     * and restricting the total number of tags. It preserves the first-seen
+     * casing of duplicate tags and handles invalid input gracefully.
+     * 
+     * @function parseTagsFromInput
+     * @param {string} input - Comma-separated string of tags from user input
+     * @returns {string[]} Clean array of validated, deduplicated tags
+     * @since 1.0.0
+     * @example
+     * const tags = parseTagsFromInput('Flying, school, Flying, family');
+     * // Returns: ['Flying', 'school', 'family']
+     * 
+     * @example
+     * const empty = parseTagsFromInput('   ,  , ');
+     * // Returns: [] (empty array for invalid input)
+     */
     function parseTagsFromInput(input) {
         if (!input || typeof input !== 'string') return [];
         
@@ -991,8 +1560,25 @@
         }
     }
 
-    // Format tags array as HTML spans for display
-    // Applies XSS protection and proper styling
+    /**
+     * Formats an array of tags as HTML spans for display with XSS protection.
+     * 
+     * This function converts a tags array into HTML span elements with proper
+     * escaping to prevent XSS attacks. Each tag is wrapped in a styled span
+     * element with the 'tag' CSS class for consistent visual presentation.
+     * 
+     * @function formatTagsForDisplay
+     * @param {string[]} tags - Array of tag strings to format
+     * @returns {string} HTML string of formatted tag spans, empty if no valid tags
+     * @since 1.0.0
+     * @example
+     * const html = formatTagsForDisplay(['flying', 'lucid', 'adventure']);
+     * // Returns: '<span class="tag">flying</span><span class="tag">lucid</span><span class="tag">adventure</span>'
+     * 
+     * @example
+     * const empty = formatTagsForDisplay([]);
+     * // Returns: ''
+     */
     function formatTagsForDisplay(tags) {
         if (!Array.isArray(tags) || tags.length === 0) return '';
         return tags.map(tag => 
@@ -1000,8 +1586,26 @@
         ).join('');
     }
 
-    // Format dream signs array as HTML spans for display
-    // Uses distinct styling from regular tags
+    /**
+     * Formats an array of dream signs as HTML spans with distinct styling.
+     * 
+     * This function converts a dream signs array into HTML span elements with
+     * XSS protection and distinct styling from regular tags. Dream signs use
+     * the 'dream-sign' CSS class to provide visual differentiation from normal
+     * tags, helping users distinguish between themes and lucidity indicators.
+     * 
+     * @function formatDreamSignsForDisplay
+     * @param {string[]} dreamSigns - Array of dream sign strings to format
+     * @returns {string} HTML string of formatted dream sign spans, empty if no valid signs
+     * @since 1.0.0
+     * @example
+     * const html = formatDreamSignsForDisplay(['flying', 'text-changing', 'deceased-alive']);
+     * // Returns: '<span class="dream-sign">flying</span><span class="dream-sign">text-changing</span><span class="dream-sign">deceased-alive</span>'
+     * 
+     * @example
+     * const empty = formatDreamSignsForDisplay(null);
+     * // Returns: ''
+     */
     function formatDreamSignsForDisplay(dreamSigns) {
         if (!Array.isArray(dreamSigns) || dreamSigns.length === 0) return '';
         return dreamSigns.map(sign => 
@@ -1013,8 +1617,26 @@
 // 11. SEARCH & FILTER PERFORMANCE OPTIMIZATION
 // ================================
 
-    // Debounced search function to prevent excessive filtering during typing
-    // Shows loading state immediately for responsive user feedback
+    /**
+     * Provides debounced search functionality to prevent excessive filtering during typing.
+     * 
+     * This function implements search input debouncing to avoid performance issues
+     * when users type quickly. It shows a loading state immediately for responsive
+     * feedback, then delays the actual search operation until typing stops. This
+     * prevents excessive API calls and UI updates during rapid input changes.
+     * 
+     * @function debouncedSearch
+     * @param {number} [delay=CONSTANTS.DEBOUNCE_SEARCH_MS] - Delay in milliseconds before executing search
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Called on search input keyup events
+     * searchInput.addEventListener('keyup', () => debouncedSearch());
+     * 
+     * @example
+     * // Custom delay for slower connections
+     * debouncedSearch(1000); // 1 second delay
+     */
     function debouncedSearch(delay = CONSTANTS.DEBOUNCE_SEARCH_MS) {
         if (searchDebounceTimer) {
             clearTimeout(searchDebounceTimer);
@@ -1029,8 +1651,26 @@
         }, delay);
     }
 
-    // Debounced filter function to prevent excessive processing during selection changes
-    // Similar to search debouncing but for dropdown filter changes
+    /**
+     * Provides debounced filter functionality for dropdown selection changes.
+     * 
+     * This function implements filter selection debouncing to prevent excessive
+     * processing when users rapidly change filter options. Similar to search
+     * debouncing but optimized for dropdown interactions, it shows loading state
+     * and delays filter application until selections stabilize.
+     * 
+     * @function debouncedFilter
+     * @param {number} [delay=CONSTANTS.DEBOUNCE_FILTER_MS] - Delay in milliseconds before applying filter
+     * @returns {void}
+     * @since 1.0.0
+     * @example
+     * // Called on filter dropdown change events
+     * filterSelect.addEventListener('change', () => debouncedFilter());
+     * 
+     * @example
+     * // Immediate filter for simple selections
+     * debouncedFilter(100); // Short delay for responsive feel
+     */
     function debouncedFilter(delay = CONSTANTS.DEBOUNCE_FILTER_MS) {
         if (filterDebounceTimer) {
             clearTimeout(filterDebounceTimer);

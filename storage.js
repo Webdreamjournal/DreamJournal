@@ -1,16 +1,119 @@
+    /**
+     * @fileoverview Database and storage management for the Dream Journal application.
+     * 
+     * This module provides comprehensive data persistence functionality using IndexedDB
+     * as the primary storage mechanism with memory fallback for environments where
+     * IndexedDB is unavailable. Handles dreams, voice notes, goals, and autocomplete
+     * suggestions with proper error handling, validation, and migration support.
+     * 
+     * @module storage
+     * @version 2.02.05
+     * @author Development Team
+     * @since 1.0.0
+     * @requires constants
+     * @requires dom-helpers
+     */
+
+    /**
+     * Represents a dream journal entry with all associated metadata.
+     * 
+     * @typedef {Object} Dream
+     * @property {string} id - Unique identifier for the dream
+     * @property {string} title - Title or brief description of the dream
+     * @property {string} content - Full dream content and description
+     * @property {string} timestamp - ISO 8601 timestamp when dream was recorded
+     * @property {boolean} isLucid - Whether this was a lucid dream
+     * @property {Array<string>} tags - Array of categorization tags
+     * @property {Array<string>} dreamSigns - Array of dream signs or symbols
+     * @property {string} [category] - Optional dream category
+     * @property {Array<string>} [emotions] - Optional array of emotions experienced
+     */
+
+    /**
+     * Represents a voice note recording with audio data and metadata.
+     * 
+     * @typedef {Object} VoiceNote
+     * @property {string} id - Unique identifier for the voice note
+     * @property {Blob} audioBlob - Binary audio data blob
+     * @property {string} transcript - Transcribed text from speech recognition
+     * @property {string} timestamp - ISO 8601 timestamp when recorded
+     * @property {number} duration - Duration of recording in seconds
+     * @property {number} size - File size of audio data in bytes
+     */
+
+    /**
+     * Represents a lucid dreaming goal with progress tracking.
+     * 
+     * @typedef {Object} Goal
+     * @property {string} id - Unique identifier for the goal
+     * @property {string} title - Goal title or description
+     * @property {string} timestamp - ISO 8601 timestamp when goal was created
+     * @property {boolean} completed - Whether the goal has been achieved
+     * @property {string} [category] - Optional goal category
+     * @property {number} [targetCount] - Optional target number for completion
+     * @property {number} [currentCount] - Optional current progress count
+     */
+
     // ===================================================================================
     // SECTION 4: DATABASE & STORAGE
     // ===================================================================================
 
-    // Database Constants and Setup
+    /**
+     * Name of the IndexedDB database.
+     * @constant {string}
+     * @since 1.0.0
+     */
     const DB_NAME = 'DreamJournal';
+
+    /**
+     * Version number of the IndexedDB database schema.
+     * Increment when schema changes are needed.
+     * @constant {number}
+     * @since 1.0.0
+     */
     const DB_VERSION = CONSTANTS.DB_VERSION; // Increment for voice notes support
+
+    /**
+     * Name of the dreams object store in IndexedDB.
+     * @constant {string}
+     * @since 1.0.0
+     */
     const STORE_NAME = 'dreams';
+
+    /**
+     * Name of the voice notes object store in IndexedDB.
+     * @constant {string}
+     * @since 1.0.0
+     */
     const VOICE_STORE_NAME = 'voiceNotes';
+
+    /**
+     * IndexedDB database connection instance.
+     * @type {IDBDatabase|null}
+     * @private
+     */
     let db = null;
+
+    /**
+     * Current storage type being used by the application.
+     * @type {('memory'|'indexeddb')}
+     * @private
+     */
     let storageType = 'memory'; // Track which storage is being used
 
-    // Show warning when storage isn't persistent
+    /**
+     * Displays a warning message when storage is not persistent.
+     * 
+     * Shows a visual warning to users that their dreams are only stored temporarily
+     * in memory and will be lost when the browser tab is closed. Encourages users
+     * to export their dreams regularly and access the app through a web server.
+     * 
+     * @function
+     * @since 1.0.0
+     * @example
+     * // Called automatically when memory storage fallback is used
+     * showStorageWarning();
+     */
     function showStorageWarning() {
         const warning = document.createElement('div');
         warning.id = 'storageWarning';
@@ -27,7 +130,24 @@
 
     // TAG & DREAM SIGN MANAGEMENT FUNCTIONS
 
-    // Generic function to load a single item from a given store by ID
+    /**
+     * Loads a single item from a specified IndexedDB object store by ID.
+     * 
+     * This is a generic function that can retrieve any single item from any
+     * object store by its primary key. Returns null if the item is not found,
+     * the store doesn't exist, or IndexedDB is unavailable.
+     * 
+     * @async
+     * @function
+     * @param {string} storeName - Name of the IndexedDB object store
+     * @param {string|number} id - Primary key of the item to retrieve
+     * @returns {Promise<Object|null>} Retrieved item or null if not found
+     * @throws {Error} When IndexedDB transaction fails
+     * @since 1.0.0
+     * @example
+     * const dream = await loadItemFromStore('dreams', 'dream-123');
+     * const goal = await loadItemFromStore('goals', 'goal-456');
+     */
     async function loadItemFromStore(storeName, id) {
         if (!isIndexedDBAvailable()) return null;
 
@@ -58,7 +178,23 @@
         });
     }
 
-    // Generic function to load all items from a given store
+    /**
+     * Loads all items from a specified IndexedDB object store.
+     * 
+     * This generic function retrieves all records from the specified object store.
+     * Returns an empty array if the store doesn't exist or IndexedDB is unavailable.
+     * Handles transaction errors gracefully and provides detailed logging.
+     * 
+     * @async
+     * @function
+     * @param {string} storeName - Name of the IndexedDB object store
+     * @returns {Promise<Array>} Array of all items from the store, empty array if none found
+     * @throws {Error} When IndexedDB transaction fails
+     * @since 1.0.0
+     * @example
+     * const allDreams = await loadFromStore('dreams');
+     * const allGoals = await loadFromStore('goals');
+     */
     async function loadFromStore(storeName) {
         if (!isIndexedDBAvailable()) return [];
         
@@ -90,7 +226,24 @@
         });
     }
 
-    // Generic function to save/update a single item in a store
+    /**
+     * Saves or updates a single item in a specified IndexedDB object store.
+     * 
+     * This generic function performs an upsert operation (insert or update) using
+     * the IndexedDB put() method. The item must have a primary key that matches
+     * the store's keyPath configuration.
+     * 
+     * @async
+     * @function
+     * @param {string} storeName - Name of the IndexedDB object store
+     * @param {Object} item - Item to save, must include primary key
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @throws {Error} When IndexedDB transaction fails
+     * @since 1.0.0
+     * @example
+     * const success = await saveItemToStore('dreams', dreamObject);
+     * const goalSaved = await saveItemToStore('goals', { id: '123', title: 'Lucid dream' });
+     */
     async function saveItemToStore(storeName, item) {
         if (!isIndexedDBAvailable()) return false;
 
@@ -121,7 +274,24 @@
         });
     }
 
-    // Generic function to overwrite a store with new data
+    /**
+     * Overwrites all data in a specified IndexedDB object store with new data.
+     * 
+     * This function performs a complete replacement of store contents by first
+     * clearing all existing data, then adding each item from the provided array.
+     * This is useful for bulk data operations and full data replacements.
+     * 
+     * @async
+     * @function
+     * @param {string} storeName - Name of the IndexedDB object store
+     * @param {Array<Object>} data - Array of items to store, each must have primary key
+     * @returns {Promise<boolean>} True if all items were saved successfully, false otherwise
+     * @throws {Error} When IndexedDB transaction fails
+     * @since 1.0.0
+     * @example
+     * const dreams = [{ id: '1', title: 'Dream 1' }, { id: '2', title: 'Dream 2' }];
+     * const success = await saveToStore('dreams', dreams);
+     */
     async function saveToStore(storeName, data) {
         if (!isIndexedDBAvailable()) return false;
 
@@ -174,6 +344,22 @@
         });
     }
 
+    /**
+     * Initializes the IndexedDB database with proper schema and error handling.
+     * 
+     * Creates the database connection, sets up object stores with indexes, handles
+     * schema upgrades, and manages migration from localStorage for existing users.
+     * Falls back to memory storage if IndexedDB is unavailable.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<void>} Resolves when database is ready or fallback is configured
+     * @throws {Error} Database initialization errors are handled gracefully
+     * @since 1.0.0
+     * @example
+     * await initDB();
+     * console.log('Database initialized successfully');
+     */
     async function initDB() {
         if (!isIndexedDBAvailable()) {
             console.warn('IndexedDB not available, using memory storage');
@@ -247,10 +433,39 @@
         });
     }
 
+    /**
+     * Generates a unique identifier string using timestamp and random characters.
+     * 
+     * Creates a collision-resistant ID by combining current timestamp with
+     * a random alphanumeric string. Suitable for use as primary keys in
+     * database operations where UUID is not required.
+     * 
+     * @function
+     * @returns {string} Unique identifier string
+     * @since 1.0.0
+     * @example
+     * const id = generateUniqueId();
+     * // Returns something like: '1640995200123abc7def89'
+     */
     function generateUniqueId() {
         return Date.now().toString() + Math.random().toString(36).substr(2, 9);
     }
 
+    /**
+     * Tests if localStorage is available and functional in the current environment.
+     * 
+     * Performs a practical test by attempting to set and remove a test value.
+     * Returns false in private browsing mode, when storage quota is exceeded,
+     * or when localStorage is disabled by browser settings.
+     * 
+     * @function
+     * @returns {boolean} True if localStorage is available and writable
+     * @since 1.0.0
+     * @example
+     * if (isLocalStorageAvailable()) {
+     *   localStorage.setItem('myData', 'value');
+     * }
+     */
     function isLocalStorageAvailable() {
         try {
             const test = 'test';
@@ -262,15 +477,61 @@
         }
     }
 
+    /**
+     * Checks if IndexedDB is supported in the current browser environment.
+     * 
+     * Tests for IndexedDB API presence in the window object. Returns false
+     * in environments where IndexedDB is not supported or has been disabled.
+     * 
+     * @function
+     * @returns {boolean} True if IndexedDB is supported
+     * @since 1.0.0
+     * @example
+     * if (isIndexedDBAvailable()) {
+     *   // Use IndexedDB for storage
+     * } else {
+     *   // Fall back to alternative storage
+     * }
+     */
     function isIndexedDBAvailable() {
         return 'indexedDB' in window && window.indexedDB !== undefined;
     }
     
+    /**
+     * Checks if IndexedDB is both supported and properly initialized.
+     * 
+     * Combines availability check with connection status to determine if
+     * IndexedDB operations can be safely performed. Returns false if the
+     * database connection has not been established or has been closed.
+     * 
+     * @function
+     * @returns {boolean} True if IndexedDB is ready for operations
+     * @since 1.0.0
+     * @example
+     * if (isIndexedDBReady()) {
+     *   const data = await loadFromIndexedDB();
+     * }
+     */
     function isIndexedDBReady() {
         return isIndexedDBAvailable() && db !== null;
     }
 
-    // Main dream loading function - IndexedDB only with memory fallback
+    /**
+     * Loads all dream entries from persistent storage with fallback handling.
+     * 
+     * Attempts to load dreams from IndexedDB first, falling back to memory storage
+     * if IndexedDB is unavailable or fails. This is the primary function for
+     * retrieving dream data across the application.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<Dream>>} Array of dream objects, empty if none found
+     * @throws {Error} Handled gracefully with fallback to memory storage
+     * @since 1.0.0
+     * @example
+     * const allDreams = await loadDreams();
+     * console.log(`Found ${allDreams.length} dreams`);
+     */
     async function loadDreams() {
         // Try IndexedDB first
         if (isIndexedDBReady()) {
@@ -285,7 +546,23 @@
         return memoryStorage;
     }
 
-    // Main dream saving function - IndexedDB only with memory fallback
+    /**
+     * Saves all dream entries to persistent storage with fallback handling.
+     * 
+     * Attempts to save dreams to IndexedDB first, falling back to memory storage
+     * if IndexedDB is unavailable. Uses mutex locking to prevent concurrent
+     * save operations that could cause data corruption.
+     * 
+     * @async
+     * @function
+     * @param {Array<Dream>} dreams - Array of dream objects to save
+     * @returns {Promise<void>} Resolves when save operation completes
+     * @throws {Error} Handled gracefully with fallback to memory storage
+     * @since 1.0.0
+     * @example
+     * const dreams = [{ id: '1', title: 'My Dream', content: 'I dreamed...' }];
+     * await saveDreams(dreams);
+     */
     async function saveDreams(dreams) {
         return withMutex('saveDreams', async () => {
             // Try IndexedDB first
@@ -307,7 +584,23 @@
         });
     }
 
-    
+    /**
+     * Saves all voice notes to IndexedDB by clearing existing data and adding new items.
+     * 
+     * This function performs a complete replacement of the voice notes store by
+     * clearing all existing records and adding each voice note from the provided array.
+     * Each voice note must contain audio blob data and metadata.
+     * 
+     * @async
+     * @function
+     * @param {Array<VoiceNote>} voiceNotes - Array of voice note objects to save
+     * @returns {Promise<boolean>} True if all voice notes were saved successfully
+     * @throws {Error} When IndexedDB operations fail
+     * @since 1.0.0
+     * @example
+     * const voiceNotes = [{ id: '1', audioBlob: blob, transcript: 'Hello' }];
+     * const success = await saveAllVoiceNotesToIndexedDB(voiceNotes);
+     */
     async function saveAllVoiceNotesToIndexedDB(voiceNotes) {
         if (!isIndexedDBAvailable()) return false;
 
@@ -348,7 +641,22 @@
         });
     }
 
-    
+    /**
+     * Saves voice notes array to persistent storage with mutex protection.
+     * 
+     * This function uses mutex locking to prevent concurrent save operations
+     * and ensures voice notes are properly persisted to IndexedDB. Voice notes
+     * require IndexedDB due to binary blob storage requirements.
+     * 
+     * @async
+     * @function
+     * @param {Array<VoiceNote>} notes - Array of voice note objects to save
+     * @returns {Promise<void>} Resolves when save operation completes
+     * @throws {Error} When IndexedDB operations fail
+     * @since 1.0.0
+     * @example
+     * await saveVoiceNotes(voiceNotesArray);
+     */
     async function saveVoiceNotes(notes) {
         return withMutex('saveVoiceNote', async () => {
             if (isIndexedDBAvailable()) {
@@ -360,7 +668,22 @@
         });
     }
 
-    // Goals loading and saving
+    /**
+     * Loads lucid dreaming goals from persistent storage with fallback support.
+     * 
+     * Attempts to load goals from IndexedDB first, falling back to localStorage
+     * if IndexedDB is unavailable. Returns an empty array if no goals are found
+     * or if all storage methods fail.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<Goal>>} Array of goal objects, empty if none found
+     * @throws {Error} Handled gracefully with fallback storage attempts
+     * @since 1.0.0
+     * @example
+     * const userGoals = await loadGoals();
+     * console.log(`User has ${userGoals.length} active goals`);
+     */
     async function loadGoals() {
         if (isIndexedDBAvailable()) {
             const goals = await loadGoalsFromIndexedDB();
@@ -379,6 +702,23 @@
         return [];
     }
 
+    /**
+     * Saves lucid dreaming goals to persistent storage with fallback support.
+     * 
+     * Attempts to save goals to IndexedDB first, falling back to localStorage
+     * if IndexedDB is unavailable. Uses mutex locking to prevent concurrent
+     * save operations that could cause data corruption.
+     * 
+     * @async
+     * @function
+     * @param {Array<Goal>} goals - Array of goal objects to save
+     * @returns {Promise<void>} Resolves when save operation completes
+     * @throws {Error} Handled gracefully with fallback storage attempts
+     * @since 1.0.0
+     * @example
+     * const goals = [{ id: '1', title: 'Achieve lucidity', completed: false }];
+     * await saveGoals(goals);
+     */
     async function saveGoals(goals) {
         return withMutex('saveGoals', async () => {
             if (isIndexedDBAvailable()) {
@@ -398,7 +738,24 @@
 
     // IndexedDB-specific functions
     
-    // Load from IndexedDB
+    /**
+     * Loads all dream entries directly from IndexedDB dreams store.
+     * 
+     * This is a low-level function that directly accesses the dreams object store
+     * in IndexedDB. Returns null if IndexedDB is unavailable or if an error occurs,
+     * allowing calling functions to handle fallback logic.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<Dream>|null>} Array of dreams or null if error/unavailable
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const dreams = await loadFromIndexedDB();
+     * if (dreams === null) {
+     *   console.log('IndexedDB unavailable, using fallback');
+     * }
+     */
     async function loadFromIndexedDB() {
         if (!isIndexedDBAvailable()) return null;
         
@@ -424,7 +781,25 @@
         });
     }
 
-    // Save to IndexedDB
+    /**
+     * Saves all dream entries directly to IndexedDB dreams store.
+     * 
+     * This is a low-level function that performs a complete replacement of the
+     * dreams object store by clearing existing data and adding all provided dreams.
+     * Returns false if IndexedDB is unavailable or if an error occurs.
+     * 
+     * @async
+     * @function
+     * @param {Array<Dream>} dreams - Array of dream objects to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const success = await saveToIndexedDB(allDreams);
+     * if (!success) {
+     *   console.log('Failed to save to IndexedDB');
+     * }
+     */
     async function saveToIndexedDB(dreams) {
         if (!isIndexedDBAvailable()) return false;
         
@@ -471,6 +846,24 @@
         });
     }
 
+    /**
+     * Loads all goal entries directly from IndexedDB goals store.
+     * 
+     * This is a low-level function that directly accesses the goals object store
+     * in IndexedDB. Returns null if IndexedDB is unavailable, the goals store
+     * doesn't exist, or if an error occurs during the operation.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<Goal>|null>} Array of goals or null if error/unavailable
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const goals = await loadGoalsFromIndexedDB();
+     * if (goals === null) {
+     *   // Handle fallback or initialization
+     * }
+     */
     async function loadGoalsFromIndexedDB() {
         if (!isIndexedDBAvailable()) return null;
         
@@ -501,6 +894,26 @@
         });
     }
 
+    /**
+     * Saves all goal entries directly to IndexedDB goals store.
+     * 
+     * This is a low-level function that performs a complete replacement of the
+     * goals object store by clearing existing data and adding all provided goals.
+     * Returns false if IndexedDB is unavailable, the goals store doesn't exist,
+     * or if an error occurs during the operation.
+     * 
+     * @async
+     * @function
+     * @param {Array<Goal>} goals - Array of goal objects to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const success = await saveGoalsToIndexedDB(userGoals);
+     * if (!success) {
+     *   console.error('Failed to save goals to IndexedDB');
+     * }
+     */
     async function saveGoalsToIndexedDB(goals) {
         if (!isIndexedDBAvailable()) return false;
         
@@ -555,7 +968,22 @@
 
     // Voice Notes Storage Functions
     
-    // Load voice notes
+    /**
+     * Loads all voice note entries from IndexedDB storage.
+     * 
+     * Voice notes require IndexedDB due to binary blob storage requirements.
+     * localStorage cannot properly serialize/deserialize audio blob data,
+     * so this function only works when IndexedDB is available and initialized.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<VoiceNote>>} Array of voice note objects, empty if IndexedDB unavailable
+     * @throws {Error} When IndexedDB operations fail
+     * @since 1.0.0
+     * @example
+     * const voiceNotes = await loadVoiceNotes();
+     * console.log(`Found ${voiceNotes.length} voice recordings`);
+     */
     async function loadVoiceNotes() {
         // Voice notes require IndexedDB due to Blob storage - localStorage cannot deserialize Blobs properly
         if (!isIndexedDBReady()) {
@@ -567,7 +995,24 @@
         return notes || [];
     }
 
-    // Save voice note
+    /**
+     * Saves a single voice note to IndexedDB storage with mutex protection.
+     * 
+     * This function saves an individual voice note containing audio blob data
+     * and metadata to IndexedDB. Uses mutex locking to prevent concurrent save
+     * operations. Throws errors if IndexedDB is unavailable since voice notes
+     * cannot be stored in localStorage due to blob data limitations.
+     * 
+     * @async
+     * @function
+     * @param {VoiceNote} voiceNote - Voice note object containing audio blob and metadata
+     * @returns {Promise<void>} Resolves when save operation completes
+     * @throws {Error} When IndexedDB is unavailable or save operation fails
+     * @since 1.0.0
+     * @example
+     * const voiceNote = { id: '123', audioBlob: blob, transcript: 'My dream...' };
+     * await saveVoiceNote(voiceNote);
+     */
     async function saveVoiceNote(voiceNote) {
         return withMutex('saveVoiceNote', async () => {
             // Voice notes require IndexedDB due to Blob storage - localStorage fallback cannot handle Blobs
@@ -582,6 +1027,24 @@
         });
     }
 
+    /**
+     * Loads all voice notes directly from IndexedDB voice notes store.
+     * 
+     * This is a low-level function that directly accesses the voiceNotes object
+     * store in IndexedDB. Returns voice notes sorted by timestamp (newest first)
+     * or an empty array if the store doesn't exist or an error occurs.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<VoiceNote>|null>} Array of voice notes sorted by timestamp, or null if error
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const notes = await loadVoiceNotesFromIndexedDB();
+     * if (notes) {
+     *   console.log(`Loaded ${notes.length} voice notes`);
+     * }
+     */
     async function loadVoiceNotesFromIndexedDB() {
         if (!isIndexedDBAvailable()) return null;
         
@@ -614,6 +1077,25 @@
         });
     }
 
+    /**
+     * Saves a single voice note directly to IndexedDB voice notes store.
+     * 
+     * This is a low-level function that performs an upsert operation on a single
+     * voice note in the voiceNotes object store. Uses the put() method to either
+     * insert a new record or update an existing one based on the primary key.
+     * 
+     * @async
+     * @function
+     * @param {VoiceNote} voiceNote - Voice note object to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const success = await saveVoiceNoteToIndexedDB(voiceNote);
+     * if (!success) {
+     *   console.error('Failed to save voice note');
+     * }
+     */
     async function saveVoiceNoteToIndexedDB(voiceNote) {
         if (!isIndexedDBAvailable()) return false;
         
@@ -644,6 +1126,25 @@
         });
     }
 
+    /**
+     * Deletes a voice note by ID from persistent storage with fallback handling.
+     * 
+     * Attempts to delete from IndexedDB first, falling back to localStorage
+     * if needed. Uses mutex locking to prevent concurrent delete operations.
+     * Returns true if the deletion was successful from any storage method.
+     * 
+     * @async
+     * @function
+     * @param {string} voiceNoteId - Unique identifier of the voice note to delete
+     * @returns {Promise<boolean>} True if deletion was successful, false otherwise
+     * @throws {Error} Handled gracefully with fallback attempts
+     * @since 1.0.0
+     * @example
+     * const deleted = await deleteVoiceNote('voice-note-123');
+     * if (deleted) {
+     *   console.log('Voice note deleted successfully');
+     * }
+     */
     function deleteVoiceNote(voiceNoteId) {
         return withMutex('deleteOperations', async () => {
             if (isIndexedDBAvailable()) {
@@ -666,6 +1167,25 @@
         });
     }
 
+    /**
+     * Deletes a single voice note directly from IndexedDB voice notes store.
+     * 
+     * This is a low-level function that removes a specific voice note from the
+     * voiceNotes object store using the delete() method. Returns true if the
+     * deletion transaction completes successfully, false otherwise.
+     * 
+     * @async
+     * @function
+     * @param {string} voiceNoteId - Unique identifier of the voice note to delete
+     * @returns {Promise<boolean>} True if deletion was successful, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * const deleted = await deleteVoiceNoteFromIndexedDB('voice-123');
+     * if (!deleted) {
+     *   console.error('Failed to delete voice note from IndexedDB');
+     * }
+     */
     async function deleteVoiceNoteFromIndexedDB(voiceNoteId) {
     if (!isIndexedDBAvailable()) return false;
     
@@ -692,7 +1212,22 @@
         });
     }
 
-    // Migration function
+    /**
+     * Migrates existing data from localStorage to IndexedDB for better persistence.
+     * 
+     * This function handles the transition from localStorage-based storage to
+     * IndexedDB for existing users. It migrates dreams, goals, and voice notes,
+     * then cleans up localStorage to prevent duplicate data and re-migration.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<void>} Resolves when migration completes or skips if no data
+     * @throws {Error} Migration errors are caught and logged
+     * @since 1.0.0
+     * @example
+     * await migrateFromLocalStorage();
+     * console.log('Migration completed successfully');
+     */
     async function migrateFromLocalStorage() {
         if (!isLocalStorageAvailable()) return;
         
@@ -745,7 +1280,22 @@
         }
     }
 
-    // Get count of dreams in IndexedDB
+    /**
+     * Gets the total count of dreams stored in IndexedDB.
+     * 
+     * This function returns the number of dream records in the dreams object store
+     * without loading the actual dream data. Useful for statistics and storage
+     * management without the overhead of loading all records.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<number>} Number of dreams in IndexedDB, 0 if unavailable
+     * @throws {Error} Database errors are caught and logged, returns 0
+     * @since 1.0.0
+     * @example
+     * const dreamCount = await getIndexedDBCount();
+     * console.log(`User has ${dreamCount} dreams stored`);
+     */
     async function getIndexedDBCount() {
         if (!isIndexedDBAvailable()) return 0;
         
@@ -770,7 +1320,23 @@
         });
     }
 
-    // Get combined list of suggestions for autocomplete
+    /**
+     * Retrieves autocomplete suggestions for tags or dream signs.
+     * 
+     * This function loads user-defined suggestions from the autocomplete store,
+     * falling back to predefined lists from constants.js if no custom data exists.
+     * Returns suggestions sorted alphabetically for consistent display.
+     * 
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of suggestions to retrieve
+     * @returns {Promise<Array<string>>} Array of suggestion strings, sorted alphabetically
+     * @throws {Error} Database errors are handled gracefully with fallback to defaults
+     * @since 1.0.0
+     * @example
+     * const tagSuggestions = await getAutocompleteSuggestions('tags');
+     * const dreamSignSuggestions = await getAutocompleteSuggestions('dreamSigns');
+     */
     async function getAutocompleteSuggestions(type) {
         const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
 
@@ -797,6 +1363,23 @@
         return [];
     }
 
+    /**
+     * Adds a custom autocomplete item for tags or dream signs.
+     * 
+     * This function reads user input from the appropriate form field, validates
+     * the input, checks for duplicates, and adds the new item to the autocomplete
+     * store. Provides user feedback through inline messages and updates the UI.
+     * 
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to add
+     * @returns {Promise<void>} Resolves when add operation completes
+     * @throws {Error} Validation and database errors are handled with user feedback
+     * @since 1.0.0
+     * @example
+     * // Called when user clicks add button for custom tags
+     * await addCustomAutocompleteItem('tags');
+     */
     async function addCustomAutocompleteItem(type) {
         const inputId = type === 'tags' ? 'newTagInput' : 'newDreamSignInput';
         const input = document.getElementById(inputId);
@@ -851,6 +1434,23 @@
         }
     }
 
+    /**
+     * Deletes a custom autocomplete item for tags or dream signs.
+     * 
+     * This function removes a specific item from the autocomplete suggestions
+     * for the given type. Performs case-insensitive matching when finding the
+     * item to delete and provides user feedback through inline messages.
+     * 
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to delete
+     * @param {string} itemValue - Value of the item to delete
+     * @returns {Promise<void>} Resolves when delete operation completes
+     * @throws {Error} Database errors are handled with user feedback
+     * @since 1.0.0
+     * @example
+     * await deleteAutocompleteItem('tags', 'nightmare');
+     */
     async function deleteAutocompleteItem(type, itemValue) {
         const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
         
@@ -878,6 +1478,24 @@
         }
     }
 
+    /**
+     * Learns new autocomplete items from user input to improve suggestions.
+     * 
+     * This function analyzes user-entered tags or dream signs and automatically
+     * adds new unique items to the autocomplete suggestions. Performs case-insensitive
+     * duplicate checking and only adds items that don't already exist.
+     * 
+     * @async
+     * @function
+     * @param {Array<string>} inputArray - Array of items to learn from user input
+     * @param {('tags'|'dreamSigns')} type - Type of items being learned
+     * @returns {Promise<void>} Resolves when learning operation completes
+     * @throws {Error} Database errors are handled gracefully
+     * @since 1.0.0
+     * @example
+     * const userTags = ['lucid', 'flying', 'nightmare'];
+     * await learnAutocompleteItems(userTags, 'tags');
+     */
     async function learnAutocompleteItems(inputArray, type) {
         if (!inputArray || inputArray.length === 0) return;
 
@@ -914,9 +1532,24 @@
 // Individual dream operations for proper CRUD functionality
 // Complement the bulk operations with single-item precision
 
-// Add single dream to IndexedDB with validation
-// Returns true on success, false on error or validation failure
-async function addDreamToIndexedDB(dream) {
+    /**
+     * Adds a single dream entry to IndexedDB with comprehensive validation.
+     * 
+     * This function performs data validation before adding a dream to the database.
+     * Uses the add() method which requires the dream ID to be unique. Returns true
+     * if the dream is successfully added, false if validation fails or database errors occur.
+     * 
+     * @async
+     * @function
+     * @param {Dream} dream - Dream object to add to the database
+     * @returns {Promise<boolean>} True if dream was added successfully, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 2.0.0
+     * @example
+     * const newDream = { id: '123', title: 'My Dream', content: 'I dreamed...', isLucid: false };
+     * const added = await addDreamToIndexedDB(newDream);
+     */
+    async function addDreamToIndexedDB(dream) {
         if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
         
         return new Promise((resolve) => {
@@ -938,9 +1571,24 @@ async function addDreamToIndexedDB(dream) {
             }
         });
     }
-// Update existing dream in IndexedDB with validation
-// Returns true on success, false on error or validation failure
-async function updateDreamInIndexedDB(dream) {
+    /**
+     * Updates an existing dream entry in IndexedDB with comprehensive validation.
+     * 
+     * This function performs data validation before updating a dream in the database.
+     * Uses the put() method which will update an existing record or create a new one.
+     * Returns true if the dream is successfully updated, false if validation fails or database errors occur.
+     * 
+     * @async
+     * @function
+     * @param {Dream} dream - Dream object to update in the database
+     * @returns {Promise<boolean>} True if dream was updated successfully, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 2.0.0
+     * @example
+     * const updatedDream = { id: '123', title: 'Updated Title', content: 'Updated content...', isLucid: true };
+     * const updated = await updateDreamInIndexedDB(updatedDream);
+     */
+    async function updateDreamInIndexedDB(dream) {
     if (!isIndexedDBAvailable() || !validateDreamData(dream)) return false;
 
         return new Promise((resolve) => {
@@ -962,9 +1610,26 @@ async function updateDreamInIndexedDB(dream) {
             }
         });
     }
-// Delete single dream from IndexedDB by ID
-// Returns true on success, false on error
-async function deleteDreamFromIndexedDB(dreamId) {
+    /**
+     * Deletes a single dream entry from IndexedDB by its unique identifier.
+     * 
+     * This function removes a dream record from the dreams object store using
+     * the delete() method. Returns true if the deletion transaction completes
+     * successfully, false if IndexedDB is unavailable or an error occurs.
+     * 
+     * @async
+     * @function
+     * @param {string} dreamId - Unique identifier of the dream to delete
+     * @returns {Promise<boolean>} True if dream was deleted successfully, false otherwise
+     * @throws {Error} Database errors are caught and logged
+     * @since 2.0.0
+     * @example
+     * const deleted = await deleteDreamFromIndexedDB('dream-123');
+     * if (deleted) {
+     *   console.log('Dream deleted successfully');
+     * }
+     */
+    async function deleteDreamFromIndexedDB(dreamId) {
         if (!isIndexedDBAvailable()) return false;
         
         return new Promise((resolve) => {
@@ -989,9 +1654,24 @@ async function deleteDreamFromIndexedDB(dreamId) {
 // DATA VALIDATION OPERATIONS
 // ===================================================================================
 
-// Comprehensive dream data validation with detailed error reporting
-// Ensures data integrity before database operations
-function validateDreamData(dream) {
+    /**
+     * Validates dream data structure and content for database operations.
+     * 
+     * Performs comprehensive validation of dream objects to ensure data integrity
+     * before database operations. Checks for required fields, proper data types,
+     * and valid array structures. Provides detailed error logging for debugging.
+     * 
+     * @function
+     * @param {Dream} dream - Dream object to validate
+     * @returns {boolean} True if dream data is valid, false otherwise
+     * @since 2.0.0
+     * @example
+     * const dream = { id: '123', title: 'Test', content: 'Content', isLucid: false, tags: [], dreamSigns: [] };
+     * if (validateDreamData(dream)) {
+     *   // Safe to save to database
+     * }
+     */
+    function validateDreamData(dream) {
         if (!dream) {
             console.error('Dream validation failed: dream is null or undefined');
             return false;
@@ -1043,9 +1723,25 @@ function validateDreamData(dream) {
         return true;
     }
 
-// Check if dream is likely duplicate based on content and timing
-// Prevents accidental duplicate entries from user error or system issues
-function isDreamDuplicate(existingDreams, newDream) {
+    /**
+     * Checks if a dream entry is likely a duplicate based on content and timing.
+     * 
+     * Analyzes existing dreams to detect potential duplicates by comparing content
+     * similarity and creation timestamps. Uses a 5-minute time window to catch
+     * rapid successive submissions of the same dream content.
+     * 
+     * @function
+     * @param {Array<Dream>} existingDreams - Array of existing dream entries
+     * @param {Dream} newDream - New dream entry to check for duplication
+     * @returns {boolean} True if dream appears to be a duplicate, false otherwise
+     * @since 2.0.0
+     * @example
+     * const isDupe = isDreamDuplicate(existingDreams, newDreamEntry);
+     * if (isDupe) {
+     *   console.warn('Potential duplicate dream detected');
+     * }
+     */
+    function isDreamDuplicate(existingDreams, newDream) {
     const timeDiffThreshold = 5 * 60 * 1000; // 5-minute time window
     const contentSimilarityThreshold = 0.8; // Currently unused but reserved for future fuzzy matching
     
@@ -1062,9 +1758,21 @@ function isDreamDuplicate(existingDreams, newDream) {
 // STORAGE WARNING FUNCTIONS
 // ===================================================================================
 
-// Display warning when voice notes can't be persistently stored
-// Informs users about temporary storage limitations for voice data
-function showVoiceStorageWarning() {
+    /**
+     * Displays a warning about temporary voice note storage limitations.
+     * 
+     * Shows an inline warning message when voice notes cannot be persistently
+     * stored due to IndexedDB unavailability. Informs users that voice recordings
+     * will be lost when the browser tab is closed and encourages downloading
+     * important recordings.
+     * 
+     * @function
+     * @since 2.0.0
+     * @example
+     * // Called when voice notes must fall back to memory storage
+     * showVoiceStorageWarning();
+     */
+    function showVoiceStorageWarning() {
         const container = document.querySelector('.voice-notes-section');
         if (!container) return;
         
@@ -1085,44 +1793,125 @@ function showVoiceStorageWarning() {
 // Legacy functions for older tag/dream sign management system
 // These functions handle user-defined suggestions separately from defaults
 
-// Load user-defined tags from dedicated store
-// Returns array of tag strings, empty array if none found
-async function loadUserTags() {
+    /**
+     * Loads user-defined tags from the dedicated userTags store (legacy function).
+     * 
+     * This legacy function retrieves custom tags that were defined by users in older
+     * versions of the application. Maps stored objects to string values for compatibility.
+     * Modern implementations should use getAutocompleteSuggestions('tags') instead.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<string>>} Array of user-defined tag strings
+     * @deprecated Use getAutocompleteSuggestions('tags') for new implementations
+     * @since 1.0.0
+     * @example
+     * const userTags = await loadUserTags();
+     */
+    async function loadUserTags() {
         const tags = await loadFromStore('userTags');
         return tags.map(t => t.value);
     }
 
-// Load user-defined dream signs from dedicated store
-// Returns array of dream sign strings, empty array if none found
-async function loadUserDreamSigns() {
+    /**
+     * Loads user-defined dream signs from the dedicated userDreamSigns store (legacy function).
+     * 
+     * This legacy function retrieves custom dream signs that were defined by users in older
+     * versions of the application. Maps stored objects to string values for compatibility.
+     * Modern implementations should use getAutocompleteSuggestions('dreamSigns') instead.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<string>>} Array of user-defined dream sign strings
+     * @deprecated Use getAutocompleteSuggestions('dreamSigns') for new implementations
+     * @since 1.0.0
+     * @example
+     * const userDreamSigns = await loadUserDreamSigns();
+     */
+    async function loadUserDreamSigns() {
         const signs = await loadFromStore('userDreamSigns');
         return signs.map(s => s.value);
     }
 
-// Load list of default items that user has deleted
-// Used to filter out unwanted defaults from suggestion lists
-async function loadDeletedDefaults() {
+    /**
+     * Loads list of default items that user has deleted (legacy function).
+     * 
+     * This legacy function retrieves a list of default suggestion items that users
+     * have chosen to remove from their autocomplete lists in older versions.
+     * Used to filter out unwanted defaults from suggestion lists.
+     * 
+     * @async
+     * @function
+     * @returns {Promise<Array<string>>} Array of deleted default item IDs
+     * @deprecated Legacy function for older suggestion management system
+     * @since 1.0.0
+     * @example
+     * const deletedDefaults = await loadDeletedDefaults();
+     */
+    async function loadDeletedDefaults() {
         const deleted = await loadFromStore('deletedDefaults');
         return deleted.map(d => d.id);
     }
 
-// Save complete list of user-defined tags to dedicated store
-// Replaces existing user tags with new list
-async function saveUserTags(tags) {
+    /**
+     * Saves complete list of user-defined tags to dedicated store (legacy function).
+     * 
+     * This legacy function replaces all existing user-defined tags with a new list.
+     * Maps tag strings to objects with ID and value properties for storage compatibility.
+     * Modern implementations should use saveItemToStore('autocomplete', ...) instead.
+     * 
+     * @async
+     * @function
+     * @param {Array<string>} tags - Array of tag strings to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @deprecated Use saveItemToStore for new implementations
+     * @since 1.0.0
+     * @example
+     * const success = await saveUserTags(['lucid', 'nightmare', 'flying']);
+     */
+    async function saveUserTags(tags) {
         const dataToStore = tags.map(tag => ({ id: tag.toLowerCase(), value: tag }));
         return await saveToStore('userTags', dataToStore);
     }
 
-// Save complete list of user-defined dream signs to dedicated store
-// Replaces existing user dream signs with new list
-async function saveUserDreamSigns(signs) {
+    /**
+     * Saves complete list of user-defined dream signs to dedicated store (legacy function).
+     * 
+     * This legacy function replaces all existing user-defined dream signs with a new list.
+     * Maps dream sign strings to objects with ID and value properties for storage compatibility.
+     * Modern implementations should use saveItemToStore('autocomplete', ...) instead.
+     * 
+     * @async
+     * @function
+     * @param {Array<string>} signs - Array of dream sign strings to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @deprecated Use saveItemToStore for new implementations
+     * @since 1.0.0
+     * @example
+     * const success = await saveUserDreamSigns(['water', 'flying', 'mirrors']);
+     */
+    async function saveUserDreamSigns(signs) {
         const dataToStore = signs.map(sign => ({ id: sign.toLowerCase(), value: sign }));
         return await saveToStore('userDreamSigns', dataToStore);
     }
 
-// Save list of default items that user has chosen to delete
-// Used to hide unwanted defaults from autocomplete suggestions
-async function saveDeletedDefaults(deletedItems) {
+    /**
+     * Saves list of default items that user has chosen to delete (legacy function).
+     * 
+     * This legacy function stores a list of default suggestion items that users have
+     * chosen to remove from their autocomplete lists. Used to hide unwanted defaults
+     * from autocomplete suggestions in older versions of the application.
+     * 
+     * @async
+     * @function
+     * @param {Array<string>} deletedItems - Array of item strings to mark as deleted
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @deprecated Legacy function for older suggestion management system
+     * @since 1.0.0
+     * @example
+     * const success = await saveDeletedDefaults(['unwanted-tag', 'unwanted-sign']);
+     */
+    async function saveDeletedDefaults(deletedItems) {
         const dataToStore = deletedItems.map(item => ({ id: item.toLowerCase() }));
         return await saveToStore('deletedDefaults', dataToStore);
     }
