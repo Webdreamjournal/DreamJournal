@@ -12,14 +12,16 @@
  * Initialize advice tab with deterministic tip of the day calculation
  * Uses fixed epoch to ensure same tip is shown consistently across sessions
  * @param {void}
- * @returns {void}
+ * @returns {Promise<void>}
  */
-function initializeAdviceTab() {
+async function initializeAdviceTab() {
     const epoch = new Date('1900-01-01T00:00:00Z');
     const now = new Date();
     const diffTime = now - epoch;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
+    // Load tips from JSON file and store globally
+    dailyTips = await loadDailyTips();
     if (dailyTips && dailyTips.length > 0) {
         const tipOfTheDayIndex = diffDays % dailyTips.length;
         displayTip(tipOfTheDayIndex);

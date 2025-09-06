@@ -169,3 +169,6 @@ let calendarState = {
     date: new Date(), // Currently displayed calendar date
     dreamsByDate: {} // Dreams organized by date for calendar display
 };
+
+// Daily tips system state
+let dailyTips = []; // Loaded tips from JSON file (populated async)

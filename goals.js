@@ -42,8 +42,8 @@
             .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt)); // Sort newest first
         
         // Reset pagination if current page would be empty
-        const activeTotalPages = Math.ceil(activeGoals.length / GOALS_PER_PAGE);
-        const completedTotalPages = Math.ceil(completedGoals.length / GOALS_PER_PAGE);
+        const activeTotalPages = Math.ceil(activeGoals.length / CONSTANTS.GOALS_PER_PAGE);
+        const completedTotalPages = Math.ceil(completedGoals.length / CONSTANTS.GOALS_PER_PAGE);
         
         if (activeGoalsPage > activeTotalPages && activeTotalPages > 0) {
             activeGoalsPage = activeTotalPages;
@@ -57,8 +57,8 @@
         noCompletedMessage.style.display = completedGoals.length === 0 ? 'block' : 'none';
         
         // Calculate pagination for active goals
-        const activeStartIndex = (activeGoalsPage - 1) * GOALS_PER_PAGE;
-        const activeEndIndex = activeStartIndex + GOALS_PER_PAGE;
+        const activeStartIndex = (activeGoalsPage - 1) * CONSTANTS.GOALS_PER_PAGE;
+        const activeEndIndex = activeStartIndex + CONSTANTS.GOALS_PER_PAGE;
         const activePage = activeGoals.slice(activeStartIndex, activeEndIndex);
         
         // Render active goals
@@ -77,8 +77,8 @@
         }
         
         // Calculate pagination for completed goals
-        const completedStartIndex = (completedGoalsPage - 1) * GOALS_PER_PAGE;
-        const completedEndIndex = completedStartIndex + GOALS_PER_PAGE;
+        const completedStartIndex = (completedGoalsPage - 1) * CONSTANTS.GOALS_PER_PAGE;
+        const completedEndIndex = completedStartIndex + CONSTANTS.GOALS_PER_PAGE;
         const completedPage = completedGoals.slice(completedStartIndex, completedEndIndex);
         
         // Render completed goals
@@ -105,7 +105,7 @@
     function changeActiveGoalsPage(page) {
         if (page < 1) return;
         const activeGoals = allGoals.filter(goal => goal.status === 'active');
-        const totalPages = Math.ceil(activeGoals.length / GOALS_PER_PAGE);
+        const totalPages = Math.ceil(activeGoals.length / CONSTANTS.GOALS_PER_PAGE);
         if (page > totalPages) return;
         
         activeGoalsPage = page;
@@ -116,7 +116,7 @@
     function changeCompletedGoalsPage(page) {
         if (page < 1) return;
         const completedGoals = allGoals.filter(goal => goal.status === 'completed');
-        const totalPages = Math.ceil(completedGoals.length / GOALS_PER_PAGE);
+        const totalPages = Math.ceil(completedGoals.length / CONSTANTS.GOALS_PER_PAGE);
         if (page > totalPages) return;
         
         completedGoalsPage = page;
@@ -517,7 +517,7 @@
             // TODO: Extract pagination adjustment logic to adjustPaginationAfterStatusChange() function
             // Check if we need to adjust pagination after reactivation
             const remainingCompleted = allGoals.filter(g => g.status === 'completed');
-            const completedTotalPages = Math.ceil(remainingCompleted.length / GOALS_PER_PAGE);
+            const completedTotalPages = Math.ceil(remainingCompleted.length / CONSTANTS.GOALS_PER_PAGE);
             if (completedGoalsPage > completedTotalPages && completedTotalPages > 0) {
                 completedGoalsPage = completedTotalPages;
             }

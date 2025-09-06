@@ -882,7 +882,9 @@ function switchAppTab(tabName) {
 
         // Initialize advice tab when switched to
         if (tabName === 'advice') {
-            initializeAdviceTab();
+            initializeAdviceTab().catch(error => {
+                console.error('Failed to initialize advice tab:', error);
+            });
         }
     }
 
