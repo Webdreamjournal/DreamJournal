@@ -238,8 +238,11 @@ async function initializeAutocomplete() {
  */
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
+        // Determine the correct base path for the current environment
+        const basePath = window.location.pathname.startsWith('/DreamJournal/') ? '/DreamJournal' : '';
+        
         try {
-            const registration = await navigator.serviceWorker.register('./sw.js');
+            const registration = await navigator.serviceWorker.register(`${basePath}/sw.js`);
             console.log('ServiceWorker registered successfully:', registration.scope);
             
             // Handle service worker updates
