@@ -392,7 +392,13 @@ const commonDreamSigns = [
 // MODULE EXPORTS
 // ===================================================================================
 
-// Note: This module uses implicit global exports for browser compatibility.
-// All constants, templates, and functions declared above are automatically
-// available to other modules loaded after this one in the HTML document.
+// Export all constants, templates, and functions for ES module compatibility
+export {
+    DREAM_FORM_COLLAPSE_KEY,
+    CONSTANTS,
+    GOAL_TEMPLATES,
+    loadDailyTips,
+    commonTags,
+    commonDreamSigns
+};
 

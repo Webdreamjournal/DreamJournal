@@ -2,6 +2,7 @@
   "name": "Dream Journal - Lucid Dreaming Tracker",
   "short_name": "Dream Journal",
   "description": "A privacy-focused dream journal for tracking dreams, lucid dreaming progress, and analyzing dream patterns",
+  "id": "/index.html",
   
   "start_url": "./index.html",
   "display": "standalone",

@@ -137,9 +137,44 @@
         .voice-note-title { font-weight: var(--font-weight-semibold); color: var(--text-primary); 
                             margin-bottom: 4px; }
         .voice-note-meta { color: var(--text-secondary); font-size: 14px; }
-        .voice-note-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; 
-                               min-width: 300px; }
+        .voice-note-controls { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; 
+                               min-width: 300px; justify-content: flex-start; flex: 1; width: 100%; }
         
+        /* Voice transcription display */
+        .voice-note-transcription { 
+            margin-top: 10px; 
+            padding: 10px; 
+            background: var(--bg-tertiary); 
+            border: 1px solid var(--border-subtle); 
+            border-radius: 6px; 
+            width: 100%; 
+        }
+        
+        .voice-note-transcription-text { 
+            color: var(--text-secondary); 
+            font-size: 14px; 
+            line-height: 1.4; 
+            margin: 0; 
+            word-wrap: break-word; 
+            white-space: pre-wrap; 
+        }
+        
+        .voice-note-transcription-toggle { 
+            background: none; 
+            border: none; 
+            color: var(--primary-color); 
+            cursor: pointer; 
+            font-size: 12px; 
+            padding: 4px 0; 
+            margin-top: 6px; 
+            text-decoration: underline; 
+            transition: var(--transition); 
+        }
+        
+        .voice-note-transcription-toggle:hover { 
+            color: var(--primary-hover); 
+        }
+
         /* Voice button base styling */
         .voice-btn-base { padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; 
                           font-weight: var(--font-weight-semibold); cursor: pointer; transition: var(--transition); 
@@ -229,7 +264,7 @@
         
         /* Voice progress container */
         .voice-progress-container { flex: 1; min-width: 200px; display: flex; align-items: center; 
-                                    gap: 8px; margin: 0 15px; }
+                                    gap: 8px; margin: 0 15px; flex-basis: 100%; }
         .voice-time-display { font-family: monospace; font-size: 12px; color: var(--text-secondary); 
                               min-width: 80px; text-align: center; }
         
@@ -1383,9 +1418,12 @@
         .voice-note-controls {
             display: flex;
             gap: 8px;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             min-width: 300px;
+            justify-content: flex-start;
+            flex: 1;
+            width: 100%;
         }
         
         .voice-btn {
@@ -1452,6 +1490,7 @@
             align-items: center;
             gap: 8px;
             margin: 0 15px;
+            flex-basis: 100%;
         }
         
         .voice-progress-bar {
@@ -2361,9 +2400,12 @@
         .voice-note-controls {
             display: flex;
             gap: 8px;
-            align-items: center;
+            align-items: flex-start;
             flex-wrap: wrap;
             min-width: 300px;
+            justify-content: flex-start;
+            flex: 1;
+            width: 100%;
         }
         .voice-btn {
             padding: 6px 12px;
@@ -2423,6 +2465,7 @@
             align-items: center;
             gap: 8px;
             margin: 0 15px;
+            flex-basis: 100%;
         }
         .voice-progress-bar {
             flex: 1;

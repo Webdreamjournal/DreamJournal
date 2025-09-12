@@ -27,6 +27,36 @@
  */
 
 // ================================
+// ES MODULE IMPORTS
+// ================================
+
+import { CONSTANTS } from './constants.js';
+import { dreams, isAppLocked, isUnlocked } from './state.js';
+import { 
+    loadDreams, 
+    loadGoals, 
+    saveDreams, 
+    saveGoals,
+    storageType,
+    generateUniqueId,
+    getAutocompleteSuggestions,
+    saveItemToStore
+} from './storage.js';
+import { createInlineMessage, escapeHtml, getCurrentTheme } from './dom-helpers.js';
+import { 
+    encryptData, 
+    decryptData,
+    isPinSetup 
+} from './security.js';
+import { 
+    displayDreams, 
+    filterDreams,
+    getFilterValues,
+    parseTagsFromInput
+} from './dream-crud.js';
+import { displayGoals } from './goalstab.js';
+
+// ================================
 // IMPORT-EXPORT & DATA MANAGEMENT MODULE
 // ================================
 // Complete data import/export functionality including dreams-only export,
@@ -215,7 +245,7 @@ async function exportEntries() {
         
         if (dreams.length === 0) {
             createInlineMessage('error', 'No dreams to export yet. Add some dreams first!', {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 3000
             });
@@ -233,7 +263,11 @@ async function exportEntries() {
                 const safeTags = Array.isArray(dream.tags) && dream.tags.length > 0 ? dream.tags.join(', ') : '';
                 const safeDreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? dream.dreamSigns.join(', ') : '';
                 
+                // Include the original ID for robust import/export
+                const safeId = dream && dream.id ? dream.id : generateUniqueId();
+                
                 let exportEntry = `Title: ${safeTitle}\n` +
+                       `ID: ${safeId}\n` +
                        `Timestamp: ${safeTimestamp}\n` +
                        `Type: ${safeIsLucid}\n`;
                 
@@ -298,7 +332,7 @@ async function exportEntries() {
                 'Dream export created successfully!';
                 
             createInlineMessage('success', successMessage, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 3000
             });
@@ -307,7 +341,7 @@ async function exportEntries() {
             console.error('Export error:', error);
             
             createInlineMessage('error', 'Error creating export: ' + error.message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -341,12 +375,122 @@ async function exportEntries() {
  * // Legacy format: Title: Dream\nDate: Display Date\nContent: Text
  * // Mixed format: Both timestamp and date fields
  */
+
+/**
+ * Validates dream data structure and required fields.
+ * 
+ * Ensures imported dream entries have all required fields and valid data
+ * before adding them to the dreams array.
+ * 
+ * @param {Object} dream - Dream entry to validate
+ * @returns {boolean} True if dream data is valid
+ * @since 2.02.22
+ * @example
+ * if (validateDreamData(newDream)) {
+ *   // Dream is valid, proceed with import
+ * }
+ */
+function validateDreamData(dream) {
+    return dream && 
+           typeof dream.id === 'string' && 
+           typeof dream.title === 'string' && 
+           typeof dream.content === 'string' && 
+           dream.title.trim().length > 0 && 
+           dream.content.trim().length > 0 &&
+           typeof dream.timestamp === 'string' &&
+           !isNaN(new Date(dream.timestamp).getTime());
+}
+
+/**
+ * Checks if a dream entry is a duplicate of existing dreams.
+ * 
+ * Uses ID-based detection when available, falling back to content-based
+ * detection for legacy imports. Dreams with different IDs are never
+ * considered duplicates, even if content is identical.
+ * 
+ * @param {Array} existingDreams - Array of current dreams
+ * @param {Object} newDream - Dream entry to check for duplicates
+ * @returns {boolean} True if dream is a duplicate
+ * @since 2.02.25
+ * @example
+ * // Dreams with different IDs are always imported
+ * const dream1 = { id: 'abc123', title: 'Test', content: 'Same content' };
+ * const dream2 = { id: 'def456', title: 'Test', content: 'Same content' };
+ * isDreamDuplicate([dream1], dream2); // false - different IDs
+ * 
+ * @example
+ * // Dreams with same ID must have matching content
+ * const existing = { id: 'abc123', title: 'Test', content: 'Content' };
+ * const duplicate = { id: 'abc123', title: 'Test', content: 'Content' };
+ * isDreamDuplicate([existing], duplicate); // true - same ID and content
+ */
+/**
+ * Detects ID collision scenarios where same ID exists but with different content.
+ * 
+ * @param {Array} existingDreams - Array of current dreams
+ * @param {Object} newDream - Dream entry to check
+ * @returns {Object|null} Collision info if detected, null if no collision
+ * @since 2.02.24
+ */
+function detectIdCollision(existingDreams, newDream) {
+    if (!newDream.id) return null;
+    
+    const existingWithSameId = existingDreams.find(existing => 
+        existing.id === newDream.id
+    );
+    
+    if (existingWithSameId) {
+        // Check if content is different (indicating a collision)
+        const contentMatches = existingWithSameId.title === newDream.title &&
+                              existingWithSameId.content === newDream.content &&
+                              existingWithSameId.timestamp === newDream.timestamp;
+        
+        if (!contentMatches) {
+            return {
+                existingDream: existingWithSameId,
+                collision: true
+            };
+        }
+    }
+    
+    return null;
+}
+
+function isDreamDuplicate(existingDreams, newDream) {
+    return existingDreams.some(existing => {
+        // Primary check: If both have IDs, only ID match matters
+        // Different IDs = Different dreams, regardless of content similarity
+        if (existing.id && newDream.id) {
+            if (existing.id === newDream.id) {
+                // Same ID - verify content matches (protects against ID collision)
+                return existing.title === newDream.title &&
+                       existing.content === newDream.content &&
+                       existing.timestamp === newDream.timestamp;
+            } else {
+                // Different IDs = Different dreams, always import
+                return false;
+            }
+        }
+        
+        // Secondary check: For legacy imports without IDs, use content-based detection
+        // This only applies when one or both dreams lack ID fields
+        if (!existing.id || !newDream.id) {
+            return existing.title === newDream.title &&
+                   existing.content === newDream.content &&
+                   existing.timestamp === newDream.timestamp;
+        }
+        
+        return false;
+    });
+}
+
 async function importEntries(event) {
         const file = event.target.files[0];
         if (!file) return;
         
         try {
             const encryptionEnabled = document.getElementById('encryptionEnabled').checked;
+            const isEncryptedFile = file.name.endsWith('.enc');
             
             const text = await readFileWithEncryption(file, encryptionEnabled);
             if (!text) {
@@ -370,17 +514,26 @@ async function importEntries(event) {
                     const title = lines[0].replace('Title: ', '').trim();
                     if (!title) return; // Skip entries without titles
                     
+                    // Extract ID if present (new export format includes ID for robust import)
+                    let dreamId = null;
+                    let nextLineIndex = 1;
+                    
+                    if (lines[1] && lines[1].startsWith('ID: ')) {
+                        dreamId = lines[1].replace('ID: ', '').trim();
+                        nextLineIndex = 2;
+                    }
+                    
                     // Check if this is new format (timestamp) or old format (date string)
                     let timestamp = null;
-                    let typeLineIndex = 2;
+                    let typeLineIndex = nextLineIndex + 1;
                     
-                    if (lines[1] && lines[1].startsWith('Timestamp: ')) {
+                    if (lines[nextLineIndex] && lines[nextLineIndex].startsWith('Timestamp: ')) {
                         // New format - extract timestamp directly
-                        timestamp = lines[1].replace('Timestamp: ', '').trim();
-                        typeLineIndex = 2;
-                    } else if (lines[1] && lines[1].startsWith('Date: ')) {
+                        timestamp = lines[nextLineIndex].replace('Timestamp: ', '').trim();
+                        typeLineIndex = nextLineIndex + 1;
+                    } else if (lines[nextLineIndex] && lines[nextLineIndex].startsWith('Date: ')) {
                         // Old format - try to parse the display date
-                        const dateStr = lines[1].replace('Date: ', '').trim();
+                        const dateStr = lines[nextLineIndex].replace('Date: ', '').trim();
                         try {
                             const parsed = new Date(dateStr);
                             if (!isNaN(parsed.getTime())) {
@@ -459,7 +612,7 @@ async function importEntries(event) {
                     });
                     
                     const newDream = {
-                        id: generateUniqueId(),
+                        id: dreamId || generateUniqueId(), // Use original ID if available, otherwise generate new one
                         title: title,
                         content: content,
                         emotions: emotions, // Include emotions in imported dreams
@@ -472,6 +625,18 @@ async function importEntries(event) {
                     
                     // Validate the dream data before proceeding
                     if (validateDreamData(newDream)) {
+                        // Check for ID collisions first
+                        const idCollision = detectIdCollision(dreams, newDream);
+                        if (idCollision) {
+                            // ID collision detected - generate new ID to preserve both dreams
+                            console.warn('ID collision detected during import:', {
+                                originalId: newDream.id,
+                                existingTitle: idCollision.existingDream.title,
+                                newTitle: newDream.title
+                            });
+                            newDream.id = generateUniqueId(); // Generate new ID to avoid collision
+                        }
+                        
                         // Check for duplicates before adding
                         if (isDreamDuplicate(dreams, newDream)) {
                             skippedCount++;
@@ -490,7 +655,7 @@ async function importEntries(event) {
                 await displayDreams();
                 
                 // Show success message with import stats
-                const container = document.querySelector('.main-content');
+                const container = document.getElementById('settingsTab') || document.querySelector('.main-content');
                 if (container) {
                     const msg = document.createElement('div');
                     msg.className = importedCount > 0 ? 'message-success' : 'message-error';
@@ -528,7 +693,7 @@ async function importEntries(event) {
             console.error('Import error:', error);
             
             createInlineMessage('error', 'Import error: ' + error.message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -545,10 +710,10 @@ async function importEntries(event) {
 /**
  * Exports complete application data to JSON file with optional encryption.
  * 
- * Creates comprehensive backup including dreams, goals, voice notes metadata,
- * and application settings. Generates detailed export metadata with statistics
- * and timestamps. Voice note audio data is not exported due to size limitations,
- * only metadata is preserved.
+ * Creates comprehensive backup including dreams, goals, and application settings.
+ * Voice notes are excluded as audio data cannot be reliably exported/imported.
+ * Generates detailed export metadata with statistics and timestamps for
+ * complete data restoration capabilities.
  * 
  * @async
  * @throws {Error} When app is locked, no data exists, or export fails
@@ -564,10 +729,9 @@ async function importEntries(event) {
  * //   exportType: "complete",
  * //   data: {
  * //     dreams: [...],
- * //     voiceNotes: [{ id, timestamp, duration, transcription, hasAudio }],
  * //     goals: [...],
  * //     settings: { theme, storageType },
- * //     metadata: { totalDreams, totalGoals, lucidDreams }
+ * //     metadata: { totalDreams, totalGoals, lucidDreams, note }
  * //   }
  * // }
  */
@@ -577,11 +741,12 @@ async function exportAllData() {
         }
         
         try {
-            // Collect all data from all sources
-            const [dreams, voiceNotes, goals] = await Promise.all([
+            // Collect restorable data (voice notes excluded - audio cannot be exported/imported)
+            const [dreams, goals, userTags, userDreamSigns] = await Promise.all([
                 loadDreams(),
-                loadVoiceNotes(), 
-                loadGoals()
+                loadGoals(),
+                getAutocompleteSuggestions('tags'),
+                getAutocompleteSuggestions('dreamSigns')
             ]);
             
             // Collect settings from localStorage
@@ -597,29 +762,26 @@ async function exportAllData() {
                 exportType: "complete",
                 data: {
                     dreams: dreams || [],
-                    voiceNotes: (voiceNotes || []).map(note => ({
-                        // Convert voice notes to exportable format (without blob data)
-                        id: note.id,
-                        timestamp: note.timestamp,
-                        duration: note.duration,
-                        transcription: note.transcription || '',
-                        // Note: Audio blob data is not exported due to size and format limitations
-                        hasAudio: !!note.audioBlob
-                    })),
                     goals: goals || [],
                     settings: settings,
+                    autocomplete: {
+                        tags: userTags || [],
+                        dreamSigns: userDreamSigns || []
+                    },
                     metadata: {
                         totalDreams: (dreams || []).length,
-                        totalVoiceNotes: (voiceNotes || []).length,
                         totalGoals: (goals || []).length,
                         lucidDreams: (dreams || []).filter(d => d.isLucid).length,
+                        totalTags: (userTags || []).length,
+                        totalDreamSigns: (userDreamSigns || []).length,
+                        note: "Voice notes are not included in exports - audio data cannot be reliably backed up/restored. Use individual voice note downloads for important recordings."
                     }
                 }
             };
             
             if (exportData.data.dreams.length === 0 && exportData.data.goals.length === 0) {
                 createInlineMessage('error', 'No data to export yet. Create some dreams or goals first!', {
-                    container: document.querySelector('.main-content'),
+                    container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                     position: 'top',
                     duration: 3000
                 });
@@ -675,12 +837,13 @@ async function exportAllData() {
             
             // Show success message with export stats
             const stats = exportData.data.metadata;
+            const autocompleteCount = stats.totalTags + stats.totalDreamSigns;
             const successMessage = encryptionEnabled ? 
-                `Encrypted complete export created! (${stats.totalDreams} dreams, ${stats.totalGoals} goals)` : 
-                `Complete export created! (${stats.totalDreams} dreams, ${stats.totalGoals} goals)`;
+                `Encrypted complete export created! (${stats.totalDreams} dreams, ${stats.totalGoals} goals, ${autocompleteCount} autocomplete items)` : 
+                `Complete export created! (${stats.totalDreams} dreams, ${stats.totalGoals} goals, ${autocompleteCount} autocomplete items)`;
                 
             createInlineMessage('success', successMessage, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 4000
             });
@@ -688,7 +851,7 @@ async function exportAllData() {
         } catch (error) {
             console.error('Complete export error:', error);
             createInlineMessage('error', 'Error creating complete export: ' + error.message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -791,21 +954,44 @@ async function importAllData(event) {
                 const currentDreams = await loadDreams();
                 const importDreams = importData.data.dreams;
                 
-                // Filter out duplicates based on title and content similarity
-                const newDreams = importDreams.filter(importDream => {
-                    const isDuplicate = currentDreams.some(existingDream => {
-                        return existingDream.title === importDream.title &&
-                               existingDream.content === importDream.content;
-                    });
+                // Process dreams with robust duplicate detection and ID collision handling
+                const newDreams = [];
+                
+                importDreams.forEach(importDream => {
+                    // Ensure imported dream has required fields
+                    if (!importDream.timestamp) importDream.timestamp = new Date().toISOString();
+                    if (!importDream.title) importDream.title = 'Untitled Dream';
+                    if (!importDream.content) importDream.content = '';
                     
-                    if (isDuplicate) {
+                    // Generate ID with content salting if missing
+                    if (!importDream.id) {
+                        importDream.id = generateUniqueId({
+                            title: importDream.title,
+                            timestamp: importDream.timestamp,
+                            type: 'dream'
+                        });
+                    }
+                    
+                    // Check for ID collisions first
+                    const idCollision = detectIdCollision(currentDreams, importDream);
+                    if (idCollision) {
+                        console.warn('ID collision detected during complete data import:', {
+                            originalId: importDream.id,
+                            existingTitle: idCollision.existingDream.title,
+                            newTitle: importDream.title
+                        });
+                        importDream.id = generateUniqueId({
+                            title: importDream.title,
+                            timestamp: importDream.timestamp,
+                            type: 'dream'
+                        });
+                    }
+                    
+                    // Use robust duplicate detection
+                    if (isDreamDuplicate(currentDreams, importDream)) {
                         stats.skippedDreams++;
-                        return false;
                     } else {
-                        stats.importedDreams++;
-                        // Ensure imported dream has required fields
-                        if (!importDream.id) importDream.id = generateUniqueId();
-                        if (!importDream.timestamp) importDream.timestamp = new Date().toISOString();
+                        // Generate dateString if missing
                         if (!importDream.dateString) {
                             const date = new Date(importDream.timestamp);
                             importDream.dateString = date.toLocaleDateString('en-AU', {
@@ -816,13 +1002,17 @@ async function importAllData(event) {
                                 minute: '2-digit'
                             });
                         }
-                        return true;
+                        
+                        newDreams.push(importDream);
+                        currentDreams.push(importDream); // Add to current array for subsequent collision detection
+                        stats.importedDreams++;
                     }
                 });
                 
-                // Add new dreams
+                // Add new dreams (currentDreams was modified in the loop, so we need original + newDreams)
                 if (newDreams.length > 0) {
-                    const mergedDreams = [...currentDreams, ...newDreams];
+                    const originalDreams = await loadDreams(); // Get fresh copy
+                    const mergedDreams = [...originalDreams, ...newDreams];
                     await saveDreams(mergedDreams);
                 }
             }
@@ -832,30 +1022,144 @@ async function importAllData(event) {
                 const currentGoals = await loadGoals();
                 const importGoals = importData.data.goals;
                 
-                // Filter out duplicates based on title and description
-                const newGoals = importGoals.filter(importGoal => {
-                    const isDuplicate = currentGoals.some(existingGoal => {
-                        return existingGoal.title === importGoal.title &&
-                               existingGoal.description === importGoal.description;
+                // Process goals with robust duplicate detection and ID collision handling
+                const newGoals = [];
+                
+                importGoals.forEach(importGoal => {
+                    // Ensure imported goal has required fields
+                    if (!importGoal.title) importGoal.title = 'Untitled Goal';
+                    if (!importGoal.description) importGoal.description = '';
+                    if (!importGoal.createdAt) importGoal.createdAt = new Date().toISOString();
+                    
+                    // Generate ID with content salting if missing
+                    if (!importGoal.id) {
+                        importGoal.id = generateUniqueId({
+                            title: importGoal.title,
+                            timestamp: importGoal.createdAt,
+                            type: 'goal'
+                        });
+                    }
+                    
+                    // Check for ID collisions (adapted for goals)
+                    const existingWithSameId = currentGoals.find(existing => existing.id === importGoal.id);
+                    if (existingWithSameId) {
+                        const contentMatches = existingWithSameId.title === importGoal.title &&
+                                              existingWithSameId.description === importGoal.description;
+                        if (!contentMatches) {
+                            console.warn('Goal ID collision detected during complete data import:', {
+                                originalId: importGoal.id,
+                                existingTitle: existingWithSameId.title,
+                                newTitle: importGoal.title
+                            });
+                            importGoal.id = generateUniqueId({
+                                title: importGoal.title,
+                                timestamp: importGoal.createdAt,
+                                type: 'goal'
+                            });
+                        }
+                    }
+                    
+                    // Check for duplicates (ID-based for goals with IDs, content-based for legacy)
+                    const isDuplicate = currentGoals.some(existing => {
+                        if (existing.id && importGoal.id) {
+                            // Both have IDs - only match if same ID AND content
+                            if (existing.id === importGoal.id) {
+                                return existing.title === importGoal.title &&
+                                       existing.description === importGoal.description;
+                            }
+                            return false; // Different IDs = different goals
+                        }
+                        // Legacy content-based duplicate detection
+                        return existing.title === importGoal.title &&
+                               existing.description === importGoal.description;
                     });
                     
                     if (isDuplicate) {
                         stats.skippedGoals++;
-                        return false;
                     } else {
+                        newGoals.push(importGoal);
+                        currentGoals.push(importGoal); // Add for subsequent collision detection
                         stats.importedGoals++;
-                        // Ensure imported goal has required fields
-                        if (!importGoal.id) importGoal.id = generateUniqueId();
-                        if (!importGoal.createdAt) importGoal.createdAt = new Date().toISOString();
-                        return true;
                     }
                 });
                 
-                // Add new goals
+                // Add new goals (get fresh copy to avoid double-adding)
                 if (newGoals.length > 0) {
-                    const mergedGoals = [...currentGoals, ...newGoals];
+                    const originalGoals = await loadGoals(); // Get fresh copy
+                    const mergedGoals = [...originalGoals, ...newGoals];
                     await saveGoals(mergedGoals);
                 }
+            }
+            
+            // Import autocomplete data with merge handling
+            if (importData.data.autocomplete) {
+                let importedAutocomplete = 0;
+                
+                // Import tags
+                if (importData.data.autocomplete.tags && Array.isArray(importData.data.autocomplete.tags)) {
+                    const currentTags = await getAutocompleteSuggestions('tags');
+                    const importTags = importData.data.autocomplete.tags;
+                    
+                    // Merge tags, avoiding duplicates (case-insensitive)
+                    const existingTagsLower = currentTags.map(tag => tag.toLowerCase());
+                    const newTags = importTags.filter(tag => 
+                        tag && !existingTagsLower.includes(tag.toLowerCase())
+                    );
+                    
+                    if (newTags.length > 0) {
+                        const mergedTags = [...currentTags, ...newTags].sort((a, b) => 
+                            a.toLowerCase().localeCompare(b.toLowerCase())
+                        );
+                        await saveItemToStore('autocomplete', {
+                            id: 'tags',
+                            items: mergedTags
+                        });
+                        importedAutocomplete += newTags.length;
+                    }
+                }
+                
+                // Import dream signs
+                if (importData.data.autocomplete.dreamSigns && Array.isArray(importData.data.autocomplete.dreamSigns)) {
+                    const currentDreamSigns = await getAutocompleteSuggestions('dreamSigns');
+                    const importDreamSigns = importData.data.autocomplete.dreamSigns;
+                    
+                    // Merge dream signs, avoiding duplicates (case-insensitive)
+                    const existingDreamSignsLower = currentDreamSigns.map(sign => sign.toLowerCase());
+                    const newDreamSigns = importDreamSigns.filter(sign => 
+                        sign && !existingDreamSignsLower.includes(sign.toLowerCase())
+                    );
+                    
+                    if (newDreamSigns.length > 0) {
+                        const mergedDreamSigns = [...currentDreamSigns, ...newDreamSigns].sort((a, b) => 
+                            a.toLowerCase().localeCompare(b.toLowerCase())
+                        );
+                        await saveItemToStore('autocomplete', {
+                            id: 'dreamSigns',
+                            items: mergedDreamSigns
+                        });
+                        importedAutocomplete += newDreamSigns.length;
+                    }
+                }
+                
+                stats.importedAutocomplete = importedAutocomplete;
+            }
+            
+            // Import settings (theme preference only - storage type changes require manual selection)
+            if (importData.data.settings) {
+                let importedSettings = 0;
+                
+                // Import theme preference if it's different from current
+                if (importData.data.settings.theme) {
+                    const currentTheme = getCurrentTheme();
+                    if (importData.data.settings.theme !== currentTheme) {
+                        localStorage.setItem('dreamJournalTheme', importData.data.settings.theme);
+                        // Apply theme immediately
+                        document.body.className = `theme-${importData.data.settings.theme}`;
+                        importedSettings++;
+                    }
+                }
+                
+                stats.importedSettings = importedSettings;
             }
             
             // Refresh all displays
@@ -867,12 +1171,19 @@ async function importAllData(event) {
             // Show success message with import statistics
             const totalImported = stats.importedDreams + stats.importedGoals;
             const totalSkipped = stats.skippedDreams + stats.skippedGoals;
+            const autocompleteImported = stats.importedAutocomplete || 0;
+            const settingsImported = stats.importedSettings || 0;
             
             let message = '';
+            const extraItems = [];
+            if (autocompleteImported > 0) extraItems.push(`${autocompleteImported} autocomplete items`);
+            if (settingsImported > 0) extraItems.push(`theme setting`);
+            const extraText = extraItems.length > 0 ? `, ${extraItems.join(', ')}` : '';
+            
             if (totalImported > 0 && totalSkipped > 0) {
-                message = `Complete import finished! Added ${stats.importedDreams} dreams and ${stats.importedGoals} goals, skipped ${totalSkipped} duplicates.`;
-            } else if (totalImported > 0) {
-                message = `Successfully imported ${stats.importedDreams} dreams and ${stats.importedGoals} goals!`;
+                message = `Complete import finished! Added ${stats.importedDreams} dreams, ${stats.importedGoals} goals${extraText}, skipped ${totalSkipped} duplicates.`;
+            } else if (totalImported > 0 || autocompleteImported > 0 || settingsImported > 0) {
+                message = `Successfully imported ${stats.importedDreams} dreams, ${stats.importedGoals} goals${extraText}!`;
             } else if (totalSkipped > 0) {
                 message = `Import complete! All ${totalSkipped} items were already in your journal.`;
             } else {
@@ -880,7 +1191,7 @@ async function importAllData(event) {
             }
             
             createInlineMessage('success', message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -888,7 +1199,7 @@ async function importAllData(event) {
         } catch (error) {
             console.error('Complete import error:', error);
             createInlineMessage('error', 'Complete import error: ' + error.message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -962,7 +1273,7 @@ async function exportForAIAnalysis() {
             const noResultsMessage = `No${filterText} dreams to export for analysis${searchTerm ? ' matching your search' : ''}. ${filterType === 'lucid' ? 'Try recording some lucid dreams first!' : 'Record some dreams first!'}`;
             
             createInlineMessage('error', noResultsMessage, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -1038,7 +1349,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             const analysisMessage = `AI analysis prompt created! (${recentDreams.length} dreams, ${lucidPercentage}% lucid rate)`;
             
             createInlineMessage('success', analysisMessage, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 4000
             });
@@ -1046,7 +1357,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
         } catch (error) {
             console.error('AI analysis export error:', error);
             createInlineMessage('error', 'Error creating AI analysis: ' + error.message, {
-                container: document.querySelector('.main-content'),
+                container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
@@ -1309,3 +1620,30 @@ function cancelImportPassword() {
         delete window.importPasswordResolve;
     }
 }
+
+// ================================
+// ES MODULE EXPORTS
+// ================================
+
+export {
+    // Core import/export functions
+    exportEntries,
+    importEntries,
+    exportAllData,
+    importAllData,
+    exportForAIAnalysis,
+    
+    // Utility functions
+    validateAppAccess,
+    createDownload,
+    readFileWithEncryption,
+    
+    // Password dialog functions
+    showPasswordDialog,
+    showExportPasswordDialog,
+    confirmExportPassword,
+    cancelExportPassword,
+    showImportPasswordDialog,
+    confirmImportPassword,
+    cancelImportPassword
+};

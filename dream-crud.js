@@ -16,6 +16,38 @@
  * @requires security
  */
 
+// ================================
+// ES MODULE IMPORTS
+// ================================
+
+import { CONSTANTS } from './constants.js';
+import { 
+    dreams, 
+    getCurrentPage,
+    setCurrentPage,
+    withMutex, 
+    endlessScrollState,
+    getScrollDebounceTimer,
+    setScrollDebounceTimer,
+    getSearchDebounceTimer,
+    setSearchDebounceTimer,
+    getFilterDebounceTimer,
+    setFilterDebounceTimer,
+    deleteTimeouts
+} from './state.js';
+import { 
+    loadDreams, 
+    saveDreams, 
+    addDreamToIndexedDB, 
+    updateDreamInIndexedDB, 
+    deleteDreamFromIndexedDB, 
+    learnAutocompleteItems,
+    generateUniqueId,
+    isIndexedDBAvailable
+} from './storage.js';
+import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton } from './dom-helpers.js';
+import { initializeAutocomplete } from './main.js';
+
 /**
  * Filter values extracted from UI controls for dream processing.
  * 
@@ -99,15 +131,21 @@
         await learnAutocompleteItems(dreamSigns, 'dreamSigns');
 
         const dreamDate = dreamDateElement.value ? new Date(dreamDateElement.value) : new Date();
+        const dreamTitle = titleElement.value.trim() || 'Untitled Dream';
+        const dreamTimestamp = dreamDate.toISOString();
         
         const newDream = {
-            id: generateUniqueId(),
-            title: titleElement.value.trim() || 'Untitled Dream',
+            id: generateUniqueId({
+                title: dreamTitle,
+                timestamp: dreamTimestamp,
+                type: 'dream'
+            }),
+            title: dreamTitle,
             content: contentElement.value.trim(),
             emotions: emotionsElement.value.trim(),
             tags: tags,
             dreamSigns: dreamSigns,
-            timestamp: dreamDate.toISOString(),
+            timestamp: dreamTimestamp,
             isLucid: isLucidElement.checked,
             dateString: dreamDate.toLocaleDateString('en-AU', {
                 year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -142,7 +180,7 @@
         dreamDateElement.value = localDatetimeString;
         
         // Reset pagination to show newly added dream at top
-        currentPage = 1;
+        setCurrentPage(1);
         
         createInlineMessage('success', 'Dream saved successfully!', {
             container: document.querySelector('.entry-form'),
@@ -717,7 +755,7 @@
                     await saveDreams(updatedDreams);
                 }
 
-                currentPage = 1;
+                setCurrentPage(1);
                 await displayDreams();
 
             } catch (error) {
@@ -967,7 +1005,7 @@
                 removeEndlessScroll();
                 itemsPerPage = Math.max(1, totalDreams);
                 totalPages = 1;
-                currentPage = 1;
+                setCurrentPage(1);
                 paginatedDreams = filteredDreams;
             } else {
                 endlessScrollState.enabled = false;
@@ -976,9 +1014,9 @@
                 totalPages = Math.max(1, Math.ceil(totalDreams / itemsPerPage));
                 
                 // Validate and fix current page with safety bounds
-                currentPage = Math.max(1, Math.min(currentPage, totalPages));
+                setCurrentPage(Math.max(1, Math.min(getCurrentPage(), totalPages)));
                 
-                const startIndex = Math.max(0, (currentPage - 1) * itemsPerPage);
+                const startIndex = Math.max(0, (getCurrentPage() - 1) * itemsPerPage);
                 const endIndex = Math.min(startIndex + itemsPerPage, totalDreams);
                 paginatedDreams = filteredDreams.slice(startIndex, endIndex);
             }
@@ -1143,7 +1181,7 @@
                 `;
             }
         } else if (limitValue !== 'all' && totalPages > 1) {
-            paginationContainer.innerHTML = renderPagination(currentPage, totalPages, totalDreams, paginatedDreams.length);
+            paginationContainer.innerHTML = renderPagination(getCurrentPage(), totalPages, totalDreams, paginatedDreams.length);
         } else {
             paginationContainer.innerHTML = '';
         }
@@ -1224,11 +1262,11 @@
      * window.addEventListener('scroll', handleEndlessScroll);
      */
     function handleEndlessScroll() {
-        if (scrollDebounceTimer) {
-            clearTimeout(scrollDebounceTimer);
+        if (getScrollDebounceTimer()) {
+            clearTimeout(getScrollDebounceTimer());
         }
         
-        scrollDebounceTimer = setTimeout(async () => {
+        setScrollDebounceTimer(setTimeout(async () => {
             if (!endlessScrollState.enabled || endlessScrollState.loading) return;
             
             // Throttle scroll events
@@ -1255,7 +1293,7 @@
                     endlessScrollState.loading = false;
                 }
             }
-        }, CONSTANTS.DEBOUNCE_SCROLL_MS);
+        }, CONSTANTS.DEBOUNCE_SCROLL_MS));
     }
 
 // ================================
@@ -1435,7 +1473,7 @@
             const pageNum = parseInt(page);
             if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) return;
             
-            currentPage = pageNum;
+            setCurrentPage(pageNum);
             await displayDreams();
         } catch (error) {
             console.error('Error navigating to page:', error);
@@ -1500,7 +1538,7 @@
      * }, delay);
      */
     async function resetToPageOne() {
-        currentPage = 1;
+        setCurrentPage(1);
         
         // Reset endless scroll when filters change
         if (endlessScrollState.enabled) {
@@ -1638,17 +1676,17 @@
      * debouncedSearch(1000); // 1 second delay
      */
     function debouncedSearch(delay = CONSTANTS.DEBOUNCE_SEARCH_MS) {
-        if (searchDebounceTimer) {
-            clearTimeout(searchDebounceTimer);
+        if (getSearchDebounceTimer()) {
+            clearTimeout(getSearchDebounceTimer());
         }
         
         // Show loading state immediately for responsive feedback
         showSearchLoading();
         
-        searchDebounceTimer = setTimeout(async () => {
+        setSearchDebounceTimer(setTimeout(async () => {
             await resetToPageOne();
             hideSearchLoading();
-        }, delay);
+        }, delay));
     }
 
     /**
@@ -1672,14 +1710,65 @@
      * debouncedFilter(100); // Short delay for responsive feel
      */
     function debouncedFilter(delay = CONSTANTS.DEBOUNCE_FILTER_MS) {
-        if (filterDebounceTimer) {
-            clearTimeout(filterDebounceTimer);
+        if (getFilterDebounceTimer()) {
+            clearTimeout(getFilterDebounceTimer());
         }
         
         showSearchLoading();
         
-        filterDebounceTimer = setTimeout(async () => {
+        setFilterDebounceTimer(setTimeout(async () => {
             await resetToPageOne();
             hideSearchLoading();
-        }, delay);
+        }, delay));
     }
+
+// ================================
+// ES MODULE EXPORTS
+// ================================
+
+export {
+    // Core CRUD operations
+    saveDream,
+    editDream,
+    saveDreamEdit,
+    cancelDreamEdit,
+    deleteDream,
+    confirmDelete,
+    cancelDelete,
+    
+    // Display and rendering functions
+    displayDreams,
+    renderDreamHTML,
+    
+    // Filtering and sorting
+    filterDreams,
+    sortDreams,
+    getFilterValues,
+    getFilteredDreamsCount,
+    
+    // Pagination functions
+    calculatePagination,
+    renderPaginationHTML,
+    renderPagination,
+    goToPage,
+    resetToPageOne,
+    
+    // Endless scroll functions
+    setupEndlessScroll,
+    removeEndlessScroll,
+    handleEndlessScroll,
+    
+    // Utility functions
+    parseTagsFromInput,
+    formatTagsForDisplay,
+    formatDreamSignsForDisplay,
+    
+    // Debounced functions
+    debouncedSearch,
+    debouncedFilter,
+    
+    // UI helper functions
+    showLoadingMessage,
+    showNoResultsMessage,
+    clearPagination
+};

@@ -42,6 +42,59 @@
  */
 
 // ================================
+// ES MODULE IMPORTS
+// ================================
+
+// Foundation modules
+import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { 
+    getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
+    deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
+    scrollDebounceTimer, recordingTimer, currentPlayingAudio, mediaRecorder,
+    isDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab
+} from './state.js';
+
+// Core utilities
+import { 
+    initDB, loadDreams, getIndexedDBCount, migrateFromLocalStorage,
+    isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions
+} from './storage.js';
+import { 
+    getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons, 
+    showAllTabButtons, createInlineMessage, setupTagAutocomplete, toggleDreamForm
+} from './dom-helpers.js';
+
+// Security system
+import { 
+    isPinSetup, getResetTime, removeResetTime, removePinHash, updateTimerWarning,
+    updateSecurityControls, verifyLockScreenPin
+} from './security.js';
+
+// Dream CRUD operations
+import { 
+    displayDreams, saveDream, debouncedSearch, debouncedFilter,
+    removeEndlessScroll
+} from './dream-crud.js';
+
+// Voice notes system
+import { updateRecordButtonState } from './voice-notes.js';
+
+// Goals system
+import { initGoals } from './goalstab.js';
+
+// Journal tab system
+import { initializeJournalTab } from './journaltab.js';
+
+// Import/Export system
+import { importEntries, importAllData } from './import-export.js';
+
+// Action routing system
+import { handleUnifiedClick, handleUnifiedChange } from './action-router.js';
+
+// PWA installation system
+import { installPWA, setupPWAInstall } from './pwa.js';
+
+// ================================
 // MAIN APPLICATION INITIALIZATION MODULE
 // ================================
 // Main application initialization and lifecycle management for the Dream Journal application
@@ -51,61 +104,10 @@
 // INITIALIZATION SUBSYSTEMS
 // ================================
 
-/**
- * Initialize advice tab with deterministic tip of the day calculation.
- * 
- * This function loads daily tips from the JSON configuration and calculates which tip
- * to display based on the number of days since the user's first dream entry. This ensures
- * that users see a consistent "tip of the day" that advances daily but remains deterministic.
- * If no dreams exist, defaults to displaying tip 1 (index 0).
- * 
- * The calculation uses the earliest dream entry date as an epoch, then calculates the
- * number of days between that epoch and today, using modulo arithmetic to cycle through
- * the available tips.
- * 
- * @async
- * @function
- * @returns {Promise<void>} Promise that resolves when advice tab is initialized
- * @throws {Error} When daily tips JSON cannot be loaded
- * @since 2.0.0
- * @example
- * await initializeAdviceTab();
- * // Advice tab now displays deterministic tip based on user's dream history
- */
-async function initializeAdviceTab() {
-    // Load tips from JSON file and store globally
-    dailyTips = await loadDailyTips();
-    if (!dailyTips || dailyTips.length === 0) {
-        return;
-    }
-
-    // Try to get the first dream entry date as epoch
-    let epoch;
-    let tipOfTheDayIndex = 0; // Default to tip 1 (index 0)
-    
-    try {
-        const dreams = await loadDreams();
-        if (dreams && dreams.length > 0) {
-            // Find the earliest dream date
-            const dreamDates = dreams
-                .map(dream => new Date(dream.timestamp))
-                .filter(date => !isNaN(date.getTime())) // Filter out invalid dates
-                .sort((a, b) => a - b);
-            
-            if (dreamDates.length > 0) {
-                epoch = dreamDates[0];
-                const now = new Date();
-                const diffTime = now - epoch;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                tipOfTheDayIndex = diffDays % dailyTips.length;
-            }
-        }
-    } catch (error) {
-        console.warn('Error loading dreams for tip calculation, using default tip 1:', error);
-    }
-    
-    displayTip(tipOfTheDayIndex);
-}
+// ===================================================================================
+// ADVICE TAB INITIALIZATION - MOVED TO ADVICETAB.JS
+// ===================================================================================
+// Note: initializeAdviceTab() function has been moved to advicetab.js module
 
 /**
  * Initialize theme system by loading saved theme preference and applying it.
@@ -268,250 +270,8 @@ async function registerServiceWorker() {
 }
 
 // ================================
-// PWA INSTALLATION SYSTEM
+// BROWSER COMPATIBILITY & UTILITIES
 // ================================
-
-/**
- * Global variable to store the browser's beforeinstallprompt event.
- * This event is captured and deferred until the user explicitly chooses to install the PWA.
- * 
- * @type {Event|null}
- * @global
- * @since 2.0.0
- */
-let deferredPrompt;
-
-/**
- * Global reference to the deferred PWA install prompt for cross-module access.
- * Allows other modules to check PWA installation availability.
- * 
- * @type {Event|null}
- * @global
- * @memberof window
- * @since 2.0.0
- */
-window.deferredPrompt = null;
-
-/**
- * Global reference to PWA section creation function for cross-module access.
- * Allows other modules to dynamically create the PWA installation UI.
- * 
- * @type {Function|null}
- * @global
- * @memberof window
- * @since 2.0.0
- */
-window.createPWASection = null;
-
-/**
- * Global reference to PWA section removal function for cross-module access.
- * Allows other modules to clean up the PWA installation UI.
- * 
- * @type {Function|null}
- * @global
- * @memberof window
- * @since 2.0.0
- */
-window.removePWASection = null;
-
-/**
- * Create and inject PWA installation section into settings page.
- * 
- * This function dynamically creates and injects a PWA installation section into the
- * settings page when PWA installation becomes available (triggered by the beforeinstallprompt
- * event). The section includes an install button and status display.
- * 
- * The function prevents duplicate sections by checking for existing PWA sections and
- * strategically places the new section before the security section for optimal UX flow.
- * 
- * Only called when the browser indicates PWA installation is available, ensuring the
- * UI only appears when the feature is actually usable.
- * 
- * @function
- * @returns {void}
- * @since 2.0.0
- * @example
- * // Typically called automatically by setupPWAInstall()
- * createPWASection();
- * // PWA installation UI now appears in settings
- */
-function createPWASection() {
-    // Check if PWA section already exists
-    const existingSection = document.querySelector('#pwaInstallSection');
-    if (existingSection) {
-        return;
-    }
-    
-    // Find the security section to insert PWA section before it
-    const securitySection = document.querySelector('.settings-section h3');
-    if (!securitySection || !securitySection.textContent.includes('Security')) {
-        return;
-    }
-    
-    const securitySectionContainer = securitySection.parentElement;
-    
-    // Create PWA section HTML
-    const pwaSection = document.createElement('div');
-    pwaSection.className = 'settings-section';
-    pwaSection.id = 'pwaInstallSection';
-    pwaSection.innerHTML = `
-        <h3>📱 Progressive Web App</h3>
-        <div class="settings-row">
-            <div>
-                <div class="settings-label">Install App</div>
-                <div class="settings-description">Install Dream Journal as a native app on your device</div>
-            </div>
-            <div class="settings-controls">
-                <button data-action="install-pwa" id="installPwaButton" class="btn btn-primary">📱 Install App</button>
-                <div id="pwaInstallStatus" class="text-secondary text-sm" style="display: none;"></div>
-            </div>
-        </div>
-    `;
-    
-    // Insert PWA section before security section
-    securitySectionContainer.parentElement.insertBefore(pwaSection, securitySectionContainer);
-}
-
-/**
- * Remove PWA installation section from settings page.
- * 
- * This function removes the PWA installation section from the settings page when it's
- * no longer needed. This occurs when the app has been successfully installed or when
- * the browser indicates PWA installation is no longer available.
- * 
- * Provides clean UI management by removing installation prompts after they've served
- * their purpose, preventing user confusion and interface clutter.
- * 
- * @function
- * @returns {void}
- * @since 2.0.0
- * @example
- * removePWASection();
- * // PWA installation UI is removed from settings
- */
-function removePWASection() {
-    const pwaSection = document.querySelector('#pwaInstallSection');
-    if (pwaSection) {
-        pwaSection.remove();
-    }
-}
-
-// Assign functions to window for global access
-window.createPWASection = createPWASection;
-window.removePWASection = removePWASection;
-
-/**
- * Setup PWA installation system with beforeinstallprompt event listener.
- * 
- * This function establishes the complete PWA installation workflow by setting up
- * event listeners for the browser's install prompt events. It captures the
- * beforeinstallprompt event to control when installation prompts are shown and
- * manages the UI state throughout the installation process.
- * 
- * The system provides a user-friendly installation experience by:
- * - Deferring the browser's automatic install prompt
- * - Showing custom UI when appropriate
- * - Handling installation success and cancellation
- * - Managing UI cleanup after installation
- * 
- * @function
- * @returns {void}
- * @since 2.0.0
- * @example
- * setupPWAInstall();
- * // PWA installation system is now active and will respond to browser events
- */
-function setupPWAInstall() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-        // Stash the event so it can be triggered later by the button
-        deferredPrompt = e;
-        window.deferredPrompt = e;
-
-        // Create and show the PWA section in settings if we're on settings tab
-        const settingsTab = document.getElementById('settingsTab');
-        if (settingsTab && settingsTab.style.display !== 'none') {
-            createPWASection();
-        }
-    });
-
-    // Listen for the app being installed
-    window.addEventListener('appinstalled', (e) => {
-        console.log('PWA was installed');
-        
-        // Show success message for a few seconds then remove the section
-        const statusDiv = document.querySelector('#pwaInstallStatus');
-        if (statusDiv) {
-            statusDiv.textContent = 'App has been installed successfully!';
-            statusDiv.style.display = 'block';
-            
-            // Remove entire section after showing success message
-            setTimeout(() => {
-                removePWASection();
-            }, 3000);
-        } else {
-            // If no status div, remove section immediately
-            removePWASection();
-        }
-        
-        // Clear the deferredPrompt
-        deferredPrompt = null;
-        window.deferredPrompt = null;
-    });
-}
-
-/**
- * Handle PWA installation when user clicks the install button.
- * 
- * This function manages the actual PWA installation process when the user chooses
- * to install the app. It displays the browser's native install prompt, waits for
- * the user's decision, and updates the UI accordingly.
- * 
- * The function handles both acceptance and rejection of the install prompt,
- * providing appropriate feedback and cleaning up the UI state. It requires a
- * previously captured beforeinstallprompt event to function.
- * 
- * @async
- * @function
- * @returns {Promise<void>} Promise that resolves when installation handling is complete
- * @since 2.0.0
- * @example
- * // Called automatically when user clicks install button
- * await installPWA();
- * // Installation prompt shown and result handled
- */
-async function installPWA() {
-    if (!deferredPrompt) {
-        console.log('No install prompt available');
-        return;
-    }
-
-    // Show the install prompt
-    deferredPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-
-    // Clear the deferredPrompt
-    deferredPrompt = null;
-    
-    // Hide the install button regardless of user choice
-    const installButton = document.querySelector('#installPwaButton');
-    if (installButton) {
-        installButton.style.display = 'none';
-    }
-    
-    // Update status
-    const statusDiv = document.querySelector('#pwaInstallStatus');
-    if (statusDiv) {
-        if (outcome === 'accepted') {
-            statusDiv.textContent = 'Installing app...';
-        } else {
-            statusDiv.textContent = 'Installation cancelled';
-        }
-        statusDiv.style.display = 'block';
-    }
-}
 
 /**
  * Check browser compatibility for modern CSS features.
@@ -650,6 +410,7 @@ function setupCleanupHandlers(timerWarningInterval) {
         try {
             Object.keys(deleteTimeouts).forEach(dreamId => clearTimeout(deleteTimeouts[dreamId]));
             Object.keys(voiceDeleteTimeouts).forEach(voiceNoteId => clearTimeout(voiceDeleteTimeouts[voiceNoteId]));
+            Object.keys(goalDeleteTimeouts).forEach(goalId => clearTimeout(goalDeleteTimeouts[goalId]));
             if (timerWarningInterval) clearInterval(timerWarningInterval);
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
             if (filterDebounceTimer) clearTimeout(filterDebounceTimer);
@@ -803,9 +564,9 @@ function restoreDreamFormState() {
 /**
  * Main application initialization sequence.
  * 
- * This is the primary entry point for application initialization, triggered by the
- * DOMContentLoaded event. It orchestrates a two-phase startup process designed to
- * optimize perceived performance and prevent content flashing:
+ * This is the primary entry point for application initialization, designed to
+ * orchestrate a two-phase startup process that optimizes perceived performance 
+ * and prevents content flashing:
  * 
  * **Phase 1: Immediate Setup**
  * - Fast, synchronous operations that must complete before UI is visible
@@ -827,14 +588,14 @@ function restoreDreamFormState() {
  * 
  * @async
  * @function
- * @listens DOMContentLoaded
  * @since 1.0.0
  * @todo Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions for better separation of fast startup vs slower initialization tasks
  * @example
- * // Initialization happens automatically:
- * // document.addEventListener('DOMContentLoaded', async function() { ... });
+ * // Called by app entry point:
+ * import { initializeApp } from './main.js';
+ * document.addEventListener('DOMContentLoaded', initializeApp);
  */
-document.addEventListener('DOMContentLoaded', async function() {
+async function initializeApp() {
     
     // ================================
     // PHASE 1: IMMEDIATE SETUP
@@ -850,8 +611,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (resetTime && (resetTime - Date.now() <= 0)) {
         removeResetTime();
         removePinHash();
-        isUnlocked = true;
-        isAppLocked = false;
+        setUnlocked(true);
+        setAppLocked(false);
         failedPinAttempts = 0;
         timerExpiredAndRemovedPin = true;
     }
@@ -859,14 +620,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Initialize app in correct state based on PIN setup and timer status
     if (pinIsSetUp && !timerExpiredAndRemovedPin) {
-        isUnlocked = false;
-        isAppLocked = true;
-        preLockActiveTab = 'journal';
+        setUnlocked(false);
+        setAppLocked(true);
+        setPreLockActiveTab('journal');
         switchAppTab('lock'); 
         hideAllTabButtons();
     } else {
-        isUnlocked = true;
-        isAppLocked = false;
+        setUnlocked(true);
+        setAppLocked(false);
         switchAppTab('journal');
         showAllTabButtons();
     }
@@ -921,6 +682,39 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Display initial application data and restore user preferences
     await initializeApplicationData(timerExpiredAndRemovedPin);
     
+    // Initialize Journal tab if it's the active tab
+    if (getActiveAppTab() === 'journal') {
+        await initializeJournalTab();
+    }
+    
     // Restore dream form collapse state preference
     restoreDreamFormState();
-});
+}
+
+// ================================
+// ES MODULE EXPORTS
+// ================================
+
+export {
+    // Main application initialization
+    initializeApp,
+    
+    // Application initialization functions  
+    // initializeAdviceTab moved to advicetab.js module
+    initializeTheme,
+    setupEventDelegation,
+    initializeAutocomplete,
+    registerServiceWorker,
+    
+    
+    // Browser compatibility and utilities
+    checkBrowserCompatibility,
+    ensureTabContainerExists,
+    setDefaultDreamDateTime,
+    setupCleanupHandlers,
+    setupAdditionalEventListeners,
+    
+    // Application data initialization
+    initializeApplicationData,
+    restoreDreamFormState
+};

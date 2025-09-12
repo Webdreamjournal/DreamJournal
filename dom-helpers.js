@@ -19,6 +19,36 @@
  */
 
 // ===================================================================================
+// ES MODULE IMPORTS
+// ===================================================================================
+
+import { CONSTANTS } from './constants.js';
+import { 
+    getActiveAppTab,
+    setActiveAppTab,
+    getAppLocked,
+    setAppLocked,
+    getPreLockActiveTab,
+    setPreLockActiveTab,
+    getDailyTips,
+    getCurrentTipIndex,
+    setCurrentTipIndex,
+    getIsDreamFormCollapsed,
+    setIsDreamFormCollapsed,
+    asyncMutex,
+    getActiveVoiceTab,
+    setActiveVoiceTab
+} from './state.js';
+import { isLocalStorageAvailable, getAutocompleteSuggestions } from './storage.js';
+import { getResetTime, updateSecurityControls } from './security.js';
+import { initGoals, renderGoalsTab, initializeGoalsTab } from './goalstab.js';
+import { renderJournalTab, initializeJournalTab } from './journaltab.js';
+import { renderStatsTab, initializeStatsTab } from './statstab.js';
+import { renderAdviceTab, initializeAdviceTab } from './advicetab.js';
+import { displayVoiceNotes } from './voice-notes.js';
+import { renderSettingsTab, initializeSettingsTab } from './settingstab.js';
+
+// ===================================================================================
 // DOM & UI HELPER FUNCTIONS
 // ===================================================================================
 // Comprehensive DOM manipulation and UI component utilities
@@ -350,75 +380,9 @@ function createPaginationHTML(currentPage, totalPages, actionPrefix) {
     }
 
 // ===================================================================================
-// ADVICE TAB & TIPS SYSTEM
+// ADVICE TAB & TIPS SYSTEM - MOVED TO ADVICETAB.JS
 // ===================================================================================
-
-/**
- * Displays a tip at the specified index with safe bounds checking.
- * 
- * Updates both the tip content display and counter information in the advice tab.
- * Uses modulo arithmetic to handle negative indices and out-of-bounds values safely,
- * ensuring the tip system is robust against invalid input.
- * 
- * @param {number} index - Tip index to display (can be negative or out of bounds)
- * @returns {void}
- * @throws {TypeError} When index is not a number
- * @since 1.0.0
- * @example
- * // Display first tip
- * displayTip(0);
- * 
- * @example
- * // Negative index wraps to end
- * displayTip(-1); // Shows last tip
- * 
- * @example
- * // Out of bounds index wraps around
- * displayTip(1000); // Shows tip at (1000 % totalTips)
- */
-function displayTip(index) {
-        const tipTextElement = document.getElementById('tipText');
-        const tipCounterElement = document.getElementById('tipCounter');
-
-        if (tipTextElement && tipCounterElement && dailyTips && dailyTips.length > 0) {
-            // Ensure index is within bounds and handle negative numbers using modulo arithmetic
-            const safeIndex = ((index % dailyTips.length) + dailyTips.length) % dailyTips.length;
-
-            const tip = dailyTips[safeIndex];
-            // Display tip with proper HTML escaping for security
-            tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
-            tipCounterElement.textContent = `${safeIndex + 1} / ${dailyTips.length}`;
-            currentTipIndex = safeIndex; // Update global state
-        }
-    }
-
-/**
- * Handles tip navigation in the specified direction.
- * 
- * Provides navigation controls for the daily tips system, supporting both forward
- * and backward navigation with automatic bounds handling via the displayTip function.
- * 
- * @param {('next'|'prev')} direction - Navigation direction
- * @returns {void}
- * @throws {TypeError} When direction is not 'next' or 'prev'
- * @since 1.0.0
- * @example
- * // Navigate to next tip
- * handleTipNavigation('next');
- * 
- * @example
- * // Navigate to previous tip
- * handleTipNavigation('prev');
- */
-function handleTipNavigation(direction) {
-    let newIndex = currentTipIndex;
-    if (direction === 'next') {
-        newIndex++;
-    } else {
-        newIndex--;
-    }
-    displayTip(newIndex); // displayTip handles bounds checking
-}
+// Note: displayTip() and handleTipNavigation() functions have been moved to advicetab.js module
 
 // ===================================================================================
 // THEME MANAGEMENT SYSTEM
@@ -640,15 +604,15 @@ function switchAppTab(tabName) {
         // Handle lock screen transitions
         if (tabName === 'lock') {
             // Switching TO lock screen
-            if (!isAppLocked) {
-                preLockActiveTab = activeAppTab; // Remember current tab
-                isAppLocked = true;
+            if (!getAppLocked()) {
+                setPreLockActiveTab(getActiveAppTab()); // Remember current tab
+                setAppLocked(true);
                 hideAllTabButtons();
             }
         } else {
             // Switching FROM lock screen to another tab
-            if (isAppLocked) {
-                isAppLocked = false;
+            if (getAppLocked()) {
+                setAppLocked(false);
                 showAllTabButtons();
             }
         }
@@ -699,347 +663,67 @@ function switchAppTab(tabName) {
                 tabPanel.className = 'tab-panel';
                 
                 if (tabId === 'goalsTab') {
-                    tabPanel.innerHTML = `
-                        <div class="settings-section">
-                            <div class="flex-between mb-lg">
-                                <h3>🎯 Your Dream Goals</h3>
-                                <button data-action="create-goal" class="btn btn-primary btn-small">➕ New Goal</button>
-                            </div>
-                            <div id="activeGoalsContainer">
-                                <!-- Active goals will be populated here -->
-                            </div>
-                            <div id="activeGoalsPagination" class="pagination-container" style="display: none;">
-                                <!-- Active goals pagination will be populated here -->
-                            </div>
-                            <div id="noGoalsMessage" class="card-md text-center" style="display: none;">
-                                <div class="icon-lg mb-md">🎯</div>
-                                <h4 class="mb-sm">No Active Goals</h4>
-                                <p class="text-secondary mb-md">Create your first goal to start tracking your lucid dreaming progress!</p>
-                                <button data-action="create-goal" class="btn btn-primary">Create Your First Goal</button>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>📈 Quick Goal Templates</h3>
-                            <div class="grid-auto">
-                                <div class="stats-card hover-card" data-action="create-template-goal" data-template="lucid-monthly">
-                                    <div class="icon-lg">✨</div>
-                                    <div class="stats-label">Monthly Lucid Goals</div>
-                                    <div class="stats-detail">Track lucid dreams per month</div>
-                                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                                </div>
-                                <div class="stats-card hover-card" data-action="create-template-goal" data-template="recall-streak">
-                                    <div class="icon-lg">🧠</div>
-                                    <div class="stats-label">Dream Recall Streak</div>
-                                    <div class="stats-detail">Remember dreams daily</div>
-                                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                                </div>
-                                <div class="stats-card hover-card" data-action="create-template-goal" data-template="journal-habit">
-                                    <div class="icon-lg">📝</div>
-                                    <div class="stats-label">Journaling Habit</div>
-                                    <div class="stats-detail">Write consistently</div>
-                                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                                </div>
-                                <div class="stats-card hover-card" data-action="create-template-goal" data-template="dream-signs">
-                                    <div class="icon-lg">🔍</div>
-                                    <div class="stats-label">Dream Signs Tracking</div>
-                                    <div class="stats-detail">Identify recurring patterns</div>
-                                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                                </div>
-                                <div class="stats-card hover-card" data-action="create-template-goal" data-template="custom">
-                                    <div class="icon-lg">⭐</div>
-                                    <div class="stats-label">Custom Goal</div>
-                                    <div class="stats-detail">Manual progress tracking</div>
-                                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="settings-section">
-                            <h3>🏆 Completed Goals</h3>
-                            <div id="completedGoalsContainer">
-                                <!-- Completed goals will be populated here -->
-                            </div>
-                            <div id="completedGoalsPagination" class="pagination-container" style="display: none;">
-                                <!-- Completed goals pagination will be populated here -->
-                            </div>
-                            <div id="noCompletedGoalsMessage" class="text-center text-secondary p-lg" style="display: none;">
-                                <div class="icon-lg mb-sm">🏆</div>
-                                <p>Your completed goals will appear here</p>
-                            </div>
-                        </div>
-                    `;
+                    // Goals tab is now handled by the dedicated goalstab.js module
+                    try {
+                        renderGoalsTab(tabPanel);
+                    } catch (error) {
+                        console.error('Error rendering Goals tab:', error);
+                        tabPanel.innerHTML = '<div class="error-message">Error loading Goals tab. Please refresh the page.</div>';
+                    }
                 } else if (tabId === 'statsTab') {
-                    tabPanel.innerHTML = `
-                        <div id="statsContainer">
-                            <div id="calendarContainer" class="card-md mb-lg">
-                                <!-- Calendar will be generated here -->
-                                <div class="loading-state"></div>
+                    // Stats tab is now handled by the dedicated statstab.js module
+                    try {
+                        renderStatsTab(tabPanel);
+                    } catch (error) {
+                        console.error('Error rendering stats tab:', error);
+                        tabPanel.innerHTML = `
+                            <div class="message-error">
+                                Failed to load statistics tab. Please refresh and try again.
                             </div>
-                            
-                            <!-- Stats Tabs Navigation -->
-                            <div class="stats-tabs">
-                                <button class="stats-tab active" data-action="switch-stats-tab" data-tab="month">
-                                    📅 Month
-                                </button>
-                                <button class="stats-tab" data-action="switch-stats-tab" data-tab="year">
-                                    📆 Year
-                                </button>
-                                <button class="stats-tab" data-action="switch-stats-tab" data-tab="lifetime">
-                                    🏆 Lifetime
-                                </button>
-                                <button class="stats-tab" data-action="switch-stats-tab" data-tab="dream-signs">
-                                    ⚡ Dream Signs
-                                </button>
-                            </div>
-                            
-                            <!-- Stats Tab Content -->
-                            <div class="stats-tab-content">
-                                <!-- Month Tab -->
-                                <div id="statsTabMonth" class="stats-tab-panel active">
-                                    <div class="stats-grid">
-                                        <div id="monthlyStatsContainer" class="card-md">
-                                            <!-- Monthly stats will be generated here -->
-                                            <h3 class="text-primary mb-md">Monthly Stats</h3>
-                                            <div class="loading-state"></div>
-                                        </div>
-                                        <div id="pieChartContainer" class="card-md">
-                                            <!-- Pie chart will be generated here -->
-                                            <h3 class="text-primary mb-md">Dream Types</h3>
-                                            <div class="loading-state"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Year Tab -->
-                                <div id="statsTabYear" class="stats-tab-panel" style="display: none;">
-                                    <div class="stats-grid">
-                                        <div id="yearlyStatsContainer" class="card-md">
-                                            <!-- Yearly stats will be generated here -->
-                                            <h3 class="text-primary mb-md">Yearly Stats</h3>
-                                            <div class="loading-state">Loading yearly stats...</div>
-                                        </div>
-                                        <div id="yearlyPieChartContainer" class="card-md">
-                                            <!-- Yearly pie chart will be generated here -->
-                                            <h3 class="text-primary mb-md">Year Dream Types</h3>
-                                            <div class="loading-state">Loading yearly chart...</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Lifetime Tab -->
-                                <div id="statsTabLifetime" class="stats-tab-panel" style="display: none;">
-                                    <div class="stats-grid">
-                                        <div id="lifetimeStatsContainer" class="card-md">
-                                            <!-- Lifetime stats will be generated here -->
-                                            <h3 class="text-primary mb-md">Lifetime Stats</h3>
-                                            <div class="loading-state">Loading lifetime stats...</div>
-                                        </div>
-                                        <div id="lifetimePieChartContainer" class="card-md">
-                                            <!-- Lifetime pie chart will be generated here -->
-                                            <h3 class="text-primary mb-md">All-Time Dream Types</h3>
-                                            <div class="loading-state">Loading lifetime chart...</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Dream Signs Tab -->
-                                <div id="statsTabDreamSigns" class="stats-tab-panel" style="display: none;">
-                                    <div id="dreamSignWordCloudContainer" class="card-md mb-lg">
-                                        <!-- Word cloud will be generated here -->
-                                        <h3 class="text-primary mb-md">Dream Sign Word Cloud</h3>
-                                        <div class="loading-state">Loading word cloud...</div>
-                                    </div>
-                                    <div id="dreamSignListContainer" class="card-md">
-                                        <!-- Dream sign list will be generated here -->
-                                        <h3 class="text-primary mb-md">Dream Sign Lucidity Rate</h3>
-                                        <div class="loading-state">Loading list...</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 } else if (tabId === 'adviceTab') {
-                    tabPanel.innerHTML = `
-                        <div class="settings-section">
-                            <h3>💡 Daily Lucid Dreaming Tip</h3>
-                            <div id="dailyTipContainer" class="card-elevated card-lg text-center">
-                                <p id="tipText" class="text-lg line-height-loose mb-lg" style="height: 180px; overflow-y: auto;">Loading tip...</p>
-                                <div class="tip-navigation flex-between">
-                                    <button id="prevTip" data-action="prev-tip" class="calendar-nav-btn prev" title="Previous Tip"></button>
-                                    <span id="tipCounter" class="font-semibold text-secondary">Tip 1 / 375</span>
-                                    <button id="nextTip" data-action="next-tip" class="calendar-nav-btn next" title="Next Tip"></button>
-                                </div>
+                    // Advice tab is now handled by the dedicated advicetab.js module
+                    try {
+                        renderAdviceTab(tabPanel);
+                    } catch (error) {
+                        console.error('Error rendering advice tab:', error);
+                        // Fallback if advicetab.js fails
+                        tabPanel.innerHTML = `
+                            <div class="message-base message-error">
+                                <h3>Advice Loading...</h3>
+                                <p>The advice interface is temporarily unavailable. Please refresh the page and try again.</p>
+                                <p class="text-sm">Error details: ${escapeHtml(error.message)}</p>
                             </div>
-                        </div>
-
-                        <div class="settings-section">
-                            <h3 class="mb-lg">📚 Lucid Dreaming Techniques</h3>
-                            <div class="grid-auto">
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">🔄 MILD Technique</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Mnemonic Induction: As you fall asleep, repeat "Next time I'm dreaming, I'll remember I'm dreaming" while visualizing becoming lucid.</p>
-                                </div>
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">⏰ WBTB Method</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Wake-Back-to-Bed: Wake up 4-6 hours after sleep, stay awake for 20-30 minutes thinking about lucid dreaming, then return to sleep.</p>
-                                </div>
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">✋ Reality Checks</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Daily Habit: Check your hands, read text twice, or look at digital clocks. In dreams, these often appear distorted.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-section">
-                            <h3 class="mb-lg">💡 General Advice</h3>
-                            <div class="grid-auto">
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">🧘 Sleep Optimization</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Maintain consistent sleep and wake times to improve REM sleep quality and dream recall. Avoid screens 1 hour before bed. Blue light can disrupt melatonin production and dream intensity.</p>
-                                </div>
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">📝 Dream Journaling</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Keep a dream journal by your bed. Write down your dreams as soon as you wake up. This improves dream recall and helps you identify recurring dream signs.</p>
-                                </div>
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">🥗 Supplements & Nutrition</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">Certain supplements like Vitamin B6 can enhance dream vividness. A balanced diet supports overall brain health, which is crucial for dreaming.</p>
-                                </div>
-                                <div class="stats-card hover-card">
-                                    <h4 class="text-primary mb-sm">🤔 Troubleshooting</h4>
-                                    <p class="text-secondary text-sm line-height-relaxed">If you're struggling, focus on improving dream recall first. Don't get discouraged by dry spells; consistency is key.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-section">
-                            <p class="text-secondary text-sm text-center line-height-relaxed">
-                                <strong>Disclaimer:</strong> This application is for entertainment and personal journaling purposes only. It is not intended to provide medical, psychological, or therapeutic advice. If you have concerns about your sleep, dreams, or mental health, please consult a qualified healthcare professional.
-                            </p>
-                        </div>
-                    `;
+                        `;
+                    }
                 } else if (tabId === 'settingsTab') {
-                    // Get current theme to set correct option as selected
-                    const currentTheme = getCurrentTheme();
-                    const lightSelected = currentTheme === 'light' ? 'selected' : '';
-                    const darkSelected = currentTheme === 'dark' ? 'selected' : '';
-                    
-                    tabPanel.innerHTML = `
-                        <div class="settings-section">
-                            <h3>🎨 Appearance</h3>
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">Theme</div>
-                                    <div class="settings-description">Choose your preferred color theme</div>
-                                </div>
-                                <div class="settings-controls">
-                                    <select id="themeSelect" class="filter-select" style="min-width: 120px;">
-                                        <option value="light" ${lightSelected}>🌞 Light</option>
-                                        <option value="dark" ${darkSelected}>🌙 Dark</option>
-                                    </select>
-                                </div>
+                    // Settings tab is now handled by the dedicated settingstab.js module
+                    try {
+                        renderSettingsTab(tabPanel);
+                    } catch (error) {
+                        console.error('Error rendering settings tab:', error);
+                        tabPanel.innerHTML = `
+                            <div class="message-base message-error">
+                                <h3>Settings Temporarily Unavailable</h3>
+                                <p>There was an error loading the settings interface. Please refresh the page and try again.</p>
+                                <p class="text-sm">Error details: ${error.message}</p>
                             </div>
-                        </div>
-                        <div class="settings-section">
-                            <h3>🔐 Security</h3>
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">PIN Protection</div>
-                                    <div class="settings-description">Secure your dreams with a PIN code</div>
-                                </div>
-                                <div class="settings-controls">
-                                    <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
-                                </div>
+                        `;
+                    }
+                } else if (tabId === 'journalTab') {
+                    // Journal tab is now handled by the dedicated journaltab.js module
+                    try {
+                        renderJournalTab(tabPanel);
+                    } catch (error) {
+                        console.error('Error rendering Journal tab:', error);
+                        tabPanel.innerHTML = `
+                            <div class="message-error">
+                                Error loading Journal tab. Please refresh the page.
+                                <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
                             </div>
-                        </div>
-                        <div class="settings-section">
-                            <h3>💾 Data Management</h3>
-                            
-                            <!-- Dreams Only Export/Import -->
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">Dreams Export/Import</div>
-                                    <div class="settings-description">Export or import your dreams as text files</div>
-                                </div>
-                                <div class="settings-controls export-import-controls">
-                                    <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
-                                    <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
-                                    <div class="encryption-option flex-center gap-sm">
-                                        <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
-                                        <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Complete Data Export/Import -->
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">Complete Data Export/Import</div>
-                                    <div class="settings-description">Export or import ALL data (dreams, goals, settings) as JSON files</div>
-                                </div>
-                                <div class="settings-controls export-import-controls">
-                                    <button data-action="export-all-data" class="btn btn-primary">Export All Data</button>
-                                    <button data-action="import-all-data" class="btn btn-primary">Import All Data</button>
-                                    <div class="encryption-option flex-center gap-sm">
-                                        <input type="checkbox" id="fullDataEncryption" class="form-checkbox">
-                                        <label for="fullDataEncryption" class="form-label-inline text-primary">🔐 Password Protected</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- AI Analysis Export -->
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">AI Analysis Export</div>
-                                    <div class="settings-description">Export a prompt for analysis by an AI model</div>
-                                </div>
-                                <div class="settings-controls">
-                                    <button data-action="export-ai" class="btn btn-success">Export for AI Analysis</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="settings-section">
-                            <h3>🏷️ Autocomplete Management</h3>
-                            <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
-                            
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">Tags & Themes</div>
-                                    <div class="settings-description">Add a new custom tag or theme.</div>
-                                </div>
-                                <div style="flex: 1; min-width: 300px;">
-                                    <div id="tagsManagementList" class="autocomplete-management-list">
-                                        <div class="loading-state">Loading tags...</div>
-                                    </div>
-                                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
-                                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
-                                            <input type="text" id="newTagInput" class="form-control" placeholder="e.g., recurring-nightmare">
-                                            <button data-action="add-custom-tag" class="btn btn-primary btn-small">Add</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="settings-row">
-                                <div>
-                                    <div class="settings-label">⚡ Dream Signs</div>
-                                    <div class="settings-description">Add a new custom dream sign.</div>
-                                </div>
-                                <div style="flex: 1; min-width: 300px;">
-                                    <div id="dreamSignsManagementList" class="autocomplete-management-list">
-                                        <div class="loading-state">Loading dream signs...</div>
-                                    </div>
-                                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
-                                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
-                                            <input type="text" id="newDreamSignInput" class="form-control" placeholder="e.g., extra-fingers">
-                                            <button data-action="add-custom-dream-sign" class="btn btn-primary btn-small">Add</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 } else if (tabId === 'lockTab') {
                     // Check if there's an active timer to show instructional text
                     const resetTime = getResetTime();
@@ -1093,6 +777,22 @@ function switchAppTab(tabName) {
             }
         });
         
+        // Render content for existing tabs that may be empty
+        const existingJournalTab = document.getElementById('journalTab');
+        if (existingJournalTab && (!existingJournalTab.innerHTML.trim() || existingJournalTab.innerHTML.includes('Content dynamically generated by journaltab.js'))) {
+            try {
+                renderJournalTab(existingJournalTab);
+            } catch (error) {
+                console.error('Error rendering existing Journal tab:', error);
+                existingJournalTab.innerHTML = `
+                    <div class="message-error">
+                        Error loading Journal tab. Please refresh the page.
+                        <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                    </div>
+                `;
+            }
+        }
+        
         // Update tab panels
         const tabs = document.querySelectorAll('.tab-panel');
         
@@ -1119,14 +819,14 @@ function switchAppTab(tabName) {
         // Show/hide footer based on active tab
         const footer = document.querySelector('footer');
         if (footer) {
-            if (tabName === 'journal' && !isAppLocked) {
+            if (tabName === 'journal' && !getAppLocked()) {
                 footer.style.display = 'block';
             } else {
                 footer.style.display = 'none';
             }
         }
         
-        activeAppTab = tabName;
+        setActiveAppTab(tabName);
         
         // Auto-focus PIN input on lock screen
         if (tabName === 'lock') {
@@ -1145,61 +845,26 @@ function switchAppTab(tabName) {
         
         // Initialize calendar if stats tab is selected
         if (tabName === 'stats') {
-            initCalendar();
+            initializeStatsTab();
         }
         
         // Display goals if goals tab is selected
         if (tabName === 'goals') {
-            // Refresh goals from storage when switching to goals tab
+            // Initialize goals tab with fresh data when switching to goals tab
             // This ensures we always have the latest data
-            initGoals().catch(error => {
-                console.error('Error refreshing goals:', error);
-                displayGoals(); // Fallback to just displaying current goals
+            initializeGoalsTab().catch(error => {
+                console.error('Error initializing Goals tab:', error);
             });
         }
 
         // ALWAYS update settings when switching to settings tab (whether new or existing)
         if (tabName === 'settings') {
-            setTimeout(() => {
-                updateSecurityControls();
-                
-                // Always update theme select - this fixes the tab switching issue
-                const themeSelect = document.getElementById('themeSelect');
-                if (themeSelect) {
-                    const currentTheme = getCurrentTheme();
-                    
-                    // Update the select value
-                    themeSelect.value = currentTheme;
-                    
-                    // Also update the selected attribute in the DOM
-                    themeSelect.querySelectorAll('option').forEach(option => {
-                        if (option.value === currentTheme) {
-                            option.selected = true;
-                            option.setAttribute('selected', 'selected');
-                        } else {
-                            option.selected = false;
-                            option.removeAttribute('selected');
-                        }
-                    });
-                    
-                    // Add event listener if not already added
-                    if (!themeSelect.hasAttribute('data-listener-added')) {
-                        themeSelect.addEventListener('change', function() {
-                            switchTheme(this.value);
-                        });
-                        themeSelect.setAttribute('data-listener-added', 'true');
-                    }
-                }
-
-                // Render autocomplete management lists
-                renderAutocompleteManagementList('tags');
-                renderAutocompleteManagementList('dreamSigns');
-                
-                // Add PWA section if installation is available
-                if (window.deferredPrompt && window.createPWASection) {
-                    window.createPWASection();
-                }
-            }, CONSTANTS.FOCUS_DELAY_MS);
+            // Initialize settings tab using the dedicated settingstab.js module
+            try {
+                initializeSettingsTab();
+            } catch (error) {
+                console.error('Error initializing settings tab:', error);
+            }
         }
 
         // Initialize advice tab when switched to
@@ -1500,7 +1165,7 @@ function switchVoiceTab(tabName) {
                 displayVoiceNotes();
             }
             
-            activeVoiceTab = tabName;
+            setActiveVoiceTab(tabName);
         }
     }
 
@@ -1532,17 +1197,17 @@ function toggleDreamForm() {
         
         if (!fullForm || !collapsedForm) return; // Safety check
 
-        if (isDreamFormCollapsed) {
+        if (getIsDreamFormCollapsed()) {
             // Expand: show full form, hide collapsed
             fullForm.style.display = 'block';
             collapsedForm.style.display = 'none';
-            isDreamFormCollapsed = false;
+            setIsDreamFormCollapsed(false);
             try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'false'); } catch (e) {}
         } else {
             // Collapse: hide full form, show collapsed
             fullForm.style.display = 'none';
             collapsedForm.style.display = 'block';
-            isDreamFormCollapsed = true;
+            setIsDreamFormCollapsed(true);
             try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'true'); } catch (e) {}
         }
     }
@@ -1952,4 +1617,64 @@ function renderPinScreen(targetElement, config) {
             }, CONSTANTS.FOCUS_DELAY_MS);
         }
     }
+
+// ===================================================================================
+// MODULE EXPORTS
+// ===================================================================================
+
+// Export all functions for ES module compatibility
+export {
+    // Button & Action Element Creation
+    createActionButton,
+    
+    // Message & Notification System
+    createInlineMessage,
+    
+    // Display & Layout Helpers
+    createMetaDisplay,
+    createPaginationHTML,
+    
+    // Utility Functions
+    escapeHtml,
+    escapeAttr,
+    
+    // Theme Management
+    getCurrentTheme,
+    storeTheme,
+    applyTheme,
+    switchTheme,
+    
+    // Tab Management
+    switchAppTab,
+    switchVoiceTab,
+    hideAllTabButtons,
+    showAllTabButtons,
+    
+    // UI State Management
+    syncSettingsDisplay,
+    updateBrowserCompatibilityDisplay,
+    toggleDreamForm,
+    
+    // Search & Loading States
+    showSearchLoading,
+    hideSearchLoading,
+    
+    // Autocomplete System
+    setupTagAutocomplete,
+    renderAutocompleteManagementList,
+    
+    // Tips System - moved to advicetab.js
+    // displayTip and handleTipNavigation moved to advicetab.js module
+    
+    // Security UI
+    renderPinScreen
+};
+
+// Make certain functions globally available to avoid circular dependencies
+// This allows settingstab.js to access these functions without importing
+globalThis.getCurrentTheme = getCurrentTheme;
+globalThis.switchTheme = switchTheme;
+globalThis.createInlineMessage = createInlineMessage;
+globalThis.escapeHtml = escapeHtml;
+globalThis.escapeAttr = escapeAttr;
 
