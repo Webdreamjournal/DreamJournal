@@ -36,6 +36,69 @@
  */
 
 // ================================
+// ES MODULE IMPORTS
+// ================================
+
+// Foundation modules
+import { CONSTANTS } from './constants.js';
+import { calendarState } from './state.js';
+
+// Core utilities  
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm } from './dom-helpers.js';
+
+// Advice tab functionality
+import { handleTipNavigation } from './advicetab.js';
+
+// Autocomplete functions (now in settingstab module)
+import { addCustomAutocompleteItem, deleteAutocompleteItem } from './settingstab.js';
+
+// Security module
+import { 
+    toggleLock, showPinSetup, setupPin, showPinOverlay, hidePinOverlay, 
+    verifyPin, showRemovePin, showForgotPin,
+    confirmRemovePin, executePinRemoval, completePinRemoval, startTitleRecovery,
+    verifyDreamTitles, startTimerRecovery, confirmStartTimer, confirmCancelTimer,
+    restoreWarningBanner, completeRecovery, completePinSetup, showSetNewPinScreen,
+    setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
+    startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
+    verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer
+} from './security.js';
+
+// Dream CRUD operations
+import {
+    saveDream, editDream, deleteDream, confirmDelete,
+    saveDreamEdit, cancelDreamEdit, goToPage, debouncedFilter
+} from './dream-crud.js';
+
+// Voice notes system
+import {
+    toggleRecording, playVoiceNote, pauseVoiceNote,
+    transcribeVoiceNote, downloadVoiceNote, deleteVoiceNote,
+    confirmDeleteVoiceNote, cancelDeleteVoiceNote, seekAudio,
+    createDreamFromTranscription, toggleTranscriptionDisplay
+} from './voice-notes.js';
+
+// Goals system
+import {
+    showCreateGoalDialog, createTemplateGoal, editGoal, completeGoal,
+    reactivateGoal, deleteGoal, confirmDeleteGoal, saveGoal, cancelGoalDialog,
+    increaseGoalProgress, decreaseGoalProgress, changeActiveGoalsPage,
+    changeCompletedGoalsPage
+} from './goalstab.js';
+
+// Statistics system
+import { handlePrevMonth, handleNextMonth, handleSelectMonth, handleSelectYear, handleSwitchStatsTab } from './statstab.js';
+
+// Import/Export system
+import {
+    exportEntries, exportAllData, exportForAIAnalysis, confirmExportPassword,
+    cancelExportPassword, confirmImportPassword, cancelImportPassword
+} from './import-export.js';
+
+// PWA installation
+import { installPWA } from './pwa.js';
+
+// ================================
 // ACTION ROUTER & EVENT DELEGATION MODULE
 // ================================
 // Centralized event handling system using data-action attributes for unified
@@ -248,6 +311,7 @@ const ACTION_MAP = {
         'confirm-delete-voice': (ctx) => confirmDeleteVoiceNote(ctx.voiceNoteId), // Confirm voice note deletion
         'cancel-delete-voice': (ctx) => cancelDeleteVoiceNote(ctx.voiceNoteId),   // Cancel voice note deletion
         'seek-audio': (ctx) => seekAudio(ctx.voiceNoteId, ctx.event),        // Seek to position in audio playback
+        'toggle-transcription': (ctx) => toggleTranscriptionDisplay(ctx.voiceNoteId), // Toggle transcription text display (show more/less)
         
         // ================================
         // DREAM ENTRIES CRUD OPERATIONS
@@ -267,22 +331,10 @@ const ACTION_MAP = {
         // ================================
         // CALENDAR NAVIGATION SYSTEM
         // ================================
-        'prev-month': () => {                                                // Navigate to previous calendar month
-            calendarState.date.setMonth(calendarState.date.getMonth() - 1);
-            renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
-        },
-        'next-month': () => {                                                // Navigate to next calendar month
-            calendarState.date.setMonth(calendarState.date.getMonth() + 1);
-            renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
-        },
-        'select-month': (ctx) => {                                           // Select specific calendar month
-            const newMonth = parseInt(ctx.element.value);
-            renderCalendar(calendarState.date.getFullYear(), newMonth);
-        },
-        'select-year': (ctx) => {                                            // Select specific calendar year
-            const newYear = parseInt(ctx.element.value);
-            renderCalendar(newYear, calendarState.date.getMonth());
-        },
+        'prev-month': handlePrevMonth,                                       // Navigate to previous calendar month
+        'next-month': handleNextMonth,                                       // Navigate to next calendar month  
+        'select-month': handleSelectMonth,                                   // Select specific calendar month
+        'select-year': handleSelectYear,                                     // Select specific calendar year
         'go-to-date': (ctx) => {                                             // Navigate to specific date in journal
             // TODO: Extract date filter logic to setDateFilter() utility function
             // This combines date validation, DOM manipulation, and app navigation
@@ -304,8 +356,8 @@ const ACTION_MAP = {
         // ================================
         'verify-pin': () => verifyPin(),                                     // Verify PIN entry for authentication
         'hide-pin-overlay': () => hidePinOverlay(),                         // Hide PIN entry overlay
-        'confirm-password': () => confirmPassword(),                        // Confirm password entry
-        'cancel-password': () => cancelPassword(),                          // Cancel password entry
+        // 'confirm-password': () => confirmPassword(),                        // Confirm password entry - FUNCTION REMOVED, using showPasswordDialog instead
+        // 'cancel-password': () => cancelPassword(),                          // Cancel password entry - FUNCTION REMOVED, using showPasswordDialog instead
         'show-pin-setup': () => showPinSetup(),                             // Show PIN setup interface
         'show-remove-pin': () => showRemovePin(),                           // Show PIN removal interface
         'show-forgot-pin': () => showForgotPin(),                           // Show PIN recovery options
@@ -341,12 +393,12 @@ const ACTION_MAP = {
         'add-custom-tag': () => addCustomAutocompleteItem('tags'),          // Add custom tag to autocomplete
         'add-custom-dream-sign': () => addCustomAutocompleteItem('dreamSigns'), // Add custom dream sign to autocomplete
         'delete-autocomplete-item': (ctx) => deleteAutocompleteItem(ctx.element.dataset.itemType, ctx.element.dataset.itemId), // Delete autocomplete item
-        'restore-default-item': (ctx) => restoreDefaultItem(ctx.element.dataset.itemType, ctx.element.dataset.itemId), // Restore default autocomplete item
+        // 'restore-default-item': (ctx) => restoreDefaultItem(ctx.element.dataset.itemType, ctx.element.dataset.itemId), // Restore default autocomplete item - FUNCTION MISSING
 
         // ================================
         // STATISTICS & ANALYTICS INTERFACE
         // ================================
-        'switch-stats-tab': (ctx) => switchStatsTab(ctx.element.dataset.tab), // Switch statistics tab view
+        'switch-stats-tab': handleSwitchStatsTab,                            // Switch statistics tab view
 
         // ================================
         // ADVICE & TIPS INTERFACE
@@ -516,3 +568,18 @@ function handleUnifiedChange(event) {
             routeAction(context, event);
         }
     }
+
+// ================================
+// ES MODULE EXPORTS
+// ================================
+
+export {
+    // Core action routing functions
+    extractActionContext,
+    routeAction,
+    handleUnifiedClick,
+    handleUnifiedChange,
+    
+    // Action mapping registry
+    ACTION_MAP
+};

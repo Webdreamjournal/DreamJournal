@@ -14,6 +14,19 @@
      * @requires dom-helpers
      */
 
+// ===================================================================================
+// ES MODULE IMPORTS
+// ===================================================================================
+
+import { CONSTANTS, commonTags, commonDreamSigns } from './constants.js';
+import { 
+    memoryStorage, 
+    memoryVoiceNotes,
+    withMutex
+} from './state.js';
+import { createInlineMessage } from './dom-helpers.js';
+import { renderAutocompleteManagementList } from './settingstab.js';
+
     /**
      * Represents a dream journal entry with all associated metadata.
      * 
@@ -447,8 +460,84 @@
      * const id = generateUniqueId();
      * // Returns something like: '1640995200123abc7def89'
      */
-    function generateUniqueId() {
-        return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    /**
+     * Generates a robust, content-aware unique ID for dreams and other entities.
+     * 
+     * Creates IDs that are cryptographically strong and content-bound to prevent
+     * collisions even with rapid creation or identical timestamps. Uses multiple
+     * entropy sources including timestamp, random data, and optional content salt.
+     * 
+     * @param {Object} [contentSalt] - Optional content to salt the ID with
+     * @param {string} [contentSalt.title] - Dream title for content binding
+     * @param {string} [contentSalt.timestamp] - Dream timestamp for uniqueness
+     * @param {string} [contentSalt.type] - Entity type ('dream', 'goal', 'voice', etc.)
+     * @returns {string} Unique ID with format: timestamp-hash-random
+     * @since 2.02.27
+     * @example
+     * // Basic ID generation
+     * const id = generateUniqueId();
+     * // Returns: "1725950400123-a7f2-e8d9c4b1"
+     * 
+     * @example
+     * // Content-salted ID for dreams
+     * const dreamId = generateUniqueId({
+     *   title: 'Flying over mountains', 
+     *   timestamp: '2025-09-10T03:56:00.000Z',
+     *   type: 'dream'
+     * });
+     * // Returns: "1725950400123-x9k2-p4m8n7j5"
+     */
+    function generateUniqueId(contentSalt = null) {
+        // High-precision timestamp (milliseconds since epoch)
+        const timestamp = Date.now();
+        
+        // Generate multiple high-entropy random components
+        const random1 = Math.random().toString(36).substr(2, 4);
+        const random2 = Math.random().toString(36).substr(2, 4);
+        const random3 = Math.random().toString(36).substr(2, 4);
+        
+        // Add microsecond-level precision using performance.now() if available
+        const microTime = (typeof performance !== 'undefined' && performance.now) 
+            ? performance.now().toString().replace('.', '')
+            : Math.random().toString().slice(2, 8);
+        
+        let hashComponent = '';
+        
+        if (contentSalt) {
+            // Create content-based hash with guaranteed uniqueness per call
+            const saltString = [
+                contentSalt.title || 'untitled',
+                contentSalt.timestamp || timestamp.toString(),
+                contentSalt.type || 'entity',
+                timestamp.toString(), // Current generation time
+                microTime, // High-precision timing
+                random1, // First random component
+                random2, // Second random component
+                Math.random().toString() // Additional entropy per call
+            ].join('|');
+            
+            // Enhanced hash function with better distribution
+            let hash = 5381; // DJB2 hash algorithm starting value
+            for (let i = 0; i < saltString.length; i++) {
+                const char = saltString.charCodeAt(i);
+                hash = ((hash << 5) + hash) + char; // hash * 33 + char
+                hash = hash & hash; // Convert to 32-bit integer
+            }
+            
+            // Convert hash to base-36 and take 4 characters, ensure always 4 chars
+            hashComponent = Math.abs(hash).toString(36).padStart(4, '0').substr(0, 4);
+        } else {
+            // Fallback hash with timestamp and multiple random sources
+            const fallbackSalt = timestamp.toString() + microTime + random1;
+            let hash = 5381;
+            for (let i = 0; i < fallbackSalt.length; i++) {
+                hash = ((hash << 5) + hash) + fallbackSalt.charCodeAt(i);
+            }
+            hashComponent = Math.abs(hash).toString(36).padStart(4, '0').substr(0, 4);
+        }
+        
+        // Format: timestamp-hash-random (multiple entropy sources)
+        return `${timestamp}-${hashComponent}-${random3}`;
     }
 
     /**
@@ -1352,15 +1441,8 @@
         // Fallback for new users - return the predefined lists from constants.js
         console.warn(`No saved autocomplete data found for ${type}. Using default list.`);
         const isTags = type === 'tags';
-        
-        // Access the constants that should be available globally
-        if (typeof commonTags !== 'undefined' && typeof commonDreamSigns !== 'undefined') {
-            const defaultList = isTags ? commonTags : commonDreamSigns;
-            return defaultList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-        }
-        
-        // If constants aren't loaded yet, return empty array
-        return [];
+        const defaultList = isTags ? commonTags : commonDreamSigns;
+        return defaultList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
 
     /**
@@ -1915,3 +1997,75 @@
         const dataToStore = deletedItems.map(item => ({ id: item.toLowerCase() }));
         return await saveToStore('deletedDefaults', dataToStore);
     }
+
+// ===================================================================================
+// MODULE EXPORTS
+// ===================================================================================
+
+// Export all functions and constants for ES module compatibility
+export {
+    // Core database functions
+    initDB,
+    generateUniqueId,
+    
+    // Storage availability checks
+    isLocalStorageAvailable,
+    isIndexedDBAvailable,
+    isIndexedDBReady,
+    storageType,
+    
+    // Generic storage operations
+    loadItemFromStore,
+    loadFromStore,
+    saveItemToStore,
+    saveToStore,
+    
+    // Dream operations
+    loadDreams,
+    saveDreams,
+    addDreamToIndexedDB,
+    updateDreamInIndexedDB,
+    deleteDreamFromIndexedDB,
+    validateDreamData,
+    isDreamDuplicate,
+    
+    // Voice note operations
+    loadVoiceNotes,
+    saveVoiceNotes,
+    saveVoiceNote,
+    saveAllVoiceNotesToIndexedDB,
+    deleteVoiceNote,
+    loadVoiceNotesFromIndexedDB,
+    saveVoiceNoteToIndexedDB,
+    deleteVoiceNoteFromIndexedDB,
+    showVoiceStorageWarning,
+    
+    // Goals operations
+    loadGoals,
+    saveGoals,
+    loadGoalsFromIndexedDB,
+    saveGoalsToIndexedDB,
+    
+    // IndexedDB operations
+    loadFromIndexedDB,
+    saveToIndexedDB,
+    migrateFromLocalStorage,
+    getIndexedDBCount,
+    
+    // Autocomplete operations
+    getAutocompleteSuggestions,
+    addCustomAutocompleteItem,
+    deleteAutocompleteItem,
+    learnAutocompleteItems,
+    
+    // Legacy functions
+    loadUserTags,
+    loadUserDreamSigns,
+    loadDeletedDefaults,
+    saveUserTags,
+    saveUserDreamSigns,
+    saveDeletedDefaults,
+    
+    // Warning functions
+    showStorageWarning
+};

@@ -14,6 +14,44 @@
  */
 
 // ===================================================================================
+// APPLICATION DATA STATE
+// ===================================================================================
+
+/**
+ * Main array containing all dream journal entries.
+ * 
+ * This is the primary data structure for the application, storing all user-created
+ * dream entries. The array is loaded from IndexedDB on app initialization and
+ * kept in sync with the database through various CRUD operations.
+ * 
+ * Each dream entry contains properties like id, title, content, timestamp, emotions,
+ * tags, dream signs, and lucidity status.
+ * 
+ * @type {Object[]}
+ * @default []
+ * @since 2.02.22
+ * @example
+ * // Access dreams array
+ * console.log(dreams.length); // Number of dreams
+ * 
+ * // Add new dream (use saveDream function instead)
+ * dreams.push(newDreamEntry);
+ */
+let dreams = [];
+
+/**
+ * Main array containing all user goals for lucid dreaming.
+ * 
+ * Stores all goals created by the user for tracking lucid dreaming progress.
+ * Goals can be active or completed and include templates for common lucidity goals.
+ * 
+ * @type {Object[]}
+ * @default []
+ * @since 2.02.22
+ */
+let allGoals = [];
+
+// ===================================================================================
 // TAB & NAVIGATION STATE
 // ===================================================================================
 
@@ -392,6 +430,21 @@ let deleteTimeouts = {};
  * @since 1.0.0
  */
 let voiceDeleteTimeouts = {};
+
+/**
+ * Object tracking goal delete confirmation timeouts by goal ID.
+ * 
+ * Similar to deleteTimeouts but specifically for goal deletion.
+ * Implements the same two-step confirmation pattern to prevent accidental
+ * deletion of user goals. When a user clicks delete, a timeout is set and
+ * stored here. If they don't confirm within the timeout period, the delete
+ * operation is cancelled.
+ * 
+ * @type {Object<string, number>}
+ * @default {}
+ * @since 2.02.06
+ */
+let goalDeleteTimeouts = {};
     
 // ===================================================================================
 // SECURITY & PIN PROTECTION STATE
@@ -495,18 +548,6 @@ let isAppLocked = false;
  */
 let currentTipIndex = 0;
 
-/**
- * Array containing all lucid dreaming goals loaded from storage.
- * 
- * Holds the complete dataset of user-defined lucid dreaming goals including
- * active and completed goals. Updated when goals are added, modified, or
- * deleted. Used as the data source for goal displays and calculations.
- * 
- * @type {Object[]}
- * @default []
- * @since 1.0.0
- */
-let allGoals = [];
 
 /**
  * Current page number for active goals pagination.
@@ -576,3 +617,602 @@ let calendarState = {
  * @since 1.0.0
  */
 let dailyTips = [];
+
+// ===================================================================================
+// MODULE EXPORTS
+// ===================================================================================
+
+// ===================================================================================
+// STATE MANAGEMENT FUNCTIONS
+// ===================================================================================
+
+/**
+ * Sets the active application tab.
+ * 
+ * @param {string} tabName - The tab name to set as active
+ * @since 2.02.06
+ */
+function setActiveAppTab(tabName) {
+    activeAppTab = tabName;
+}
+
+/**
+ * Gets the current active application tab.
+ * 
+ * @returns {string} Current active tab name
+ * @since 2.02.06
+ */
+function getActiveAppTab() {
+    return activeAppTab;
+}
+
+/**
+ * Sets the application lock state.
+ * 
+ * @param {boolean} locked - Whether the app should be locked
+ * @since 2.02.06
+ */
+function setAppLocked(locked) {
+    isAppLocked = locked;
+}
+
+/**
+ * Gets the current application lock state.
+ * 
+ * @returns {boolean} Whether the app is currently locked
+ * @since 2.02.06
+ */
+function getAppLocked() {
+    return isAppLocked;
+}
+
+/**
+ * Sets the pre-lock active tab for restoration after unlock.
+ * 
+ * @param {string} tabName - The tab name to remember
+ * @since 2.02.06
+ */
+function setPreLockActiveTab(tabName) {
+    preLockActiveTab = tabName;
+}
+
+/**
+ * Gets the pre-lock active tab.
+ * 
+ * @returns {string} The tab that was active before locking
+ * @since 2.02.06
+ */
+function getPreLockActiveTab() {
+    return preLockActiveTab;
+}
+
+/**
+ * Sets the unlock state for PIN protection.
+ * 
+ * @param {boolean} unlocked - Whether the app should be unlocked
+ * @since 2.02.06
+ */
+function setUnlocked(unlocked) {
+    isUnlocked = unlocked;
+}
+
+/**
+ * Gets the current unlock state.
+ * 
+ * @returns {boolean} Whether the app is currently unlocked
+ * @since 2.02.06
+ */
+function getUnlocked() {
+    return isUnlocked;
+}
+
+/**
+ * Sets the global goals array.
+ * 
+ * @param {Object[]} goals - The goals array to set
+ * @since 2.02.06
+ */
+function setAllGoals(goals) {
+    allGoals = goals;
+}
+
+/**
+ * Gets the current goals array.
+ * 
+ * @returns {Object[]} The current goals array
+ * @since 2.02.06
+ */
+function getAllGoals() {
+    return allGoals;
+}
+
+/**
+ * Sets the active goals page number.
+ * 
+ * @param {number} page - The page number to set
+ * @since 2.02.06
+ */
+function setActiveGoalsPage(page) {
+    activeGoalsPage = page;
+}
+
+/**
+ * Gets the current active goals page number.
+ * 
+ * @returns {number} The current active goals page number
+ * @since 2.02.06
+ */
+function getActiveGoalsPage() {
+    return activeGoalsPage;
+}
+
+/**
+ * Sets the completed goals page number.
+ * 
+ * @param {number} page - The page number to set
+ * @since 2.02.06
+ */
+function setCompletedGoalsPage(page) {
+    completedGoalsPage = page;
+}
+
+/**
+ * Gets the current completed goals page number.
+ * 
+ * @returns {number} The current completed goals page number
+ * @since 2.02.06
+ */
+function getCompletedGoalsPage() {
+    return completedGoalsPage;
+}
+
+/**
+ * Sets the dream form collapsed state.
+ * 
+ * @param {boolean} collapsed - Whether the dream form is collapsed
+ * @since 2.02.06
+ */
+function setIsDreamFormCollapsed(collapsed) {
+    isDreamFormCollapsed = collapsed;
+}
+
+/**
+ * Gets the current dream form collapsed state.
+ * 
+ * @returns {boolean} True if the dream form is collapsed, false otherwise
+ * @since 2.02.06
+ */
+function getIsDreamFormCollapsed() {
+    return isDreamFormCollapsed;
+}
+
+/**
+ * Sets the current page number for pagination.
+ * 
+ * @param {number} page - The page number to set
+ * @since 2.02.06
+ */
+function setCurrentPage(page) {
+    currentPage = page;
+}
+
+/**
+ * Gets the current page number for pagination.
+ * 
+ * @returns {number} The current page number
+ * @since 2.02.06
+ */
+function getCurrentPage() {
+    return currentPage;
+}
+
+/**
+ * Sets the scroll debounce timer.
+ * 
+ * @param {number|null} timer - The timer ID or null
+ * @since 2.02.06
+ */
+function setScrollDebounceTimer(timer) {
+    scrollDebounceTimer = timer;
+}
+
+/**
+ * Gets the current scroll debounce timer.
+ * 
+ * @returns {number|null} The timer ID or null
+ * @since 2.02.06
+ */
+function getScrollDebounceTimer() {
+    return scrollDebounceTimer;
+}
+
+/**
+ * Sets the search debounce timer.
+ * 
+ * @param {number|null} timer - The timer ID or null
+ * @since 2.02.06
+ */
+function setSearchDebounceTimer(timer) {
+    searchDebounceTimer = timer;
+}
+
+/**
+ * Gets the current search debounce timer.
+ * 
+ * @returns {number|null} The timer ID or null
+ * @since 2.02.06
+ */
+function getSearchDebounceTimer() {
+    return searchDebounceTimer;
+}
+
+/**
+ * Sets the filter debounce timer.
+ * 
+ * @param {number|null} timer - The timer ID or null
+ * @since 2.02.06
+ */
+function setFilterDebounceTimer(timer) {
+    filterDebounceTimer = timer;
+}
+
+/**
+ * Gets the current filter debounce timer.
+ * 
+ * @returns {number|null} The timer ID or null
+ * @since 2.02.06
+ */
+function getFilterDebounceTimer() {
+    return filterDebounceTimer;
+}
+
+/**
+ * Sets the active voice tab.
+ * 
+ * @param {string} tabName - The voice tab name to set
+ * @since 2.02.06
+ */
+function setActiveVoiceTab(tabName) {
+    activeVoiceTab = tabName;
+}
+
+/**
+ * Gets the current active voice tab.
+ * 
+ * @returns {string} The current active voice tab name
+ * @since 2.02.06
+ */
+function getActiveVoiceTab() {
+    return activeVoiceTab;
+}
+
+/**
+ * Sets the media recorder instance.
+ * 
+ * @param {MediaRecorder|null} recorder - The MediaRecorder instance or null
+ * @since 2.02.06
+ */
+function setMediaRecorder(recorder) {
+    mediaRecorder = recorder;
+}
+
+/**
+ * Gets the current media recorder instance.
+ * 
+ * @returns {MediaRecorder|null} The MediaRecorder instance or null
+ * @since 2.02.06
+ */
+function getMediaRecorder() {
+    return mediaRecorder;
+}
+
+/**
+ * Sets the audio chunks array.
+ * 
+ * @param {Array} chunks - The audio chunks array
+ * @since 2.02.06
+ */
+function setAudioChunks(chunks) {
+    audioChunks = chunks;
+}
+
+/**
+ * Gets the current audio chunks array.
+ * 
+ * @returns {Array} The audio chunks array
+ * @since 2.02.06
+ */
+function getAudioChunks() {
+    return audioChunks;
+}
+
+/**
+ * Sets the current playing audio element.
+ * 
+ * @param {HTMLAudioElement|null} audio - The audio element or null
+ * @since 2.02.06
+ */
+function setCurrentPlayingAudio(audio) {
+    currentPlayingAudio = audio;
+}
+
+/**
+ * Gets the current playing audio element.
+ * 
+ * @returns {HTMLAudioElement|null} The current playing audio element or null
+ * @since 2.02.06
+ */
+function getCurrentPlayingAudio() {
+    return currentPlayingAudio;
+}
+
+/**
+ * Sets the recording start time.
+ * 
+ * @param {number|null} time - The recording start time or null
+ * @since 2.02.06
+ */
+function setRecordingStartTime(time) {
+    recordingStartTime = time;
+}
+
+/**
+ * Gets the current recording start time.
+ * 
+ * @returns {number|null} The recording start time or null
+ * @since 2.02.06
+ */
+function getRecordingStartTime() {
+    return recordingStartTime;
+}
+
+/**
+ * Sets the recognition results.
+ * 
+ * @param {string} results - The recognition results string
+ * @since 2.02.06
+ */
+function setRecognitionResults(results) {
+    recognitionResults = results;
+}
+
+/**
+ * Gets the current recognition results.
+ * 
+ * @returns {string} The recognition results string
+ * @since 2.02.06
+ */
+function getRecognitionResults() {
+    return recognitionResults;
+}
+
+/**
+ * Sets the speech recognition instance.
+ * 
+ * @param {SpeechRecognition|null} recognition - The speech recognition instance or null
+ * @since 2.02.06
+ */
+function setSpeechRecognition(recognition) {
+    speechRecognition = recognition;
+}
+
+/**
+ * Gets the current speech recognition instance.
+ * 
+ * @returns {SpeechRecognition|null} The speech recognition instance or null
+ * @since 2.02.06
+ */
+function getSpeechRecognition() {
+    return speechRecognition;
+}
+
+/**
+ * Sets the transcribing state.
+ * 
+ * @param {boolean} transcribing - Whether transcribing is active
+ * @since 2.02.06
+ */
+function setIsTranscribing(transcribing) {
+    isTranscribing = transcribing;
+}
+
+/**
+ * Gets the current transcribing state.
+ * 
+ * @returns {boolean} Whether transcribing is active
+ * @since 2.02.06
+ */
+function getIsTranscribing() {
+    return isTranscribing;
+}
+
+/**
+ * Sets the recording timer.
+ * 
+ * @param {number|null} timer - The recording timer ID or null
+ * @since 2.02.06
+ */
+function setRecordingTimer(timer) {
+    recordingTimer = timer;
+}
+
+/**
+ * Gets the current recording timer.
+ * 
+ * @returns {number|null} The recording timer ID or null
+ * @since 2.02.06
+ */
+function getRecordingTimer() {
+    return recordingTimer;
+}
+
+/**
+ * Sets the daily tips array.
+ * 
+ * @param {Array} tips - The daily tips array
+ * @since 2.02.06
+ */
+function setDailyTips(tips) {
+    dailyTips = tips;
+}
+
+/**
+ * Gets the current daily tips array.
+ * 
+ * @returns {Array} The daily tips array
+ * @since 2.02.06
+ */
+function getDailyTips() {
+    return dailyTips;
+}
+
+/**
+ * Sets the current tip index.
+ * 
+ * @param {number} index - The tip index to set
+ * @since 2.02.06
+ */
+function setCurrentTipIndex(index) {
+    currentTipIndex = index;
+}
+
+/**
+ * Gets the current tip index.
+ * 
+ * @returns {number} The current tip index
+ * @since 2.02.06
+ */
+function getCurrentTipIndex() {
+    return currentTipIndex;
+}
+
+/**
+ * Sets the failed PIN attempts count.
+ * 
+ * @param {number} attempts - The number of failed PIN attempts
+ * @since 2.02.06
+ */
+function setFailedPinAttempts(attempts) {
+    failedPinAttempts = attempts;
+}
+
+/**
+ * Gets the current failed PIN attempts count.
+ * 
+ * @returns {number} The number of failed PIN attempts
+ * @since 2.02.06
+ */
+function getFailedPinAttempts() {
+    return failedPinAttempts;
+}
+
+// Export all global state variables and functions for ES module compatibility
+export {
+    // Application Data State
+    dreams,
+    allGoals,
+    
+    // Tab & Navigation State
+    preLockActiveTab,
+    
+    // State Management Functions
+    setActiveAppTab,
+    getActiveAppTab,
+    setAppLocked,
+    getAppLocked,
+    setPreLockActiveTab,
+    getPreLockActiveTab,
+    setUnlocked,
+    getUnlocked,
+    setAllGoals,
+    getAllGoals,
+    setActiveGoalsPage,
+    getActiveGoalsPage,
+    setCompletedGoalsPage,
+    getCompletedGoalsPage,
+    setIsDreamFormCollapsed,
+    getIsDreamFormCollapsed,
+    setCurrentPage,
+    getCurrentPage,
+    setScrollDebounceTimer,
+    getScrollDebounceTimer,
+    setSearchDebounceTimer,
+    getSearchDebounceTimer,
+    setFilterDebounceTimer,
+    getFilterDebounceTimer,
+    setActiveVoiceTab,
+    getActiveVoiceTab,
+    setMediaRecorder,
+    getMediaRecorder,
+    setAudioChunks,
+    getAudioChunks,
+    setCurrentPlayingAudio,
+    getCurrentPlayingAudio,
+    setRecordingStartTime,
+    getRecordingStartTime,
+    setRecognitionResults,
+    getRecognitionResults,
+    setSpeechRecognition,
+    getSpeechRecognition,
+    setIsTranscribing,
+    getIsTranscribing,
+    setRecordingTimer,
+    getRecordingTimer,
+    setDailyTips,
+    getDailyTips,
+    setCurrentTipIndex,
+    getCurrentTipIndex,
+    setFailedPinAttempts,
+    getFailedPinAttempts,
+    
+    // Voice Recording & Transcription State
+    mediaRecorder,
+    audioChunks,
+    recordingStartTime,
+    recordingTimer,
+    currentPlayingAudio,
+    speechRecognition,
+    recognitionResults,
+    isTranscribing,
+    
+    // Performance Optimization State
+    searchDebounceTimer,
+    filterDebounceTimer,
+    
+    // Concurrency Control System
+    asyncMutex,
+    withMutex,
+    
+    // Pagination & Endless Scroll State
+    endlessScrollState,
+    scrollDebounceTimer,
+    
+    // Fallback Storage State
+    memoryStorage,
+    memoryVoiceNotes,
+    
+    // UI State Management
+    currentPage,
+    deleteTimeouts,
+    voiceDeleteTimeouts,
+    goalDeleteTimeouts,
+    
+    // Security & PIN Protection State
+    isUnlocked,
+    failedPinAttempts,
+    
+    // Form & Tab State Management
+    isDreamFormCollapsed,
+    activeVoiceTab,
+    activeAppTab,
+    isAppLocked,
+    
+    // Feature-Specific State
+    currentTipIndex,
+    activeGoalsPage,
+    completedGoalsPage,
+    
+    // Calendar & Statistics State
+    calendarState,
+    dailyTips
+};

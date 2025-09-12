@@ -36,6 +36,26 @@
  */
 
 // ================================
+// ES MODULE IMPORTS
+// ================================
+
+import { CONSTANTS } from './constants.js';
+import { 
+    isAppLocked, 
+    isUnlocked, 
+    getFailedPinAttempts,
+    setFailedPinAttempts,
+    preLockActiveTab, 
+    setPreLockActiveTab,
+    activeAppTab,
+    setUnlocked,
+    setAppLocked 
+} from './state.js';
+import { createInlineMessage, switchAppTab, showAllTabButtons, hideAllTabButtons, renderPinScreen } from './dom-helpers.js';
+import { isLocalStorageAvailable, loadDreams } from './storage.js';
+import { displayDreams } from './dream-crud.js';
+
+// ================================
 // TYPE DEFINITIONS
 // ================================
 
@@ -602,13 +622,6 @@ function isLegacyPinFormat(storedData) {
  *   showSetupButton();
  * }
  */
-function isPinSetup() {
-        if (storageType === 'indexeddb') {
-            return pinStorage.hash !== null;
-        } else {
-            return localStorage.getItem('dreamJournalPin') !== null;
-        }
-    }
     
 /**
      * Stores a PIN hash securely using the secure PBKDF2 format.
@@ -631,28 +644,6 @@ function isPinSetup() {
      *   console.error('Failed to store PIN');
      * }
      */
-    async function storePinHash(pin) {
-        try {
-            const hashedData = await hashPinSecure(pin);
-            const hashToStore = JSON.stringify(hashedData);
-            
-            if (storageType === 'indexeddb') {
-                pinStorage.hash = hashToStore;
-                // Store in IndexedDB
-                const transaction = db.transaction(['settings'], 'readwrite');
-                const store = transaction.objectStore('settings');
-                await store.put({ key: 'pinHash', value: hashToStore });
-                await store.put({ key: 'pinVersion', value: '2.0' });
-            } else {
-                localStorage.setItem('dreamJournalPin', hashToStore);
-                localStorage.setItem('dreamJournalPinVersion', '2.0');
-            }
-            return true;
-        } catch (error) {
-            console.error('PIN hash storage error:', error);
-            return false;
-        }
-    }
     
 /**
      * Retrieves stored PIN data from the appropriate storage system.
@@ -672,13 +663,6 @@ function isPinSetup() {
      *   }
      * }
      */
-    function getStoredPinData() {
-        if (storageType === 'indexeddb') {
-            return pinStorage.hash;
-        } else {
-            return localStorage.getItem('dreamJournalPin');
-        }
-    }
     
 /**
      * Verifies an entered PIN against stored hash data with format compatibility.
@@ -703,36 +687,6 @@ function isPinSetup() {
      *   showErrorMessage();
      * }
      */
-    async function verifyPinHash(enteredPin, storedData) {
-        if (!storedData || !enteredPin) return false;
-        
-        try {
-            // Check for legacy format first
-            if (isLegacyPinFormat(storedData)) {
-                const legacyHash = hashPinLegacy(enteredPin);
-                return legacyHash === storedData;
-            }
-            
-            // Handle secure format
-            const stored = JSON.parse(storedData);
-            if (!stored.hash || !stored.salt) return false;
-            
-            // Convert hex salt back to Uint8Array
-            const saltArray = [];
-            for (let i = 0; i < stored.salt.length; i += 2) {
-                saltArray.push(parseInt(stored.salt.substr(i, 2), 16));
-            }
-            const salt = new Uint8Array(saltArray);
-            
-            // Hash the entered PIN with the stored salt
-            const hashedEntered = await hashPinSecure(enteredPin, salt);
-            return hashedEntered.hash === stored.hash;
-            
-        } catch (error) {
-            console.error('PIN verification error:', error);
-            return false;
-        }
-    }
     
 /**
      * Removes stored PIN hash data from all storage systems.
@@ -750,606 +704,6 @@ function isPinSetup() {
      *   updateSecurityControls();
      * }
      */
-    function removePinHash() {
-        if (storageType === 'indexeddb') {
-            pinStorage.hash = null;
-            const transaction = db.transaction(['settings'], 'readwrite');
-            const store = transaction.objectStore('settings');
-            store.delete('pinHash');
-            store.delete('pinVersion');
-        } else {
-            localStorage.removeItem('dreamJournalPin');
-            localStorage.removeItem('dreamJournalPinVersion');
-        }
-    }
-    
-/**
-     * Stores the expiration time for PIN reset timer feature.
-     * 
-     * Saves a timestamp indicating when the PIN reset timer will expire.
-     * This is used for the "forgot PIN" recovery feature that automatically
-     * removes PIN protection after a specified duration (typically 72 hours).
-     * 
-     * @param {number} time - Timestamp (milliseconds since epoch) when PIN reset should activate
-     * @since 2.0.0
-     * @example
-     * // Start 72-hour PIN reset timer
-     * const resetTime = Date.now() + (72 * 60 * 60 * 1000);
-     * storeResetTime(resetTime);
-     * console.log('PIN will be automatically removed in 72 hours');
-     */
-    function storeResetTime(time) {
-        if (storageType === 'indexeddb') {
-            pinStorage.resetTime = time;
-            const transaction = db.transaction(['settings'], 'readwrite');
-            const store = transaction.objectStore('settings');
-            store.put({ key: 'pinResetTime', value: time });
-        } else {
-            localStorage.setItem('pinResetTime', time.toString());
-        }
-    }
-    
-/**
-     * Retrieves the stored PIN reset timer expiration time.
-     * 
-     * Gets the timestamp when the PIN reset timer will expire and automatically
-     * remove PIN protection. Returns null if no reset timer is active.
-     * 
-     * @returns {number|null} Timestamp when PIN reset activates, or null if no timer set
-     * @since 2.0.0
-     * @example
-     * const resetTime = getResetTime();
-     * if (resetTime) {
-     *   const remainingMs = resetTime - Date.now();
-     *   if (remainingMs > 0) {
-     *     console.log(`PIN reset in ${Math.ceil(remainingMs / 1000 / 60 / 60)} hours`);
-     *   } else {
-     *     console.log('PIN reset timer has expired');
-     *   }
-     * }
-     */
-    function getResetTime() {
-        if (storageType === 'indexeddb') {
-            return pinStorage.resetTime;
-        } else {
-            const time = localStorage.getItem('pinResetTime');
-            return time ? parseInt(time) : null;
-        }
-    }
-    
-/**
-     * Removes the stored PIN reset timer data.
-     * 
-     * Cancels any active PIN reset timer by removing the stored expiration time.
-     * This is used when the timer is cancelled by user action or when the timer
-     * expires and the PIN is automatically removed.
-     * 
-     * @since 2.0.0
-     * @example
-     * // Cancel active PIN reset timer
-     * removeResetTime();
-     * updateTimerWarning(); // Hide timer warning banner
-     * console.log('PIN reset timer cancelled');
-     */
-    function removeResetTime() {
-        if (storageType === 'indexeddb') {
-            pinStorage.resetTime = null;
-            const transaction = db.transaction(['settings'], 'readwrite');
-            const store = transaction.objectStore('settings');
-            store.delete('pinResetTime');
-        } else {
-            localStorage.removeItem('pinResetTime');
-        }
-    }
-    
-/**
-     * Updates the visibility and state of security control UI elements.
-     * 
-     * Adjusts the display of PIN-related buttons and status indicators based on
-     * whether PIN protection is currently enabled. Shows setup button when no PIN
-     * is configured, and shows change/remove buttons when PIN is active.
-     * 
-     * @since 1.0.0
-     * @example
-     * // Update UI after PIN setup/removal
-     * await storePinHash(newPin);
-     * updateSecurityControls(); // Shows change/remove buttons, hides setup
-     * 
-     * @example
-     * // Update UI after PIN removal
-     * removePinHash();
-     * updateSecurityControls(); // Shows setup button, hides change/remove
-     */
-    function updateSecurityControls() {
-        const setupBtn = document.getElementById('setupPinBtn');
-        const removePinBtn = document.getElementById('removePinBtn');
-        const changePinBtn = document.getElementById('changePinBtn');
-        const securityStatus = document.getElementById('securityStatus');
-        
-        if (!setupBtn || !removePinBtn || !changePinBtn || !securityStatus) return;
-        
-        if (isPinSetup()) {
-            setupBtn.style.display = 'none';
-            removePinBtn.style.display = 'inline-block';
-            changePinBtn.style.display = 'inline-block';
-            securityStatus.innerHTML = '<span class="status-success">✅ PIN Protection Enabled</span>';
-        } else {
-            setupBtn.style.display = 'inline-block';
-            removePinBtn.style.display = 'none';
-            changePinBtn.style.display = 'none';
-            securityStatus.innerHTML = '<span class="status-warning">⚠️ No PIN Protection</span>';
-        }
-    }
-
-/**
-     * Displays the "Forgot PIN" recovery options interface.
-     * 
-     * Shows recovery options for users who have forgotten their PIN. Handles three scenarios:
-     * 1. Active timer - shows remaining time or auto-unlocks if expired
-     * 2. No timer - presents choice between dream title verification or timer start
-     * 
-     * Recovery methods:
-     * - Dream title verification: User enters 3 dream titles for immediate unlock
-     * - 72-hour timer: Automatically removes PIN after specified time period
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user clicks "Forgot PIN?" link
-     * await showForgotPin();
-     * // Displays appropriate recovery interface based on current state
-     */
-    async function showForgotPin() {
-        const resetTime = getResetTime();
-        if (resetTime) {
-            const remainingTime = resetTime - Date.now();
-            if (remainingTime > 0) {
-                showTimerRecovery(remainingTime);
-                return;
-            } else {
-                // Timer expired, allow reset
-                removeResetTime();
-                removePinHash();
-                isUnlocked = true;
-                failedPinAttempts = 0;
-                hidePinOverlay();
-                updateSecurityControls();
-                displayDreams();
-                
-                setTimeout(() => {
-                    const container = document.querySelector('.main-content');
-                    createInlineMessage('info', 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.', {
-                        container: container,
-                        position: 'top',
-                        duration: 8000
-                    });
-                }, 100);
-                return;
-            }
-        }
-
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        renderPinScreen(pinContainer, {
-            title: 'PIN Recovery',
-            icon: '🔑',
-            message: '<strong>Choose a recovery method:</strong><br><br>' +
-                        '<strong>Option 1:</strong> Enter 3 of your dream titles exactly as written<br>' +
-                        '<em style="font-size: 0.9em; color: var(--text-secondary);">(Note: "Untitled Dream" entries are not valid)</em><br><br>' +
-                        '<strong>Option 2:</strong> Wait 72 hours for automatic reset<br>' +
-                        '<em style="font-size: 0.9em; color: var(--text-secondary);">(Your dreams will remain safe)</em>',
-            buttons: [
-                { text: 'Verify Dream Titles', action: 'start-title-recovery', class: 'btn-primary' },
-                { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
-                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ],
-            feedbackContainer: true
-        });
-    }
-
-/**
-     * Initiates the dream title recovery process for PIN reset.
-     * 
-     * Loads user's dreams and filters for those with custom titles (excluding "Untitled Dream").
-     * If sufficient dreams exist (minimum 3), displays the title verification interface.
-     * If insufficient dreams, redirects to timer-based recovery.
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user selects "Verify Dream Titles" option
-     * await startTitleRecovery();
-     * // Shows form with 3 title input fields or error message
-     */
-    async function startTitleRecovery() {
-        const dreams = await loadDreams();
-        const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-
-        if (validDreams.length < 3) {
-            renderPinScreen(pinContainer, {
-                title: 'PIN Recovery',
-                icon: '🔑',
-                message: '<span style="color: var(--error-color);">You need at least 3 dreams with custom titles to use this recovery method.</span><br><br>Please use the 72-hour timer option instead.',
-                buttons: [
-                    { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
-                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-                ],
-                feedbackContainer: false
-            });
-            return;
-        }
-
-        renderPinScreen(pinContainer, {
-            title: 'Verify Your Dreams',
-            icon: '🔑',
-            message: 'Enter exactly 3 of your dream titles:<br><em class="text-sm text-secondary">Must match exactly, including capitalisation</em>',
-            inputs: [
-                { id: 'recovery1', type: 'text', placeholder: 'Dream title 1', class: 'form-control' },
-                { id: 'recovery2', type: 'text', placeholder: 'Dream title 2', class: 'form-control' },
-                { id: 'recovery3', type: 'text', placeholder: 'Dream title 3', class: 'form-control' }
-            ],
-            buttons: [
-                { text: 'Verify Titles', action: 'verify-dream-titles', class: 'btn-primary' },
-                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ],
-            feedbackContainer: true
-        });
-    }
-
-/**
-     * Verifies entered dream titles against stored dreams for PIN recovery.
-     * 
-     * Validates that the user has entered exactly 3 different dream titles that match
-     * existing dreams in their journal. If verification succeeds, removes PIN protection
-     * and completes the recovery process. Titles must match exactly (case-sensitive).
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user submits dream title verification form
-     * await verifyDreamTitles();
-     * // Removes PIN if titles match, shows error if they don't
-     */
-    async function verifyDreamTitles() {
-        const title1 = document.getElementById('recovery1').value.trim();
-        const title2 = document.getElementById('recovery2').value.trim();
-        const title3 = document.getElementById('recovery3').value.trim();
-        const feedback = document.getElementById('pinFeedback');
-        
-        if (!title1 || !title2 || !title3) {
-            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter all 3 dream titles</span>';
-            return;
-        }
-        
-        const dreams = await loadDreams();
-        const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
-        const dreamTitles = validDreams.map(d => d.title);
-        
-        const titles = [title1, title2, title3];
-        const uniqueTitles = [...new Set(titles)];
-        
-        if (uniqueTitles.length !== 3) {
-            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter 3 DIFFERENT dream titles. Each title must be unique.</span>';
-            return;
-        }
-        
-        const allValid = titles.every(t => dreamTitles.includes(t));
-        
-        if (allValid) {
-            removePinHash();
-            removeResetTime();
-            
-            const pinContainer = document.querySelector('#pinOverlay .pin-container');
-            renderPinScreen(pinContainer, {
-                title: 'Recovery Successful',
-                icon: '✅',
-                message: '<span style="color: var(--success-color);">Your PIN has been removed. You can now set a new secure PIN.</span><br><br>Click below to continue.',
-                buttons: [
-                    { text: 'Continue', action: 'complete-recovery', class: 'btn-primary' }
-                ]
-            });
-            
-            isUnlocked = true;
-            failedPinAttempts = 0;
-            updateTimerWarning();
-        } else {
-            feedback.innerHTML = '<span style="color: var(--error-color);">One or more titles did not match. Please try again with exact titles from your dreams.</span>';
-        }
-    }
-
-/**
-     * Initiates the timer-based PIN recovery process.
-     * 
-     * Displays a confirmation dialog explaining the 72-hour timer recovery method.
-     * Shows warning that PIN will be automatically removed after the timer expires,
-     * with assurance that dreams will remain safe during the process.
-     * 
-     * @since 2.0.0
-     * @example
-     * // Called when user selects "Start 72hr Timer" option
-     * startTimerRecovery();
-     * // Shows confirmation dialog with timer warning
-     */
-    function startTimerRecovery() {
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        renderPinScreen(pinContainer, {
-            title: 'Confirm Timer Reset',
-            icon: '⏳',
-            message: '<span style="color: var(--error-color); font-weight: 600;">⚠️ Warning</span><br><br>' +
-                        'This will start a 72-hour countdown. After 72 hours, your PIN will be automatically removed.<br><br>' +
-                        '<span style="color: var(--text-secondary);">Your dreams will remain safe and will not be deleted.</span><br><br>' +
-                        'Do you want to continue?',
-            buttons: [
-                { text: 'Yes, Start Timer', action: 'confirm-start-timer', class: 'btn-primary' },
-                { text: 'No, Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ]
-        });
-    }
-
-/**
-     * Confirms and activates the PIN reset timer.
-     * 
-     * Calculates the expiration time based on configured hours (typically 72),
-     * stores the reset time, and displays the active timer interface. Also activates
-     * the warning banner to remind user of pending reset.
-     * 
-     * @since 2.0.0
-     * @example
-     * // Called when user confirms timer start
-     * confirmStartTimer();
-     * // Starts 72-hour countdown and shows timer interface
-     */
-    function confirmStartTimer() {
-        const resetTime = Date.now() + (CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000); // hours from now
-        storeResetTime(resetTime);
-        showTimerRecovery(CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000);
-        updateTimerWarning(); // Show warning banner
-    }
-
-// ================================
-// 7. PIN RECOVERY & RESET SYSTEM
-// ================================
-
-/**
- * Updates the PIN reset timer warning banner display and calculates remaining time.
- * 
- * Manages the visibility and content of the timer warning banner that appears when
- * a PIN reset timer is active. Calculates remaining time and formats display text
- * appropriately (days vs hours vs less than 1 hour). Hides banner when no timer
- * is active or when timer has expired.
- * 
- * @todo Split into calculateRemainingTime() and updateTimerDisplay() functions for better separation of concerns
- * @since 2.0.0
- * @example
- * // Update timer display after starting/cancelling timer
- * storeResetTime(Date.now() + 72 * 60 * 60 * 1000);
- * updateTimerWarning(); // Shows "3 days remaining" banner
- * 
- * @example
- * // Hide timer warning after cancellation
- * removeResetTime();
- * updateTimerWarning(); // Hides warning banner
- */
-function updateTimerWarning() {
-    const warningBanner = document.getElementById('timerWarning');
-    const warningTime = document.getElementById('timerWarningTime');
-    
-    if (!warningBanner || !warningTime) return;
-    
-    const resetTime = getResetTime();
-    if (resetTime) {
-        const remainingMs = resetTime - Date.now();
-        if (remainingMs > 0) {
-            const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
-            const days = Math.ceil(hours / 24);
-            
-            let timeDisplay = '';
-            if (days > 1) {
-                timeDisplay = `${days} days remaining`;
-            } else if (hours > 1) {
-                timeDisplay = `${hours} hours remaining`;
-            } else {
-                timeDisplay = 'Less than 1 hour remaining';
-            }
-            
-            warningTime.textContent = `(${timeDisplay})`;
-            warningBanner.classList.add('active');
-        } else {
-            warningBanner.classList.remove('active');
-        }
-    } else {
-        warningBanner.classList.remove('active');
-    }
-}
-
-/**
- * Shows PIN verification screen for cancelling an active reset timer.
- * 
- * Displays a PIN entry interface that allows users to cancel a pending PIN reset
- * timer by entering their current PIN. This provides a way to stop the automatic
- * PIN removal if the user remembers their PIN before the timer expires.
- * 
- * @since 2.0.0
- * @example
- * // Called when user clicks "Cancel Timer" button
- * cancelResetTimer();
- * // Shows PIN entry form for timer cancellation
- */
-function cancelResetTimer() {
-        const pinOverlay = document.getElementById('pinOverlay');
-        const pinContainer = pinOverlay.querySelector('.pin-container');
-        
-        renderPinScreen(pinContainer, {
-            title: 'Cancel PIN Reset',
-            icon: '⚠️',
-            message: 'To cancel the pending PIN reset, please enter your current PIN.',
-            inputs: [
-                { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
-            ],
-            buttons: [
-                { text: 'Confirm Cancellation', action: 'confirm-cancel-timer', class: 'btn-primary' },
-                { text: 'Back', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ],
-            feedbackContainer: true
-        });
-        
-        pinOverlay.style.display = 'flex';
-    }
-
-/**
-     * Executes timer cancellation after PIN verification.
-     * 
-     * Verifies the entered PIN against stored data and cancels the active reset timer
-     * if verification succeeds. Shows success message and hides timer warning banner.
-     * If PIN is incorrect, timer remains active.
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user submits PIN for timer cancellation
-     * await confirmCancelTimer();
-     * // Cancels timer if PIN is correct, shows error if not
-     */
-    async function confirmCancelTimer() {
-        const enteredPin = document.getElementById('pinInput').value;
-        if (!enteredPin) {
-            showMessage('error', 'Please enter your PIN.');
-            return;
-        }
-
-        const storedData = getStoredPinData();
-        const isValid = await verifyPinHash(enteredPin, storedData);
-
-        if (isValid) {
-            removeResetTime();
-            updateTimerWarning();
-            hidePinOverlay();
-
-            // Show a success message in the main content area
-            const container = document.querySelector('.main-content');
-            if (container) {
-                createInlineMessage('success', 'PIN reset timer has been successfully cancelled.', {
-                    container: document.querySelector('.container'),
-                    position: 'top',
-                    duration: 5000
-                });
-            }
-        } else {
-            showMessage('error', 'Incorrect PIN. The reset timer remains active.');
-        }
-    }
-
-/**
-     * Displays the active timer recovery status interface.
-     * 
-     * Shows the current status of an active PIN reset timer, including remaining time
-     * formatted as days or hours. Provides options to try dream title recovery as
-     * an alternative to waiting for timer expiration.
-     * 
-     * @param {number} remainingMs - Remaining time in milliseconds until PIN reset
-     * @since 2.0.0
-     * @example
-     * // Show timer with 48 hours remaining
-     * showTimerRecovery(48 * 60 * 60 * 1000); // Displays "2 days remaining"
-     * 
-     * @example
-     * // Show timer with 5 hours remaining  
-     * showTimerRecovery(5 * 60 * 60 * 1000); // Displays "5 hours remaining"
-     */
-    function showTimerRecovery(remainingMs) {
-        const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
-        const days = Math.ceil(hours / 24);
-        
-        let timeDisplay = '';
-        if (days > 1) {
-            timeDisplay = `${days} days`;
-        } else if (hours > 1) {
-            timeDisplay = `${hours} hours`;
-        } else {
-            timeDisplay = 'Less than 1 hour';
-        }
-
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        renderPinScreen(pinContainer, {
-            title: 'Recovery Timer Active',
-            icon: '⏳',
-            message: `PIN reset timer is active.<br><br><strong>Time remaining: ${timeDisplay}</strong><br><br><em style="font-size: 0.9em; color: var(--text-secondary);">Check back later, or try the dream title recovery method instead.</em>`,
-            buttons: [
-                { text: 'Try Title Recovery', action: 'start-title-recovery', class: 'btn-primary' },
-                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ]
-        });
-    }
-
-/**
-     * Completes the PIN recovery process and restores application access.
-     * 
-     * Resets PIN overlay, unlocks application, shows all tab buttons, updates UI controls,
-     * displays dreams, and shows success message. This is the final step after successful
-     * PIN recovery via either dream title verification or timer expiration.
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called after successful dream title verification
-     * if (titlesMatchStored) {
-     *   removePinHash();
-     *   await completeRecovery(); // Unlocks app and shows success message
-     * }
-     */
-    async function completeRecovery() {
-        resetPinOverlay();
-        hidePinOverlay();
-        
-        isUnlocked = true;
-        isAppLocked = false;
-        
-        console.log('PIN overlay recovery complete - showing all tabs');
-        
-        showAllTabButtons();
-        
-        updateSecurityControls();
-        updateTimerWarning();
-        await displayDreams();
-        
-        const container = document.querySelector('.main-content');
-        if (container) {
-            createInlineMessage('success', 'Recovery complete! You can now set a new PIN from the security controls if desired.', {
-                container: container,
-                position: 'top',
-                duration: 5000
-            });
-        }
-    }
-
-// ================================
-// 5. PIN VERIFICATION & AUTHENTICATION
-// ================================
-
-/**
- * Verifies an entered PIN against stored hash data with backwards compatibility.
- * 
- * This is the main PIN verification function that handles both legacy and secure formats.
- * Provides backwards compatibility for users who set their PIN before the security upgrade.
- * Identical functionality to the previous verifyPinHash function but serves as the primary
- * verification interface.
- * 
- * @async
- * @param {string} enteredPin - PIN entered by user for verification
- * @param {string} storedData - Stored PIN data (legacy hash or secure JSON)
- * @returns {Promise<boolean>} True if PIN matches stored data, false otherwise
- * @since 1.0.0
- * @example
- * // Primary PIN verification for all authentication flows
- * const isValid = await verifyPinHash(userPin, getStoredPinData());
- * if (isValid) {
- *   console.log('Authentication successful');
- *   unlockApplication();
- * } else {
- *   console.log('Authentication failed');
- *   incrementFailedAttempts();
- * }
- */
 async function verifyPinHash(enteredPin, storedData) {
     if (!storedData || !enteredPin) return false;
     
@@ -1507,31 +861,6 @@ function getStoredPinData() {
     }
 
     // Verify PIN against stored hash - UPDATED to handle both legacy and secure formats
-    async function verifyPinHash(enteredPin, storedData) {
-        if (!storedData) return false;
-        
-        try {
-            if (isLegacyPinFormat(storedData)) {
-                // Legacy format - use simple hash comparison
-                const legacyHash = hashPinLegacy(enteredPin);
-                return legacyHash === storedData;
-            } else {
-                // Secure format - parse and verify
-                const { hash: storedHash, salt: storedSaltHex } = JSON.parse(storedData);
-                
-                // Convert salt from hex back to Uint8Array
-                const saltArray = new Uint8Array(storedSaltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                
-                // Hash the entered PIN with the stored salt
-                const { hash: enteredHash } = await hashPinSecure(enteredPin, saltArray);
-                
-                return enteredHash === storedHash;
-            }
-        } catch (error) {
-            console.error('Error verifying PIN:', error);
-            return false;
-        }
-    }
 
 /**
      * Removes PIN hash data using fallback storage system.
@@ -1710,8 +1039,8 @@ function updateSecurityControls() {
         
         // Ensure correct app state
         if (!isPinSetup()) {
-            isUnlocked = true;
-            isAppLocked = false;
+            setUnlocked(true);
+            setAppLocked(false);
         }
     }
 
@@ -1775,7 +1104,7 @@ function updateSecurityControls() {
                 ]
             });
 
-            isUnlocked = true;
+            setUnlocked(true);
         } catch (error) {
             console.error('Error removing PIN:', error);
             showMessage('error', 'Error removing PIN. Please try again.');
@@ -1843,11 +1172,11 @@ function updateSecurityControls() {
         hidePinOverlay();
         
         // Reset failed attempts since PIN removal was successful
-        failedPinAttempts = 0;
+        setFailedPinAttempts(0);
         
         // PIN removed - unlock the app
-        isUnlocked = true;
-        isAppLocked = false;
+        setUnlocked(true);
+        setAppLocked(false);
         
         console.log('PIN removal complete - ensuring tabs are visible');
         
@@ -1948,9 +1277,9 @@ async function verifyLockScreenPin() {
             if (isValid) {
                 showLockScreenMessage('success', 'PIN verified! Unlocking journal...');
                 
-                failedPinAttempts = 0;
-                isUnlocked = true;
-                isAppLocked = false;
+                setFailedPinAttempts(0);
+                setUnlocked(true);
+                setAppLocked(false);
                 
                 console.log('Lock screen unlock successful - showing all tabs');
                 
@@ -1964,9 +1293,9 @@ async function verifyLockScreenPin() {
                 }, 200);
                 
             } else {
-                failedPinAttempts++;
+                setFailedPinAttempts(getFailedPinAttempts() + 1);
                 pinInput.value = '';
-                if (failedPinAttempts >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
+                if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                     showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
                 } else {
                     showLockScreenMessage('error', 'Incorrect PIN. Please try again.');
@@ -1976,6 +1305,69 @@ async function verifyLockScreenPin() {
             console.error('Lock screen PIN verification error:', error);
             showLockScreenMessage('error', 'PIN verification failed. Please try again.');
             pinInput.value = '';
+        }
+    }
+
+/**
+     * Verifies PIN entry from the main PIN overlay.
+     * 
+     * Handles PIN verification for the main application PIN overlay interface.
+     * Gets PIN input from the overlay form, validates it against stored hash,
+     * and processes authentication success or failure appropriately.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits PIN in main overlay
+     * await verifyPin();
+     * // Unlocks app or shows error message
+     */
+    async function verifyPin() {
+        const enteredPin = document.getElementById('pinInput').value;
+        const feedback = document.getElementById('pinFeedback');
+        
+        if (!enteredPin) {
+            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter your PIN</span>';
+            return;
+        }
+        
+        try {
+            const storedData = getStoredPinData();
+            if (!storedData) {
+                feedback.innerHTML = '<span style="color: var(--error-color);">No PIN found. Please set up a new PIN.</span>';
+                return;
+            }
+            
+            const isValid = await verifyPinHash(enteredPin, storedData);
+            
+            if (isValid) {
+                setUnlocked(true);
+                setFailedPinAttempts(0);
+                hidePinOverlay();
+                updateSecurityControls();
+                displayDreams();
+                
+                setTimeout(() => {
+                    const container = document.querySelector('.main-content');
+                    createInlineMessage('success', 'Successfully unlocked! Welcome back to your dream journal.', {
+                        container: container,
+                        position: 'top',
+                        duration: 3000
+                    });
+                }, 100);
+            } else {
+                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                feedback.innerHTML = '<span style="color: var(--error-color);">Incorrect PIN. Please try again.</span>';
+                document.getElementById('pinInput').value = '';
+                
+                if (getFailedPinAttempts() >= CONSTANTS.PIN_MAX_ATTEMPTS) {
+                    setTimeout(() => showForgotPin(), 100);
+                }
+            }
+        } catch (error) {
+            console.error('PIN verification error:', error);
+            feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification failed. Please try again.</span>';
+            document.getElementById('pinInput').value = '';
         }
     }
     
@@ -2005,8 +1397,8 @@ async function verifyLockScreenPin() {
             } else {
                 removeResetTime();
                 removePinHash();
-                isUnlocked = true;
-                isAppLocked = false;
+                setUnlocked(true);
+                setAppLocked(false);
                 switchAppTab(preLockActiveTab);
                 updateSecurityControls();
             }
@@ -2220,9 +1612,9 @@ async function verifyLockScreenPin() {
             removePinHash();
             removeResetTime();
             showLockScreenMessage('success', 'Recovery successful! Your PIN has been removed. Unlocking journal...');
-            isUnlocked = true;
-            isAppLocked = false;
-            failedPinAttempts = 0;
+            setUnlocked(true);
+            setAppLocked(false);
+            setFailedPinAttempts(0);
             updateTimerWarning();
             
             setTimeout(() => {
@@ -2238,6 +1630,146 @@ async function verifyLockScreenPin() {
             document.getElementById('recovery3').value = '';
             document.getElementById('recovery1').focus();
         }
+    }
+
+/**
+     * Initiates the dream title recovery process for PIN reset.
+     * 
+     * Loads user's dreams and filters for those with custom titles (excluding "Untitled Dream").
+     * If sufficient dreams exist (minimum 3), displays the title verification interface.
+     * If insufficient dreams, redirects to timer-based recovery.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user selects "Verify Dream Titles" option
+     * await startTitleRecovery();
+     * // Shows form with 3 title input fields or error message
+     */
+    async function startTitleRecovery() {
+        const dreams = await loadDreams();
+        const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
+        const pinContainer = document.querySelector('#pinOverlay .pin-container');
+
+        if (validDreams.length < 3) {
+            renderPinScreen(pinContainer, {
+                title: 'PIN Recovery',
+                icon: '🔑',
+                message: '<span style="color: var(--error-color);">You need at least 3 dreams with custom titles to use this recovery method.</span><br><br>Please use the 72-hour timer option instead.',
+                buttons: [
+                    { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
+                    { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+                ],
+                feedbackContainer: false
+            });
+            return;
+        }
+
+        renderPinScreen(pinContainer, {
+            title: 'Verify Your Dreams',
+            icon: '🔑',
+            message: 'Enter exactly 3 of your dream titles:<br><em class="text-sm text-secondary">Must match exactly, including capitalisation</em>',
+            inputs: [
+                { id: 'recovery1', type: 'text', placeholder: 'Dream title 1', class: 'form-control' },
+                { id: 'recovery2', type: 'text', placeholder: 'Dream title 2', class: 'form-control' },
+                { id: 'recovery3', type: 'text', placeholder: 'Dream title 3', class: 'form-control' }
+            ],
+            buttons: [
+                { text: 'Verify Titles', action: 'verify-dream-titles', class: 'btn-primary' },
+                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+            ],
+            feedbackContainer: true
+        });
+    }
+
+/**
+     * Verifies entered dream titles against stored dreams for PIN recovery.
+     * 
+     * Validates that the user has entered exactly 3 different dream titles that match
+     * existing dreams in their journal. If verification succeeds, removes PIN protection
+     * and completes the recovery process. Titles must match exactly (case-sensitive).
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits dream title verification form
+     * await verifyDreamTitles();
+     * // Removes PIN if titles match, shows error if they don't
+     */
+    async function verifyDreamTitles() {
+        const title1 = document.getElementById('recovery1').value.trim();
+        const title2 = document.getElementById('recovery2').value.trim();
+        const title3 = document.getElementById('recovery3').value.trim();
+        const feedback = document.getElementById('pinFeedback');
+        
+        if (!title1 || !title2 || !title3) {
+            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter all 3 dream titles</span>';
+            return;
+        }
+        
+        const dreams = await loadDreams();
+        const validDreams = dreams.filter(d => d.title !== 'Untitled Dream');
+        const dreamTitles = validDreams.map(d => d.title);
+        
+        const titles = [title1, title2, title3];
+        const uniqueTitles = [...new Set(titles)];
+        
+        if (uniqueTitles.length !== 3) {
+            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter 3 DIFFERENT dream titles. Each title must be unique.</span>';
+            return;
+        }
+        
+        const allValid = titles.every(t => dreamTitles.includes(t));
+        
+        if (allValid) {
+            removePinHash();
+            removeResetTime();
+            
+            const pinContainer = document.querySelector('#pinOverlay .pin-container');
+            renderPinScreen(pinContainer, {
+                title: 'Recovery Successful',
+                icon: '✅',
+                message: '<span style="color: var(--success-color);">Your PIN has been removed. You can now set a new secure PIN.</span><br><br>Click below to continue.',
+                buttons: [
+                    { text: 'Continue', action: 'complete-recovery', class: 'btn-primary' }
+                ]
+            });
+            
+            setUnlocked(true);
+            setFailedPinAttempts(0);
+            updateTimerWarning();
+        } else {
+            feedback.innerHTML = '<span style="color: var(--error-color);">One or more titles did not match. Please try again with exact titles from your dreams.</span>';
+        }
+    }
+
+/**
+     * Initiates the timer-based PIN recovery process.
+     * 
+     * Displays a confirmation dialog explaining the 72-hour timer recovery method.
+     * Shows warning that PIN will be automatically removed after the timer expires,
+     * with assurance that dreams will remain safe during the process.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user selects "Start 72hr Timer" option
+     * startTimerRecovery();
+     * // Shows confirmation dialog with timer warning
+     */
+    function startTimerRecovery() {
+        const pinContainer = document.querySelector('#pinOverlay .pin-container');
+        renderPinScreen(pinContainer, {
+            title: 'Confirm Timer Reset',
+            icon: '⏳',
+            message: '<span style="color: var(--error-color); font-weight: 600;">⚠️ Warning</span><br><br>' +
+                        'This will start a 72-hour countdown. After 72 hours, your PIN will be automatically removed.<br><br>' +
+                        '<span style="color: var(--text-secondary);">Your dreams will remain safe and will not be deleted.</span><br><br>' +
+                        'Do you want to continue?',
+            buttons: [
+                { text: 'Yes, Start Timer', action: 'confirm-start-timer', class: 'btn-primary' },
+                { text: 'No, Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+            ]
+        });
     }
     
 /**
@@ -2294,6 +1826,213 @@ async function verifyLockScreenPin() {
         setTimeout(returnToLockScreen, 3000);
     }
 
+/**
+     * Completes the PIN recovery process and restores application access.
+     * 
+     * Resets PIN overlay, unlocks application, shows all tab buttons, updates UI controls,
+     * displays dreams, and shows success message. This is the final step after successful
+     * PIN recovery via either dream title verification or timer expiration.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called after successful dream title verification
+     * if (titlesMatchStored) {
+     *   removePinHash();
+     *   await completeRecovery(); // Unlocks app and shows success message
+     * }
+     */
+    async function completeRecovery() {
+        resetPinOverlay();
+        hidePinOverlay();
+        
+        setUnlocked(true);
+        setAppLocked(false);
+        
+        console.log('PIN overlay recovery complete - showing all tabs');
+        
+        showAllTabButtons();
+        
+        updateSecurityControls();
+        updateTimerWarning();
+        await displayDreams();
+        
+        const container = document.querySelector('.main-content');
+        if (container) {
+            createInlineMessage('success', 'Recovery complete! You can now set a new PIN from the security controls if desired.', {
+                container: container,
+                position: 'top',
+                duration: 5000
+            });
+        }
+    }
+
+/**
+ * Updates the PIN reset timer warning banner display and calculates remaining time.
+ * 
+ * Manages the visibility and content of the timer warning banner that appears when
+ * a PIN reset timer is active. Calculates remaining time and formats display text
+ * appropriately (days vs hours vs less than 1 hour). Hides banner when no timer
+ * is active or when timer has expired.
+ * 
+ * @todo Split into calculateRemainingTime() and updateTimerDisplay() functions for better separation of concerns
+ * @since 2.0.0
+ * @example
+ * // Update timer display after starting/cancelling timer
+ * storeResetTime(Date.now() + 72 * 60 * 60 * 1000);
+ * updateTimerWarning(); // Shows "3 days remaining" banner
+ * 
+ * @example
+ * // Hide timer warning after cancellation
+ * removeResetTime();
+ * updateTimerWarning(); // Hides warning banner
+ */
+function updateTimerWarning() {
+    const warningBanner = document.getElementById('timerWarning');
+    const warningTime = document.getElementById('timerWarningTime');
+    
+    if (!warningBanner || !warningTime) return;
+    
+    const resetTime = getResetTime();
+    if (resetTime) {
+        const remainingMs = resetTime - Date.now();
+        if (remainingMs > 0) {
+            const hours = Math.ceil(remainingMs / (1000 * 60 * 60));
+            const days = Math.ceil(hours / 24);
+            
+            let timeDisplay = '';
+            if (days > 1) {
+                timeDisplay = `${days} days remaining`;
+            } else if (hours > 1) {
+                timeDisplay = `${hours} hours remaining`;
+            } else {
+                timeDisplay = 'Less than 1 hour remaining';
+            }
+            
+            warningTime.textContent = `(${timeDisplay})`;
+            warningBanner.classList.add('active');
+        } else {
+            warningBanner.classList.remove('active');
+        }
+    } else {
+        warningBanner.classList.remove('active');
+    }
+}
+
+/**
+ * Displays PIN cancellation interface for active timer reset.
+ * 
+ * Shows a PIN entry form to allow users to cancel an active PIN reset timer by
+ * entering their current PIN. This provides a way to stop the automatic
+ * PIN removal if the user remembers their PIN before the timer expires.
+ * 
+ * @since 2.0.0
+ * @example
+ * // Called when user clicks "Cancel Timer" button
+ * cancelResetTimer();
+ * // Shows PIN entry form for timer cancellation
+ */
+function cancelResetTimer() {
+        const pinOverlay = document.getElementById('pinOverlay');
+        const pinContainer = pinOverlay.querySelector('.pin-container');
+        
+        renderPinScreen(pinContainer, {
+            title: 'Cancel PIN Reset',
+            icon: '⚠️',
+            message: 'To cancel the pending PIN reset, please enter your current PIN.',
+            inputs: [
+                { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
+            ],
+            buttons: [
+                { text: 'Confirm Cancellation', action: 'confirm-cancel-timer', class: 'btn-primary' },
+                { text: 'Back', action: 'hide-pin-overlay', class: 'btn-secondary' }
+            ],
+            feedbackContainer: true
+        });
+        
+        pinOverlay.style.display = 'flex';
+    }
+
+/**
+     * Executes timer cancellation after PIN verification.
+     * 
+     * Verifies the entered PIN against stored data and cancels the active reset timer
+     * if verification succeeds. Shows success message and hides timer warning banner.
+     * If PIN is incorrect, timer remains active.
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user submits PIN for timer cancellation
+     * await confirmCancelTimer();
+     * // Cancels timer if PIN is correct, shows error if not
+     */
+    async function confirmCancelTimer() {
+        const enteredPin = document.getElementById('pinInput').value;
+        if (!enteredPin) {
+            showMessage('error', 'Please enter your PIN.');
+            return;
+        }
+
+        const storedData = getStoredPinData();
+        const isValid = await verifyPinHash(enteredPin, storedData);
+
+        if (isValid) {
+            removeResetTime();
+            updateTimerWarning();
+            hidePinOverlay();
+
+            // Show a success message in the main content area
+            const container = document.querySelector('.main-content');
+            if (container) {
+                createInlineMessage('success', 'PIN reset timer has been successfully cancelled.', {
+                    container: document.querySelector('.container'),
+                    position: 'top',
+                    duration: 5000
+                });
+            }
+        } else {
+            showMessage('error', 'Incorrect PIN. The reset timer remains active.');
+        }
+    }
+
+/**
+     * Confirms and activates the PIN reset timer.
+     * 
+     * Calculates the expiration time based on configured hours (typically 72),
+     * stores the reset time, and displays the active timer interface. Also activates
+     * the warning banner to remind user of pending reset.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Called when user confirms timer start
+     * confirmStartTimer();
+     * // Starts 72-hour countdown and shows timer interface
+     */
+    function confirmStartTimer() {
+        const resetTime = Date.now() + (CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000); // hours from now
+        storeResetTime(resetTime);
+        showTimerRecovery(CONSTANTS.PIN_RESET_HOURS * 60 * 60 * 1000);
+        updateTimerWarning(); // Show warning banner
+    }
+
+/**
+     * Restores and refreshes the timer warning banner display.
+     * 
+     * Simple wrapper function that calls updateTimerWarning() to restore or refresh
+     * the timer warning banner state. Used when the banner needs to be shown again
+     * after being hidden or when the timer state needs to be refreshed.
+     * 
+     * @since 2.0.0
+     * @example
+     * // Restore timer warning banner after user action
+     * restoreWarningBanner();
+     * // Refreshes banner display with current timer status
+     */
+    function restoreWarningBanner() {
+        updateTimerWarning();
+    }
+
 // ================================
 // 10. PIN OVERLAY MANAGEMENT
 // ================================
@@ -2321,7 +2060,7 @@ async function verifyLockScreenPin() {
 function showPinOverlay() {
         if (isUnlocked && isPinSetup()) return;
         
-        failedPinAttempts = 0;
+        setFailedPinAttempts(0);
         resetPinOverlay(); // Reset to default state
         document.getElementById('pinOverlay').style.display = 'flex';
         setTimeout(() => {
@@ -2526,6 +2265,71 @@ async function setupPin() {
     }
 
 /**
+     * Displays the "Forgot PIN" recovery options interface.
+     * 
+     * Shows recovery options for users who have forgotten their PIN. Handles three scenarios:
+     * 1. Active timer - shows remaining time or auto-unlocks if expired
+     * 2. No timer - presents choice between dream title verification or timer start
+     * 
+     * Recovery methods:
+     * - Dream title verification: User enters 3 dream titles for immediate unlock
+     * - 72-hour timer: Automatically removes PIN after specified time period
+     * 
+     * @async
+     * @since 2.0.0
+     * @example
+     * // Called when user clicks "Forgot PIN?" link
+     * await showForgotPin();
+     * // Displays appropriate recovery interface based on current state
+     */
+    async function showForgotPin() {
+        const resetTime = getResetTime();
+        if (resetTime) {
+            const remainingTime = resetTime - Date.now();
+            if (remainingTime > 0) {
+                showTimerRecovery(remainingTime);
+                return;
+            } else {
+                // Timer expired, allow reset
+                removeResetTime();
+                removePinHash();
+                setUnlocked(true);
+                setFailedPinAttempts(0);
+                hidePinOverlay();
+                updateSecurityControls();
+                displayDreams();
+                
+                setTimeout(() => {
+                    const container = document.querySelector('.main-content');
+                    createInlineMessage('info', 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.', {
+                        container: container,
+                        position: 'top',
+                        duration: 8000
+                    });
+                }, 100);
+                return;
+            }
+        }
+
+        const pinContainer = document.querySelector('#pinOverlay .pin-container');
+        renderPinScreen(pinContainer, {
+            title: 'PIN Recovery',
+            icon: '🔑',
+            message: '<strong>Choose a recovery method:</strong><br><br>' +
+                        '<strong>Option 1:</strong> Enter 3 of your dream titles exactly as written<br>' +
+                        '<em style="font-size: 0.9em; color: var(--text-secondary);">(Note: "Untitled Dream" entries are not valid)</em><br><br>' +
+                        '<strong>Option 2:</strong> Wait 72 hours for automatic reset<br>' +
+                        '<em style="font-size: 0.9em; color: var(--text-secondary);">(Your dreams will remain safe)</em>',
+            buttons: [
+                { text: 'Verify Dream Titles', action: 'start-title-recovery', class: 'btn-primary' },
+                { text: 'Start 72hr Timer', action: 'start-timer-recovery', class: 'btn-secondary', id: 'timerBtn' },
+                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
+            ],
+            feedbackContainer: true
+        });
+    }
+
+/**
      * Final confirmation step for new PIN creation or change.
      * 
      * Validates that entered PIN matches the temporary PIN, then securely hashes
@@ -2564,7 +2368,7 @@ async function setupPin() {
                     ]
                 });
                 delete window.tempNewPin;
-                isUnlocked = true;
+                setUnlocked(true);
             } else {
                 showMessage('error', 'Error: Failed to save secure PIN. Please try again.');
             }
@@ -2592,9 +2396,9 @@ async function setupPin() {
     async function completePinSetup() {
         resetPinOverlay();
         hidePinOverlay();
-        failedPinAttempts = 0;
-        isUnlocked = true;
-        isAppLocked = false;
+        setFailedPinAttempts(0);
+        setUnlocked(true);
+        setAppLocked(false);
         console.log('PIN setup complete - ensuring tabs are visible');
         showAllTabButtons();
         updateSecurityControls();
@@ -2623,7 +2427,7 @@ async function setupPin() {
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
         if (!pinContainer) return;
         
-        failedPinAttempts = 0;
+        setFailedPinAttempts(0);
         
         renderPinScreen(pinContainer, {
             title: 'Enter PIN',
@@ -2678,9 +2482,9 @@ async function setupPin() {
         }
         
         if (isUnlocked && !isAppLocked) {
-            isUnlocked = false;
-            isAppLocked = true;
-            preLockActiveTab = activeAppTab;
+            setUnlocked(false);
+            setAppLocked(true);
+            setPreLockActiveTab(activeAppTab);
             console.log('Locking app - hiding other tabs');
             hideAllTabButtons();
             switchAppTab('lock');
@@ -2689,5 +2493,71 @@ async function setupPin() {
             showPinOverlay();
         }
     }
+
+// ================================
+// ES MODULE EXPORTS
+// ================================
+
+export {
+    // Cryptographic functions
+    generateSalt,
+    generateIV,
+    deriveKey,
+    encryptData,
+    decryptData,
+    
+    // PIN management functions
+    hashPinLegacy,
+    hashPinSecure,
+    isLegacyPinFormat,
+    isPinSetup,
+    verifyPinHash,
+    verifyPin,
+    storePinHash,
+    setupPin,
+    setupNewPin,
+    confirmNewPin,
+    confirmRemovePin,
+    executePinRemoval,
+    completePinRemoval,
+    
+    // UI functions
+    showPasswordDialog,
+    showPinSetup,
+    showSetNewPinScreen,
+    showRemovePin,
+    showForgotPin,
+    showLockScreenForgotPin,
+    updateSecurityControls,
+    showPinOverlay,
+    hidePinOverlay,
+    resetPinOverlay,
+    verifyLockScreenPin,
+    returnToLockScreen,
+    
+    // Timer and recovery functions
+    updateTimerWarning,
+    cancelResetTimer,
+    confirmCancelTimer,
+    confirmStartTimer,
+    confirmLockScreenTimer,
+    startTitleRecovery,
+    verifyDreamTitles,
+    startTimerRecovery,
+    startLockScreenTimerRecovery,
+    startLockScreenTitleRecovery,
+    verifyLockScreenDreamTitles,
+    restoreWarningBanner,
+    completeRecovery,
+    
+    // Utility functions
+    getResetTime,
+    removeResetTime,
+    removePinHash,
+    
+    // Application control
+    toggleLock,
+    completePinSetup
+};
 
     
