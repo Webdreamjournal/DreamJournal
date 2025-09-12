@@ -1884,6 +1884,10 @@
             gap: 10px;
             align-items: center;
         }
+
+        #monthSelect {
+            min-width: 140px; /* Adjust this value as needed */
+        }
         
         /* Modern Calendar Navigation Buttons */
         .calendar-nav-btn {

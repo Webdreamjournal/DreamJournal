@@ -33,7 +33,7 @@
  * - Coordinates with main app initialization sequence
  * 
  * @module advicetab
- * @version 2.02.44
+ * @version 2.02.46
  * @since 2.02.44
  * @author Dream Journal Application
  */
@@ -43,13 +43,13 @@
 // ================================
 import { loadDailyTips } from './constants.js';
 import { setDailyTips, getDailyTips, getCurrentTipIndex, setCurrentTipIndex } from './state.js';
-import { escapeHtml } from './dom-helpers.js';
+import { escapeHtml, displayTip, handleTipNavigation } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
 
 // ================================
 // MODULE INITIALIZATION CHECK
 // ================================
-console.log('Loading Advice Tab Module v2.02.44');
+console.log('Loading Advice Tab Module v2.02.46');
 
 // ================================
 // ADVICE TAB UI GENERATION
@@ -153,76 +153,7 @@ function renderAdviceTab(tabPanel) {
     `;
 }
 
-// ================================
-// TIP DISPLAY & NAVIGATION SYSTEM
-// ================================
-
-/**
- * Displays a tip at the specified index with safe bounds checking.
- * 
- * Updates both the tip content display and counter information in the advice tab.
- * Uses modulo arithmetic to handle negative indices and out-of-bounds values safely,
- * ensuring the tip system is robust against invalid input.
- * 
- * @param {number} index - Tip index to display (can be negative or out of bounds)
- * @returns {void}
- * @throws {TypeError} When index is not a number
- * @since 1.0.0
- * @example
- * // Display first tip
- * displayTip(0);
- * 
- * @example
- * // Negative index wraps to end
- * displayTip(-1); // Shows last tip
- * 
- * @example
- * // Out of bounds index wraps around
- * displayTip(1000); // Shows tip at (1000 % totalTips)
- */
-function displayTip(index) {
-    const tipTextElement = document.getElementById('tipText');
-    const tipCounterElement = document.getElementById('tipCounter');
-
-    if (tipTextElement && tipCounterElement && getDailyTips() && getDailyTips().length > 0) {
-        // Ensure index is within bounds and handle negative numbers using modulo arithmetic
-        const safeIndex = ((index % getDailyTips().length) + getDailyTips().length) % getDailyTips().length;
-
-        const tip = getDailyTips()[safeIndex];
-        // Display tip with proper HTML escaping for security
-        tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
-        tipCounterElement.textContent = `${safeIndex + 1} / ${getDailyTips().length}`;
-        setCurrentTipIndex(safeIndex); // Update global state
-    }
-}
-
-/**
- * Handles tip navigation in the specified direction.
- * 
- * Provides navigation controls for the daily tips system, supporting both forward
- * and backward navigation with automatic bounds handling via the displayTip function.
- * 
- * @param {('next'|'prev')} direction - Navigation direction
- * @returns {void}
- * @throws {TypeError} When direction is not 'next' or 'prev'
- * @since 1.0.0
- * @example
- * // Navigate to next tip
- * handleTipNavigation('next');
- * 
- * @example
- * // Navigate to previous tip
- * handleTipNavigation('prev');
- */
-function handleTipNavigation(direction) {
-    let newIndex = getCurrentTipIndex();
-    if (direction === 'next') {
-        newIndex++;
-    } else {
-        newIndex--;
-    }
-    displayTip(newIndex); // displayTip handles bounds checking
-}
+// Note: displayTip and handleTipNavigation are now imported from dom-helpers.js
 
 // ================================
 // ADVICE TAB INITIALIZATION SYSTEM
@@ -354,9 +285,7 @@ async function initializeAdviceTabComplete() {
 
 export { 
     renderAdviceTab, 
-    initializeAdviceTabComplete as initializeAdviceTab, 
-    displayTip, 
-    handleTipNavigation 
+    initializeAdviceTabComplete as initializeAdviceTab
 };
 
 // ================================

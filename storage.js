@@ -24,8 +24,7 @@ import {
     memoryVoiceNotes,
     withMutex
 } from './state.js';
-import { createInlineMessage } from './dom-helpers.js';
-import { renderAutocompleteManagementList } from './settingstab.js';
+import { createInlineMessage, renderAutocompleteManagementList } from './dom-helpers.js';
 
     /**
      * Represents a dream journal entry with all associated metadata.

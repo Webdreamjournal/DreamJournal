@@ -31,7 +31,7 @@
 // ================================
 
 import { CONSTANTS } from './constants.js';
-import { dreams, isAppLocked, isUnlocked } from './state.js';
+import { getAppLocked, getUnlocked } from './state.js';
 import { 
     loadDreams, 
     loadGoals, 
@@ -81,7 +81,7 @@ import { displayGoals } from './goalstab.js';
  * }
  */
 function validateAppAccess(errorMessage) {
-    if (isAppLocked || (isPinSetup() && !isUnlocked)) {
+    if (getAppLocked() || (isPinSetup() && !getUnlocked())) {
         switchAppTab('lock');
         setTimeout(() => {
             showLockScreenMessage('error', errorMessage);

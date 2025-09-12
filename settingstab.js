@@ -33,7 +33,7 @@
  * - PWA installation integration
  * 
  * @module settingstab  
- * @version 2.02.05
+ * @version 2.02.06
  * @since 2.02.05
  * @author Dream Journal Application
  */
@@ -57,16 +57,26 @@ import {
     loadItemFromStore,
     storageType 
 } from './storage.js';
-import { activeAppTab, isAppLocked, isUnlocked } from './state.js';
+import { getActiveAppTab, getAppLocked, getUnlocked } from './state.js';
 import { isPinSetup } from './security.js';
 import { getVoiceCapabilities } from './voice-notes.js';
 
-// Note: To avoid circular dependencies with dom-helpers.js (which imports this module),
-// we access some functions through the global scope rather than importing them directly.
-// These functions are available globally: getCurrentTheme, switchTheme, createInlineMessage, 
-// escapeHtml, escapeAttr, updateSecurityControls
+// Import PWA functions from pwa.js
+import { createPWASection, removePWASection } from './pwa.js';
 
-console.log('Loading Settings Tab Module v2.02.05');
+// Import shared utilities from dom-helpers.js
+import { 
+    getCurrentTheme, 
+    switchTheme, 
+    createInlineMessage, 
+    escapeHtml, 
+    escapeAttr,
+    syncSettingsDisplay,
+    updateBrowserCompatibilityDisplay,
+    renderAutocompleteManagementList
+} from './dom-helpers.js';
+
+console.log('Loading Settings Tab Module v2.02.06');
 
 // ================================
 // SETTINGS TAB UI GENERATION
@@ -110,7 +120,7 @@ console.log('Loading Settings Tab Module v2.02.05');
  */
 function renderSettingsTab(tabPanel) {
     // Get current theme to set correct option as selected
-    const currentTheme = (typeof getCurrentTheme === 'function') ? getCurrentTheme() : 'light';
+    const currentTheme = getCurrentTheme();
     const lightSelected = currentTheme === 'light' ? 'selected' : '';
     const darkSelected = currentTheme === 'dark' ? 'selected' : '';
     
@@ -231,258 +241,13 @@ function renderSettingsTab(tabPanel) {
     `;
 }
 
-// ================================
-// SETTINGS SYNCHRONIZATION SYSTEM
-// ================================
-
-/**
- * Synchronizes settings display elements across different UI contexts.
- * 
- * Ensures consistency between various settings interfaces throughout the application,
- * including PIN buttons, theme selectors, and encryption checkboxes. Called whenever
- * the settings interface needs to reflect the current application state.
- * 
- * **Key Responsibilities:**
- * - PIN button state synchronization based on setup status and lock state
- * - Theme selector value updates to match current theme
- * - Storage type and status display updates
- * 
- * @example
- * // Called when switching to settings tab
- * syncSettingsDisplay();
- * // Updates all settings controls to reflect current state
- * 
- * @example
- * // Called after PIN setup changes
- * syncSettingsDisplay();
- * 
- * @since 2.02.05
- */
-function syncSettingsDisplay() {
-        // Sync PIN buttons
-        const setupBtnSettings = document.getElementById('setupPinBtnSettings');
-        const lockBtnSettings = document.getElementById('lockBtnSettings');
-        
-        if (setupBtnSettings && lockBtnSettings) {
-            if (isPinSetup()) {
-                if (isUnlocked) {
-                    lockBtnSettings.style.display = 'inline-block';
-                    lockBtnSettings.textContent = '🔒 Lock';
-                    setupBtnSettings.textContent = '⚙️ Change/Remove PIN';
-                } else {
-                    lockBtnSettings.style.display = 'none';
-                    setupBtnSettings.textContent = '⚙️ Change/Remove PIN';
-                }
-            } else {
-                lockBtnSettings.style.display = 'none';
-                setupBtnSettings.textContent = '⚙️ Setup PIN';
-            }
-        }
-        
-        // Sync encryption checkbox
-        const encryptionOriginal = document.getElementById('encryptionEnabled');
-        const encryptionSettings = document.getElementById('encryptionEnabledSettings');
-        
-        if (encryptionOriginal && encryptionSettings) {
-            encryptionSettings.checked = encryptionOriginal.checked;
-            
-            // Add sync event listeners
-            encryptionSettings.addEventListener('change', function() {
-                encryptionOriginal.checked = this.checked;
-            });
-            
-            encryptionOriginal.addEventListener('change', function() {
-                encryptionSettings.checked = this.checked;
-            });
-        }
-        
-        // Sync theme select - enhanced
-        const themeSelect = document.getElementById('themeSelect');
-        if (themeSelect) {
-            const currentTheme = (typeof getCurrentTheme === 'function') ? getCurrentTheme() : 'light';
-            themeSelect.value = currentTheme;
-            
-            // Double-check the value was set correctly
-            if (themeSelect.value !== currentTheme) {
-                console.log('Theme select sync issue, forcing update');
-                setTimeout(() => {
-                    const themeSelectDelayed = document.getElementById('themeSelect');
-                    if (themeSelectDelayed) {
-                        themeSelectDelayed.value = currentTheme;
-                    }
-                }, 50);
-            }
-        }
-        
-        // Update storage info
-        const storageTypeElement = document.getElementById('storageTypeDisplay');
-        const storageStatusElement = document.getElementById('storageStatusDisplay');
-        
-        if (storageTypeElement && storageStatusElement) {
-            const currentStorageType = storageType || 'unknown';
-            switch (currentStorageType) {
-                case 'indexeddb':
-                    storageTypeElement.textContent = 'Data stored in IndexedDB (recommended)';
-                    storageStatusElement.textContent = '💾 IndexedDB';
-                    storageStatusElement.style.color = 'var(--success-color)';
-                    break;
-                case 'localstorage':
-                    storageTypeElement.textContent = 'Data stored in localStorage';
-                    storageStatusElement.textContent = '📱 LocalStorage';
-                    storageStatusElement.style.color = 'var(--info-color)';
-                    break;
-                case 'memory':
-                    storageTypeElement.textContent = 'Data stored temporarily in memory only';
-                    storageStatusElement.textContent = '⚠️ Memory Only';
-                    storageStatusElement.style.color = 'var(--warning-color)';
-                    break;
-                default:
-                    storageTypeElement.textContent = 'Storage type unknown';
-                    storageStatusElement.textContent = '❓ Unknown';
-                    storageStatusElement.style.color = 'var(--text-secondary)';
-                    break;
-            }
-        }
-        
-        // Update browser compatibility info
-        updateBrowserCompatibilityDisplay();
-    }
-
-// ================================
-// BROWSER COMPATIBILITY SYSTEM
-// ================================
-
-/**
- * Updates browser compatibility information in the settings interface.
- * 
- * Analyzes current browser capabilities and updates the compatibility display
- * to show support status for voice recording and transcription features.
- * Provides specific guidance for different browsers and their limitations.
- * 
- * @returns {void}
- * @since 2.02.05
- * @example
- * // Called during settings tab initialization
- * updateBrowserCompatibilityDisplay();
- * // Shows "✅ Supported" for Chrome/Edge, "❌ Not Supported" for Firefox/Safari
- * 
- * @example
- * // Provides browser-specific feedback
- * // Chrome: "Your browser supports voice recording"
- * // Safari iOS: "Safari iOS has limited MediaRecorder support"
- */
-function updateBrowserCompatibilityDisplay() {
-        const voiceCapabilities = getVoiceCapabilities();
-        
-        // Voice Recording Status
-        const voiceRecordingCompatibility = document.getElementById('voiceRecordingCompatibility');
-        const voiceRecordingStatus = document.getElementById('voiceRecordingStatus');
-        
-        if (voiceRecordingCompatibility && voiceRecordingStatus) {
-            if (voiceCapabilities.canRecord) {
-                voiceRecordingCompatibility.textContent = 'Your browser supports voice recording';
-                voiceRecordingStatus.textContent = '✅ Supported';
-                voiceRecordingStatus.style.color = 'var(--success-color)';
-            } else {
-                if (voiceCapabilities.browser.isSafariMobile) {
-                    voiceRecordingCompatibility.textContent = 'Safari iOS has limited MediaRecorder support';
-                } else {
-                    voiceRecordingCompatibility.textContent = 'Voice recording not supported in this browser';
-                }
-                voiceRecordingStatus.textContent = '❌ Not Supported';
-                voiceRecordingStatus.style.color = 'var(--error-color)';
-            }
-        }
-        
-        // Transcription Status
-        const transcriptionCompatibility = document.getElementById('transcriptionCompatibility');
-        const transcriptionStatus = document.getElementById('transcriptionStatus');
-        
-        if (transcriptionCompatibility && transcriptionStatus) {
-            if (voiceCapabilities.canTranscribe) {
-                transcriptionCompatibility.textContent = 'Your browser supports speech transcription';
-                transcriptionStatus.textContent = '✅ Supported';
-                transcriptionStatus.style.color = 'var(--success-color)';
-            } else {
-                if (voiceCapabilities.browser.isFirefox) {
-                    transcriptionCompatibility.textContent = 'Firefox does not support Speech Recognition API';
-                } else if (voiceCapabilities.browser.isSafari) {
-                    transcriptionCompatibility.textContent = 'Safari does not support Speech Recognition API';
-                } else {
-                    transcriptionCompatibility.textContent = 'Speech Recognition API not available in this browser';
-                }
-                transcriptionStatus.textContent = '❌ Not Supported';
-                transcriptionStatus.style.color = 'var(--error-color)';
-            }
-        }
-    }
+// Note: syncSettingsDisplay and updateBrowserCompatibilityDisplay are now imported from dom-helpers.js
 
 // ================================
 // AUTOCOMPLETE MANAGEMENT SYSTEM
 // ================================
 
-/**
- * Renders the autocomplete management list for tags or dream signs.
- * 
- * Creates a dynamic list interface showing all available autocomplete suggestions
- * for the specified type with delete functionality. Handles loading states and
- * error conditions with appropriate user feedback.
- * 
- * **Key Features:**
- * - Loads suggestions from autocomplete store
- * - Renders interactive list with delete buttons
- * - Handles empty state and error conditions
- * - Integrates with action routing system
- * 
- * @async
- * @param {('tags'|'dreamSigns')} type - Type of autocomplete list to render
- * @returns {Promise<void>} Resolves when rendering completes
- * @throws {Error} Database errors are handled with user feedback
- * 
- * @example
- * await renderAutocompleteManagementList('tags');
- * // Displays list of tag suggestions with delete buttons
- * 
- * @example
- * await renderAutocompleteManagementList('dreamSigns');
- * // Displays list of dream sign suggestions with delete buttons
- * 
- * @since 2.02.05
- */
-async function renderAutocompleteManagementList(type) {
-        const containerId = type === 'tags' ? 'tagsManagementList' : 'dreamSignsManagementList';
-        const container = document.getElementById(containerId);
-        if (!container) return;
-
-        container.innerHTML = '<div class="loading-state">Loading...</div>';
-
-        try {
-            // Get the unified list of suggestions. This now correctly reads from the new store.
-            const suggestions = await getAutocompleteSuggestions(type);
-
-            if (suggestions.length === 0) {
-                container.innerHTML = `<div class="no-entries" style="padding: 15px;">No custom items added yet.</div>`;
-                return;
-            }
-
-            // All items are now treated the same. No more 'default' vs 'user' distinction.
-            const listHtml = suggestions.map(item => {
-                return `
-                    <div class="autocomplete-list-item">
-                        <span class="item-value">${escapeHtml(item)}</span>
-                        <div class="flex-center gap-sm">
-                            <button data-action="delete-autocomplete-item" data-item-type="${type}" data-item-id="${escapeAttr(item)}" class="btn btn-delete btn-small">Delete</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.innerHTML = listHtml;
-        } catch (error) {
-            console.error(`Error rendering ${type} list:`, error);
-            container.innerHTML = `<div class="message-error">Failed to load ${type} list.</div>`;
-        }
-    }
+// Note: renderAutocompleteManagementList is now imported from dom-helpers.js
 
 /**
  * Adds a custom autocomplete item for tags or dream signs.
@@ -611,87 +376,7 @@ async function deleteAutocompleteItem(type, itemValue) {
 // PWA SETTINGS INTEGRATION
 // ================================
 
-/**
- * Creates and injects PWA installation section into settings page.
- * 
- * This function dynamically creates a PWA installation interface within the
- * settings page when PWA installation becomes available (triggered by the beforeinstallprompt
- * event). The section is inserted before the security section and provides users
- * with a native app installation option.
- * 
- * **Features:**
- * - Dynamic PWA section creation
- * - Proper positioning in settings layout
- * - Integration with PWA installation flow
- * - Prevents duplicate section creation
- * 
- * @function
- * @returns {void}
- * @since 2.02.05
- * @example
- * createPWASection();
- * // PWA installation UI now appears in settings
- */
-function createPWASection() {
-    // Check if PWA section already exists
-    const existingSection = document.querySelector('#pwaInstallSection');
-    if (existingSection) {
-        return;
-    }
-    
-    // Find the security section to insert PWA section before it
-    const securitySection = document.querySelector('.settings-section h3');
-    if (!securitySection || !securitySection.textContent.includes('Security')) {
-        return;
-    }
-    
-    const securitySectionContainer = securitySection.parentElement;
-    
-    // Create PWA section HTML
-    const pwaSection = document.createElement('div');
-    pwaSection.className = 'settings-section';
-    pwaSection.id = 'pwaInstallSection';
-    pwaSection.innerHTML = `
-        <h3>📱 Progressive Web App</h3>
-        <div class="settings-row">
-            <div>
-                <div class="settings-label">Install App</div>
-                <div class="settings-description">Install Dream Journal as a native app on your device</div>
-            </div>
-            <div class="settings-controls">
-                <button data-action="install-pwa" id="installPwaButton" class="btn btn-primary">📱 Install App</button>
-                <div id="pwaInstallStatus" class="text-secondary text-sm" style="display: none;"></div>
-            </div>
-        </div>
-    `;
-    
-    // Insert PWA section before security section
-    securitySectionContainer.parentElement.insertBefore(pwaSection, securitySectionContainer);
-}
 
-/**
- * Remove PWA installation section from settings page.
- * 
- * This function removes the PWA installation section from the settings page when it's
- * no longer needed. This occurs when the app has been successfully installed or when
- * the browser indicates PWA installation is no longer available.
- * 
- * Provides clean UI management by removing installation prompts after they've served
- * their purpose, preventing user confusion and interface clutter.
- * 
- * @function
- * @returns {void}
- * @since 2.02.05
- * @example
- * removePWASection();
- * // PWA installation UI is removed from settings
- */
-function removePWASection() {
-    const pwaSection = document.querySelector('#pwaInstallSection');
-    if (pwaSection) {
-        pwaSection.remove();
-    }
-}
 
 /**
  * Manages PWA installation section visibility in settings.
@@ -836,13 +521,8 @@ function initializeSettingsTab() {
 export {
     renderSettingsTab,
     initializeSettingsTab,
-    syncSettingsDisplay,
-    updateBrowserCompatibilityDisplay,
-    renderAutocompleteManagementList,
     addCustomAutocompleteItem,
     deleteAutocompleteItem,
-    createPWASection,
-    removePWASection,
     managePWASettingsSection
 };
 
@@ -851,15 +531,10 @@ export {
 window.SettingsTab = {
     render: renderSettingsTab,
     initialize: initializeSettingsTab,
-    sync: syncSettingsDisplay,
-    updateCompatibility: updateBrowserCompatibilityDisplay,
-    renderAutocompleteList: renderAutocompleteManagementList,
     addAutocompleteItem: addCustomAutocompleteItem,
     deleteAutocompleteItem: deleteAutocompleteItem,
-    createPWASection: createPWASection,
-    removePWASection: removePWASection,
     managePWASection: managePWASettingsSection,
-    version: '2.02.05'
+    version: '2.02.06'
 };
 
 // ================================

@@ -45,8 +45,7 @@ import {
     generateUniqueId,
     isIndexedDBAvailable
 } from './storage.js';
-import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton } from './dom-helpers.js';
-import { initializeAutocomplete } from './main.js';
+import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete } from './dom-helpers.js';
 
 /**
  * Filter values extracted from UI controls for dream processing.

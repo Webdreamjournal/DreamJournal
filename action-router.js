@@ -12,7 +12,7 @@
  * 3. Unified event delegation - Single click and change handlers for the entire app
  * 
  * @module ActionRouter
- * @version 2.02.05
+ * @version 2.02.48
  * @author Dream Journal Development Team
  * @since 2.0.0
  * @requires constants
@@ -41,13 +41,10 @@
 
 // Foundation modules
 import { CONSTANTS } from './constants.js';
-import { calendarState } from './state.js';
+import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm } from './dom-helpers.js';
-
-// Advice tab functionality
-import { handleTipNavigation } from './advicetab.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import { addCustomAutocompleteItem, deleteAutocompleteItem } from './settingstab.js';
@@ -78,16 +75,15 @@ import {
     createDreamFromTranscription, toggleTranscriptionDisplay
 } from './voice-notes.js';
 
-// Goals system
+// Goals system - import business logic functions
 import {
     showCreateGoalDialog, createTemplateGoal, editGoal, completeGoal,
     reactivateGoal, deleteGoal, confirmDeleteGoal, saveGoal, cancelGoalDialog,
-    increaseGoalProgress, decreaseGoalProgress, changeActiveGoalsPage,
-    changeCompletedGoalsPage
+    displayGoals
 } from './goalstab.js';
 
-// Statistics system
-import { handlePrevMonth, handleNextMonth, handleSelectMonth, handleSelectYear, handleSwitchStatsTab } from './statstab.js';
+// Statistics system - import business logic functions
+import { switchStatsTab, renderCalendar } from './statstab.js';
 
 // Import/Export system
 import {
@@ -97,6 +93,9 @@ import {
 
 // PWA installation
 import { installPWA } from './pwa.js';
+
+// Storage functions needed for goal handlers
+import { saveGoals } from './storage.js';
 
 // ================================
 // ACTION ROUTER & EVENT DELEGATION MODULE
@@ -568,6 +567,257 @@ function handleUnifiedChange(event) {
             routeAction(context, event);
         }
     }
+
+// ================================
+// CALENDAR NAVIGATION HANDLERS
+// ================================
+
+/**
+ * Handle previous month navigation in calendar.
+ * 
+ * Decrements the calendar month by 1 and re-renders the calendar view.
+ * Automatically handles year boundary crossing (December to January).
+ * 
+ * @async
+ * @returns {Promise<void>} Resolves when calendar is re-rendered with previous month
+ * @throws {Error} When calendar rendering fails
+ * @since 2.02.46
+ */
+async function handlePrevMonth() {
+    calendarState.date.setMonth(calendarState.date.getMonth() - 1);
+    await renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
+}
+
+/**
+ * Handle next month navigation in calendar.
+ * 
+ * Increments the calendar month by 1 and re-renders the calendar view.
+ * Automatically handles year boundary crossing (December to January).
+ * 
+ * @async
+ * @returns {Promise<void>} Resolves when calendar is re-rendered with next month
+ * @throws {Error} When calendar rendering fails
+ * @since 2.02.46
+ */
+async function handleNextMonth() {
+    calendarState.date.setMonth(calendarState.date.getMonth() + 1);
+    await renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
+}
+
+/**
+ * Handle month selection from dropdown in calendar.
+ * 
+ * Updates calendar to show the selected month in the current year.
+ * Used by month dropdown selection in calendar header.
+ * 
+ * @async
+ * @param {Object} ctx - Action context object from event delegation
+ * @param {HTMLSelectElement} ctx.element - The select element that triggered the change
+ * @returns {Promise<void>} Resolves when calendar is re-rendered with selected month
+ * @throws {TypeError} When ctx.element is not a valid select element
+ * @throws {Error} When calendar rendering fails
+ * @since 2.02.46
+ */
+async function handleSelectMonth(ctx) {
+    if (!ctx.element || !ctx.element.value) {
+        throw new TypeError('handleSelectMonth requires a valid select element with value');
+    }
+    const newMonth = parseInt(ctx.element.value);
+    await renderCalendar(calendarState.date.getFullYear(), newMonth);
+}
+
+/**
+ * Handle year selection from dropdown in calendar.
+ * 
+ * Updates calendar to show the selected year in the current month.
+ * Used by year dropdown selection in calendar header.
+ * 
+ * @async
+ * @param {Object} ctx - Action context object from event delegation
+ * @param {HTMLSelectElement} ctx.element - The select element that triggered the change
+ * @returns {Promise<void>} Resolves when calendar is re-rendered with selected year
+ * @throws {TypeError} When ctx.element is not a valid select element
+ * @throws {Error} When calendar rendering fails
+ * @since 2.02.46
+ */
+async function handleSelectYear(ctx) {
+    if (!ctx.element || !ctx.element.value) {
+        throw new TypeError('handleSelectYear requires a valid select element with value');
+    }
+    const newYear = parseInt(ctx.element.value);
+    await renderCalendar(newYear, calendarState.date.getMonth());
+}
+
+/**
+ * Handle statistics sub-tab switching with context validation.
+ * 
+ * Wrapper function for switchStatsTab that validates the action context
+ * and extracts the tab name from the element's data-tab attribute.
+ * 
+ * @async
+ * @param {Object} ctx - Action context object from event delegation
+ * @param {HTMLElement} ctx.element - The element that triggered the tab switch
+ * @returns {Promise<void>} Resolves when tab switch is complete
+ * @throws {TypeError} When ctx.element is not valid or missing data-tab
+ * @throws {Error} When tab switching fails
+ * @since 2.02.46
+ */
+async function handleSwitchStatsTab(ctx) {
+    if (!ctx.element || !ctx.element.dataset.tab) {
+        throw new TypeError('handleSwitchStatsTab requires element with data-tab attribute');
+    }
+    await switchStatsTab(ctx.element.dataset.tab);
+}
+
+// ================================
+// GOALS PAGINATION HANDLERS
+// ================================
+
+/**
+ * Navigates to a specific page in active goals with boundary validation.
+ * 
+ * This function changes the current active goals page and refreshes the display.
+ * It includes validation to prevent navigation to invalid pages (less than 1 or
+ * greater than total pages).
+ * 
+ * @function changeActiveGoalsPage
+ * @param {number} page - Target page number (1-based)
+ * @returns {void}
+ * @since 2.02.47
+ * @example
+ * // Navigate to page 2 of active goals
+ * changeActiveGoalsPage(2);
+ */
+function changeActiveGoalsPage(page) {
+    if (page < 1) return;
+    const activeGoals = getAllGoals().filter(goal => goal.status === 'active');
+    const totalPages = Math.ceil(activeGoals.length / CONSTANTS.GOALS_PER_PAGE);
+    if (page > totalPages) return;
+    
+    setActiveGoalsPage(page);
+    displayGoals();
+}
+
+/**
+ * Navigates to a specific page in completed goals with boundary validation.
+ * 
+ * This function changes the current completed goals page and refreshes the display.
+ * It includes validation to prevent navigation to invalid pages (less than 1 or
+ * greater than total pages).
+ * 
+ * @function changeCompletedGoalsPage
+ * @param {number} page - Target page number (1-based)
+ * @returns {void}
+ * @since 2.02.47
+ * @example
+ * // Navigate to page 1 of completed goals
+ * changeCompletedGoalsPage(1);
+ */
+function changeCompletedGoalsPage(page) {
+    if (page < 1) return;
+    const completedGoals = getAllGoals().filter(goal => goal.status === 'completed');
+    const totalPages = Math.ceil(completedGoals.length / CONSTANTS.GOALS_PER_PAGE);
+    if (page > totalPages) return;
+    
+    setCompletedGoalsPage(page);
+    displayGoals();
+}
+
+// ================================
+// CUSTOM GOALS PROGRESS HANDLERS
+// ================================
+
+/**
+ * Increases progress counter for custom goals with target boundary checking.
+ * 
+ * This function increments the manual progress counter for custom-type goals.
+ * It ensures the progress doesn't exceed the target value and automatically
+ * displays a completion celebration when the target is reached.
+ * 
+ * @async
+ * @function increaseGoalProgress
+ * @param {string} goalId - Unique identifier of the custom goal to update
+ * @returns {Promise<void>} Promise that resolves when progress update is complete
+ * @throws {Error} When goal saving fails or goal is not of custom type
+ * @since 2.02.47
+ * @example
+ * // Increase progress for a custom goal
+ * await increaseGoalProgress('custom-goal-123');
+ */
+async function increaseGoalProgress(goalId) {
+    const goal = getAllGoals().find(g => g.id === goalId);
+    if (!goal || goal.type !== 'custom') return;
+    
+    // Increase progress, but don't exceed target
+    const newProgress = Math.min((goal.currentProgress || 0) + 1, goal.target);
+    goal.currentProgress = newProgress;
+    goal.lastUpdated = new Date().toISOString();
+    
+    try {
+        await saveGoals(getAllGoals());
+        await displayGoals();
+        
+        // Auto-complete the goal if target reached
+        if (newProgress >= goal.target && goal.status !== 'completed') {
+            const { createInlineMessage } = await import('./dom-helpers.js');
+            setTimeout(() => {
+                createInlineMessage('success', `🎉 Goal "${goal.title}" completed! Great job!`, {
+                    container: document.body,
+                    position: 'top',
+                    duration: 3000
+                });
+            }, 100);
+        }
+    } catch (error) {
+        console.error('Error updating goal progress:', error);
+        const { createInlineMessage } = await import('./dom-helpers.js');
+        createInlineMessage('error', 'Failed to update goal progress', {
+            container: document.body,
+            position: 'top',
+            duration: CONSTANTS.MESSAGE_DURATION_SHORT
+        });
+    }
+}
+
+/**
+ * Decreases progress counter for custom goals with zero boundary checking.
+ * 
+ * This function decrements the manual progress counter for custom-type goals.
+ * It ensures the progress doesn't go below zero and provides error handling
+ * with user feedback. Updates the goal's lastUpdated timestamp.
+ * 
+ * @async
+ * @function decreaseGoalProgress
+ * @param {string} goalId - Unique identifier of the custom goal to update
+ * @returns {Promise<void>} Promise that resolves when progress update is complete
+ * @throws {Error} When goal saving fails or goal is not of custom type
+ * @since 2.02.47
+ * @example
+ * // Decrease progress for a custom goal
+ * await decreaseGoalProgress('custom-goal-123');
+ */
+async function decreaseGoalProgress(goalId) {
+    const goal = getAllGoals().find(g => g.id === goalId);
+    if (!goal || goal.type !== 'custom') return;
+    
+    // Decrease progress, but don't go below 0
+    const newProgress = Math.max((goal.currentProgress || 0) - 1, 0);
+    goal.currentProgress = newProgress;
+    goal.lastUpdated = new Date().toISOString();
+    
+    try {
+        await saveGoals(getAllGoals());
+        await displayGoals();
+    } catch (error) {
+        console.error('Error updating goal progress:', error);
+        const { createInlineMessage } = await import('./dom-helpers.js');
+        createInlineMessage('error', 'Failed to update goal progress', {
+            container: document.body,
+            position: 'top',
+            duration: CONSTANTS.MESSAGE_DURATION_SHORT
+        });
+    }
+}
 
 // ================================
 // ES MODULE EXPORTS

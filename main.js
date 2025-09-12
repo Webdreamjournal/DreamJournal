@@ -61,7 +61,7 @@ import {
 } from './storage.js';
 import { 
     getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons, 
-    showAllTabButtons, createInlineMessage, setupTagAutocomplete, toggleDreamForm
+    showAllTabButtons, createInlineMessage, setupTagAutocomplete, initializeAutocomplete, toggleDreamForm
 } from './dom-helpers.js';
 
 // Security system
@@ -168,44 +168,6 @@ function setupEventDelegation() {
     const importAllDataFileInput = document.getElementById('importAllDataFile');
     if (importAllDataFileInput) {
         importAllDataFileInput.addEventListener('change', importAllData);
-    }
-}
-
-/**
- * Initialize autocomplete system with tag and dream sign suggestions.
- * 
- * This function sets up the autocomplete functionality for dream tags and dream signs
- * input fields. It loads previously used suggestions from IndexedDB storage to provide
- * personalized autocomplete options based on the user's history. If storage access fails,
- * it falls back to predefined common tags and dream signs from the constants module.
- * 
- * The autocomplete system helps users quickly enter consistent tags and dream signs,
- * improving data quality and user experience during dream entry creation.
- * 
- * @async
- * @function
- * @returns {Promise<void>} Promise that resolves when autocomplete is initialized
- * @throws {Error} When storage access fails (handled gracefully with fallback)
- * @since 1.5.0
- * @example
- * await initializeAutocomplete();
- * // Tag and dream sign inputs now have autocomplete functionality
- * 
- * @see {@link getAutocompleteSuggestions} For suggestion retrieval
- * @see {@link setupTagAutocomplete} For autocomplete UI setup
- */
-async function initializeAutocomplete() {
-    try {
-        const [tags, signs] = await Promise.all([
-            getAutocompleteSuggestions('tags'),
-            getAutocompleteSuggestions('dreamSigns')
-        ]);
-        setupTagAutocomplete('dreamTags', tags);
-        setupTagAutocomplete('dreamSigns', signs);
-    } catch (error) {
-        console.error("Failed to initialize autocomplete:", error);
-        setupTagAutocomplete('dreamTags', commonTags);
-        setupTagAutocomplete('dreamSigns', commonDreamSigns);
     }
 }
 
@@ -706,7 +668,6 @@ export {
     // initializeAdviceTab moved to advicetab.js module
     initializeTheme,
     setupEventDelegation,
-    initializeAutocomplete,
     registerServiceWorker,
     
     

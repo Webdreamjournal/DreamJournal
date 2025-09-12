@@ -20,7 +20,7 @@
  * 11. Dream Signs Analysis - Dream sign frequency and lucidity effectiveness
  * 
  * @module StatisticsModule
- * @version 2.02.05
+ * @version 2.02.47
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires storage
@@ -43,9 +43,15 @@
 // ================================
 
 import { CONSTANTS } from './constants.js';
-import { dreams, calendarState } from './state.js';
+import { calendarState } from './state.js';
 import { loadDreams, loadGoals } from './storage.js';
-import { createInlineMessage } from './dom-helpers.js';
+import { 
+    createInlineMessage, 
+    escapeHtml, 
+    formatDateKey, 
+    createPieChartColors, 
+    createPieChartHTML 
+} from './dom-helpers.js';
 
 // ================================
 // STATISTICS & ANALYTICS MODULE
@@ -87,148 +93,13 @@ import { createInlineMessage } from './dom-helpers.js';
  * @property {number} lucid - Number of lucid dreams on this date
  */
 
-/**
- * HTML escape utility function for preventing XSS in generated HTML.
- * 
- * Uses the browser's built-in HTML escaping by creating a temporary div element
- * and using its textContent property, then reading back the innerHTML. This safely
- * escapes HTML special characters to prevent XSS attacks in dynamically generated content.
- * 
- * @param {string} text - Text to escape for safe HTML insertion
- * @returns {string} HTML-escaped text with special characters converted to entities
- * @throws {TypeError} When text parameter is not a string
- * @since 2.0.0
- * @example
- * const userInput = '<script>alert("xss")</script>';
- * const safe = escapeHtml(userInput);
- * console.log(safe); // "&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;"
- * 
- * @example
- * // Used in dream sign rendering
- * const dreamSignHTML = `<span>${escapeHtml(stat.sign)}</span>`;
- */
-function escapeHtml(text) {
-    if (typeof text !== 'string') {
-        throw new TypeError('escapeHtml expects a string parameter');
-    }
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+// Note: escapeHtml is now imported from dom-helpers.js
 
-/**
- * Format date as YYYY-MM-DD string for consistent date key generation.
- * 
- * This utility function ensures consistent date formatting across the application,
- * handling timezone issues and providing zero-padded output suitable for use as
- * object keys in date-based grouping operations.
- * 
- * @param {Date} date - Date object to format
- * @returns {string} Formatted date string in YYYY-MM-DD format
- * @throws {TypeError} When date parameter is not a Date object
- * @since 1.0.0
- * @example
- * const key = formatDateKey(new Date('2024-01-05'));
- * console.log(key); // '2024-01-05'
- * 
- * @example
- * // Used for grouping dreams by date
- * const dreamsByDate = {};
- * dreams.forEach(dream => {
- *   const key = formatDateKey(new Date(dream.timestamp));
- *   if (!dreamsByDate[key]) dreamsByDate[key] = [];
- *   dreamsByDate[key].push(dream);
- * });
- */
-function formatDateKey(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
+// Note: formatDateKey is now imported from dom-helpers.js
 
-/**
- * Create standardized pie chart colors and gradient for dream type visualization.
- * 
- * Generates consistent color scheme using CSS custom properties to ensure
- * all pie charts maintain visual consistency across the application. Uses
- * CSS conic-gradient for smooth chart rendering.
- * 
- * @param {number} lucidPercentage - Percentage of lucid dreams (0-100)
- * @returns {PieChartColors} Object with color and gradient properties
- * @throws {RangeError} When lucidPercentage is not between 0 and 100
- * @since 1.0.0
- * @example
- * const colors = createPieChartColors(35.5);
- * console.log(colors.lucidColor); // 'var(--success-color)'
- * console.log(colors.gradient); // 'conic-gradient(var(--success-color) 0% 35.50%, ...)'
- * 
- * @example
- * // Used in chart rendering
- * const lucidPercentage = (lucidDreams / totalDreams) * 100;
- * const colors = createPieChartColors(lucidPercentage);
- * element.style.background = colors.gradient;
- */
-function createPieChartColors(lucidPercentage) {
-    const lucidColor = 'var(--success-color)';
-    const regularColor = 'var(--info-color)';
-    const gradient = `conic-gradient(${lucidColor} 0% ${lucidPercentage.toFixed(2)}%, ${regularColor} ${lucidPercentage.toFixed(2)}% 100%)`;
-    return { lucidColor, regularColor, gradient };
-}
+// Note: createPieChartColors is now imported from dom-helpers.js
 
-/**
- * Generate standardized pie chart HTML with legend.
- * 
- * Creates complete HTML structure for pie charts including the chart visual,
- * center display, and color-coded legend. Ensures consistent formatting and
- * accessibility across all chart implementations in the application.
- * 
- * @param {string} title - Chart title displayed above the chart
- * @param {number} totalDreams - Total number of dreams for center display
- * @param {number} lucidDreams - Number of lucid dreams for legend
- * @param {number} regularDreams - Number of regular dreams for legend
- * @param {string} gradient - CSS conic-gradient string for chart background
- * @param {string} lucidColor - CSS color for lucid dreams legend box
- * @param {string} regularColor - CSS color for regular dreams legend box
- * @returns {string} Complete HTML string for pie chart with legend
- * @throws {TypeError} When title is not a string or numbers are not valid
- * @since 1.0.0
- * @example
- * const chartHTML = createPieChartHTML(
- *   'Monthly Dreams',
- *   25, 10, 15,
- *   'conic-gradient(...)',
- *   'var(--success-color)',
- *   'var(--info-color)'
- * );
- * container.innerHTML = chartHTML;
- */
-function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, gradient, lucidColor, regularColor) {
-    const lucidPercentage = (lucidDreams / totalDreams) * 100;
-    const regularPercentage = 100 - lucidPercentage;
-    
-    return `
-        <h3 class="text-primary mb-md">${title}</h3>
-        <div class="pie-chart-container">
-            <div class="pie-chart" style="background: ${gradient};">
-                <div class="pie-chart-center">
-                    <div class="pie-chart-total">${totalDreams}</div>
-                    <div class="pie-chart-label">Dreams</div>
-                </div>
-            </div>
-            <div class="pie-chart-legend">
-                <div class="legend-item">
-                    <div class="legend-color-box" style="background: ${lucidColor};"></div>
-                    <span>Lucid (${lucidDreams}) - ${lucidPercentage.toFixed(1)}%</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color-box" style="background: ${regularColor};"></div>
-                    <span>Regular (${regularDreams}) - ${regularPercentage.toFixed(1)}%</span>
-                </div>
-            </div>
-        </div>
-    `;
-}
+// Note: createPieChartHTML is now imported from dom-helpers.js
 
 // ================================
 // 1. STREAK CALCULATION SYSTEM
@@ -1912,121 +1783,7 @@ async function initializeStatsTab() {
     }
 }
 
-// ================================
-// CALENDAR ACTION HANDLERS
-// ================================
-
-/**
- * Handle previous month navigation in calendar.
- * 
- * Decrements the calendar month by 1 and re-renders the calendar view.
- * Automatically handles year boundary crossing (December to January).
- * 
- * @async
- * @returns {Promise<void>} Resolves when calendar is re-rendered with previous month
- * @throws {Error} When calendar rendering fails
- * @since 2.02.06
- * @example
- * // Called by action router for 'prev-month' action
- * await handlePrevMonth();
- */
-async function handlePrevMonth() {
-    calendarState.date.setMonth(calendarState.date.getMonth() - 1);
-    await renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
-}
-
-/**
- * Handle next month navigation in calendar.
- * 
- * Increments the calendar month by 1 and re-renders the calendar view.
- * Automatically handles year boundary crossing (December to January).
- * 
- * @async
- * @returns {Promise<void>} Resolves when calendar is re-rendered with next month
- * @throws {Error} When calendar rendering fails
- * @since 2.02.06
- * @example
- * // Called by action router for 'next-month' action
- * await handleNextMonth();
- */
-async function handleNextMonth() {
-    calendarState.date.setMonth(calendarState.date.getMonth() + 1);
-    await renderCalendar(calendarState.date.getFullYear(), calendarState.date.getMonth());
-}
-
-/**
- * Handle month selection from dropdown in calendar.
- * 
- * Updates calendar to show the selected month in the current year.
- * Used by month dropdown selection in calendar header.
- * 
- * @async
- * @param {Object} ctx - Action context object from event delegation
- * @param {HTMLSelectElement} ctx.element - The select element that triggered the change
- * @returns {Promise<void>} Resolves when calendar is re-rendered with selected month
- * @throws {TypeError} When ctx.element is not a valid select element
- * @throws {Error} When calendar rendering fails
- * @since 2.02.06
- * @example
- * // Called by action router for 'select-month' action
- * await handleSelectMonth(ctx);
- */
-async function handleSelectMonth(ctx) {
-    if (!ctx.element || !ctx.element.value) {
-        throw new TypeError('handleSelectMonth requires a valid select element with value');
-    }
-    const newMonth = parseInt(ctx.element.value);
-    await renderCalendar(calendarState.date.getFullYear(), newMonth);
-}
-
-/**
- * Handle year selection from dropdown in calendar.
- * 
- * Updates calendar to show the selected year in the current month.
- * Used by year dropdown selection in calendar header.
- * 
- * @async
- * @param {Object} ctx - Action context object from event delegation
- * @param {HTMLSelectElement} ctx.element - The select element that triggered the change
- * @returns {Promise<void>} Resolves when calendar is re-rendered with selected year
- * @throws {TypeError} When ctx.element is not a valid select element
- * @throws {Error} When calendar rendering fails
- * @since 2.02.06
- * @example
- * // Called by action router for 'select-year' action
- * await handleSelectYear(ctx);
- */
-async function handleSelectYear(ctx) {
-    if (!ctx.element || !ctx.element.value) {
-        throw new TypeError('handleSelectYear requires a valid select element with value');
-    }
-    const newYear = parseInt(ctx.element.value);
-    await renderCalendar(newYear, calendarState.date.getMonth());
-}
-
-/**
- * Handle statistics sub-tab switching with context validation.
- * 
- * Wrapper function for switchStatsTab that validates the action context
- * and extracts the tab name from the element's data-tab attribute.
- * 
- * @async
- * @param {Object} ctx - Action context object from event delegation
- * @param {HTMLElement} ctx.element - The element that triggered the tab switch
- * @returns {Promise<void>} Resolves when tab switch is complete
- * @throws {TypeError} When ctx.element is not valid or missing data-tab
- * @throws {Error} When tab switching fails
- * @since 2.02.06
- * @example
- * // Called by action router for 'switch-stats-tab' action
- * await handleSwitchStatsTab(ctx);
- */
-async function handleSwitchStatsTab(ctx) {
-    if (!ctx.element || !ctx.element.dataset.tab) {
-        throw new TypeError('handleSwitchStatsTab requires element with data-tab attribute');
-    }
-    await switchStatsTab(ctx.element.dataset.tab);
-}
+// Note: Calendar action handlers (handlePrevMonth, handleNextMonth, etc.) are now in action-router.js
 
 // ================================
 // ES MODULE EXPORTS
@@ -2036,13 +1793,6 @@ export {
     // Tab rendering functions
     renderStatsTab,
     initializeStatsTab,
-    
-    // Action handlers for calendar navigation
-    handlePrevMonth,
-    handleNextMonth,
-    handleSelectMonth,
-    handleSelectYear,
-    handleSwitchStatsTab,
     
     // Main statistics functions
     updateStatsDisplay,
@@ -2069,12 +1819,6 @@ export {
     updateYearlyStats,
     updateLifetimeStats,
     updateDreamSignsTab,
-    
-    // Utility functions
-    escapeHtml,
-    formatDateKey,
-    createPieChartColors,
-    createPieChartHTML,
     
     // Rendering functions
     renderDreamSignList,

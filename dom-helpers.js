@@ -6,7 +6,7 @@
  * HSL-based theme system and centralized event handling via data-action attributes.
  * 
  * @module DOMHelpers
- * @version 2.02.05
+ * @version 2.02.48
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -45,7 +45,7 @@ import { initGoals, renderGoalsTab, initializeGoalsTab } from './goalstab.js';
 import { renderJournalTab, initializeJournalTab } from './journaltab.js';
 import { renderStatsTab, initializeStatsTab } from './statstab.js';
 import { renderAdviceTab, initializeAdviceTab } from './advicetab.js';
-import { displayVoiceNotes } from './voice-notes.js';
+import { displayVoiceNotes, getVoiceCapabilities } from './voice-notes.js';
 import { renderSettingsTab, initializeSettingsTab } from './settingstab.js';
 
 // ===================================================================================
@@ -1281,6 +1281,44 @@ function hideSearchLoading() {
 // ===================================================================================
 
 /**
+ * Initialize autocomplete system with tag and dream sign suggestions.
+ * 
+ * This function sets up the autocomplete functionality for dream tags and dream signs
+ * input fields. It loads previously used suggestions from IndexedDB storage to provide
+ * personalized autocomplete options based on the user's history. If storage access fails,
+ * it falls back to predefined common tags and dream signs from the constants module.
+ * 
+ * The autocomplete system helps users quickly enter consistent tags and dream signs,
+ * improving data quality and user experience during dream entry creation.
+ * 
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when autocomplete is initialized
+ * @throws {Error} When storage access fails (handled gracefully with fallback)
+ * @since 1.5.0
+ * @example
+ * await initializeAutocomplete();
+ * // Tag and dream sign inputs now have autocomplete functionality
+ * 
+ * @see {@link getAutocompleteSuggestions} For suggestion retrieval
+ * @see {@link setupTagAutocomplete} For autocomplete UI setup
+ */
+async function initializeAutocomplete() {
+    try {
+        const [tags, signs] = await Promise.all([
+            getAutocompleteSuggestions('tags'),
+            getAutocompleteSuggestions('dreamSigns')
+        ]);
+        setupTagAutocomplete('dreamTags', tags);
+        setupTagAutocomplete('dreamSigns', signs);
+    } catch (error) {
+        console.error("Failed to initialize autocomplete:", error);
+        setupTagAutocomplete('dreamTags', commonTags);
+        setupTagAutocomplete('dreamSigns', commonDreamSigns);
+    }
+}
+
+/**
  * Renders autocomplete management list for tags or dream signs.
  * 
  * Creates an interactive list of autocomplete suggestions with delete functionality.
@@ -1619,6 +1657,304 @@ function renderPinScreen(targetElement, config) {
     }
 
 // ===================================================================================
+// DATE AND CHART UTILITY FUNCTIONS
+// ===================================================================================
+
+/**
+ * Format date as YYYY-MM-DD string for consistent date key generation.
+ * 
+ * This utility function ensures consistent date formatting across the application,
+ * handling timezone issues and providing zero-padded output suitable for use as
+ * object keys in date-based grouping operations.
+ * 
+ * @param {Date} date - Date object to format
+ * @returns {string} Formatted date string in YYYY-MM-DD format
+ * @throws {TypeError} When date parameter is not a Date object
+ * @since 1.0.0
+ * @example
+ * const key = formatDateKey(new Date('2024-01-05'));
+ * console.log(key); // '2024-01-05'
+ * 
+ * @example
+ * // Used for grouping dreams by date
+ * const dreamsByDate = {};
+ * dreams.forEach(dream => {
+ *   const key = formatDateKey(new Date(dream.timestamp));
+ *   if (!dreamsByDate[key]) dreamsByDate[key] = [];
+ *   dreamsByDate[key].push(dream);
+ * });
+ */
+function formatDateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+/**
+ * Create standardized pie chart colors and gradient for dream type visualization.
+ * 
+ * Generates consistent color scheme using CSS custom properties to ensure
+ * all pie charts maintain visual consistency across the application. Uses
+ * CSS conic-gradient for smooth chart rendering.
+ * 
+ * @param {number} lucidPercentage - Percentage of lucid dreams (0-100)
+ * @returns {Object} Object with lucidColor, regularColor, and gradient properties
+ * @throws {RangeError} When lucidPercentage is not between 0 and 100
+ * @since 1.0.0
+ * @example
+ * const colors = createPieChartColors(35.5);
+ * console.log(colors.lucidColor); // 'var(--success-color)'
+ * console.log(colors.gradient); // 'conic-gradient(var(--success-color) 0% 35.50%, ...)'
+ * 
+ * @example
+ * // Used in chart rendering
+ * const lucidPercentage = (lucidDreams / totalDreams) * 100;
+ * const colors = createPieChartColors(lucidPercentage);
+ * element.style.background = colors.gradient;
+ */
+function createPieChartColors(lucidPercentage) {
+    const lucidColor = 'var(--success-color)';
+    const regularColor = 'var(--info-color)';
+    const gradient = `conic-gradient(${lucidColor} 0% ${lucidPercentage.toFixed(2)}%, ${regularColor} ${lucidPercentage.toFixed(2)}% 100%)`;
+    return { lucidColor, regularColor, gradient };
+}
+
+/**
+ * Generate standardized pie chart HTML with legend.
+ * 
+ * Creates complete HTML structure for pie charts including the chart visual,
+ * center display, and color-coded legend. Ensures consistent formatting and
+ * accessibility across all chart implementations in the application.
+ * 
+ * @param {string} title - Chart title displayed above the chart
+ * @param {number} totalDreams - Total number of dreams for center display
+ * @param {number} lucidDreams - Number of lucid dreams for legend
+ * @param {number} regularDreams - Number of regular dreams for legend
+ * @param {string} gradient - CSS conic-gradient string for chart background
+ * @param {string} lucidColor - CSS color for lucid dreams legend box
+ * @param {string} regularColor - CSS color for regular dreams legend box
+ * @returns {string} Complete HTML string for pie chart with legend
+ * @throws {TypeError} When title is not a string or numbers are not valid
+ * @since 1.0.0
+ * @example
+ * const chartHTML = createPieChartHTML(
+ *   'Monthly Dreams',
+ *   25, 10, 15,
+ *   'conic-gradient(...)',
+ *   'var(--success-color)',
+ *   'var(--info-color)'
+ * );
+ * container.innerHTML = chartHTML;
+ */
+function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, gradient, lucidColor, regularColor) {
+    const lucidPercentage = (lucidDreams / totalDreams) * 100;
+    const regularPercentage = 100 - lucidPercentage;
+    
+    return `
+        <h3 class="text-primary mb-md">${title}</h3>
+        <div class="pie-chart-container">
+            <div class="pie-chart" style="background: ${gradient};">
+                <div class="pie-chart-center">
+                    <div class="pie-chart-total">${totalDreams}</div>
+                    <div class="pie-chart-label">Dreams</div>
+                </div>
+            </div>
+            <div class="pie-chart-legend">
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background: ${lucidColor};"></div>
+                    <span>Lucid (${lucidDreams}) - ${lucidPercentage.toFixed(1)}%</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color-box" style="background: ${regularColor};"></div>
+                    <span>Regular (${regularDreams}) - ${regularPercentage.toFixed(1)}%</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ===================================================================================
+// TIP DISPLAY & NAVIGATION SYSTEM
+// ===================================================================================
+
+/**
+ * Displays a tip at the specified index with safe bounds checking.
+ * 
+ * Updates both the tip content display and counter information in the advice tab.
+ * Uses modulo arithmetic to handle negative indices and out-of-bounds values safely,
+ * ensuring the tip system is robust against invalid input.
+ * 
+ * @param {number} index - Tip index to display (can be negative or out of bounds)
+ * @returns {void}
+ * @throws {TypeError} When index is not a number
+ * @since 1.0.0
+ * @example
+ * // Display first tip
+ * displayTip(0);
+ * 
+ * @example
+ * // Negative index wraps to end
+ * displayTip(-1); // Shows last tip
+ * 
+ * @example
+ * // Out of bounds index wraps around
+ * displayTip(1000); // Shows tip at (1000 % totalTips)
+ */
+function displayTip(index) {
+    const tipTextElement = document.getElementById('tipText');
+    const tipCounterElement = document.getElementById('tipCounter');
+
+    if (tipTextElement && tipCounterElement && getDailyTips() && getDailyTips().length > 0) {
+        // Ensure index is within bounds and handle negative numbers using modulo arithmetic
+        const safeIndex = ((index % getDailyTips().length) + getDailyTips().length) % getDailyTips().length;
+
+        const tip = getDailyTips()[safeIndex];
+        // Display tip with proper HTML escaping for security
+        tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
+        tipCounterElement.textContent = `${safeIndex + 1} / ${getDailyTips().length}`;
+        setCurrentTipIndex(safeIndex); // Update global state
+    }
+}
+
+/**
+ * Handles tip navigation in the specified direction.
+ * 
+ * Provides navigation controls for the daily tips system, supporting both forward
+ * and backward navigation with automatic bounds handling via the displayTip function.
+ * 
+ * @param {('next'|'prev')} direction - Navigation direction
+ * @returns {void}
+ * @throws {TypeError} When direction is not 'next' or 'prev'
+ * @since 1.0.0
+ * @example
+ * // Navigate to next tip
+ * handleTipNavigation('next');
+ * 
+ * @example
+ * // Navigate to previous tip
+ * handleTipNavigation('prev');
+ */
+function handleTipNavigation(direction) {
+    let newIndex = getCurrentTipIndex();
+    if (direction === 'next') {
+        newIndex++;
+    } else {
+        newIndex--;
+    }
+    displayTip(newIndex); // displayTip handles bounds checking
+}
+
+// ===================================================================================
+// GOALS UI GENERATION UTILITIES
+// ===================================================================================
+
+/**
+ * Gets human-readable label for goal type for display purposes.
+ * 
+ * This function maps goal type enum values to user-friendly display labels
+ * that are shown in the progress section of goal cards.
+ * 
+ * @function getGoalTypeLabel
+ * @param {string} type - Goal type to get label for ('lucid_count', 'recall_streak', etc.)
+ * @returns {string} Human-readable label for the goal type
+ * @since 2.02.47
+ * @example
+ * const label = getGoalTypeLabel('lucid_count');
+ * console.log(label); // "lucid dreams"
+ * 
+ * @example
+ * const streakLabel = getGoalTypeLabel('recall_streak');
+ * console.log(streakLabel); // "day streak"
+ */
+function getGoalTypeLabel(type) {
+    const labels = {
+        'lucid_count': 'lucid dreams',
+        'recall_streak': 'day streak',
+        'journal_streak': 'day streak',
+        'dream_signs_count': 'dream signs',
+        'custom': ''
+    };
+    return labels[type] || '';
+}
+
+/**
+ * Creates complete HTML element for goal display with progress bars and action buttons.
+ * 
+ * This function generates a comprehensive goal card UI element including title, description,
+ * progress visualization, action buttons, and metadata. It handles both active and completed
+ * goal states with different UI configurations.
+ * 
+ * @function createGoalElement
+ * @param {Object} goal - Goal object to create element for
+ * @param {Object} progress - Calculated progress data with current and message properties
+ * @param {boolean} [isCompleted=false] - Whether goal is in completed state
+ * @returns {HTMLElement} Complete DOM element for goal display
+ * @since 2.02.47
+ * @example
+ * const goal = { id: '123', title: 'Lucid Dreams', type: 'lucid_count', target: 5 };
+ * const progress = { current: 3, message: '3 lucid dreams this month' };
+ * const element = createGoalElement(goal, progress, false);
+ * document.getElementById('container').appendChild(element);
+ * 
+ * @example
+ * // Create completed goal element
+ * const completedElement = createGoalElement(goal, progress, true);
+ */
+function createGoalElement(goal, progress, isCompleted = false) {
+    const goalDiv = document.createElement('div');
+    goalDiv.className = `card-md goal-card mb-md ${isCompleted ? 'completed' : ''}`;
+    goalDiv.id = `goal-${goal.id}`;
+    
+    const progressPercent = Math.min((progress.current / goal.target) * 100, 100);
+    const statusClass = progressPercent === 100 ? 'success' : progressPercent >= 50 ? 'warning' : 'primary';
+    
+    goalDiv.innerHTML = `
+        <div class="flex-between mb-md">
+            <h4>${escapeHtml(goal.icon)} ${escapeHtml(goal.title)}</h4>
+            <div class="goal-actions">
+                ${!isCompleted ? `
+                    <button data-action="edit-goal" data-goal-id="${goal.id}" class="btn btn-outline btn-small">Edit</button>
+                    <button data-action="complete-goal" data-goal-id="${goal.id}" class="btn btn-success btn-small">Complete</button>
+                ` : `
+                    <button data-action="reactivate-goal" data-goal-id="${goal.id}" class="btn btn-warning btn-small">Reactivate</button>
+                `}
+                <button data-action="delete-goal" data-goal-id="${goal.id}" class="btn btn-error btn-small">Delete</button>
+            </div>
+        </div>
+        <p class="text-secondary mb-md">${escapeHtml(goal.description)}</p>
+        <div class="goal-progress-section">
+            <div class="flex-between mb-sm">
+                <span class="font-semibold">Progress:</span>
+                <span class="status-${statusClass}">${progress.current} / ${goal.target} ${getGoalTypeLabel(goal.type)}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-${statusClass}" style="width: ${progressPercent}%;"></div>
+            </div>
+            ${progress.message ? `<p class="text-secondary text-sm mt-sm">${progress.message}</p>` : ''}
+            ${goal.type === 'custom' && !isCompleted ? `
+                <div class="custom-goal-controls mt-md">
+                    <div class="flex-center gap-md">
+                        <button data-action="decrease-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small" ${progress.current <= 0 ? 'disabled' : ''}>➖</button>
+                        <span class="font-semibold">Manual Tracking</span>
+                        <button data-action="increase-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small">➕</button>
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+        <div class="flex-between text-sm text-secondary">
+            <div>
+                <span>Created: ${new Date(goal.createdAt).toLocaleDateString()}</span>
+                ${isCompleted && goal.completedAt ? `<br><span>Completed: ${new Date(goal.completedAt).toLocaleDateString()}</span>` : ''}
+            </div>
+            <span>${goal.period === 'monthly' ? 'Monthly Goal' : goal.period === 'streak' ? 'Streak Goal' : 'Total Goal'}</span>
+        </div>
+    `;
+    
+    return goalDiv;
+}
+
+// ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
 
@@ -1660,21 +1996,27 @@ export {
     hideSearchLoading,
     
     // Autocomplete System
+    initializeAutocomplete,
     setupTagAutocomplete,
     renderAutocompleteManagementList,
     
-    // Tips System - moved to advicetab.js
-    // displayTip and handleTipNavigation moved to advicetab.js module
+    
+    // Tips System
+    displayTip,
+    handleTipNavigation,
+    
+    // Date and Chart Utilities
+    formatDateKey,
+    createPieChartColors,
+    createPieChartHTML,
+    
+    // Goals UI Utilities
+    getGoalTypeLabel,
+    createGoalElement,
     
     // Security UI
     renderPinScreen
 };
 
-// Make certain functions globally available to avoid circular dependencies
-// This allows settingstab.js to access these functions without importing
-globalThis.getCurrentTheme = getCurrentTheme;
-globalThis.switchTheme = switchTheme;
-globalThis.createInlineMessage = createInlineMessage;
-globalThis.escapeHtml = escapeHtml;
-globalThis.escapeAttr = escapeAttr;
+// Functions are now properly exported as ES modules for clean dependency management
 
