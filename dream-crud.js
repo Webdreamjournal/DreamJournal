@@ -162,22 +162,9 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             await saveDreams(dreams);
         }
         
-        // TODO: Split into clearDreamForm() and resetCurrentPage() functions
-        // Clear all form fields after successful save
-        titleElement.value = '';
-        contentElement.value = '';
-        isLucidElement.checked = false;
-        emotionsElement.value = '';
-        tagsElement.value = '';
-        dreamSignsElement.value = '';
-        
-        // Reset date field to current timestamp for next entry
-        const now = new Date();
-        const localDatetimeString = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}T${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        dreamDateElement.value = localDatetimeString;
-        
-        // Reset pagination to show newly added dream at top
-        setCurrentPage(1);
+        // Clear form fields and reset pagination using helper functions
+        clearDreamForm(titleElement, contentElement, dreamDateElement, isLucidElement, emotionsElement, tagsElement, dreamSignsElement);
+        resetPaginationToFirst();
         
         createInlineMessage('success', 'Dream saved successfully!', {
             container: document.querySelector('.entry-form'),
@@ -467,33 +454,8 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
                 return;
             }
             
-            // TODO: Extract formatDatetimeLocal() helper function for reuse
-            // Convert ISO timestamp to datetime-local input format
-            let datetimeLocalValue = '';
-            try {
-                const dreamDateTime = new Date(dream.timestamp);
-                let dateToFormat;
-                if (!isNaN(dreamDateTime.getTime())) {
-                    dateToFormat = dreamDateTime;
-                } else {
-                    dateToFormat = new Date(); // Fallback to current time
-                }
-                const year = dateToFormat.getFullYear();
-                const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
-                const day = dateToFormat.getDate().toString().padStart(2, '0');
-                const hours = dateToFormat.getHours().toString().padStart(2, '0');
-                const minutes = dateToFormat.getMinutes().toString().padStart(2, '0');
-                datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
-            } catch (error) {
-                // Fallback for invalid timestamps - use current time
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = (now.getMonth() + 1).toString().padStart(2, '0');
-                const day = now.getDate().toString().padStart(2, '0');
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                datetimeLocalValue = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
+            // Convert ISO timestamp to datetime-local input format using helper
+            const datetimeLocalValue = formatDatetimeLocal(dream.timestamp);
             
             // Add a new class for the edit mode and clear existing content
             entryElement.classList.add('entry-form', 'dream-entry-edit-mode');
@@ -951,16 +913,135 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
 // 7. PAGINATION & ENDLESS SCROLL SYSTEM
 // ================================
 
-    // TODO: Split into calculatePaginationParams() and configurePaginationMode() functions
-    // This function handles both calculation logic and UI state management
+    /**
+     * Calculates pagination parameters for different display modes.
+     *
+     * This pure function performs pagination calculations without side effects,
+     * handling different display modes (traditional pagination, endless scroll,
+     * show all) and returning the appropriate parameters. It focuses solely on
+     * calculation logic without UI state management.
+     *
+     * @function calculatePaginationParams
+     * @param {Object[]} filteredDreams - Array of filtered dream objects to paginate
+     * @param {string} limitValue - Display limit: numeric string, 'endless', or 'all'
+     * @returns {{mode: string, itemsPerPage: number, totalPages: number, totalDreams: number, startIndex?: number, endIndex?: number, safeLoaded?: number}} Pagination calculation parameters
+     * @since 2.02.73
+     * @example
+     * const params = calculatePaginationParams(dreams, '10');
+     * console.log(params.totalPages); // 5
+     * console.log(params.itemsPerPage); // 10
+     *
+     * @example
+     * // Endless scroll mode calculations
+     * const endlessParams = calculatePaginationParams(dreams, 'endless');
+     * console.log(endlessParams.mode); // 'endless'
+     */
+    function calculatePaginationParams(filteredDreams, limitValue) {
+        if (!Array.isArray(filteredDreams)) {
+            return { mode: 'traditional', itemsPerPage: 1, totalPages: 1, totalDreams: 0 };
+        }
+
+        const totalDreams = Math.max(0, filteredDreams.length);
+
+        if (limitValue === 'endless') {
+            const safeLoaded = Math.min(
+                endlessScrollState.loaded || CONSTANTS.ENDLESS_SCROLL_INCREMENT,
+                totalDreams
+            );
+            return {
+                mode: 'endless',
+                itemsPerPage: safeLoaded,
+                totalPages: 1,
+                totalDreams,
+                safeLoaded
+            };
+        } else if (limitValue === 'all') {
+            return {
+                mode: 'all',
+                itemsPerPage: Math.max(1, totalDreams),
+                totalPages: 1,
+                totalDreams
+            };
+        } else {
+            const itemsPerPage = Math.max(1, Math.min(parseInt(limitValue) || 10, 1000));
+            const totalPages = Math.max(1, Math.ceil(totalDreams / itemsPerPage));
+            const validCurrentPage = Math.max(1, Math.min(getCurrentPage(), totalPages));
+            const startIndex = Math.max(0, (validCurrentPage - 1) * itemsPerPage);
+            const endIndex = Math.min(startIndex + itemsPerPage, totalDreams);
+
+            return {
+                mode: 'traditional',
+                itemsPerPage,
+                totalPages,
+                totalDreams,
+                startIndex,
+                endIndex,
+                validCurrentPage
+            };
+        }
+    }
+
+    /**
+     * Configures UI state and manages endless scroll setup based on pagination mode.
+     *
+     * This function handles all UI state management and side effects related to
+     * pagination modes including endless scroll state configuration, event listener
+     * management, and current page updates. It's separated from calculation logic
+     * to follow Single Responsibility Principle.
+     *
+     * @function configurePaginationMode
+     * @param {string} mode - Pagination mode: 'endless', 'all', or 'traditional'
+     * @param {Object} params - Parameters from calculatePaginationParams()
+     * @returns {void}
+     * @since 2.02.73
+     * @example
+     * const params = calculatePaginationParams(dreams, 'endless');
+     * configurePaginationMode(params.mode, params);
+     *
+     * @example
+     * // Configure traditional pagination mode
+     * configurePaginationMode('traditional', { validCurrentPage: 3 });
+     */
+    function configurePaginationMode(mode, params) {
+        try {
+            switch (mode) {
+                case 'endless':
+                    endlessScrollState.enabled = true;
+                    if (!endlessScrollState.loading) {
+                        endlessScrollState.loaded = Math.max(
+                            CONSTANTS.ENDLESS_SCROLL_INCREMENT,
+                            endlessScrollState.loaded || CONSTANTS.ENDLESS_SCROLL_INCREMENT
+                        );
+                        setupEndlessScroll();
+                    }
+                    break;
+
+                case 'all':
+                    endlessScrollState.enabled = false;
+                    removeEndlessScroll();
+                    setCurrentPage(1);
+                    break;
+
+                case 'traditional':
+                    endlessScrollState.enabled = false;
+                    removeEndlessScroll();
+                    if (params.validCurrentPage) {
+                        setCurrentPage(params.validCurrentPage);
+                    }
+                    break;
+            }
+        } catch (error) {
+            console.error('Error configuring pagination mode:', error);
+        }
+    }
+
     /**
      * Calculates pagination parameters and configures endless scroll mode if enabled.
-     * 
-     * This function handles multiple display modes including traditional pagination,
-     * endless scroll, and "show all" modes. It calculates page counts, items per page,
-     * and manages endless scroll state. The function also includes safety bounds
-     * checking and error recovery for robust pagination handling.
-     * 
+     *
+     * This function orchestrates pagination by combining calculation logic with UI
+     * state management. It delegates to specialized helper functions following the
+     * Single Responsibility Principle while maintaining the same external interface.
+     *
      * @function calculatePagination
      * @param {Object[]} filteredDreams - Array of filtered dream objects to paginate
      * @param {string} limitValue - Display limit: numeric string, 'endless', or 'all'
@@ -970,7 +1051,7 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
      * const result = calculatePagination(dreams, '10');
      * console.log(result.totalPages); // 5
      * console.log(result.paginatedDreams.length); // 10
-     * 
+     *
      * @example
      * // Endless scroll mode
      * const endless = calculatePagination(dreams, 'endless');
@@ -980,64 +1061,212 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
         if (!Array.isArray(filteredDreams)) {
             return { paginatedDreams: [], totalPages: 1, totalDreams: 0, itemsPerPage: 1 };
         }
-        
-        const totalDreams = Math.max(0, filteredDreams.length);
-        let itemsPerPage, totalPages, paginatedDreams;
-        
+
         try {
-            if (limitValue === 'endless') {
-                endlessScrollState.enabled = true;
-                if (!endlessScrollState.loading) {
-                    endlessScrollState.loaded = Math.max(CONSTANTS.ENDLESS_SCROLL_INCREMENT, endlessScrollState.loaded || CONSTANTS.ENDLESS_SCROLL_INCREMENT);
-                    setupEndlessScroll();
-                }
-                const safeLoaded = Math.min(endlessScrollState.loaded, totalDreams);
-                paginatedDreams = filteredDreams.slice(0, safeLoaded);
-                totalPages = 1;
-                itemsPerPage = safeLoaded;
-            } else if (limitValue === 'all') {
-                endlessScrollState.enabled = false;
-                removeEndlessScroll();
-                itemsPerPage = Math.max(1, totalDreams);
-                totalPages = 1;
-                setCurrentPage(1);
-                paginatedDreams = filteredDreams;
-            } else {
-                endlessScrollState.enabled = false;
-                removeEndlessScroll();
-                itemsPerPage = Math.max(1, Math.min(parseInt(limitValue) || 10, 1000)); // Cap at 1000 for safety
-                totalPages = Math.max(1, Math.ceil(totalDreams / itemsPerPage));
-                
-                // Validate and fix current page with safety bounds
-                setCurrentPage(Math.max(1, Math.min(getCurrentPage(), totalPages)));
-                
-                const startIndex = Math.max(0, (getCurrentPage() - 1) * itemsPerPage);
-                const endIndex = Math.min(startIndex + itemsPerPage, totalDreams);
-                paginatedDreams = filteredDreams.slice(startIndex, endIndex);
+            // Calculate pagination parameters
+            const params = calculatePaginationParams(filteredDreams, limitValue);
+
+            // Configure UI state based on mode
+            configurePaginationMode(params.mode, params);
+
+            // Extract the appropriate subset of dreams
+            let paginatedDreams;
+            switch (params.mode) {
+                case 'endless':
+                    paginatedDreams = filteredDreams.slice(0, params.safeLoaded);
+                    break;
+                case 'all':
+                    paginatedDreams = filteredDreams;
+                    break;
+                case 'traditional':
+                    paginatedDreams = filteredDreams.slice(params.startIndex, params.endIndex);
+                    break;
+                default:
+                    paginatedDreams = filteredDreams.slice(0, 10);
             }
-            
-            return { paginatedDreams, totalPages, totalDreams, itemsPerPage };
+
+            return {
+                paginatedDreams,
+                totalPages: params.totalPages,
+                totalDreams: params.totalDreams,
+                itemsPerPage: params.itemsPerPage
+            };
         } catch (error) {
             console.error('Error calculating pagination:', error);
-            return { 
-                paginatedDreams: filteredDreams.slice(0, 10), 
-                totalPages: 1, 
-                totalDreams: filteredDreams.length, 
-                itemsPerPage: 10 
+            return {
+                paginatedDreams: filteredDreams.slice(0, 10),
+                totalPages: 1,
+                totalDreams: filteredDreams.length,
+                itemsPerPage: 10
             };
         }
     }
     
-    // TODO: Split into buildDreamDataForDisplay() and generateDreamHTML() functions
-    // Currently combines data processing and HTML template generation
+    /**
+     * Prepares and sanitizes dream data for safe display rendering.
+     *
+     * This function handles all data processing logic including validation,
+     * sanitization, default value assignment, and data structure preparation.
+     * It separates data concerns from presentation logic following the
+     * Single Responsibility Principle.
+     *
+     * @function buildDreamDataForDisplay
+     * @param {Object} dream - Raw dream object from storage
+     * @returns {{valid: boolean, safeTitle: string, safeContent: string, safeDateString: string, safeEmotions: string, isLucid: boolean, tags: string[], dreamSigns: string[], safeDreamId: string} | null} Processed dream display data or null if invalid
+     * @since 2.02.73
+     * @example
+     * const displayData = buildDreamDataForDisplay(dream);
+     * if (displayData && displayData.valid) {
+     *   const html = generateDreamHTML(displayData);
+     * }
+     *
+     * @example
+     * // Handles invalid dreams gracefully
+     * const invalidData = buildDreamDataForDisplay(null);
+     * console.log(invalidData); // null
+     */
+    function buildDreamDataForDisplay(dream) {
+        // Validate input
+        if (!dream || typeof dream !== 'object' || !dream.id) {
+            return null;
+        }
+
+        try {
+            // Process and sanitize core fields
+            const safeTitle = escapeHtml((dream.title || 'Untitled Dream').toString());
+            const safeContent = escapeHtml((dream.content || '').toString());
+            const safeDateString = escapeHtml((dream.dateString || 'Unknown Date').toString());
+            const safeEmotions = escapeHtml((dream.emotions || '').toString());
+            const isLucid = Boolean(dream.isLucid);
+            const safeDreamId = escapeAttr(dream.id.toString());
+
+            // Process arrays with validation
+            const tags = Array.isArray(dream.tags) ? dream.tags : [];
+            const dreamSigns = Array.isArray(dream.dreamSigns) ? dream.dreamSigns : [];
+
+            return {
+                valid: true,
+                safeTitle,
+                safeContent,
+                safeDateString,
+                safeEmotions,
+                isLucid,
+                tags,
+                dreamSigns,
+                safeDreamId
+            };
+        } catch (error) {
+            console.error('Error building dream display data:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Generates HTML structure from processed dream display data.
+     *
+     * This function focuses solely on HTML template generation without data
+     * processing concerns. It takes pre-sanitized data and constructs the
+     * complete dream entry HTML structure with proper semantic markup and
+     * accessibility features.
+     *
+     * @function generateDreamHTML
+     * @param {Object} displayData - Processed dream data from buildDreamDataForDisplay()
+     * @param {string} displayData.safeTitle - Sanitized dream title
+     * @param {string} displayData.safeContent - Sanitized dream content
+     * @param {string} displayData.safeDateString - Sanitized date string
+     * @param {string} displayData.safeEmotions - Sanitized emotions text
+     * @param {boolean} displayData.isLucid - Lucid dream flag
+     * @param {string[]} displayData.tags - Array of tags
+     * @param {string[]} displayData.dreamSigns - Array of dream signs
+     * @param {string} displayData.safeDreamId - Sanitized dream ID
+     * @returns {string} Complete HTML string for dream entry
+     * @since 2.02.73
+     * @example
+     * const displayData = buildDreamDataForDisplay(dream);
+     * const html = generateDreamHTML(displayData);
+     *
+     * @example
+     * // Generate HTML for lucid dream entry
+     * const html = generateDreamHTML({
+     *   safeTitle: 'Flying Dream',
+     *   isLucid: true,
+     *   tags: ['flying', 'city'],
+     *   ...otherData
+     * });
+     */
+    function generateDreamHTML(displayData) {
+        const {
+            safeTitle,
+            safeContent,
+            safeDateString,
+            safeEmotions,
+            isLucid,
+            tags,
+            dreamSigns,
+            safeDreamId
+        } = displayData;
+
+        // Build emotions section
+        const emotionsDisplay = safeEmotions ?
+            `<div class="entry-emotions">
+                <span>Emotions:</span> ${safeEmotions}
+            </div>` : '';
+
+        // Build tags and dream signs section
+        let tagsDisplay = '';
+        if (tags.length > 0 || dreamSigns.length > 0) {
+            tagsDisplay = '<div class="entry-tags">';
+
+            if (tags.length > 0) {
+                tagsDisplay += `<div class="tag-section">
+                    <span class="tag-label">Tags:</span>
+                    ${formatTagsForDisplay(tags)}
+                </div>`;
+            }
+
+            if (dreamSigns.length > 0) {
+                tagsDisplay += `<div class="tag-section">
+                    <span class="tag-label">Dream Signs:</span>
+                    ${formatDreamSignsForDisplay(dreamSigns)}
+                </div>`;
+            }
+
+            tagsDisplay += '</div>';
+        }
+
+        // Build action buttons section
+        const actionButtons = `<div class="entry-actions">
+            ${createActionButton('edit-dream', safeDreamId, 'Edit', 'btn btn-edit btn-small')}
+            ${createActionButton('delete-dream', safeDreamId, 'Delete', 'btn btn-delete btn-small')}
+        </div>`;
+
+        // Generate complete HTML structure
+        return `
+            <div class="entry ${isLucid ? 'lucid' : ''}"
+                 id="entry-${safeDreamId}"
+                 role="article"
+                 aria-roledescription="dream entry">
+                <div class="entry-header">
+                    <div class="entry-title" id="title-${safeDreamId}">${safeTitle}</div>
+                    <div class="entry-meta">
+                        <div class="entry-date">${safeDateString}</div>
+                        ${actionButtons}
+                    </div>
+                </div>
+                ${emotionsDisplay}
+                ${tagsDisplay}
+                <div class="entry-content" id="content-${safeDreamId}">${safeContent}</div>
+            </div>
+        `;
+    }
+
     /**
      * Generates secure HTML representation of a single dream entry.
-     * 
-     * This function converts a dream object into a complete HTML structure with
-     * proper XSS prevention, formatted display of all dream fields including
-     * emotions, tags, and dream signs, and action buttons. It handles missing
-     * or invalid data gracefully and applies appropriate styling for lucid dreams.
-     * 
+     *
+     * This function orchestrates dream rendering by combining data processing
+     * with HTML generation. It delegates to specialized helper functions following
+     * the Single Responsibility Principle while maintaining the same external interface.
+     *
      * @function renderDreamHTML
      * @param {Object} dream - Dream object to render
      * @param {string|number} dream.id - Unique dream identifier
@@ -1058,77 +1287,23 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
      *   isLucid: true,
      *   tags: ['flying', 'city']
      * });
-     * 
+     *
      * @example
      * // Handles invalid dreams gracefully
      * const empty = renderDreamHTML(null); // Returns ''
      */
     function renderDreamHTML(dream) {
-        if (!dream || typeof dream !== 'object' || !dream.id) return '';
-        
         try {
-            const safeTitle = escapeHtml((dream.title || 'Untitled Dream').toString());
-            const safeContent = escapeHtml((dream.content || '').toString());
-            const safeDateString = escapeHtml((dream.dateString || 'Unknown Date').toString());
-            const safeEmotions = escapeHtml((dream.emotions || '').toString());
-            const isLucid = Boolean(dream.isLucid);
-            
-            // Format emotions for display
-            const emotionsDisplay = safeEmotions ? 
-                `<div class="entry-emotions">
-                    <span>Emotions:</span> ${safeEmotions}
-                </div>` : '';
-            
-            // Format tags and dream signs for display
-            const tags = Array.isArray(dream.tags) ? dream.tags : [];
-            const dreamSigns = Array.isArray(dream.dreamSigns) ? dream.dreamSigns : [];
-            
-            let tagsDisplay = '';
-            if (tags.length > 0 || dreamSigns.length > 0) {
-                tagsDisplay = '<div class="entry-tags">';
-                
-                if (tags.length > 0) {
-                    tagsDisplay += `<div class="tag-section">
-                        <span class="tag-label">Tags:</span>
-                        ${formatTagsForDisplay(tags)}
-                    </div>`;
-                }
-                
-                if (dreamSigns.length > 0) {
-                    tagsDisplay += `<div class="tag-section">
-                        <span class="tag-label">Dream Signs:</span>
-                        ${formatDreamSignsForDisplay(dreamSigns)}
-                    </div>`;
-                }
-                
-                tagsDisplay += '</div>';
+            // Build processed display data
+            const displayData = buildDreamDataForDisplay(dream);
+
+            // Return empty string for invalid dreams
+            if (!displayData || !displayData.valid) {
+                return '';
             }
-            
-            const safeDreamId = escapeAttr(dream.id.toString());
-            
-            // Create action buttons using helper
-            const actionButtons = `<div class="entry-actions">
-                ${createActionButton('edit-dream', safeDreamId, 'Edit', 'btn btn-edit btn-small')}
-                ${createActionButton('delete-dream', safeDreamId, 'Delete', 'btn btn-delete btn-small')}
-            </div>`;
-            
-            return `
-                <div class="entry ${isLucid ? 'lucid' : ''}" 
-                     id="entry-${safeDreamId}"
-                     role="article" 
-                     aria-roledescription="dream entry">
-                    <div class="entry-header">
-                        <div class="entry-title" id="title-${safeDreamId}">${safeTitle}</div>
-                        <div class="entry-meta">
-                            <div class="entry-date">${safeDateString}</div>
-                            ${actionButtons}
-                        </div>
-                    </div>
-                    ${emotionsDisplay}
-                    ${tagsDisplay}
-                    <div class="entry-content" id="content-${safeDreamId}">${safeContent}</div>
-                </div>
-            `;
+
+            // Generate HTML from processed data
+            return generateDreamHTML(displayData);
         } catch (error) {
             console.error('Error rendering dream HTML:', error);
             return `<div class="entry error">Error displaying dream</div>`;
@@ -1186,7 +1361,180 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
     }
 
 // ================================
-// 8. ENDLESS SCROLL IMPLEMENTATION
+// 8. UI UTILITY FUNCTIONS
+// ================================
+
+    /**
+     * Extracts the items per page value from the UI limit selection dropdown.
+     *
+     * This utility function centralizes the logic for reading and parsing the
+     * items per page setting from the UI. It provides proper defaults, validation,
+     * and safety bounds to prevent invalid pagination configurations. This eliminates
+     * code duplication across pagination-related functions.
+     *
+     * @function getItemsPerPageFromUI
+     * @returns {number} Number of items per page (1-1000), defaults to 10
+     * @since 2.02.73
+     * @example
+     * const itemsPerPage = getItemsPerPageFromUI();
+     * console.log(itemsPerPage); // 10 (default) or user selection
+     *
+     * @example
+     * // Used in pagination calculations
+     * const totalPages = Math.ceil(totalItems / getItemsPerPageFromUI());
+     */
+    function getItemsPerPageFromUI() {
+        const limitSelect = document.getElementById('limitSelect');
+        const limitValue = limitSelect ? limitSelect.value : '10';
+        return Math.max(1, Math.min(parseInt(limitValue) || 10, 1000));
+    }
+
+    /**
+     * Formats a timestamp or Date object to datetime-local input format.
+     *
+     * This utility function converts ISO timestamps or Date objects to the
+     * 'YYYY-MM-DDTHH:MM' format required by HTML datetime-local input elements.
+     * It includes comprehensive error handling and fallback to current time for
+     * invalid dates, ensuring reliable datetime formatting across the application.
+     *
+     * @function formatDatetimeLocal
+     * @param {string|Date|number} [dateInput] - ISO timestamp, Date object, or timestamp number
+     * @returns {string} Formatted datetime string in 'YYYY-MM-DDTHH:MM' format
+     * @since 2.02.73
+     * @example
+     * const formatted = formatDatetimeLocal('2024-01-15T14:30:00.000Z');
+     * console.log(formatted); // '2024-01-15T14:30'
+     *
+     * @example
+     * // Handles invalid input with current time fallback
+     * const fallback = formatDatetimeLocal('invalid-date');
+     * console.log(fallback); // Current time in datetime-local format
+     *
+     * @example
+     * // Works with Date objects
+     * const dateFormatted = formatDatetimeLocal(new Date());
+     * console.log(dateFormatted); // Current time formatted
+     */
+    function formatDatetimeLocal(dateInput) {
+        let dateToFormat;
+
+        try {
+            if (!dateInput) {
+                // No input provided, use current time
+                dateToFormat = new Date();
+            } else if (dateInput instanceof Date) {
+                // Date object provided
+                dateToFormat = isNaN(dateInput.getTime()) ? new Date() : dateInput;
+            } else {
+                // String or number timestamp provided
+                const parsedDate = new Date(dateInput);
+                dateToFormat = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+            }
+        } catch (error) {
+            // Any parsing error, fallback to current time
+            console.warn('Error parsing date input, using current time:', error);
+            dateToFormat = new Date();
+        }
+
+        try {
+            // Format to datetime-local format: YYYY-MM-DDTHH:MM
+            const year = dateToFormat.getFullYear();
+            const month = (dateToFormat.getMonth() + 1).toString().padStart(2, '0');
+            const day = dateToFormat.getDate().toString().padStart(2, '0');
+            const hours = dateToFormat.getHours().toString().padStart(2, '0');
+            const minutes = dateToFormat.getMinutes().toString().padStart(2, '0');
+
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        } catch (error) {
+            // Final fallback - return current time formatted
+            console.error('Error formatting datetime-local, using current time fallback:', error);
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+    }
+
+    /**
+     * Clears all form fields in the dream entry form after successful save.
+     *
+     * This utility function resets the dream entry form to its initial state,
+     * clearing all input fields and resetting checkboxes. It also sets the
+     * date field to current time to prepare for the next entry. This function
+     * handles form cleanup concerns separately from pagination logic.
+     *
+     * @function clearDreamForm
+     * @param {HTMLElement} titleElement - Dream title input element
+     * @param {HTMLElement} contentElement - Dream content textarea element
+     * @param {HTMLElement} dreamDateElement - Dream date datetime-local input element
+     * @param {HTMLElement} isLucidElement - Lucid dream checkbox element
+     * @param {HTMLElement} emotionsElement - Emotions input element
+     * @param {HTMLElement} tagsElement - Tags input element
+     * @param {HTMLElement} dreamSignsElement - Dream signs input element
+     * @returns {void}
+     * @since 2.02.73
+     * @example
+     * // Clear form after successful dream save
+     * clearDreamForm(titleEl, contentEl, dateEl, lucidEl, emotionsEl, tagsEl, signsEl);
+     *
+     * @example
+     * // Called from saveDream() after successful storage
+     * clearDreamForm(...formElements);
+     */
+    function clearDreamForm(titleElement, contentElement, dreamDateElement, isLucidElement, emotionsElement, tagsElement, dreamSignsElement) {
+        try {
+            // Clear all text input fields
+            if (titleElement) titleElement.value = '';
+            if (contentElement) contentElement.value = '';
+            if (emotionsElement) emotionsElement.value = '';
+            if (tagsElement) tagsElement.value = '';
+            if (dreamSignsElement) dreamSignsElement.value = '';
+
+            // Reset checkbox
+            if (isLucidElement) isLucidElement.checked = false;
+
+            // Reset date field to current timestamp for next entry
+            if (dreamDateElement) {
+                dreamDateElement.value = formatDatetimeLocal(); // Use helper for current time
+            }
+        } catch (error) {
+            console.warn('Error clearing dream form fields:', error);
+        }
+    }
+
+    /**
+     * Resets pagination to the first page to display newly added content.
+     *
+     * This utility function handles pagination state reset that should occur
+     * after adding new content. It ensures users see their newly added dreams
+     * at the top of the list by resetting to page 1. This function isolates
+     * pagination concerns from form management.
+     *
+     * @function resetPaginationToFirst
+     * @returns {void}
+     * @since 2.02.73
+     * @example
+     * // Reset pagination after adding new dream
+     * resetPaginationToFirst();
+     *
+     * @example
+     * // Called from saveDream() after successful storage
+     * resetPaginationToFirst();
+     */
+    function resetPaginationToFirst() {
+        try {
+            setCurrentPage(1);
+        } catch (error) {
+            console.warn('Error resetting pagination to first page:', error);
+        }
+    }
+
+// ================================
+// 9. ENDLESS SCROLL IMPLEMENTATION
 // ================================
 
     /**
@@ -1323,10 +1671,7 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
      * // Returns: Previous, 1,2,3,4,5, Next
      */
     function renderPagination(page, totalPages, totalItems, currentItems) {
-        // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
-        const limitSelect = document.getElementById('limitSelect');
-        const limitValue = limitSelect ? limitSelect.value : '10';
-        const itemsPerPage = Math.max(1, parseInt(limitValue) || 10);
+        const itemsPerPage = getItemsPerPageFromUI();
         
         const startItem = (page - 1) * itemsPerPage + 1;
         const endItem = startItem + currentItems - 1;
@@ -1456,7 +1801,6 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
      * await goToPage(nextPage);
      */
     async function goToPage(page) {
-        // TODO: Extract getItemsPerPageFromUI() helper function - duplicated pattern
         const limitSelect = document.getElementById('limitSelect');
         const limitValue = limitSelect ? limitSelect.value : '10';
         
@@ -1464,7 +1808,7 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
         
         try {
             const totalDreamsCount = await getFilteredDreamsCount();
-            const itemsPerPage = Math.max(1, parseInt(limitValue) || 10);
+            const itemsPerPage = getItemsPerPageFromUI();
             const totalPages = Math.max(1, Math.ceil(totalDreamsCount / itemsPerPage));
             
             // Validate page number
@@ -1736,6 +2080,8 @@ export {
     
     // Display and rendering functions
     displayDreams,
+    buildDreamDataForDisplay,
+    generateDreamHTML,
     renderDreamHTML,
     
     // Filtering and sorting
@@ -1745,6 +2091,8 @@ export {
     getFilteredDreamsCount,
     
     // Pagination functions
+    calculatePaginationParams,
+    configurePaginationMode,
     calculatePagination,
     renderPaginationHTML,
     renderPagination,
@@ -1757,6 +2105,10 @@ export {
     handleEndlessScroll,
     
     // Utility functions
+    getItemsPerPageFromUI,
+    formatDatetimeLocal,
+    clearDreamForm,
+    resetPaginationToFirst,
     parseTagsFromInput,
     formatTagsForDisplay,
     formatDreamSignsForDisplay,
