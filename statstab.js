@@ -546,7 +546,7 @@ import {
             </div>
         `;
 
-        let calendarHTML = header + '<table class="calendar-grid"><thead><tr>';
+        let calendarHTML = header + '<table class="calendar-grid" role="grid" aria-label="Dream calendar for ' + monthNames[month] + ' ' + year + '" tabindex="0"><thead><tr>';
         const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         weekDays.forEach(day => calendarHTML += `<th>${day}</th>`);
         calendarHTML += '</tr></thead><tbody>';
@@ -577,8 +577,14 @@ import {
 
                     const dreamData = calendarState.dreamsByDate[dateStr];
 
+                    const dreamCount = dreamData ? dreamData.count : 0;
+                    const lucidCount = dreamData ? dreamData.lucid : 0;
+                    const cellLabel = `${date}, ${dreamCount} dream${dreamCount === 1 ? '' : 's'}${lucidCount > 0 ? ', ' + lucidCount + ' lucid' : ''}`;
+                    
                     calendarHTML += `
-                        <td>
+                        <td role="gridcell" 
+                            tabindex="-1"
+                            aria-label="${cellLabel}">
                             <div class="calendar-day ${isToday ? 'today' : ''}" data-action="go-to-date" data-date="${dateStr}">
                                 <div class="day-number">${date}</div>
                                 ${dreamData ? `<div class="dream-indicator" title="${dreamData.count} dream(s), ${dreamData.lucid} lucid">${dreamData.lucid > 0 ? '✨ ' : ''}${dreamData.count}</div>` : ''}
@@ -1656,6 +1662,7 @@ function renderStatsTab(tabPanel) {
     
     tabPanel.innerHTML = `
         <div id="statsContainer">
+            <h3 id="stats-main-heading" tabindex="-1">📊 Dream Statistics</h3>
             <div id="calendarContainer" class="card-md mb-lg">
                 <!-- Calendar will be generated here -->
                 <div class="loading-state"></div>

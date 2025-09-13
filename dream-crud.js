@@ -1117,7 +1117,10 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             </div>`;
             
             return `
-                <div class="entry ${isLucid ? 'lucid' : ''}" id="entry-${safeDreamId}">
+                <div class="entry ${isLucid ? 'lucid' : ''}" 
+                     id="entry-${safeDreamId}"
+                     role="article" 
+                     aria-roledescription="dream entry">
                     <div class="entry-header">
                         <div class="entry-title" id="title-${safeDreamId}">${safeTitle}</div>
                         <div class="entry-meta">

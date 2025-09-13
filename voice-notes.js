@@ -1490,7 +1490,11 @@ async function displayVoiceNotes() {
                     ` : '';
                     
                     return `
-                        <div class="voice-note-container" id="voice-note-${escapeAttr(note.id)}">
+                        <div class="voice-note-container" 
+                             id="voice-note-${escapeAttr(note.id)}"
+                             role="region" 
+                             aria-roledescription="voice recording"
+                             aria-label="Voice note from ${escapeAttr(formattedDate)}">
                             <div class="voice-note-info">
                                 <div class="voice-note-title">${escapeHtml(note.title)}</div>
                                 <div class="voice-note-meta">${createMetaDisplay(metaItems)}</div>

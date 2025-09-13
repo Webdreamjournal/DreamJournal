@@ -56,6 +56,9 @@ GNU Affero General Public License for more details.
     </script>
 </head>
 <body>
+    <!-- ARIA: Global announcer for SPA navigation -->
+    <div id="route-announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+    
     <!-- ================================ -->
     <!-- MAIN APPLICATION STRUCTURE       -->
     <!-- ================================ -->
@@ -84,29 +87,63 @@ GNU Affero General Public License for more details.
         <!-- ================================ -->
         <!-- MAIN APPLICATION TABS NAVIGATION -->
         <!-- ================================ -->
-        <div class="app-tabs">
+        <div class="app-tabs" role="tablist" aria-label="Dream Journal Navigation">
             <!-- Journal Tab - Main dream entry and viewing interface (default active) -->
-            <button class="app-tab active" data-action="switch-app-tab" data-tab="journal">
+            <button class="app-tab active" 
+                    data-action="switch-app-tab" 
+                    data-tab="journal"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="journalTab"
+                    id="tab-journal">
                 📝 Journal
             </button>
             
             <!-- Goals Tab - Lucid dreaming goals and progress tracking -->
-            <button class="app-tab" data-action="switch-app-tab" data-tab="goals">
+            <button class="app-tab" 
+                    data-action="switch-app-tab" 
+                    data-tab="goals"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="goalsTab"
+                    id="tab-goals"
+                    tabindex="-1">
                 🎯 Goals
             </button>
             
             <!-- Statistics Tab - Analytics, calendar view, and dream insights -->
-            <button class="app-tab" data-action="switch-app-tab" data-tab="stats">
+            <button class="app-tab" 
+                    data-action="switch-app-tab" 
+                    data-tab="stats"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="statsTab"
+                    id="tab-stats"
+                    tabindex="-1">
                 📊 Stats
             </button>
             
             <!-- Advice Tab - Daily tips and lucid dreaming guidance -->
-            <button class="app-tab" data-action="switch-app-tab" data-tab="advice">
+            <button class="app-tab" 
+                    data-action="switch-app-tab" 
+                    data-tab="advice"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="adviceTab"
+                    id="tab-advice"
+                    tabindex="-1">
                 💡 Advice
             </button>
             
             <!-- Settings Tab - App configuration, theme, PIN setup, import/export -->
-            <button class="app-tab" data-action="switch-app-tab" data-tab="settings">
+            <button class="app-tab" 
+                    data-action="switch-app-tab" 
+                    data-tab="settings"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="settingsTab"
+                    id="tab-settings"
+                    tabindex="-1">
                 ⚙️ Settings
             </button>
             
@@ -149,7 +186,7 @@ GNU Affero General Public License for more details.
             
             <!-- Version Information and Additional Medical Disclaimer -->
             <p class="app-footer p">
-                Dream Journal v2.02.48 | Not a substitute for professional medical advice
+                Dream Journal v2.02.62 | Not a substitute for professional medical advice
             </p>
         </div>
     </footer>
@@ -158,7 +195,13 @@ GNU Affero General Public License for more details.
     <!-- ================================ -->
     <!-- PIN PROTECTION OVERLAY SYSTEM    -->
     <!-- ================================ -->
-    <div id="pinOverlay" class="pin-overlay" style="display: none;">
+    <div id="pinOverlay" 
+         class="pin-overlay" 
+         style="display: none;"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="pinTitle"
+         aria-describedby="pinMessage">
         <div class="pin-container">
             <!-- PIN Dialog Title - Dynamic based on operation type -->
             <h2 id="pinTitle">🔒 Enter PIN</h2>

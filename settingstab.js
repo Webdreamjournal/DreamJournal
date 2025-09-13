@@ -125,6 +125,7 @@ function renderSettingsTab(tabPanel) {
     const darkSelected = currentTheme === 'dark' ? 'selected' : '';
     
     tabPanel.innerHTML = `
+        <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3>
         <div class="settings-section">
             <h3>🎨 Appearance</h3>
             <div class="settings-row">
@@ -133,7 +134,7 @@ function renderSettingsTab(tabPanel) {
                     <div class="settings-description">Choose your preferred color theme</div>
                 </div>
                 <div class="settings-controls">
-                    <select id="themeSelect" class="filter-select" style="min-width: 120px;">
+                    <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-keyshortcuts="Control+T">
                         <option value="light" ${lightSelected}>🌞 Light</option>
                         <option value="dark" ${darkSelected}>🌙 Dark</option>
                     </select>
@@ -162,8 +163,8 @@ function renderSettingsTab(tabPanel) {
                     <div class="settings-description">Export or import your dreams as text files</div>
                 </div>
                 <div class="settings-controls export-import-controls">
-                    <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
-                    <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
+                    <button data-action="export-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+E">Export Dreams</button>
+                    <button data-action="import-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+I">Import Dreams</button>
                     <div class="encryption-option flex-center gap-sm">
                         <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
                         <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>

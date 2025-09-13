@@ -956,7 +956,7 @@ function renderGoalsTab(tabPanel) {
     tabPanel.innerHTML = `
         <div class="settings-section">
             <div class="flex-between mb-lg">
-                <h3>🎯 Your Dream Goals</h3>
+                <h3 id="goals-main-heading" tabindex="-1">🎯 Your Dream Goals</h3>
                 <button data-action="create-goal" class="btn btn-primary btn-small">➕ New Goal</button>
             </div>
             <div id="activeGoalsContainer">

@@ -22,7 +22,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
-import { CONSTANTS } from './constants.js';
+import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
 import { 
     getActiveAppTab,
     setActiveAppTab,
@@ -330,7 +330,7 @@ function createPaginationHTML(currentPage, totalPages, actionPrefix) {
         // No pagination needed for single page
         if (totalPages <= 1) return '';
         
-        let paginationHTML = '<div class="pagination">';
+        let paginationHTML = '<nav aria-label="Dream entries pagination" role="navigation"><div class="pagination">';
         
         // Previous page button (only if not on first page)
         if (currentPage > 1) {
@@ -359,7 +359,11 @@ function createPaginationHTML(currentPage, totalPages, actionPrefix) {
         for (let i = startPage; i <= endPage; i++) {
             const isCurrentPage = i === currentPage;
             const buttonClass = isCurrentPage ? 'btn btn-primary btn-small' : 'btn btn-outline btn-small';
-            paginationHTML += `<button data-action="${actionPrefix}" data-page="${i}" class="${buttonClass}" ${isCurrentPage ? 'disabled' : ''}>${i}</button>`;
+            paginationHTML += `<button data-action="${actionPrefix}" 
+                        data-page="${i}" 
+                        class="${buttonClass}" 
+                        ${isCurrentPage ? 'disabled aria-current="page"' : ''}
+                        aria-label="Page ${i}${isCurrentPage ? ', current page' : ''}">${i}</button>`;
         }
         
         // Last page and ellipsis
@@ -375,7 +379,7 @@ function createPaginationHTML(currentPage, totalPages, actionPrefix) {
             paginationHTML += `<button data-action="${actionPrefix}" data-page="${currentPage + 1}" class="btn btn-outline btn-small">Next ›</button>`;
         }
         
-        paginationHTML += '</div>';
+        paginationHTML += '</div></nav>';
         return paginationHTML;
     }
 
@@ -598,7 +602,7 @@ function switchTheme(newTheme) {
  * switchAppTab('stats'); // Automatically initializes calendar
  * switchAppTab('goals'); // Refreshes goals from storage
  */
-function switchAppTab(tabName) {
+function switchAppTab(tabName, isInitialLoad = false) {
         if (!tabName || !['journal', 'goals', 'stats', 'advice', 'settings', 'lock'].includes(tabName)) return;
         
         // Handle lock screen transitions
@@ -661,6 +665,10 @@ function switchAppTab(tabName) {
                 const tabPanel = document.createElement('div');
                 tabPanel.id = tabId;
                 tabPanel.className = 'tab-panel';
+                tabPanel.setAttribute('role', 'tabpanel');
+                // Extract tab name from tabId (e.g., 'journalTab' -> 'journal')
+                const panelTabName = tabId.replace('Tab', '');
+                tabPanel.setAttribute('aria-labelledby', `tab-${panelTabName}`);
                 
                 if (tabId === 'goalsTab') {
                     // Goals tab is now handled by the dedicated goalstab.js module
@@ -805,14 +813,18 @@ function switchAppTab(tabName) {
             }
         });
         
-        // Update tab buttons
-        const tabButtons = document.querySelectorAll('.app-tab');
+        // Update tab buttons with ARIA states
+        const tabButtons = document.querySelectorAll('.app-tab[role="tab"]');
         tabButtons.forEach(button => {
             const buttonTab = button.dataset.tab;
             if (buttonTab === tabName) {
                 button.classList.add('active');
+                button.setAttribute('aria-selected', 'true');
+                button.setAttribute('tabindex', '0');
             } else {
                 button.classList.remove('active');
+                button.setAttribute('aria-selected', 'false');
+                button.setAttribute('tabindex', '-1');
             }
         });
         
@@ -872,6 +884,26 @@ function switchAppTab(tabName) {
             initializeAdviceTab().catch(error => {
                 console.error('Failed to initialize advice tab:', error);
             });
+        }
+
+        // ARIA: Announce tab change (skip during initial load)
+        if (!isInitialLoad) {
+            const announcer = document.getElementById('route-announcer');
+            if (announcer) {
+                const friendlyTabName = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+                announcer.textContent = `Switched to ${friendlyTabName} page`;
+            }
+        }
+
+        // ARIA: Move focus to main heading of new tab (skip during initial load)
+        if (!isInitialLoad) {
+            setTimeout(() => {
+                const headingId = `${tabName}-main-heading`;
+                const mainHeading = document.getElementById(headingId);
+                if (mainHeading) {
+                    mainHeading.focus();
+                }
+            }, 150); // Small delay to ensure content is ready
         }
     }
 
@@ -1928,7 +1960,12 @@ function createGoalElement(goal, progress, isCompleted = false) {
                 <span class="font-semibold">Progress:</span>
                 <span class="status-${statusClass}">${progress.current} / ${goal.target} ${getGoalTypeLabel(goal.type)}</span>
             </div>
-            <div class="progress-bar">
+            <div class="progress-bar" 
+                 role="progressbar" 
+                 aria-valuenow="${progress.current}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="${goal.target}"
+                 aria-label="Goal progress: ${progress.current} of ${goal.target} ${getGoalTypeLabel(goal.type)}">
                 <div class="progress-fill progress-${statusClass}" style="width: ${progressPercent}%;"></div>
             </div>
             ${progress.message ? `<p class="text-secondary text-sm mt-sm">${progress.message}</p>` : ''}

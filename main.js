@@ -51,7 +51,7 @@ import {
     getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
     deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
     scrollDebounceTimer, recordingTimer, currentPlayingAudio, mediaRecorder,
-    isDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab
+    isDreamFormCollapsed, setIsDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab
 } from './state.js';
 
 // Core utilities
@@ -89,7 +89,7 @@ import { initializeJournalTab } from './journaltab.js';
 import { importEntries, importAllData } from './import-export.js';
 
 // Action routing system
-import { handleUnifiedClick, handleUnifiedChange } from './action-router.js';
+import { handleUnifiedClick, handleUnifiedChange, handleTabListKeydown } from './action-router.js';
 
 // PWA installation system
 import { installPWA, setupPWAInstall } from './pwa.js';
@@ -159,6 +159,9 @@ function initializeTheme() {
 function setupEventDelegation() {
     document.addEventListener('click', handleUnifiedClick);
     document.addEventListener('change', handleUnifiedChange);
+    
+    // ARIA: Add keyboard navigation for tabs
+    document.addEventListener('keydown', handleTabListKeydown);
     
     const importFileInput = document.getElementById('importFile');
     if (importFileInput) {
@@ -513,12 +516,48 @@ async function initializeApplicationData(timerExpiredAndRemovedPin) {
  */
 function restoreDreamFormState() {
     try {
-        if (localStorage.getItem(DREAM_FORM_COLLAPSE_KEY) === 'true') {
-            isDreamFormCollapsed = false;
-            toggleDreamForm();
+        const fullForm = document.getElementById('dreamFormFull');
+        const collapsedForm = document.getElementById('dreamFormCollapsed');
+        
+        // Safety check - ensure both form elements exist
+        if (!fullForm || !collapsedForm) {
+            console.warn('Dream form elements not found during state restoration');
+            return;
+        }
+        
+        // Check if state was already applied by journaltab.js during rendering
+        // If either form is visible, state was already restored, so skip redundant work
+        if (fullForm.style.display === 'block' || collapsedForm.style.display === 'block') {
+            return;
+        }
+        
+        // State not yet applied (both forms still hidden by CSS), apply it now
+        const savedState = localStorage.getItem(DREAM_FORM_COLLAPSE_KEY);
+        
+        if (savedState === 'true') {
+            // User previously collapsed the form, restore collapsed state
+            setIsDreamFormCollapsed(true);
+            fullForm.style.display = 'none';
+            collapsedForm.style.display = 'block';
+        } else {
+            // Default expanded state OR no saved preference - show expanded form
+            setIsDreamFormCollapsed(false);
+            fullForm.style.display = 'block';
+            collapsedForm.style.display = 'none';
         }
     } catch (e) {
-        // Silently handle localStorage access errors
+        // Fallback to expanded state if localStorage access fails
+        try {
+            const fullForm = document.getElementById('dreamFormFull');
+            const collapsedForm = document.getElementById('dreamFormCollapsed');
+            if (fullForm && collapsedForm) {
+                setIsDreamFormCollapsed(false);
+                fullForm.style.display = 'block';
+                collapsedForm.style.display = 'none';
+            }
+        } catch (fallbackError) {
+            console.warn('Failed to restore dream form state and fallback failed:', fallbackError);
+        }
     }
 }
 
@@ -588,12 +627,12 @@ async function initializeApp() {
         setUnlocked(false);
         setAppLocked(true);
         setPreLockActiveTab('journal');
-        switchAppTab('lock'); 
+        switchAppTab('lock', true); 
         hideAllTabButtons();
     } else {
         setUnlocked(true);
         setAppLocked(false);
-        switchAppTab('journal');
+        switchAppTab('journal', true);
         showAllTabButtons();
     }
 

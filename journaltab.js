@@ -11,8 +11,12 @@
  * 
  * @author Dream Journal Development Team
  * @since 2.02.06
- * @version 2.02.06
+ * @version 2.02.58
  */
+
+// Import state management function and constants for form state synchronization
+import { setIsDreamFormCollapsed } from './state.js';
+import { DREAM_FORM_COLLAPSE_KEY } from './constants.js';
 
 /**
  * Render the complete Journal tab HTML structure.
@@ -56,7 +60,7 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormFull">
                 <!-- Collapsible form header with toggle functionality -->
-                <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
+                <h3 id="journal-main-heading" tabindex="-1" data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
                     🌙 Record Your Dream 
                     <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
                 </h3>
@@ -88,8 +92,12 @@ function renderJournalTab(tabPanel) {
                 <!-- Emotions Field - Comma-separated emotional states with autocomplete -->
                 <div class="form-group">
                     <label for="dreamEmotions">Emotions Experienced (optional)</label>
-                    <input type="text" id="dreamEmotions" class="form-control" placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
-                    <small class="small-helper">
+                    <input type="text" 
+                           id="dreamEmotions" 
+                           class="form-control" 
+                           placeholder="e.g., happy, anxious, excited, confused (separate with commas)"
+                           aria-describedby="emotions-help">
+                    <small id="emotions-help" class="small-helper">
                         Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
                     </small>
                 </div>
@@ -98,9 +106,13 @@ function renderJournalTab(tabPanel) {
                 <div class="form-group">
                     <label for="dreamTags">Tags & Themes (optional)</label>
                     <div class="tag-input-group">
-                        <input type="text" id="dreamTags" class="form-control" placeholder="e.g., family, flying, school, animals (separate with commas)">
+                        <input type="text" 
+                               id="dreamTags" 
+                               class="form-control" 
+                               placeholder="e.g., family, flying, school, animals (separate with commas)"
+                               aria-describedby="tags-help">
                     </div>
-                    <small class="small-helper">
+                    <small id="tags-help" class="small-helper">
                         Tag your dream with themes, people, places, objects, or activities for easy searching
                     </small>
                 </div>
@@ -109,21 +121,25 @@ function renderJournalTab(tabPanel) {
                 <div class="form-group">
                     <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
                     <div class="tag-input-group">
-                        <input type="text" id="dreamSigns" class="form-control" placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
+                        <input type="text" 
+                               id="dreamSigns" 
+                               class="form-control" 
+                               placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)"
+                               aria-describedby="signs-help">
                     </div>
-                    <small class="small-helper-warning">
+                    <small id="signs-help" class="small-helper-warning">
                         Elements that could trigger lucidity - track these to improve dream awareness!
                     </small>
                 </div>
                 
                 <!-- Save Button - Submits dream form via data-action event delegation -->
-                <button data-action="save-dream" class="btn btn-primary">Save Dream</button>
+                <button data-action="save-dream" class="btn btn-primary" aria-keyshortcuts="Control+Enter">Save Dream</button>
             </div>
             
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (COLLAPSED)    -->
             <!-- ================================ -->
-            <div class="entry-form" id="dreamFormCollapsed" style="display: none;">
+            <div class="entry-form" id="dreamFormCollapsed">
                 <!-- Collapsed form header with expand functionality -->
                 <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
                     📝 Record Your Dream 
@@ -150,12 +166,17 @@ function renderJournalTab(tabPanel) {
                 
                 <!-- Voice Tab Content Panels -->
                 <div class="voice-tab-content">
+                    <!-- ARIA: Live region for voice recording status announcements -->
+                    <div id="voice-status-announcer" class="visually-hidden" aria-live="assertive"></div>
                     
                     <!-- Recording Tab Panel - Live voice recording interface -->
                     <div id="voiceTabRecord" class="voice-tab-panel active">
                         <div class="voice-controls">
                             <!-- Recording Control Button - Toggles between start/stop -->
-                            <button id="recordBtn" data-action="toggle-recording" class="record-btn ready">
+                            <button id="recordBtn" 
+                                    data-action="toggle-recording" 
+                                    class="record-btn ready"
+                                    aria-describedby="voice-status-announcer">
                                 <span id="recordIcon">🎤</span>
                                 <span id="recordText">Start Recording</span>
                             </button>
@@ -185,7 +206,7 @@ function renderJournalTab(tabPanel) {
                 <!-- Dreams Management Controls -->
                 <div class="dreams-controls">
                     <!-- Security Lock Button - PIN setup and app locking -->
-                    <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal">🔒 Setup & Lock</button>
+                    <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal" aria-keyshortcuts="Control+L">🔒 Setup & Lock</button>
                     
                     <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
                     <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
@@ -195,12 +216,17 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <!-- SEARCH & FILTER CONTROLS         -->
             <!-- ================================ -->
-            <div class="controls">
+            <div class="controls" role="search" aria-label="Search dreams">
                 
                 <!-- Primary Search and Filter Controls -->
                 <div class="search-filter-group">
                     <!-- Search Box - Full-text search across all dream fields -->
-                    <input type="text" id="searchBox" class="search-box" placeholder="Search dreams by title, content, emotions, tags, or dream signs...">
+                    <input type="text" 
+                           id="searchBox" 
+                           class="search-box" 
+                           placeholder="Search dreams by title, content, emotions, tags, or dream signs..."
+                           aria-label="Search dreams by content, title, or emotions"
+                           role="searchbox">
                     
                     <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
                     <select id="filterSelect" class="filter-select">
@@ -255,6 +281,64 @@ function renderJournalTab(tabPanel) {
             </div>
         </div>
     `;
+    
+    // CRITICAL: Apply saved form state immediately after rendering
+    // This prevents timing race condition where user sees both forms hidden
+    applyDreamFormStateAfterRender();
+}
+
+/**
+ * Apply saved dream form state immediately after HTML rendering.
+ * 
+ * This function restores the user's saved form collapse preference immediately
+ * after the HTML is created, preventing the timing race condition where both
+ * forms are hidden by CSS until the main state restoration runs later.
+ * 
+ * @private
+ * @returns {void}
+ * @since 2.02.58
+ */
+function applyDreamFormStateAfterRender() {
+    try {
+        const fullForm = document.getElementById('dreamFormFull');
+        const collapsedForm = document.getElementById('dreamFormCollapsed');
+        
+        // Safety check - ensure both form elements exist
+        if (!fullForm || !collapsedForm) {
+            return;
+        }
+        
+        // Get saved state from localStorage using the global constant
+        const savedState = localStorage.getItem(DREAM_FORM_COLLAPSE_KEY);
+        
+        if (savedState === 'true') {
+            // User previously collapsed the form - show collapsed version
+            fullForm.style.display = 'none';
+            collapsedForm.style.display = 'block';
+            // Update global state to match
+            setIsDreamFormCollapsed(true);
+        } else {
+            // Default expanded state OR no saved preference - show full form
+            fullForm.style.display = 'block';
+            collapsedForm.style.display = 'none';
+            // Update global state to match
+            setIsDreamFormCollapsed(false);
+        }
+    } catch (e) {
+        // Fallback to expanded state if localStorage access fails
+        try {
+            const fullForm = document.getElementById('dreamFormFull');
+            const collapsedForm = document.getElementById('dreamFormCollapsed');
+            if (fullForm && collapsedForm) {
+                fullForm.style.display = 'block';
+                collapsedForm.style.display = 'none';
+            }
+        } catch (fallbackError) {
+            // Silent fallback failure
+        }
+        // Update global state for fallback
+        setIsDreamFormCollapsed(false);
+    }
 }
 
 /**

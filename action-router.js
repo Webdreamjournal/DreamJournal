@@ -196,6 +196,66 @@ function extractActionContext(target) {
     }
 
 // ================================
+// KEYBOARD NAVIGATION FOR TABS
+// ================================
+
+/**
+ * Handle keyboard navigation for tab list
+ * Implements arrow key navigation as per ARIA APG
+ * 
+ * @param {KeyboardEvent} event - The keyboard event to handle
+ * @returns {void}
+ * @since 2.02.53
+ */
+function handleTabListKeydown(event) {
+    const target = event.target;
+    
+    // Only handle if we're on a tab in the tablist
+    if (!target.matches('[role="tab"]') || !target.closest('[role="tablist"]')) {
+        return;
+    }
+    
+    const tablist = target.closest('[role="tablist"]');
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]:not([style*="display: none"])'));
+    const currentIndex = tabs.indexOf(target);
+    
+    let newIndex = currentIndex;
+    
+    switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+            event.preventDefault();
+            newIndex = (currentIndex + 1) % tabs.length;
+            break;
+            
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            event.preventDefault();
+            newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+            break;
+            
+        case 'Home':
+            event.preventDefault();
+            newIndex = 0;
+            break;
+            
+        case 'End':
+            event.preventDefault();
+            newIndex = tabs.length - 1;
+            break;
+            
+        default:
+            return; // Don't handle other keys
+    }
+    
+    if (newIndex !== currentIndex) {
+        const newTab = tabs[newIndex];
+        newTab.focus();
+        newTab.click(); // Trigger the tab switch
+    }
+}
+
+// ================================
 // COMPREHENSIVE ACTION MAPPING SYSTEM
 // ================================
 
@@ -829,6 +889,9 @@ export {
     routeAction,
     handleUnifiedClick,
     handleUnifiedChange,
+    
+    // Keyboard navigation
+    handleTabListKeydown,
     
     // Action mapping registry
     ACTION_MAP

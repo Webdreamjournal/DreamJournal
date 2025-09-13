@@ -17,6 +17,14 @@
             --font-weight-semibold: 600;
             --transition: all 0.3s ease;
             
+            /* Responsive design tokens */
+            --padding-responsive-sm: clamp(15px, 4vw, 25px);
+            --padding-responsive-md: clamp(20px, 5vw, 40px);
+            --padding-responsive-lg: clamp(25px, 6vw, 50px);
+            --max-width-sm: 400px;
+            --max-width-md: 600px;
+            --max-width-lg: 800px;
+            
             /* HSL Color Foundation - Hue and Saturation values (never change between themes) */
             /* Only lightness values change for light/dark theme switching */
             --primary-h: 238;    --primary-s: 84%;    /* Deep blue for primary actions */
@@ -24,6 +32,7 @@
             --error-h: 0;        --error-s: 84%;      /* Red for error states */
             --warning-h: 32;     --warning-s: 95%;    /* Orange/yellow for warnings */
             --info-h: 199;       --info-s: 89%;       /* Light blue for informational states */
+            --purple-h: 261;     --purple-s: 83%;     /* Purple for transcribe buttons */
             
             /* Neutral color families for backgrounds and text */
             --neutral-h: 222;    --neutral-s: 47%;    /* Primary neutral base */
@@ -55,7 +64,9 @@
             --primary-l: 59%;          --primary-hover-l: 52%;      /* Primary action colors */
             --success-l: 30%;          --success-hover-l: 26%;      /* Success state colors */
             --error-l: 51%;            --error-hover-l: 44%;        /* Error state colors */
-            --warning-l: 44%;          --info-l: 39%;               /* Warning and info colors */
+            --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
+            --info-l: 39%;             --info-hover-l: 33%;         /* Info and info hover colors */
+            --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
             --secondary-l: 46%;        --secondary-hover-l: 35%;    /* Secondary action colors */
             
             /* Component-specific lightness values */
@@ -65,6 +76,9 @@
             --dream-sign-bg-l: 95%;    --dream-sign-text-l: 44%;    --dream-sign-border-l: 88%;
             --notification-error-l: 93%;   --notification-success-l: 89%;
             --notification-warning-l: 95%; --notification-info-l: 97%;
+            
+            /* Light theme gradients - Subtle green tint for lucid dream highlighting */
+            --light-lucid-gradient: linear-gradient(135deg, hsl(158, 47%, 97%), var(--bg-secondary));
         }
         
         /* ================================ */
@@ -75,9 +89,9 @@
         /* Card component base classes */
         .card { background: var(--bg-secondary); border: 2px solid var(--border-color); }
         .card-elevated { background: var(--bg-elevated); border: 2px solid var(--border-color); }
-        .card-lg { border-radius: var(--border-radius-xl); padding: 40px; }       /* TODO: Consider making padding responsive */
-        .card-md { border-radius: var(--border-radius-lg); padding: 20px; }
-        .card-sm { border-radius: var(--border-radius); padding: 15px; }
+        .card-lg { border-radius: var(--border-radius-xl); padding: var(--padding-responsive-lg); }
+        .card-md { border-radius: var(--border-radius-lg); padding: var(--padding-responsive-md); }
+        .card-sm { border-radius: var(--border-radius); padding: var(--padding-responsive-sm); }
         
         /* Flexbox layout utilities */
         .flex-center { display: flex; align-items: center; justify-content: center; }
@@ -86,8 +100,7 @@
         .flex-wrap { flex-wrap: wrap; }
         
         /* Spacing system utilities */
-        /* TODO: Consider adding more gap sizes for better spacing control */
-        .gap-xs { gap: 5px; } .gap-sm { gap: 8px; } .gap-md { gap: 15px; } .gap-lg { gap: 20px; }
+        .gap-xs { gap: 5px; } .gap-sm { gap: 8px; } .gap-md { gap: 15px; } .gap-lg { gap: 20px; } .gap-xl { gap: 30px; } .gap-2xl { gap: 40px; }
         .p-sm { padding: 8px; } .p-md { padding: 15px; } .p-lg { padding: 20px; } .p-xl { padding: 40px; }
         .mb-sm { margin-bottom: 10px; } .mb-md { margin-bottom: 15px; } .mb-lg { margin-bottom: 20px; }
         .mt-sm { margin-top: 10px; } .mt-md { margin-top: 15px; } .mt-lg { margin-top: 20px; }
@@ -95,16 +108,16 @@
         
         /* Typography utilities */
         .text-center { text-align: center; } .text-left { text-align: left; }
-        /* TODO: Consider using rem units instead of em for more predictable sizing */
-        .text-sm { font-size: 0.9em; } .text-base { font-size: 1em; } .text-lg { font-size: 1.2em; } 
-        .text-xl { font-size: 1.6em; } .text-2xl { font-size: 1.8em; } .text-4xl { font-size: 4em; }
+        /* Typography utilities with rem units for predictable sizing */
+        .text-sm { font-size: 0.9rem; } .text-base { font-size: 1rem; } .text-lg { font-size: 1.2rem; } 
+        .text-xl { font-size: 1.6rem; } .text-2xl { font-size: 1.8rem; } .text-4xl { font-size: 4rem; }
         .font-normal { font-weight: normal; } .font-semibold { font-weight: var(--font-weight-semibold); }
         .text-primary { color: var(--text-primary); } .text-secondary { color: var(--text-secondary); }
         .text-warning { color: var(--warning-color); }
         .line-height-relaxed { line-height: 1.5; } .line-height-loose { line-height: 1.6; }
         
         /* Width and sizing utilities */
-        .w-full { width: 100%; } .max-w-sm { max-width: 400px; }    /* TODO: Add max-width variables */
+        .w-full { width: 100%; } .max-w-sm { max-width: var(--max-width-sm); }
         
         /* Message utilities */
         .message-base { padding: 15px; border-radius: var(--border-radius); margin-bottom: 20px; 
@@ -122,21 +135,53 @@
         /* Box shadow utilities */
         .shadow-lg { box-shadow: var(--shadow-lg); }
         
-        /* === VOICE NOTES UTILITIES === */
-        /* Voice controls layout */
+        /* ARIA: Screen reader only content */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /*
+         * ================================
+         * VOICE NOTE COMPONENT SYSTEM
+         * ================================
+         * A self-contained component for displaying and managing voice recordings.
+         * Ready for modularization into _voice-notes.scss
+         *
+         * Component Structure:
+         * - .voice-note-container: Main flexbox wrapper with hover states
+         * - .voice-note-info:      Left side containing title and metadata (flex-grow)
+         * - .voice-note-controls:  Right side containing action buttons (play, delete, etc.)
+         * - .voice-note-transcription: Collapsible transcription display below
+         * - .delete-pending:       Modifier class applied via JavaScript during deletion confirmation
+         *
+         * Layout Strategy:
+         * - Responsive flexbox design that adapts from horizontal to stacked on mobile
+         * - Controls section maintains minimum width to prevent button squashing
+         * - Info section grows to fill available space for long titles
+         */
         .voice-note-container { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; 
                                 background: var(--bg-secondary); border: 2px solid var(--border-color); 
                                 border-radius: var(--border-radius); padding: 15px; margin-bottom: 15px; 
                                 transition: var(--transition); }
         .voice-note-container:hover { border-color: var(--border-hover); box-shadow: var(--shadow-md); }
+        /* Applied via JavaScript during deletion confirmation - provides visual feedback */
         .voice-note-container.delete-pending { background: var(--notification-warning-bg); 
                                                border-color: var(--warning-color); }
         
-        /* Voice note content layout */
+        /* Flex-grow item for the title and date - expands to fill available space */
         .voice-note-info { flex: 1; min-width: 200px; }
         .voice-note-title { font-weight: var(--font-weight-semibold); color: var(--text-primary); 
                             margin-bottom: 4px; }
         .voice-note-meta { color: var(--text-secondary); font-size: 14px; }
+        /* Flex item for the group of buttons (play, delete, transcribe, etc.) - maintains minimum width */
         .voice-note-controls { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; 
                                min-width: 300px; justify-content: flex-start; flex: 1; width: 100%; }
         
@@ -224,7 +269,7 @@
             border-top: none;
             border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
             padding: 20px;
-            min-height: 800px; /* Adjust as needed to prevent jump */
+            min-height: 800px; /* Prevents layout jump when switching between tabs with different content heights */
         }
         
         .stats-tab-panel {
@@ -251,11 +296,11 @@
         
         /* Voice button variants */
         .voice-btn-play { background: var(--info-color); color: var(--text-inverse); }
-        .voice-btn-play:hover { background: #0284c7; }                        /* TODO: Replace with CSS custom property */
+        .voice-btn-play:hover { background: var(--info-hover); }
         .voice-btn-pause { background: var(--warning-color); color: var(--text-inverse); }
-        .voice-btn-pause:hover { background: #d97706; }                     /* TODO: Replace with CSS custom property */
-        .voice-btn-transcribe { background: #7c3aed; color: var(--text-inverse); }    /* TODO: Add purple color to theme system */
-        .voice-btn-transcribe:hover { background: #6d28d9; }                /* TODO: Add purple hover to theme system */
+        .voice-btn-pause:hover { background: var(--warning-hover); }
+        .voice-btn-transcribe { background: var(--purple-color); color: var(--text-inverse); }
+        .voice-btn-transcribe:hover { background: var(--purple-hover); }
         .voice-btn-transcribe:disabled { background: var(--text-muted); cursor: not-allowed; }
         .voice-btn-download { background: var(--success-color); color: var(--text-inverse); }
         .voice-btn-download:hover { background: var(--success-hover); }
@@ -279,7 +324,7 @@
         
         /* === DREAM ENTRY UTILITIES === */
         /* Dream entry emotion display */
-        .entry-emotions { margin-top: 8px; color: var(--text-secondary); font-size: 0.9em; }
+        .entry-emotions { margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem; }
         .entry-emotions span { font-weight: var(--font-weight-semibold); }
         
         /* === FINAL OPTIMIZATION UTILITIES === */
@@ -287,9 +332,9 @@
         .pagination-info { text-align: center; padding: 20px; color: var(--text-secondary); }
         
         /* Small text utilities */
-        .text-xs { font-size: 0.6em; } .text-xxs { font-size: 12px; }
-        .small-helper { color: var(--text-secondary); font-size: 0.9em; margin-top: 5px; display: block; }
-        .small-helper-warning { color: var(--warning-color); font-size: 0.9em; margin-top: 5px; display: block; }
+        .text-xs { font-size: 0.75rem; } .text-xxs { font-size: 0.75rem; }
+        .small-helper { color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; display: block; }
+        .small-helper-warning { color: var(--warning-color); font-size: 0.9rem; margin-top: 5px; display: block; }
         
         /* Form utilities */
         .form-checkbox { width: 16px; height: 16px; accent-color: var(--primary-color); }
@@ -319,8 +364,8 @@
         .status-info { color: var(--info-color); font-weight: var(--font-weight-semibold); }
         
         /* Icon containers */
-        .icon-lg { font-size: 2em; margin-bottom: 10px; }
-        .icon-xl { font-size: 2.5em; margin-bottom: 10px; }
+        .icon-lg { font-size: 2rem; margin-bottom: 10px; }
+        .icon-xl { font-size: 2.5rem; margin-bottom: 10px; }
         
         /* Feature sections */
         .feature-item { background: var(--bg-light); padding: 15px; border-radius: var(--border-radius); 
@@ -368,7 +413,9 @@
             --primary-l: 67%;          --primary-hover-l: 53%;
             --success-l: 70%;          --success-hover-l: 30%;
             --error-l: 72%;            --error-hover-l: 51%;
-            --warning-l: 71%;          --info-l: 67%;
+            --warning-l: 71%;          --warning-hover-l: 65%;
+            --info-l: 67%;             --info-hover-l: 61%;
+            --purple-l: 72%;           --purple-hover-l: 66%;
             --secondary-l: 68%;        --secondary-hover-l: 83%;
             
             /* Component adjustments */
@@ -378,6 +425,21 @@
             --dream-sign-bg-l: 15%;    --dream-sign-text-l: 81%;    --dream-sign-border-l: 35%;
             --notification-error-l: 20%;   --notification-success-l: 15%;
             --notification-warning-l: 15%; --notification-info-l: 20%;
+            
+            /* Dark theme specific warning colors for voice status */
+            --dark-voice-warning-bg-l: 12%;
+            --dark-voice-warning-text-l: 82%;
+            --dark-voice-warning-border-l: 35%;
+            
+            /* Dark theme lucid dream gradient colors */
+            --dark-lucid-bg-l: 8%;
+            --dark-lucid-hover-bg-l: 13%;
+            
+            /* Dark theme gradients - Theme-aware lucid highlighting with deeper green tones */
+            --dark-lucid-gradient: linear-gradient(135deg, hsl(var(--success-h), var(--success-s), var(--dark-lucid-bg-l)), var(--bg-secondary));
+            --dark-lucid-hover-gradient: linear-gradient(135deg, hsl(var(--success-h), var(--success-s), var(--dark-lucid-hover-bg-l)), var(--bg-secondary));
+            --dark-nav-btn-gradient: linear-gradient(145deg, hsl(var(--gray-h), 16%, 25%), hsl(var(--gray-h), 12%, 35%));
+            --dark-nav-btn-hover-gradient: linear-gradient(145deg, hsl(var(--gray-h), 12%, 35%), hsl(var(--gray-h), 9%, 45%));
             
             /* Special dark theme hue adjustments */
             --warning-h: 45;  /* Warmer yellow in dark mode */
@@ -397,9 +459,11 @@
             --error-color: hsl(var(--error-h), var(--error-s), var(--error-l));
             --error-hover: hsl(var(--error-h), var(--error-s), var(--error-hover-l));
             --warning-color: hsl(var(--warning-h), var(--warning-s), var(--warning-l));
-            --warning-hover: hsl(var(--warning-h), var(--warning-s), var(--warning-l));
+            --warning-hover: hsl(var(--warning-h), var(--warning-s), var(--warning-hover-l));
             --info-color: hsl(var(--info-h), var(--info-s), var(--info-l));
-            --info-hover: hsl(var(--info-h), var(--info-s), var(--info-l));
+            --info-hover: hsl(var(--info-h), var(--info-s), var(--info-hover-l));
+            --purple-color: hsl(var(--purple-h), var(--purple-s), var(--purple-l));
+            --purple-hover: hsl(var(--purple-h), var(--purple-s), var(--purple-hover-l));
             
             /* Background Hierarchy */
             --bg-primary: hsl(var(--neutral-h), var(--neutral-s), var(--bg-primary-l));
@@ -427,14 +491,14 @@
             --border-hover: hsl(var(--primary-h), var(--primary-s), var(--border-hover-l));
             --border-focus: var(--primary-color);
             
-            /* Shadow System */
+            /* Shadow System - Mathematical opacity scaling for visual hierarchy */
             --shadow-color: rgba(0, 0, 0, var(--shadow-opacity));
-            --shadow-color-light: rgba(0, 0, 0, calc(var(--shadow-opacity) * 0.5));
-            --shadow-color-dark: rgba(0, 0, 0, calc(var(--shadow-opacity) * 1.5));
+            --shadow-color-light: rgba(0, 0, 0, calc(var(--shadow-opacity) * 0.5)); /* Subtle shadows for light elements */
+            --shadow-color-dark: rgba(0, 0, 0, calc(var(--shadow-opacity) * 1.5));  /* Pronounced shadows for emphasis */
             
             /* Component Specific */
             --modal-backdrop: rgba(0, 0, 0, var(--modal-backdrop-opacity));
-            --gradient-primary: linear-gradient(135deg, var(--primary-color), hsl(var(--primary-h), var(--primary-s), calc(var(--primary-l) - 10%)));
+            --gradient-primary: linear-gradient(135deg, var(--primary-color), hsl(var(--primary-h), var(--primary-s), calc(var(--primary-l) - 10%))); /* Creates subtle depth by darkening the end color by 10% */
             --border-dashed: 2px dashed var(--border-dark);
             
             /* Voice Component Colors */
@@ -460,6 +524,11 @@
             --notification-success-bg: hsl(var(--success-h), var(--success-s), var(--notification-success-l));
             --notification-warning-bg: hsl(var(--warning-h), var(--warning-s), var(--notification-warning-l));
             --notification-info-bg: hsl(var(--info-h), var(--info-s), var(--notification-info-l));
+            
+            /* Dark theme voice warning colors */
+            --dark-voice-warning-bg: hsl(var(--warning-h), var(--warning-s), var(--dark-voice-warning-bg-l));
+            --dark-voice-warning-text: hsl(var(--warning-h), var(--warning-s), var(--dark-voice-warning-text-l));
+            --dark-voice-warning-border: hsl(var(--warning-h), var(--warning-s), var(--dark-voice-warning-border-l));
         }
         
         /* Shadow definitions using the optimized theme system */
@@ -470,6 +539,12 @@
             --shadow-md: 0 4px 6px var(--shadow-color);
             --shadow-lg: 0 10px 25px var(--shadow-color);
             --shadow-xl: 0 20px 60px var(--shadow-color-dark);
+            
+            /* Theme-aware colored shadows */
+            --shadow-primary: 0 4px 12px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
+            --shadow-success-light: 0 4px 12px hsla(var(--success-h), var(--success-s), var(--success-l), 0.2);
+            --shadow-success-dark: 0 4px 12px hsla(var(--success-h), var(--success-s), var(--success-l), 0.3);
+            --shadow-border-hover: 0 2px 8px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
         }
         
         /* Extra Small Mobile Screens */
@@ -592,7 +667,7 @@
             border-bottom: none;
         }
         
-        /* Loading States - Consolidated */
+        /* Loading States - Applied via JavaScript during async operations */
         .loading-state, .search-loading, .loading-dreams {
             padding: 20px;
             text-align: center;
@@ -626,17 +701,17 @@
         .search-loading {
             padding: 20px;
             text-align: center;
-            color: #64748b;                 /* TODO: Replace with var(--text-secondary) */
+            color: var(--text-secondary);
             font-style: italic;
-            background: #f8fafc;           /* TODO: Replace with var(--bg-light) */
-            border-radius: 8px;            /* TODO: Replace with var(--border-radius) */
+            background: var(--bg-light);
+            border-radius: var(--border-radius);
             margin: 10px 0;
         }
         
         .loading-dreams {
             padding: 40px;
             text-align: center;
-            color: #64748b;                 /* TODO: Replace with var(--text-secondary) */
+            color: var(--text-secondary);
         }
         .loading-dreams div:first-child {
             font-size: 2em;
@@ -649,13 +724,13 @@
             text-align: center;
         }
         .header h1 {
-            font-size: 2.5em;
+            font-size: 2.5rem;
             margin-bottom: 10px;
             font-weight: 300;
         }
         .header p {
             opacity: 0.9;
-            font-size: 1.1em;
+            font-size: 1.1rem;
         }
         .controls {
             padding: 20px;
@@ -767,12 +842,12 @@
         }
         
         /* Dark theme specific button hover fixes */
-        /* TODO: Consider integrating these into the main theme system to avoid separate overrides */
+        /* Dark theme button compatibility */
         [data-theme='dark'] .btn-secondary {
             color: var(--text-inverse);
         }
         [data-theme='dark'] .btn-secondary:hover {
-            background: #64748b;           /* TODO: Replace with CSS custom property */
+            background: var(--secondary-hover);
         }
         
         .btn-success {
@@ -789,7 +864,7 @@
             color: var(--text-inverse);
         }
         .btn-edit:hover {
-            background: #0284c7;
+            background: var(--info-hover);
         }
         
         .btn-delete {
@@ -806,7 +881,7 @@
             animation: pulse 0.5s ease-in-out;
         }
         .btn-confirm-delete:hover {
-            background: #b91c1c;
+            background: hsl(var(--error-h), var(--error-s), calc(var(--error-hover-l) - 10%)); /* Extra darkening on hover for danger emphasis */
         }
         
         .btn-lock {
@@ -898,7 +973,7 @@
             opacity: 1;
         }
         textarea.form-control {
-            min-height: 120px;
+            min-height: 120px; /* Provides adequate space for dream descriptions - roughly 4-5 lines of text */
             resize: vertical;
         }
         .lucid-checkbox {
@@ -910,7 +985,7 @@
         .lucid-checkbox input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: #4f46e5;
+            accent-color: var(--primary-color);
         }
         .lucid-checkbox label {
             margin: 0;
@@ -1000,21 +1075,20 @@
         }
         .entry:hover {
             border-color: var(--border-hover);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+            box-shadow: var(--shadow-primary);
         }
         /* Light Theme Lucid Dreams */
         :root .entry.lucid,
         [data-theme='light'] .entry.lucid {
             border-color: var(--success-color);
-            background: linear-gradient(135deg, #f0fdf4, var(--bg-secondary));
+            background: var(--light-lucid-gradient);
             position: relative;
         }
         
-        /* Dark Theme Lucid Dreams - More prominent override */
-        /* TODO: Consider restructuring to avoid !important usage */
-        [data-theme='dark'] .entry.lucid {
-            border-color: var(--success-color) !important;
-            background: linear-gradient(135deg, #0f2e1a, var(--bg-secondary)) !important;   /* TODO: Add dark theme gradient to CSS variables */
+        /* Dark Theme Lucid Dreams - Higher specificity approach */
+        html[data-theme='dark'] .entry.lucid {
+            border-color: var(--success-color);
+            background: var(--dark-lucid-gradient);
             position: relative;
         }
         
@@ -1036,14 +1110,15 @@
         :root .entry.lucid:hover,
         [data-theme='light'] .entry.lucid:hover {
             border-color: var(--success-hover);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            box-shadow: var(--shadow-success-light);
         }
         
-        /* Dark Theme Lucid Hover - More prominent */
-        [data-theme='dark'] .entry.lucid:hover {
-            border-color: var(--success-hover) !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
-            background: linear-gradient(135deg, #1a3d28, var(--bg-secondary)) !important;
+        /* This selector needs high specificity to override base styles
+           for lucid dream entries ONLY when in dark mode */
+        html[data-theme='dark'] .entry.lucid:hover {
+            border-color: var(--success-hover);
+            box-shadow: var(--shadow-success-dark);
+            background: var(--dark-lucid-hover-gradient);
         }
         .entry-header {
             display: flex;
@@ -1054,7 +1129,7 @@
             gap: 10px;
         }
         .entry-title {
-            font-size: 1.2em;
+            font-size: 1.2rem;
             font-weight: var(--font-weight-semibold);
             color: var(--text-primary);
             flex: 1;
@@ -1080,35 +1155,35 @@
             border-radius: 6px;
         }
         .btn-edit {
-            background: #0ea5e9;
-            color: white;
+            background: var(--info-color);
+            color: var(--text-inverse);
         }
         .btn-edit:hover {
-            background: #0284c7;
+            background: var(--info-hover);
         }
         .btn-delete {
-            background: #ef4444;
-            color: white;
+            background: var(--error-color);
+            color: var(--text-inverse);
         }
         .btn-delete:hover {
-            background: #dc2626;
+            background: var(--error-hover);
         }
         .btn-confirm-delete {
-            background: #dc2626;
-            color: white;
+            background: var(--error-hover);
+            color: var(--text-inverse);
             animation: pulse 0.5s ease-in-out;
         }
         .btn-confirm-delete:hover {
-            background: #b91c1c;
+            background: hsl(var(--error-h), var(--error-s), calc(var(--error-hover-l) - 10%)); /* Extra darkening on hover for danger emphasis */
         }
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-        .delete-pending {
+        .entry.delete-pending {
             background: var(--notification-warning-bg);
-            border-color: var(--warning-color) !important;
+            border-color: var(--warning-color);
         }
         /* Inline edit form styles managed by .inline-edit-form class below */
         .entry-content {
@@ -1129,6 +1204,12 @@
             margin-bottom: 15px;
             color: var(--text-primary);
             font-size: 1.3em;
+        }
+
+        /* Dream form state management - both forms start hidden to prevent timing flash */
+        #dreamFormCollapsed,
+        #dreamFormFull {
+            display: none;
         }
 
         .no-entries {
@@ -1199,6 +1280,7 @@
             font-weight: var(--font-weight-semibold);
         }
         
+        /* Applied via JavaScript to show current pagination page */
         .page-btn.active {
             background: var(--primary-color);
             border-color: var(--primary-color);
@@ -1317,6 +1399,7 @@
             transform: translateY(-2px);
         }
         
+        /* Applied via JavaScript when voice recording is active */
         .record-btn.recording {
             background: var(--error-color);
             color: white;
@@ -1324,8 +1407,8 @@
         }
         
         .record-btn.disabled {
-            background: #9ca3af;
-            color: #6b7280;
+            background: var(--text-muted);
+            color: var(--text-tertiary);
             cursor: not-allowed;
         }
         
@@ -1347,15 +1430,15 @@
             font-weight: var(--font-weight-semibold);
         }
         .voice-status.info {
-            background: #dbeafe;
-            color: #1d4ed8;
+            background: var(--notification-info-bg);
+            color: var(--info-color);
         }
         .voice-status.warning {
-            background: #fef3c7;
+            background: var(--notification-warning-bg);
             color: var(--warning-color);
         }
         .voice-status.error {
-            background: #fee2e2;
+            background: var(--notification-error-bg);
             color: var(--error-color);
         }
         
@@ -1391,12 +1474,12 @@
         
         .voice-note:hover {
             border-color: var(--border-hover);
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+            box-shadow: var(--shadow-border-hover);
         }
         
         .voice-note.delete-pending {
-            background: #fef3c7;
-            border-color: #f59e0b !important;
+            background: var(--notification-warning-bg);
+            border-color: var(--warning-color);
         }
         
         .voice-note-info {
@@ -1440,36 +1523,36 @@
         }
         
         .voice-btn.play {
-            background: #0ea5e9;
-            color: white;
+            background: var(--info-color);
+            color: var(--text-inverse);
         }
         .voice-btn.play:hover {
-            background: #0284c7;
+            background: var(--info-hover);
         }
         
         .voice-btn.pause {
-            background: #f59e0b;
-            color: white;
+            background: var(--warning-color);
+            color: var(--text-inverse);
         }
         .voice-btn.pause:hover {
-            background: var(--warning-color);
+            background: var(--warning-hover);
         }
         
         .voice-btn.transcribe {
-            background: #7c3aed;
-            color: white;
+            background: var(--purple-color);
+            color: var(--text-inverse);
         }
         .voice-btn.transcribe:hover {
-            background: #6d28d9;
+            background: var(--purple-hover);
         }
         .voice-btn.transcribe:disabled {
-            background: #9ca3af;
+            background: var(--text-muted);
             cursor: not-allowed;
         }
         
         .voice-btn.download {
             background: var(--success-color);
-            color: white;
+            color: var(--text-inverse);
         }
         .voice-btn.download:hover {
             background: var(--success-hover);
@@ -1477,7 +1560,7 @@
         
         .voice-btn.delete {
             background: var(--error-color);
-            color: white;
+            color: var(--text-inverse);
         }
         .voice-btn.delete:hover {
             background: var(--error-hover);
@@ -1523,11 +1606,11 @@
         }
         
         .voice-full-warning {
-            background: #fee2e2;
+            background: var(--notification-error-bg);
             color: var(--error-color);
             padding: 12px;
             border-radius: var(--border-radius);
-            border: 2px solid #fecaca;
+            border: 2px solid var(--error-color);
             margin-bottom: 15px;
             font-weight: var(--font-weight-semibold);
             text-align: center;
@@ -1624,7 +1707,25 @@
             background: var(--notification-warning-bg);
         }
         
-        /* Main App Tabs System */
+        /*
+         * ================================
+         * MAIN APPLICATION TAB SYSTEM
+         * ================================
+         * Dynamic navigation system for switching between app sections.
+         * Ready for modularization into _tabs.scss
+         *
+         * Component Structure:
+         * - .app-tabs:       Horizontal flexbox container with scroll overflow
+         * - .app-tab:        Individual tab buttons with hover states
+         * - .app-tab.active: Applied via JavaScript to show current section
+         * - .tab-panel:      Content containers controlled by tab state
+         *
+         * Navigation Strategy:
+         * - Mobile-friendly horizontal scroll for narrow screens
+         * - Equal flex distribution on wider screens
+         * - JavaScript manages .active state and panel visibility
+         * - Bottom border indicates active selection
+         */
         .app-tabs {
             display: flex;
             background: var(--bg-secondary);
@@ -1659,6 +1760,7 @@
             color: var(--text-primary);
         }
         
+        /* The .active class is applied via JavaScript to the currently selected tab */
         .app-tab.active {
             background: var(--bg-primary);
             color: var(--primary-color);
@@ -1667,14 +1769,14 @@
         
         .tab-content-container {
             background: var(--bg-primary);
-            min-height: 400px;
+            min-height: 400px; /* Ensures adequate viewport height for all tab content without scroll */
             overflow-x: hidden;
         }
         
         .tab-panel {
             display: none;
             width: 100%;
-            min-height: 200px;
+            min-height: 200px; /* Minimum content area height to prevent jarring layout shifts */
             background: var(--bg-primary);
             border: 2px solid transparent;
             overflow-x: hidden;
@@ -1690,7 +1792,24 @@
             padding: 20px;
         }
         
-        /* Stats Tab Styling - Theme-aware */
+        /*
+         * ================================
+         * STATISTICS DASHBOARD COMPONENT
+         * ================================
+         * Grid-based analytics dashboard for dream tracking insights.
+         * Ready for modularization into _statistics.scss
+         *
+         * Component Structure:
+         * - .stats-grid:     CSS Grid container with responsive columns
+         * - .stats-card:     Individual metric cards with hover effects
+         * - .hover-card:     Interactive cards with lift animation
+         * - .active:         Applied via JavaScript to highlight selected metrics
+         *
+         * Layout Strategy:
+         * - Responsive grid that adapts from multi-column to single column
+         * - Each card maintains minimum 250px width before wrapping
+         * - Hover effects provide interactive feedback for clickable metrics
+         */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1765,9 +1884,9 @@
         }
         
         /* Dark theme fixes for Goals/Advice content boxes */
-        [data-theme='dark'] .stats-card {
-            background: var(--bg-secondary) !important;
-            border-color: var(--border-color) !important;
+        html[data-theme='dark'] .stats-card {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
         }
         
         /* Fix light backgrounds in dynamically created content */
@@ -1947,12 +2066,12 @@
         
         /* Dark theme adjustments */
         [data-theme='dark'] .calendar-nav-btn {
-            background: linear-gradient(145deg, #374151, #4b5563);
+            background: var(--dark-nav-btn-gradient);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.05);
         }
         
         [data-theme='dark'] .calendar-nav-btn:hover {
-            background: linear-gradient(145deg, #4b5563, #6b7280);
+            background: var(--dark-nav-btn-hover-gradient);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 3px rgba(255, 255, 255, 0.1);
         }
         .calendar-grid {
@@ -2141,7 +2260,7 @@
         }
         .entry-tags .tag-label {
             font-size: 11px;
-            color: #64748b;
+            color: var(--text-secondary);
             font-weight: 600;
             margin-right: 4px;
         }
@@ -2176,6 +2295,7 @@
             display: none;
             position: relative;
         }
+        /* Applied via JavaScript when PIN reset timer is active */
         .timer-warning.active {
             display: block;
         }
@@ -2284,33 +2404,15 @@
             color: var(--warning-color);
         }
         
-        /* Force dark theme colors for voice status warning */
-        [data-theme='dark'] .voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        
-        /* Target voice status within voice recording section specifically */
-        [data-theme='dark'] .voice-recording-section .voice-status.warning,
-        [data-theme='dark'] .voice-tab-content .voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        
-        /* Catch-all for any voice status warning in dark theme */
-        [data-theme='dark'] *[class*="voice-status"][class*="warning"],
-        [data-theme='dark'] div[class*="voice-status"][class*="warning"] {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
-        }
-        [data-theme='dark'] body #voiceStatus.voice-status.warning,
-        [data-theme='dark'] html body #voiceStatus.voice-status.warning {
-            background: #78350f !important;
-            color: #fde047 !important;
-            border: 1px solid #a16207 !important;
+        /* Multiple high-specificity selectors needed to override voice status 
+           styles across different container contexts in dark theme only */
+        html[data-theme='dark'] .voice-status.warning,
+        html[data-theme='dark'] .voice-recording-section .voice-status.warning,
+        html[data-theme='dark'] .voice-tab-content .voice-status.warning,
+        html[data-theme='dark'] body .voice-status.warning {
+            background: var(--dark-voice-warning-bg);
+            color: var(--dark-voice-warning-text);
+            border: 1px solid var(--dark-voice-warning-border);
         }
         .voice-status.error {
             background: var(--notification-error-bg);
@@ -2385,8 +2487,8 @@
             }
         }
         .voice-note:hover {
-            border-color: #c7d2fe;
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+            border-color: var(--border-hover);
+            box-shadow: var(--shadow-border-hover);
         }
         .voice-note-info {
             flex: 1;
@@ -2394,11 +2496,11 @@
         }
         .voice-note-title {
             font-weight: 600;
-            color: #1e293b;
+            color: var(--text-primary);
             margin-bottom: 4px;
         }
         .voice-note-meta {
-            color: #64748b;
+            color: var(--text-secondary);
             font-size: 14px;
         }
         .voice-note-controls {
@@ -2428,21 +2530,21 @@
             color: var(--text-inverse);
         }
         .voice-btn.play:hover {
-            background: #0284c7;
+            background: var(--info-hover);
         }
         .voice-btn.pause {
             background: var(--warning-color);
             color: var(--text-inverse);
         }
         .voice-btn.pause:hover {
-            background: #d97706;
+            background: var(--warning-hover);
         }
         .voice-btn.transcribe {
-            background: #7c3aed;
+            background: var(--purple-color);
             color: var(--text-inverse);
         }
         .voice-btn.transcribe:hover {
-            background: #6d28d9;
+            background: var(--purple-hover);
         }
         .voice-btn.transcribe:disabled {
             background: var(--text-muted);
@@ -2594,7 +2696,7 @@
             }
             
             textarea.form-control {
-                min-height: 100px;
+                min-height: 100px; /* Mobile-optimized height - smaller than desktop to maximize screen space */
                 resize: vertical;
             }
             
