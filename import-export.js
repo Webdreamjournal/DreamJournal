@@ -42,7 +42,7 @@ import {
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
-import { createInlineMessage, escapeHtml, getCurrentTheme } from './dom-helpers.js';
+import { createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate } from './dom-helpers.js';
 import { 
     encryptData, 
     decryptData,
@@ -602,14 +602,7 @@ async function importEntries(event) {
                     if (!title || !content) return; // Skip entries without required data
                     
                     // Generate display date from timestamp
-                    const timestampDate = new Date(timestamp);
-                    const dateString = timestampDate.toLocaleDateString('en-AU', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+                    const dateString = formatDateTimeDisplay(timestamp);
                     
                     const newDream = {
                         id: dreamId || generateUniqueId(), // Use original ID if available, otherwise generate new one
@@ -993,14 +986,7 @@ async function importAllData(event) {
                     } else {
                         // Generate dateString if missing
                         if (!importDream.dateString) {
-                            const date = new Date(importDream.timestamp);
-                            importDream.dateString = date.toLocaleDateString('en-AU', {
-                                year: 'numeric',
-                                month: 'long', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
+                            importDream.dateString = formatDateTimeDisplay(importDream.timestamp);
                         }
                         
                         newDreams.push(importDream);
@@ -1288,7 +1274,7 @@ async function exportForAIAnalysis() {
             // Format dreams for AI analysis
             const dreamTexts = recentDreams.map(dream => {
                 const lucidStatus = dream.isLucid ? '[LUCID DREAM]' : '[REGULAR DREAM]';
-                const date = new Date(dream.timestamp).toLocaleDateString();
+                const date = formatDisplayDate(dream.timestamp);
                 const emotions = dream.emotions ? ` [EMOTIONS: ${dream.emotions}]` : '';
                 const tags = Array.isArray(dream.tags) && dream.tags.length > 0 ? ` [TAGS: ${dream.tags.join(', ')}]` : '';
                 const dreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? ` [DREAM SIGNS: ${dream.dreamSigns.join(', ')}]` : '';

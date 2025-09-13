@@ -49,6 +49,7 @@ import {
     createInlineMessage, 
     escapeHtml, 
     formatDateKey, 
+    formatDisplayDate,
     createPieChartColors, 
     createPieChartHTML 
 } from './dom-helpers.js';
@@ -1086,7 +1087,7 @@ import {
                 const statsHTML = `
                     <h3 class="text-primary mb-md text-lg">Stats for ${year}</h3>
                     <div class="text-xs text-secondary mb-md" style="text-align: center; font-style: italic;">
-                        ${isCurrentYear ? `January 1 to ${currentDate.toLocaleDateString()}` : `Full year ${year}`}
+                        ${isCurrentYear ? `January 1 to ${formatDisplayDate(currentDate)}` : `Full year ${year}`}
                     </div>
                     
                     <h4 class="text-secondary mb-sm mt-lg">📝 Dream Statistics</h4>
@@ -1285,8 +1286,8 @@ import {
                 const avgDreamsPerDay = totalDays > 0 ? (totalDreams / totalDays).toFixed(2) : 0;
                 
                 // Format the date range
-                const startDateFormatted = firstDreamDate.toLocaleDateString();
-                const endDateFormatted = currentDate.toLocaleDateString();
+                const startDateFormatted = formatDisplayDate(firstDreamDate);
+                const endDateFormatted = formatDisplayDate(currentDate);
                 
                 // Render the lifetime stats
                 const statsHTML = `

@@ -60,9 +60,15 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormFull">
                 <!-- Collapsible form header with toggle functionality -->
-                <h3 id="journal-main-heading" tabindex="-1" data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
+                <h3 id="journal-main-heading" 
+                    tabindex="0" 
+                    data-action="toggle-dream-form"
+                    role="button"
+                    aria-expanded="true"
+                    aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
+                    style="cursor: pointer; user-select: none;">
                     🌙 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
+                    <span class="text-xs text-secondary font-normal">(Press Enter to collapse)</span>
                 </h3>
                 
                 <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
@@ -141,9 +147,14 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormCollapsed">
                 <!-- Collapsed form header with expand functionality -->
-                <h3 data-action="toggle-dream-form" style="cursor: pointer; user-select: none;">
+                <h3 data-action="toggle-dream-form" 
+                    role="button"
+                    tabindex="0"
+                    aria-expanded="false"
+                    aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
+                    style="cursor: pointer; user-select: none;">
                     📝 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Click to expand)</span>
+                    <span class="text-xs text-secondary font-normal">(Press Enter to expand)</span>
                 </h3>
             </div>
             
@@ -315,12 +326,34 @@ function applyDreamFormStateAfterRender() {
             // User previously collapsed the form - show collapsed version
             fullForm.style.display = 'none';
             collapsedForm.style.display = 'block';
+            
+            // Update ARIA states for collapsed form
+            const collapsedHeader = collapsedForm.querySelector('[data-action="toggle-dream-form"]');
+            const expandedHeader = fullForm.querySelector('[data-action="toggle-dream-form"]');
+            if (collapsedHeader) {
+                collapsedHeader.setAttribute('aria-expanded', 'false');
+            }
+            if (expandedHeader) {
+                expandedHeader.setAttribute('aria-expanded', 'false');
+            }
+            
             // Update global state to match
             setIsDreamFormCollapsed(true);
         } else {
             // Default expanded state OR no saved preference - show full form
             fullForm.style.display = 'block';
             collapsedForm.style.display = 'none';
+            
+            // Update ARIA states for expanded form
+            const expandedHeader = fullForm.querySelector('[data-action="toggle-dream-form"]');
+            const collapsedHeader = collapsedForm.querySelector('[data-action="toggle-dream-form"]');
+            if (expandedHeader) {
+                expandedHeader.setAttribute('aria-expanded', 'true');
+            }
+            if (collapsedHeader) {
+                collapsedHeader.setAttribute('aria-expanded', 'true');
+            }
+            
             // Update global state to match
             setIsDreamFormCollapsed(false);
         }
@@ -332,6 +365,16 @@ function applyDreamFormStateAfterRender() {
             if (fullForm && collapsedForm) {
                 fullForm.style.display = 'block';
                 collapsedForm.style.display = 'none';
+                
+                // Update ARIA states for fallback expanded form
+                const expandedHeader = fullForm.querySelector('[data-action="toggle-dream-form"]');
+                const collapsedHeader = collapsedForm.querySelector('[data-action="toggle-dream-form"]');
+                if (expandedHeader) {
+                    expandedHeader.setAttribute('aria-expanded', 'true');
+                }
+                if (collapsedHeader) {
+                    collapsedHeader.setAttribute('aria-expanded', 'true');
+                }
             }
         } catch (fallbackError) {
             // Silent fallback failure

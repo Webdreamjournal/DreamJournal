@@ -89,7 +89,7 @@ import { initializeJournalTab } from './journaltab.js';
 import { importEntries, importAllData } from './import-export.js';
 
 // Action routing system
-import { handleUnifiedClick, handleUnifiedChange, handleTabListKeydown } from './action-router.js';
+import { handleUnifiedClick, handleUnifiedChange, handleTabListKeydown, handleUnifiedKeydown } from './action-router.js';
 
 // PWA installation system
 import { installPWA, setupPWAInstall } from './pwa.js';
@@ -160,8 +160,9 @@ function setupEventDelegation() {
     document.addEventListener('click', handleUnifiedClick);
     document.addEventListener('change', handleUnifiedChange);
     
-    // ARIA: Add keyboard navigation for tabs
+    // ARIA: Add keyboard navigation for tabs and general accessibility
     document.addEventListener('keydown', handleTabListKeydown);
+    document.addEventListener('keydown', handleUnifiedKeydown);
     
     const importFileInput = document.getElementById('importFile');
     if (importFileInput) {

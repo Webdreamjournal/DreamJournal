@@ -56,7 +56,7 @@
  * @constant {string}
  * @since 2.0.0
  */
-const CACHE_NAME = 'dream-journal-v2-02-62';
+const CACHE_NAME = 'dream-journal-v2-02-69';
 
 /**
  * List of essential files to cache for complete offline functionality.
@@ -78,7 +78,7 @@ const CACHE_NAME = 'dream-journal-v2-02-62';
 const urlsToCache = [
   './',                    // Root directory
   './index.html',          // Main HTML file
-  './dream-journal.css',   // Application styles
+  './app.css',   // Application styles
   './icons/logo.png',      // App logo
   './tips.json',           // Dream tips data
   './constants.js',        // App constants

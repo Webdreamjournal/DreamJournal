@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation } from './dom-helpers.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import { addCustomAutocompleteItem, deleteAutocompleteItem } from './settingstab.js';
@@ -326,7 +326,11 @@ const ACTION_MAP = {
         // DREAM ENTRY MANAGEMENT
         // ================================
         'save-dream': () => saveDream(),                                     // Save new dream entry from form
-        'toggle-dream-form': () => toggleDreamForm(),                       // Collapse/expand dream entry form
+        'toggle-dream-form': (ctx) => {
+            // Determine if triggered by keyboard (for focus management)
+            const isKeyboardEvent = ctx.event && (ctx.event.type === 'keydown');
+            toggleDreamForm(isKeyboardEvent);
+        },                      // Collapse/expand dream entry form
         'create-from-transcription': (ctx) => createDreamFromTranscription(ctx.voiceNoteId), // Create dream from voice transcription
         
         // ================================
@@ -395,18 +399,9 @@ const ACTION_MAP = {
         'select-month': handleSelectMonth,                                   // Select specific calendar month
         'select-year': handleSelectYear,                                     // Select specific calendar year
         'go-to-date': (ctx) => {                                             // Navigate to specific date in journal
-            // TODO: Extract date filter logic to setDateFilter() utility function
-            // This combines date validation, DOM manipulation, and app navigation
-            const date = ctx.element.dataset.date;
-            if(date) {
-                const startDateInput = document.getElementById('startDateFilter');
-                const endDateInput = document.getElementById('endDateFilter');
-                if(startDateInput && endDateInput) {
-                    startDateInput.value = date;
-                    endDateInput.value = date;
-                    switchAppTab('journal');
-                    debouncedFilter();
-                }
+            // Use utility function for date filter setup, then trigger filtering if successful
+            if (setDateFilter(ctx.element.dataset.date)) {
+                debouncedFilter();
             }
         },
         
@@ -515,7 +510,7 @@ function routeAction(context, event = null) {
         if (handler) {
             try {
                 // Special handling: some actions require the original event object
-                if (context.action === 'seek-audio') {
+                if (context.action === 'seek-audio' || context.action === 'toggle-dream-form') {
                     context.event = event;
                 }
                 
@@ -880,6 +875,56 @@ async function decreaseGoalProgress(goalId) {
 }
 
 // ================================
+// KEYBOARD ACCESSIBILITY HANDLING
+// ================================
+
+/**
+ * Handle keyboard events for data-action elements.
+ * 
+ * Provides keyboard accessibility for all interactive elements with data-action attributes.
+ * Responds to Enter and Space key presses on elements with role="button" or other interactive roles.
+ * 
+ * @param {KeyboardEvent} event - The keyboard event object from the browser
+ * @returns {void} No return value, but may trigger action execution
+ * @since 2.02.63
+ * @example
+ * // Set up in main.js during initialization
+ * document.addEventListener('keydown', handleUnifiedKeydown);
+ * 
+ * @example
+ * // HTML structure that triggers this handler
+ * <h3 data-action="toggle-dream-form" role="button" tabindex="0">
+ *   Record Your Dream (Press Enter to expand)
+ * </h3>
+ */
+function handleUnifiedKeydown(event) {
+    // Only handle Enter (13) and Space (32) keys
+    if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+    }
+    
+    // Get the target element with data-action
+    const context = extractActionContext(event.target);
+    if (!context) {
+        return;
+    }
+    
+    // Only trigger on elements with button role or interactive elements
+    const target = event.target;
+    const hasButtonRole = target.getAttribute('role') === 'button';
+    const isButton = target.tagName === 'BUTTON';
+    const isInteractive = hasButtonRole || isButton;
+    
+    if (isInteractive) {
+        // Prevent default behavior (e.g., scrolling for Space key)
+        event.preventDefault();
+        
+        // Execute the action
+        routeAction(context, event);
+    }
+}
+
+// ================================
 // ES MODULE EXPORTS
 // ================================
 
@@ -892,6 +937,7 @@ export {
     
     // Keyboard navigation
     handleTabListKeydown,
+    handleUnifiedKeydown,
     
     // Action mapping registry
     ACTION_MAP

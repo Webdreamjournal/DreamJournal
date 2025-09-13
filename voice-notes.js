@@ -64,7 +64,7 @@ import {
     deleteVoiceNoteFromIndexedDB,
     generateUniqueId
 } from './storage.js';
-import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab } from './dom-helpers.js';
+import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
 
 /**
  * Represents a complete voice note with metadata and audio data.
@@ -423,20 +423,16 @@ import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMeta
             
             const voiceNote = {
                 id: generateUniqueId({
-                    title: `Voice Note ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`,
+                    title: `Voice Note ${formatDisplayDate(now, { month: 'numeric', day: 'numeric' })} ${now.toLocaleTimeString()}`,
                     timestamp: now.toISOString(),
                     type: 'voice'
                 }),
                 audioBlob: audioBlob,
                 timestamp: now.toISOString(),
                 duration: Math.round(Math.max(0, duration)),
-                title: `Voice Note ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`,
-                dateString: now.toLocaleDateString('en-AU', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
+                title: `Voice Note ${formatDisplayDate(now, { month: 'numeric', day: 'numeric' })} ${now.toLocaleTimeString()}`,
+                dateString: formatDateTimeDisplay(now, {
+                    month: 'short'
                 }),
                 size: audioBlob.size,
                 transcription: (getRecognitionResults() && getRecognitionResults().trim()) || null // Store transcribed text

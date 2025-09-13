@@ -1206,12 +1206,14 @@ function switchVoiceTab(tabName) {
 // ===================================================================================
 
 /**
- * Toggles dream form between expanded and collapsed states.
+ * Toggles dream form between expanded and collapsed states with optional focus management.
  * 
  * Provides a collapsible dream entry form interface that can be expanded for full
  * functionality or collapsed to save screen space. User preference is persisted
- * to localStorage for consistency across sessions.
+ * to localStorage for consistency across sessions. Includes accessibility-focused
+ * option to move focus to first form field when expanding via keyboard.
  * 
+ * @param {boolean} [shouldMoveFocus=false] - Whether to move focus to first form field when expanding (for keyboard accessibility)
  * @returns {void}
  * @since 1.0.0
  * @example
@@ -1219,27 +1221,66 @@ function switchVoiceTab(tabName) {
  * toggleDreamForm();
  * 
  * @example
+ * // Toggle with focus management (typically for keyboard activation)
+ * toggleDreamForm(true); // Focuses date field when expanding
+ * 
+ * @example
  * // State persists across browser sessions
  * toggleDreamForm(); // Collapses form
  * // Page reload - form remains collapsed
  */
-function toggleDreamForm() {
+function toggleDreamForm(shouldMoveFocus = false) {
         const fullForm = document.getElementById('dreamFormFull');
         const collapsedForm = document.getElementById('dreamFormCollapsed');
         
         if (!fullForm || !collapsedForm) return; // Safety check
+
+        // Get the toggle buttons/headers
+        const expandedHeader = fullForm.querySelector('[data-action="toggle-dream-form"]');
+        const collapsedHeader = collapsedForm.querySelector('[data-action="toggle-dream-form"]');
 
         if (getIsDreamFormCollapsed()) {
             // Expand: show full form, hide collapsed
             fullForm.style.display = 'block';
             collapsedForm.style.display = 'none';
             setIsDreamFormCollapsed(false);
+            
+            // Update ARIA states for expanded form
+            if (expandedHeader) {
+                expandedHeader.setAttribute('aria-expanded', 'true');
+                expandedHeader.setAttribute('aria-label', 'Record Your Dream form - currently expanded. Press Enter or Space to collapse');
+            }
+            if (collapsedHeader) {
+                collapsedHeader.setAttribute('aria-expanded', 'true');
+            }
+            
+            // Move focus to first form field if expansion was triggered by keyboard
+            if (shouldMoveFocus) {
+                // Use setTimeout to ensure the form is fully displayed before focusing
+                setTimeout(() => {
+                    const dateField = document.getElementById('dreamDate');
+                    if (dateField) {
+                        dateField.focus();
+                    }
+                }, 50);
+            }
+            
             try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'false'); } catch (e) {}
         } else {
             // Collapse: hide full form, show collapsed
             fullForm.style.display = 'none';
             collapsedForm.style.display = 'block';
             setIsDreamFormCollapsed(true);
+            
+            // Update ARIA states for collapsed form
+            if (collapsedHeader) {
+                collapsedHeader.setAttribute('aria-expanded', 'false');
+                collapsedHeader.setAttribute('aria-label', 'Record Your Dream form - currently collapsed. Press Enter or Space to expand');
+            }
+            if (expandedHeader) {
+                expandedHeader.setAttribute('aria-expanded', 'false');
+            }
+            
             try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'true'); } catch (e) {}
         }
     }
@@ -1693,6 +1734,78 @@ function renderPinScreen(targetElement, config) {
 // ===================================================================================
 
 /**
+ * Sets date filter inputs to a specific date and navigates to journal tab.
+ * 
+ * This utility function provides a centralized way to set both start and end date
+ * filter inputs to the same date value, effectively creating a single-day filter.
+ * It also handles the UI navigation by switching to the journal tab where the
+ * filtered results will be displayed.
+ * 
+ * The function validates the input date, finds the required DOM elements, sets
+ * their values, and switches to the journal tab. It returns a success indicator
+ * that allows the caller to decide whether to trigger additional filtering.
+ * This design prevents circular dependencies while maintaining clean separation
+ * of concerns.
+ * 
+ * @param {string} dateString - Date string to set in both filter inputs (should be in YYYY-MM-DD format)
+ * @returns {boolean} True if date was successfully set and tab switched, false otherwise
+ * @throws {Error} Does not throw - returns false for any errors and logs them
+ * @since 2.02.49
+ * @example
+ * // Set filter to specific date from calendar click
+ * const success = setDateFilter('2024-01-15');
+ * if (success) {
+ *   debouncedFilter(); // Caller decides whether to trigger filtering
+ * }
+ * 
+ * @example
+ * // Handle invalid date gracefully
+ * const success = setDateFilter('invalid-date');
+ * console.log(success); // false - inputs unchanged, error logged
+ * 
+ * @example
+ * // Typical usage in action handlers
+ * 'go-to-date': (ctx) => {
+ *   if (setDateFilter(ctx.element.dataset.date)) {
+ *     debouncedFilter();
+ *   }
+ * }
+ */
+function setDateFilter(dateString) {
+    try {
+        // Validate input parameter
+        if (!dateString || typeof dateString !== 'string') {
+            console.warn('setDateFilter: Invalid date string provided:', dateString);
+            return false;
+        }
+        
+        // Find the date filter input elements
+        const startDateInput = document.getElementById('startDateFilter');
+        const endDateInput = document.getElementById('endDateFilter');
+        
+        // Validate DOM elements exist
+        if (!startDateInput || !endDateInput) {
+            console.error('setDateFilter: Date filter input elements not found');
+            return false;
+        }
+        
+        // Set both inputs to the same date for single-day filtering
+        startDateInput.value = dateString;
+        endDateInput.value = dateString;
+        
+        // Switch to journal tab where filtered results will be displayed
+        switchAppTab('journal');
+        
+        // Return success - caller can decide whether to trigger filtering
+        return true;
+        
+    } catch (error) {
+        console.error('setDateFilter: Error setting date filter:', error);
+        return false;
+    }
+}
+
+/**
  * Format date as YYYY-MM-DD string for consistent date key generation.
  * 
  * This utility function ensures consistent date formatting across the application,
@@ -1721,6 +1834,189 @@ function formatDateKey(date) {
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+}
+
+/**
+ * Format date for display using the user's preferred locale.
+ * 
+ * Uses the browser's detected locale (navigator.language) to format dates
+ * in the user's familiar format. Falls back to ISO format if locale is
+ * unsupported. Handles both Date objects and ISO strings as input.
+ * 
+ * @param {Date|string} dateInput - Date object or ISO string to format
+ * @param {Object} [customOptions] - Custom Intl.DateTimeFormat options
+ * @returns {string} Formatted date string in user's locale
+ * @throws {Error} When dateInput is invalid
+ * @since 2.02.50
+ * @example
+ * // User with en-US locale
+ * formatDisplayDate('2025-09-02T10:30:00Z')
+ * // Returns: "September 2, 2025"
+ * 
+ * @example
+ * // User with en-GB locale  
+ * formatDisplayDate(new Date('2025-09-02T10:30:00Z'))
+ * // Returns: "2 September 2025"
+ * 
+ * @example
+ * // Custom formatting options
+ * formatDisplayDate('2025-09-02T10:30:00Z', { 
+ *   month: 'short', 
+ *   weekday: 'short' 
+ * })
+ * // Returns: "Mon, Sep 2, 2025" (en-US) or "Mon 2 Sep 2025" (en-GB)
+ */
+function formatDisplayDate(dateInput, customOptions = {}) {
+    try {
+        // Convert input to Date object if needed
+        const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+        
+        // Validate the date
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date input: ${dateInput}`);
+        }
+        
+        // Default formatting options for date-only display
+        const defaultOptions = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            ...customOptions
+        };
+        
+        // Use user's preferred locale with fallback
+        const userLocale = navigator.language || 'en-US';
+        
+        try {
+            return new Intl.DateTimeFormat(userLocale, defaultOptions).format(date);
+        } catch (localeError) {
+            // Fallback to en-US if user's locale is unsupported
+            console.warn(`Locale ${userLocale} not supported, falling back to en-US`);
+            return new Intl.DateTimeFormat('en-US', defaultOptions).format(date);
+        }
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Invalid Date';
+    }
+}
+
+/**
+ * Format date and time for detailed display using the user's preferred locale.
+ * 
+ * Provides comprehensive date-time formatting suitable for detail views,
+ * exports, and contexts where both date and time are relevant. Uses the
+ * browser's detected locale for familiar formatting.
+ * 
+ * @param {Date|string} dateInput - Date object or ISO string to format
+ * @param {Object} [customOptions] - Custom Intl.DateTimeFormat options
+ * @returns {string} Formatted date-time string in user's locale
+ * @throws {Error} When dateInput is invalid
+ * @since 2.02.50
+ * @example
+ * // User with en-US locale
+ * formatDateTimeDisplay('2025-09-02T14:30:00Z')
+ * // Returns: "September 2, 2025, 2:30 PM PDT"
+ * 
+ * @example
+ * // User with en-GB locale
+ * formatDateTimeDisplay('2025-09-02T14:30:00Z')
+ * // Returns: "2 September 2025, 15:30 BST"
+ * 
+ * @example
+ * // Custom time format
+ * formatDateTimeDisplay('2025-09-02T14:30:00Z', { 
+ *   hour12: false, 
+ *   timeZoneName: 'short' 
+ * })
+ * // Returns: "September 2, 2025, 14:30 UTC"
+ */
+function formatDateTimeDisplay(dateInput, customOptions = {}) {
+    try {
+        // Convert input to Date object if needed
+        const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+        
+        // Validate the date
+        if (isNaN(date.getTime())) {
+            throw new Error(`Invalid date input: ${dateInput}`);
+        }
+        
+        // Default formatting options for date-time display
+        const defaultOptions = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short',
+            ...customOptions
+        };
+        
+        // Use user's preferred locale with fallback
+        const userLocale = navigator.language || 'en-US';
+        
+        try {
+            return new Intl.DateTimeFormat(userLocale, defaultOptions).format(date);
+        } catch (localeError) {
+            // Fallback to en-US if user's locale is unsupported
+            console.warn(`Locale ${userLocale} not supported, falling back to en-US`);
+            return new Intl.DateTimeFormat('en-US', defaultOptions).format(date);
+        }
+    } catch (error) {
+        console.error('Error formatting date-time:', error);
+        return 'Invalid Date';
+    }
+}
+
+/**
+ * Safely parse date strings during import with UTC handling and fallback.
+ * 
+ * Designed for robust import processing that handles various date formats
+ * and gracefully falls back to current date for invalid inputs. Ensures
+ * consistent UTC timestamp handling across different import sources.
+ * 
+ * @param {string} dateStr - Date string to parse (preferably ISO format)
+ * @param {Date} [fallbackDate=new Date()] - Fallback date for invalid input
+ * @returns {string} ISO string in UTC format
+ * @since 2.02.50
+ * @example
+ * // Valid ISO string with Z
+ * parseImportDate('2025-09-02T14:30:00Z')
+ * // Returns: "2025-09-02T14:30:00.000Z"
+ * 
+ * @example
+ * // ISO string without Z (forces UTC interpretation)
+ * parseImportDate('2025-09-02T14:30:00')
+ * // Returns: "2025-09-02T14:30:00.000Z"
+ * 
+ * @example
+ * // Invalid date string
+ * parseImportDate('invalid-date')
+ * // Returns: current date as ISO string (e.g., "2025-09-13T12:00:00.000Z")
+ */
+function parseImportDate(dateStr, fallbackDate = new Date()) {
+    try {
+        if (!dateStr || typeof dateStr !== 'string') {
+            return fallbackDate.toISOString();
+        }
+        
+        // Ensure UTC interpretation by adding Z if missing
+        let normalizedDateStr = dateStr.trim();
+        if (!normalizedDateStr.endsWith('Z') && !normalizedDateStr.includes('+') && !normalizedDateStr.includes('-', 10)) {
+            normalizedDateStr += 'Z';
+        }
+        
+        const parsedDate = new Date(normalizedDateStr);
+        
+        if (isNaN(parsedDate.getTime())) {
+            console.warn(`Invalid date during import: "${dateStr}", using fallback`);
+            return fallbackDate.toISOString();
+        }
+        
+        return parsedDate.toISOString();
+    } catch (error) {
+        console.warn(`Error parsing import date: "${dateStr}":`, error);
+        return fallbackDate.toISOString();
+    }
 }
 
 /**
@@ -1981,8 +2277,8 @@ function createGoalElement(goal, progress, isCompleted = false) {
         </div>
         <div class="flex-between text-sm text-secondary">
             <div>
-                <span>Created: ${new Date(goal.createdAt).toLocaleDateString()}</span>
-                ${isCompleted && goal.completedAt ? `<br><span>Completed: ${new Date(goal.completedAt).toLocaleDateString()}</span>` : ''}
+                <span>Created: ${formatDisplayDate(goal.createdAt)}</span>
+                ${isCompleted && goal.completedAt ? `<br><span>Completed: ${formatDisplayDate(goal.completedAt)}</span>` : ''}
             </div>
             <span>${goal.period === 'monthly' ? 'Monthly Goal' : goal.period === 'streak' ? 'Streak Goal' : 'Total Goal'}</span>
         </div>
@@ -2043,7 +2339,11 @@ export {
     handleTipNavigation,
     
     // Date and Chart Utilities
+    setDateFilter,
     formatDateKey,
+    formatDisplayDate,
+    formatDateTimeDisplay,
+    parseImportDate,
     createPieChartColors,
     createPieChartHTML,
     

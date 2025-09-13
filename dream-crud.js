@@ -45,7 +45,7 @@ import {
     generateUniqueId,
     isIndexedDBAvailable
 } from './storage.js';
-import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete } from './dom-helpers.js';
+import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
 
 /**
  * Filter values extracted from UI controls for dream processing.
@@ -146,9 +146,7 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             dreamSigns: dreamSigns,
             timestamp: dreamTimestamp,
             isLucid: isLucidElement.checked,
-            dateString: dreamDate.toLocaleDateString('en-AU', {
-                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            })
+            dateString: formatDateTimeDisplay(dreamDate)
         };
         
         // Try fast path first
@@ -610,9 +608,7 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             dreamSigns: newDreamSigns,
             isLucid: document.getElementById(`edit-lucid-${dreamId}`).checked,
             timestamp: newDate.toISOString(),
-            dateString: newDate.toLocaleDateString('en-AU', {
-                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            }),
+            dateString: formatDateTimeDisplay(newDate),
             lastModified: new Date().toISOString()
         };
 
