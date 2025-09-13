@@ -102,6 +102,187 @@
  */
 
 // ================================
+// GOALS VALIDATION AND DATA PROCESSING
+// ================================
+
+/**
+ * Validates the integrity of goals data and ensures it's in a consistent state.
+ *
+ * This function performs defensive checks on the goals data structure to ensure
+ * it's a valid array and handles recovery scenarios when data corruption occurs.
+ * It provides logging and automatic recovery mechanisms for data integrity issues.
+ *
+ * @async
+ * @function validateGoalsDataIntegrity
+ * @returns {Promise<Array<Goal>>} Validated and corrected goals array
+ * @throws {Error} When data recovery fails completely
+ * @since 2.02.49
+ *
+ * @example
+ * // Validate goals data before processing
+ * const validGoals = await validateGoalsDataIntegrity();
+ * console.log('Valid goals count:', validGoals.length);
+ */
+async function validateGoalsDataIntegrity() {
+    let currentGoals = allGoals;
+
+    if (!Array.isArray(currentGoals)) {
+        console.warn('Goals data is not an array, attempting recovery from storage');
+        try {
+            currentGoals = await loadGoals();
+            allGoals = currentGoals;
+            console.log('Successfully recovered goals from storage:', currentGoals.length, 'goals');
+        } catch (error) {
+            console.error('Failed to recover goals from storage:', error);
+            currentGoals = [];
+            allGoals = currentGoals;
+        }
+    }
+
+    return currentGoals;
+}
+
+/**
+ * Parses and normalizes dream signs data from various input formats.
+ *
+ * This function handles dream signs stored as either comma-separated strings or
+ * arrays, normalizing them to a consistent format. It performs trimming,
+ * case normalization, and deduplication to ensure data consistency.
+ *
+ * @function parseAndNormalizeDreamSigns
+ * @param {Array<Object>} dreams - Array of dream objects to process
+ * @returns {Set<string>} Set of unique, normalized dream signs
+ * @since 2.02.49
+ *
+ * @example
+ * // Parse dream signs from dream entries
+ * const dreams = [
+ *   { dreamSigns: "flying, water, family" },
+ *   { dreamSigns: ["SCHOOL", "Friends"] }
+ * ];
+ * const signs = parseAndNormalizeDreamSigns(dreams);
+ * console.log([...signs]); // ['flying', 'water', 'family', 'school', 'friends']
+ */
+function parseAndNormalizeDreamSigns(dreams) {
+    const dreamSigns = new Set();
+
+    dreams.forEach(dream => {
+        if (dream.dreamSigns && typeof dream.dreamSigns === 'string') {
+            // Handle comma-separated string format
+            const signs = dream.dreamSigns.split(',').map(s => s.trim().toLowerCase());
+            signs.forEach(sign => {
+                if (sign) dreamSigns.add(sign);
+            });
+        } else if (Array.isArray(dream.dreamSigns)) {
+            // Handle array format
+            dream.dreamSigns.forEach(sign => {
+                if (sign && typeof sign === 'string') {
+                    dreamSigns.add(sign.trim().toLowerCase());
+                }
+            });
+        }
+    });
+
+    return dreamSigns;
+}
+
+/**
+ * Validates goal form data with comprehensive field checking and error reporting.
+ *
+ * This function performs complete validation of goal form fields including
+ * required field checks, data type validation, and business rule enforcement.
+ * It provides detailed error reporting for user feedback.
+ *
+ * @function validateGoalForm
+ * @returns {Object} Validation result object with isValid flag and formData/errors
+ * @since 2.02.49
+ *
+ * @example
+ * // Validate form before saving
+ * const validation = validateGoalForm();
+ * if (validation.isValid) {
+ *   console.log('Form data:', validation.formData);
+ * } else {
+ *   console.error('Validation errors:', validation.errors);
+ * }
+ *
+ * @example
+ * // Handle validation in save operation
+ * const { isValid, formData, errors } = validateGoalForm();
+ * if (!isValid) {
+ *   showGoalMessage('form-error', errors[0]);
+ *   return;
+ * }
+ */
+function validateGoalForm() {
+    const titleElement = document.getElementById('goalTitle');
+    const descriptionElement = document.getElementById('goalDescription');
+    const typeElement = document.getElementById('goalType');
+    const periodElement = document.getElementById('goalPeriod');
+    const targetElement = document.getElementById('goalTarget');
+    const iconElement = document.getElementById('goalIcon');
+
+    // Check for missing form elements
+    if (!titleElement || !descriptionElement || !typeElement || !periodElement || !targetElement || !iconElement) {
+        return {
+            isValid: false,
+            errors: ['Goal form not properly initialized'],
+            formData: null
+        };
+    }
+
+    // Extract and validate form values
+    const title = titleElement.value.trim();
+    const description = descriptionElement.value.trim();
+    const type = typeElement.value;
+    const period = periodElement.value;
+    const target = parseInt(targetElement.value);
+    const icon = iconElement.value.trim() || '🎯';
+
+    const errors = [];
+
+    // Required field validation
+    if (!title) {
+        errors.push('Goal title is required');
+    }
+
+    if (!target || isNaN(target) || target < 1) {
+        errors.push('Target must be a positive number');
+    }
+
+    // Data type validation
+    if (target && target > 1000) {
+        errors.push('Target should be reasonable (maximum 1000)');
+    }
+
+    if (icon && icon.length > 2) {
+        errors.push('Icon should be maximum 2 characters');
+    }
+
+    // Return validation result
+    if (errors.length > 0) {
+        return {
+            isValid: false,
+            errors: errors,
+            formData: null
+        };
+    }
+
+    return {
+        isValid: true,
+        errors: [],
+        formData: {
+            title,
+            description,
+            type,
+            period,
+            target,
+            icon
+        }
+    };
+}
+
+// ================================
 // GOALS MESSAGING SYSTEM
 // ================================
 
@@ -558,23 +739,7 @@ async function calculateGoalProgress(goal) {
             break;
             
         case 'dream_signs_count':
-            const dreamSigns = new Set();
-            dreams.forEach(dream => {
-                // TODO: Extract dream signs processing logic to parseAndNormalizeDreamSigns() utility function
-                if (dream.dreamSigns && typeof dream.dreamSigns === 'string') {
-                    const signs = dream.dreamSigns.split(',').map(s => s.trim().toLowerCase());
-                    signs.forEach(sign => {
-                        if (sign) dreamSigns.add(sign);
-                    });
-                } else if (Array.isArray(dream.dreamSigns)) {
-                    // Handle case where dreamSigns might be stored as an array
-                    dream.dreamSigns.forEach(sign => {
-                        if (sign && typeof sign === 'string') {
-                            dreamSigns.add(sign.trim().toLowerCase());
-                        }
-                    });
-                }
-            });
+            const dreamSigns = parseAndNormalizeDreamSigns(dreams);
             current = dreamSigns.size;
             message = `${current} unique dream signs identified`;
             break;
@@ -844,46 +1009,20 @@ function createTemplateGoal(templateKey) {
  */
 async function saveGoal() {
     console.log('saveGoal function called');
-    
-    // TODO: Extract data integrity checking to validateGoalsDataIntegrity() utility function
-    // Defensive check - ensure allGoals is still an array
-    if (!Array.isArray(allGoals)) {
-        console.warn('allGoals is not an array, reloading from storage');
-        try {
-            allGoals = await loadGoals();
-            console.log('Reloaded goals from storage:', allGoals.length, 'goals');
-        } catch (error) {
-            console.error('Failed to reload goals:', error);
-            allGoals = [];
-        }
-    }
-    
-    const titleElement = document.getElementById('goalTitle');
-    const descriptionElement = document.getElementById('goalDescription');
-    const typeElement = document.getElementById('goalType');
-    const periodElement = document.getElementById('goalPeriod');
-    const targetElement = document.getElementById('goalTarget');
-    const iconElement = document.getElementById('goalIcon');
-    
-    if (!titleElement || !descriptionElement || !typeElement || !periodElement || !targetElement || !iconElement) {
-        console.error('Goal form elements not found');
-        showGoalMessage('form-error', 'Goal form not properly initialized');
+
+    // Validate goals data integrity
+    allGoals = await validateGoalsDataIntegrity();
+
+    // Validate form data
+    const validation = validateGoalForm();
+    if (!validation.isValid) {
+        console.error('Goal form validation failed:', validation.errors);
+        showGoalMessage('form-error', validation.errors[0]);
         return;
     }
-    
-    const title = titleElement.value.trim();
-    const description = descriptionElement.value.trim();
-    const type = typeElement.value;
-    const period = periodElement.value;
-    const target = parseInt(targetElement.value);
-    const icon = iconElement.value.trim() || '🎯';
-    
+
+    const { title, description, type, period, target, icon } = validation.formData;
     console.log('Goal form values:', { title, description, type, period, target, icon });
-    
-    if (!title || !target || target < 1) {
-        showGoalMessage('form-error', 'Please fill in all required fields with valid values');
-        return;
-    }
     
     if (window.editingGoalId) {
         // Edit existing goal
