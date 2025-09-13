@@ -652,337 +652,452 @@ function switchTheme(newTheme) {
 // ===================================================================================
 // Complete tab switching system with dynamic content generation
 // Handles lock screen transitions and tab-specific initialization
-// TODO: Consider splitting this large function into separate tab creation and switching functions
+/**
+ * Ensures the tab container infrastructure exists in the DOM.
+ *
+ * Creates the main tab content container element if it doesn't already exist,
+ * providing a robust fallback for cases where the DOM structure is incomplete.
+ * This function handles the foundational tab infrastructure setup.
+ *
+ * @returns {Element|null} The tab container element, or null if creation failed
+ * @throws {Error} When required DOM elements for container creation are missing
+ * @since 2.02.72
+ * @example
+ * // Ensure tab infrastructure exists before switching tabs
+ * const container = ensureTabInfrastructure();
+ * if (!container) {
+ *   console.error('Failed to create tab infrastructure');
+ *   return;
+ * }
+ *
+ * @example
+ * // Typical usage in tab switching
+ * if (!ensureTabInfrastructure()) {
+ *   console.error('Cannot switch tabs - infrastructure unavailable');
+ *   return false;
+ * }
+ */
+function ensureTabInfrastructure() {
+    // CRITICAL FIX: Ensure tab container exists with robust fallback
+    let tabContainer = document.querySelector('.tab-content-container');
+    if (!tabContainer) {
+        console.warn('Tab container not found, attempting to create it');
+
+        const containerDiv = document.querySelector('.container');
+        const appTabs = document.querySelector('.app-tabs');
+
+        if (containerDiv && appTabs) {
+            tabContainer = document.createElement('div');
+            tabContainer.className = 'tab-content-container';
+            tabContainer.style.cssText = `
+                background: var(--bg-primary);
+                min-height: 400px;
+                overflow-x: hidden;
+            `;
+
+            appTabs.parentNode.insertBefore(tabContainer, appTabs.nextSibling);
+            console.log('Tab container created successfully');
+        } else {
+            console.error('Cannot create tab container - missing DOM elements');
+            return null;
+        }
+    }
+
+    return tabContainer;
+}
 
 /**
- * Switches between application tabs with dynamic content generation.
- * 
- * Comprehensive tab management system that handles tab switching, content creation,
- * lock screen transitions, and tab-specific initialization. Dynamically creates tab
- * content if it doesn't exist and manages application state during tab transitions.
- * 
- * @param {('journal'|'goals'|'stats'|'advice'|'settings'|'lock')} tabName - Target tab identifier
- * @returns {void}
- * @throws {TypeError} When tabName is not a valid tab identifier
- * @since 1.0.0
- * @todo Consider splitting this large function into separate tab creation and switching functions
+ * Creates a single tab panel with appropriate content and accessibility attributes.
+ *
+ * Generates a complete tab panel DOM element with proper ARIA attributes, renders
+ * tab-specific content using dedicated module functions, and handles error states
+ * gracefully. Each tab type has specialized rendering logic for its unique content.
+ *
+ * @param {string} tabId - Tab panel identifier (e.g., 'journalTab', 'goalsTab', 'statsTab')
+ * @param {Element} tabContainer - Container element to append the new panel to
+ * @returns {Element|null} Created tab panel element, or null if creation failed
+ * @throws {Error} When tabId is invalid or tabContainer is not provided
+ * @since 2.02.72
  * @example
- * // Switch to journal tab
- * switchAppTab('journal');
- * 
+ * // Create a goals tab panel
+ * const container = document.querySelector('.tab-content-container');
+ * const panel = createTabPanel('goalsTab', container);
+ *
  * @example
- * // Handle lock screen transition
- * switchAppTab('lock'); // Hides other tabs, shows lock interface
- * 
- * @example
- * // Tab-specific initialization
- * switchAppTab('stats'); // Automatically initializes calendar
- * switchAppTab('goals'); // Refreshes goals from storage
+ * // Create journal tab with error handling
+ * const panel = createTabPanel('journalTab', container);
+ * if (!panel) {
+ *   console.error('Failed to create journal tab panel');
+ * }
  */
-function switchAppTab(tabName, isInitialLoad = false) {
-        if (!tabName || !['journal', 'goals', 'stats', 'advice', 'settings', 'lock'].includes(tabName)) return;
-        
-        // Handle lock screen transitions
-        if (tabName === 'lock') {
-            // Switching TO lock screen
-            if (!getAppLocked()) {
-                setPreLockActiveTab(getActiveAppTab()); // Remember current tab
-                setAppLocked(true);
-                hideAllTabButtons();
-            }
-        } else {
-            // Switching FROM lock screen to another tab
-            if (getAppLocked()) {
-                setAppLocked(false);
-                showAllTabButtons();
-            }
-        }
-        
-        // Update the lock tab button visibility based on app state
-        const lockTabButton = document.querySelector('.app-tab[data-tab="lock"]');
-        if (lockTabButton) {
-            if (tabName === 'lock') {
-                // Show lock tab button when on lock screen
-                lockTabButton.style.display = 'block';
-            } else {
-                // Hide lock tab button when not on lock screen (users should use lock button instead)
-                lockTabButton.style.display = 'none';
-            }
-        }
-        
-        // CRITICAL FIX: Ensure tab container exists with robust fallback
-        let tabContainer = document.querySelector('.tab-content-container');
-        if (!tabContainer) {
-            console.warn('Tab container not found during switchAppTab, attempting to create it');
-            
-            const containerDiv = document.querySelector('.container');
-            const appTabs = document.querySelector('.app-tabs');
-            
-            if (containerDiv && appTabs) {
-                tabContainer = document.createElement('div');
-                tabContainer.className = 'tab-content-container';
-                tabContainer.style.cssText = `
-                    background: var(--bg-primary);
-                    min-height: 400px;
-                    overflow-x: hidden;
-                `;
-                
-                appTabs.parentNode.insertBefore(tabContainer, appTabs.nextSibling);
-                console.log('Tab container created during switchAppTab');
-            } else {
-                console.error('Cannot create tab container - missing DOM elements');
-                return;
-            }
-        }
-        
-        // Ensure all tab panels exist
-        const requiredTabs = ['journalTab', 'goalsTab', 'statsTab', 'adviceTab', 'settingsTab', 'lockTab'];
-        requiredTabs.forEach(tabId => {
-            if (!document.getElementById(tabId)) {
-                const tabPanel = document.createElement('div');
-                tabPanel.id = tabId;
-                tabPanel.className = 'tab-panel';
-                tabPanel.setAttribute('role', 'tabpanel');
-                // Extract tab name from tabId (e.g., 'journalTab' -> 'journal')
-                const panelTabName = tabId.replace('Tab', '');
-                tabPanel.setAttribute('aria-labelledby', `tab-${panelTabName}`);
-                
-                if (tabId === 'goalsTab') {
-                    // Goals tab is now handled by the dedicated goalstab.js module
-                    try {
-                        renderGoalsTab(tabPanel);
-                    } catch (error) {
-                        console.error('Error rendering Goals tab:', error);
-                        tabPanel.innerHTML = '<div class="error-message">Error loading Goals tab. Please refresh the page.</div>';
+function createTabPanel(tabId, tabContainer) {
+    if (!tabId || !tabContainer) {
+        console.error('createTabPanel: Missing required parameters');
+        return null;
+    }
+
+    // Check if tab panel already exists
+    if (document.getElementById(tabId)) {
+        return document.getElementById(tabId);
+    }
+
+    const tabPanel = document.createElement('div');
+    tabPanel.id = tabId;
+    tabPanel.className = 'tab-panel';
+    tabPanel.setAttribute('role', 'tabpanel');
+
+    // Extract tab name from tabId (e.g., 'journalTab' -> 'journal')
+    const panelTabName = tabId.replace('Tab', '');
+    tabPanel.setAttribute('aria-labelledby', `tab-${panelTabName}`);
+
+    try {
+        if (tabId === 'goalsTab') {
+            // Goals tab is now handled by the dedicated goalstab.js module
+            renderGoalsTab(tabPanel);
+        } else if (tabId === 'statsTab') {
+            // Stats tab is now handled by the dedicated statstab.js module
+            renderStatsTab(tabPanel);
+        } else if (tabId === 'adviceTab') {
+            // Advice tab is now handled by the dedicated advicetab.js module
+            renderAdviceTab(tabPanel);
+        } else if (tabId === 'settingsTab') {
+            // Settings tab is now handled by the dedicated settingstab.js module
+            renderSettingsTab(tabPanel);
+        } else if (tabId === 'journalTab') {
+            // Journal tab is now handled by the dedicated journaltab.js module
+            renderJournalTab(tabPanel);
+        } else if (tabId === 'lockTab') {
+            // Generate lock screen content with timer instructions if applicable
+            const resetTime = getResetTime();
+            let timerInstructions = '';
+
+            if (resetTime) {
+                const remainingTime = resetTime - Date.now();
+                if (remainingTime > 0) {
+                    const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
+                    const days = Math.ceil(hours / 24);
+
+                    let timeDisplay = '';
+                    if (days > 1) {
+                        timeDisplay = `${days} days`;
+                    } else if (hours > 1) {
+                        timeDisplay = `${hours} hours`;
+                    } else {
+                        timeDisplay = 'Less than 1 hour';
                     }
-                } else if (tabId === 'statsTab') {
-                    // Stats tab is now handled by the dedicated statstab.js module
-                    try {
-                        renderStatsTab(tabPanel);
-                    } catch (error) {
-                        console.error('Error rendering stats tab:', error);
-                        tabPanel.innerHTML = `
-                            <div class="message-error">
-                                Failed to load statistics tab. Please refresh and try again.
-                            </div>
-                        `;
-                    }
-                } else if (tabId === 'adviceTab') {
-                    // Advice tab is now handled by the dedicated advicetab.js module
-                    try {
-                        renderAdviceTab(tabPanel);
-                    } catch (error) {
-                        console.error('Error rendering advice tab:', error);
-                        // Fallback if advicetab.js fails
-                        tabPanel.innerHTML = `
-                            <div class="message-base message-error">
-                                <h3>Advice Loading...</h3>
-                                <p>The advice interface is temporarily unavailable. Please refresh the page and try again.</p>
-                                <p class="text-sm">Error details: ${escapeHtml(error.message)}</p>
-                            </div>
-                        `;
-                    }
-                } else if (tabId === 'settingsTab') {
-                    // Settings tab is now handled by the dedicated settingstab.js module
-                    try {
-                        renderSettingsTab(tabPanel);
-                    } catch (error) {
-                        console.error('Error rendering settings tab:', error);
-                        tabPanel.innerHTML = `
-                            <div class="message-base message-error">
-                                <h3>Settings Temporarily Unavailable</h3>
-                                <p>There was an error loading the settings interface. Please refresh the page and try again.</p>
-                                <p class="text-sm">Error details: ${error.message}</p>
-                            </div>
-                        `;
-                    }
-                } else if (tabId === 'journalTab') {
-                    // Journal tab is now handled by the dedicated journaltab.js module
-                    try {
-                        renderJournalTab(tabPanel);
-                    } catch (error) {
-                        console.error('Error rendering Journal tab:', error);
-                        tabPanel.innerHTML = `
-                            <div class="message-error">
-                                Error loading Journal tab. Please refresh the page.
-                                <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
-                            </div>
-                        `;
-                    }
-                } else if (tabId === 'lockTab') {
-                    // Check if there's an active timer to show instructional text
-                    const resetTime = getResetTime();
-                    let timerInstructions = '';
-                    
-                    if (resetTime) {
-                        const remainingTime = resetTime - Date.now();
-                        if (remainingTime > 0) {
-                            const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
-                            const days = Math.ceil(hours / 24);
-                            
-                            let timeDisplay = '';
-                            if (days > 1) {
-                                timeDisplay = `${days} days`;
-                            } else if (hours > 1) {
-                                timeDisplay = `${hours} hours`;
-                            } else {
-                                timeDisplay = 'Less than 1 hour';
-                            }
-                            
-                            timerInstructions = `
-                                <div class="message-base message-info mb-md text-sm">
-                                    ⏰ Recovery timer active (${timeDisplay} remaining)<br>
-                                    <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
-                                </div>
-                            `;
-                        }
-                    }
-                    
-                    tabPanel.innerHTML = `
-                        <div class="flex-center" style="min-height: 400px;">
-                            <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
-                                <div class="text-4xl mb-lg">🔒</div>
-                                <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
-                                <p class="text-secondary mb-lg line-height-relaxed">
-                                    Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
-                                </p>
-                                ${timerInstructions}
-                                <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
-                                <div class="flex-center gap-sm flex-wrap">
-                                    <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
-                                    <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
-                                </div>
-                                <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                            </div>
+
+                    timerInstructions = `
+                        <div class="message-base message-info mb-md text-sm">
+                            ⏰ Recovery timer active (${timeDisplay} remaining)<br>
+                            <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
                         </div>
                     `;
                 }
-                
-                tabContainer.appendChild(tabPanel);
             }
-        });
-        
-        // Render content for existing tabs that may be empty
-        const existingJournalTab = document.getElementById('journalTab');
-        if (existingJournalTab && (!existingJournalTab.innerHTML.trim() || existingJournalTab.innerHTML.includes('Content dynamically generated by journaltab.js'))) {
-            try {
-                renderJournalTab(existingJournalTab);
-            } catch (error) {
-                console.error('Error rendering existing Journal tab:', error);
-                existingJournalTab.innerHTML = `
-                    <div class="message-error">
-                        Error loading Journal tab. Please refresh the page.
-                        <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+
+            tabPanel.innerHTML = `
+                <div class="flex-center" style="min-height: 400px;">
+                    <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                        <div class="text-4xl mb-lg">🔒</div>
+                        <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
+                        <p class="text-secondary mb-lg line-height-relaxed">
+                            Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
+                        </p>
+                        ${timerInstructions}
+                        <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
+                        <div class="flex-center gap-sm flex-wrap">
+                            <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
+                            <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
+                        </div>
+                        <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
                     </div>
-                `;
-            }
+                </div>
+            `;
+        } else {
+            console.warn(`createTabPanel: Unknown tab ID: ${tabId}`);
+            tabPanel.innerHTML = `<div class="message-error">Unknown tab: ${escapeHtml(tabId)}</div>`;
         }
-        
-        // Update tab panels
-        const tabs = document.querySelectorAll('.tab-panel');
-        
-        tabs.forEach(tab => {
-            const expectedId = tabName + 'Tab';
-            if (tab.id === expectedId) {
-                tab.classList.add('active');
-            } else {
-                tab.classList.remove('active');
-            }
-        });
-        
-        // Update tab buttons with ARIA states
-        const tabButtons = document.querySelectorAll('.app-tab[role="tab"]');
-        tabButtons.forEach(button => {
-            const buttonTab = button.dataset.tab;
-            if (buttonTab === tabName) {
-                button.classList.add('active');
-                button.setAttribute('aria-selected', 'true');
-                button.setAttribute('tabindex', '0');
-            } else {
-                button.classList.remove('active');
-                button.setAttribute('aria-selected', 'false');
-                button.setAttribute('tabindex', '-1');
-            }
-        });
-        
-        // Show/hide footer based on active tab
-        const footer = document.querySelector('footer');
-        if (footer) {
-            if (tabName === 'journal' && !getAppLocked()) {
-                footer.style.display = 'block';
-            } else {
-                footer.style.display = 'none';
-            }
-        }
-        
-        setActiveAppTab(tabName);
-        
-        // Auto-focus PIN input on lock screen
-        if (tabName === 'lock') {
-            setTimeout(() => {
-                const lockScreenPinInput = document.getElementById('lockScreenPinInput');
-                if (lockScreenPinInput) {
-                    lockScreenPinInput.focus();
-                }
-            }, CONSTANTS.FOCUS_DELAY_MS);
-        }
-        
-        // Update security controls when switching to journal tab (for consistency)
-        if (tabName === 'journal') {
-            updateSecurityControls();
-        }
-        
-        // Initialize calendar if stats tab is selected
-        if (tabName === 'stats') {
-            initializeStatsTab();
-        }
-        
-        // Display goals if goals tab is selected
-        if (tabName === 'goals') {
-            // Initialize goals tab with fresh data when switching to goals tab
-            // This ensures we always have the latest data
-            initializeGoalsTab().catch(error => {
-                console.error('Error initializing Goals tab:', error);
-            });
-        }
+    } catch (error) {
+        console.error(`Error rendering ${tabId}:`, error);
 
-        // ALWAYS update settings when switching to settings tab (whether new or existing)
-        if (tabName === 'settings') {
-            // Initialize settings tab using the dedicated settingstab.js module
-            try {
-                initializeSettingsTab();
-            } catch (error) {
-                console.error('Error initializing settings tab:', error);
-            }
-        }
+        // Generate appropriate error message based on tab type
+        const friendlyName = panelTabName.charAt(0).toUpperCase() + panelTabName.slice(1);
+        tabPanel.innerHTML = `
+            <div class="message-error">
+                Error loading ${friendlyName} tab. Please refresh the page.
+                <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+            </div>
+        `;
+    }
 
-        // Initialize advice tab when switched to
-        if (tabName === 'advice') {
-            initializeAdviceTab().catch(error => {
-                console.error('Failed to initialize advice tab:', error);
-            });
-        }
+    tabContainer.appendChild(tabPanel);
+    return tabPanel;
+}
 
-        // ARIA: Announce tab change (skip during initial load)
-        if (!isInitialLoad) {
-            const announcer = document.getElementById('route-announcer');
-            if (announcer) {
-                const friendlyTabName = tabName.charAt(0).toUpperCase() + tabName.slice(1);
-                announcer.textContent = `Switched to ${friendlyTabName} page`;
-            }
-        }
+/**
+ * Updates the visual state of all tab elements to reflect the active tab.
+ *
+ * Manages the complete visual state transition when switching tabs, including
+ * showing/hiding tab panels, updating button states with proper ARIA attributes,
+ * and controlling footer visibility. Ensures consistent UI state across all
+ * tab-related elements.
+ *
+ * @param {string} tabName - Name of the tab to make active ('journal', 'goals', etc.)
+ * @returns {void}
+ * @throws {TypeError} When tabName is not a valid string
+ * @since 2.02.72
+ * @example
+ * // Update UI state for journal tab
+ * updateTabVisualState('journal');
+ * // All journal elements become active, others become inactive
+ *
+ * @example
+ * // Update state with footer visibility control
+ * updateTabVisualState('stats');
+ * // Stats tab shown, footer hidden (only journal shows footer)
+ */
+function updateTabVisualState(tabName) {
+    if (!tabName || typeof tabName !== 'string') {
+        console.warn('updateTabVisualState: Invalid tab name provided');
+        return;
+    }
 
-        // ARIA: Move focus to main heading of new tab (skip during initial load)
-        if (!isInitialLoad) {
-            setTimeout(() => {
-                const headingId = `${tabName}-main-heading`;
-                const mainHeading = document.getElementById(headingId);
-                if (mainHeading) {
-                    mainHeading.focus();
-                }
-            }, 150); // Small delay to ensure content is ready
+    // Update tab panels - show active, hide others
+    const tabs = document.querySelectorAll('.tab-panel');
+    tabs.forEach(tab => {
+        const expectedId = tabName + 'Tab';
+        if (tab.id === expectedId) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update tab buttons with ARIA states
+    const tabButtons = document.querySelectorAll('.app-tab[role="tab"]');
+    tabButtons.forEach(button => {
+        const buttonTab = button.dataset.tab;
+        if (buttonTab === tabName) {
+            button.classList.add('active');
+            button.setAttribute('aria-selected', 'true');
+            button.setAttribute('tabindex', '0');
+        } else {
+            button.classList.remove('active');
+            button.setAttribute('aria-selected', 'false');
+            button.setAttribute('tabindex', '-1');
+        }
+    });
+
+    // Show/hide footer based on active tab
+    const footer = document.querySelector('footer');
+    if (footer) {
+        if (tabName === 'journal' && !getAppLocked()) {
+            footer.style.display = 'block';
+        } else {
+            footer.style.display = 'none';
         }
     }
+
+    // Update global app state
+    setActiveAppTab(tabName);
+}
+
+/**
+ * Handles tab-specific initialization, focus management, and accessibility features.
+ *
+ * Performs specialized setup for each tab type including initialization of tab-specific
+ * functionality, focus management for accessibility, and ARIA announcements. Different
+ * tabs have unique requirements for data loading, focus handling, and user interaction setup.
+ *
+ * @param {string} tabName - Name of the tab to initialize ('journal', 'goals', etc.)
+ * @param {boolean} [isInitialLoad=false] - Whether this is the initial app load (affects ARIA announcements)
+ * @returns {void}
+ * @throws {TypeError} When tabName is not a valid string
+ * @since 2.02.72
+ * @example
+ * // Handle journal tab activation with security setup
+ * handleTabSpecificLogic('journal', false);
+ * // Updates security controls, sets up journal-specific features
+ *
+ * @example
+ * // Handle initial stats tab load without announcements
+ * handleTabSpecificLogic('stats', true);
+ * // Initializes calendar, skips ARIA announcements for initial load
+ */
+function handleTabSpecificLogic(tabName, isInitialLoad = false) {
+    if (!tabName || typeof tabName !== 'string') {
+        console.warn('handleTabSpecificLogic: Invalid tab name provided');
+        return;
+    }
+
+    // Auto-focus PIN input on lock screen for accessibility
+    if (tabName === 'lock') {
+        setTimeout(() => {
+            const lockScreenPinInput = document.getElementById('lockScreenPinInput');
+            if (lockScreenPinInput) {
+                lockScreenPinInput.focus();
+            }
+        }, CONSTANTS.FOCUS_DELAY_MS);
+    }
+
+    // Update security controls when switching to journal tab (for consistency)
+    if (tabName === 'journal') {
+        updateSecurityControls();
+    }
+
+    // Initialize calendar if stats tab is selected
+    if (tabName === 'stats') {
+        initializeStatsTab();
+    }
+
+    // Display goals if goals tab is selected
+    if (tabName === 'goals') {
+        // Initialize goals tab with fresh data when switching to goals tab
+        // This ensures we always have the latest data
+        initializeGoalsTab().catch(error => {
+            console.error('Error initializing Goals tab:', error);
+        });
+    }
+
+    // ALWAYS update settings when switching to settings tab (whether new or existing)
+    if (tabName === 'settings') {
+        // Initialize settings tab using the dedicated settingstab.js module
+        try {
+            initializeSettingsTab();
+        } catch (error) {
+            console.error('Error initializing settings tab:', error);
+        }
+    }
+
+    // Initialize advice tab when switched to
+    if (tabName === 'advice') {
+        initializeAdviceTab().catch(error => {
+            console.error('Failed to initialize advice tab:', error);
+        });
+    }
+
+    // ARIA: Announce tab change (skip during initial load to avoid noise)
+    if (!isInitialLoad) {
+        const announcer = document.getElementById('route-announcer');
+        if (announcer) {
+            const friendlyTabName = tabName.charAt(0).toUpperCase() + tabName.slice(1);
+            announcer.textContent = `Switched to ${friendlyTabName} page`;
+        }
+    }
+
+    // ARIA: Move focus to main heading of new tab (skip during initial load)
+    if (!isInitialLoad) {
+        setTimeout(() => {
+            const headingId = `${tabName}-main-heading`;
+            const mainHeading = document.getElementById(headingId);
+            if (mainHeading) {
+                mainHeading.focus();
+            }
+        }, 150); // Small delay to ensure content is ready
+    }
+}
+
+/**
+ * Orchestrates application tab switching with clean separation of concerns.
+ *
+ * This refactored function provides a streamlined tab switching experience by
+ * delegating specific responsibilities to focused helper functions. The orchestration
+ * approach improves maintainability, testability, and code readability while
+ * preserving all original functionality.
+ *
+ * **Refactoring Benefits:**
+ * - **Single Responsibility**: Each helper function has one clear purpose
+ * - **Improved Maintainability**: Changes to specific aspects are isolated
+ * - **Better Testability**: Individual components can be unit tested
+ * - **Reduced Complexity**: Main function is now under 50 lines vs 300+ lines
+ * - **Enhanced Readability**: Clear flow and separation of concerns
+ *
+ * @param {('journal'|'goals'|'stats'|'advice'|'settings'|'lock')} tabName - Target tab identifier
+ * @param {boolean} [isInitialLoad=false] - Whether this is the initial app load (affects ARIA announcements)
+ * @returns {void}
+ * @throws {TypeError} When tabName is not a valid tab identifier
+ * @since 2.02.72
+ * @example
+ * // Switch to journal tab
+ * switchAppTab('journal');
+ *
+ * @example
+ * // Handle lock screen transition
+ * switchAppTab('lock'); // Orchestrates lock state, UI updates, and focus management
+ *
+ * @example
+ * // Tab switching with initialization
+ * switchAppTab('stats'); // Infrastructure → Panels → UI → Specific Logic
+ */
+function switchAppTab(tabName, isInitialLoad = false) {
+    // Input validation
+    if (!tabName || !['journal', 'goals', 'stats', 'advice', 'settings', 'lock'].includes(tabName)) {
+        console.warn('switchAppTab: Invalid or missing tab name');
+        return;
+    }
+
+    // 1. LOCK SCREEN STATE MANAGEMENT
+    // Handle lock screen transitions and tab button visibility
+    if (tabName === 'lock') {
+        // Switching TO lock screen
+        if (!getAppLocked()) {
+            setPreLockActiveTab(getActiveAppTab()); // Remember current tab
+            setAppLocked(true);
+            hideAllTabButtons();
+        }
+    } else {
+        // Switching FROM lock screen to another tab
+        if (getAppLocked()) {
+            setAppLocked(false);
+            showAllTabButtons();
+        }
+    }
+
+    // Update lock tab button visibility based on app state
+    const lockTabButton = document.querySelector('.app-tab[data-tab="lock"]');
+    if (lockTabButton) {
+        lockTabButton.style.display = tabName === 'lock' ? 'block' : 'none';
+    }
+
+    // 2. INFRASTRUCTURE SETUP
+    // Ensure tab container exists with robust error handling
+    const tabContainer = ensureTabInfrastructure();
+    if (!tabContainer) {
+        console.error('switchAppTab: Failed to create tab infrastructure');
+        return;
+    }
+
+    // 3. TAB PANEL CREATION
+    // Create all required tab panels if they don't exist
+    const requiredTabs = ['journalTab', 'goalsTab', 'statsTab', 'adviceTab', 'settingsTab', 'lockTab'];
+    requiredTabs.forEach(tabId => {
+        createTabPanel(tabId, tabContainer);
+    });
+
+    // Handle special case for existing journal tabs that may be empty
+    const existingJournalTab = document.getElementById('journalTab');
+    if (existingJournalTab && (!existingJournalTab.innerHTML.trim() || existingJournalTab.innerHTML.includes('Content dynamically generated by journaltab.js'))) {
+        try {
+            renderJournalTab(existingJournalTab);
+        } catch (error) {
+            console.error('Error rendering existing Journal tab:', error);
+            existingJournalTab.innerHTML = `
+                <div class="message-error">
+                    Error loading Journal tab. Please refresh the page.
+                    <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                </div>
+            `;
+        }
+    }
+
+    // 4. VISUAL STATE UPDATES
+    // Update all UI elements to reflect the active tab
+    updateTabVisualState(tabName);
+
+    // 5. TAB-SPECIFIC LOGIC
+    // Handle initialization, focus, and accessibility features
+    handleTabSpecificLogic(tabName, isInitialLoad);
+}
 
 // ===================================================================================
 // TAB BUTTON VISIBILITY CONTROL
