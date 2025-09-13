@@ -112,12 +112,109 @@ import { calculateDreamRecallStreak, calculateJournalingStreak } from './statsta
  */
 
 // ================================
+// GOALS MESSAGING SYSTEM
+// ================================
+
+/**
+ * Displays standardized goal-related messages with consistent styling and timing.
+ *
+ * This function provides a centralized way to display all goal-related user feedback
+ * messages with consistent styling, positioning, and timing. It supports different
+ * message types including success, error, celebration, and form validation messages.
+ *
+ * @function showGoalMessage
+ * @param {string} type - Message type determining style and behavior
+ * @param {string} message - The message text to display to the user
+ * @param {Object} [options={}] - Additional options for message customization
+ * @param {string} [options.goalTitle] - Goal title for personalized messages
+ * @param {number} [options.duration] - Override default duration for this message
+ * @returns {void}
+ * @since 2.02.49
+ *
+ * @example
+ * // Show success message
+ * showGoalMessage('success', 'Goal created successfully!');
+ *
+ * @example
+ * // Show celebration message with goal title
+ * showGoalMessage('celebration', 'Goal completed!', { goalTitle: 'Daily Meditation' });
+ *
+ * @example
+ * // Show error message with custom duration
+ * showGoalMessage('error', 'Failed to save goal', { duration: 5000 });
+ */
+function showGoalMessage(type, message, options = {}) {
+    const { goalTitle, duration } = options;
+
+    let finalMessage = message;
+    let messageType = 'success'; // Default to success for createInlineMessage
+    let messageDuration = CONSTANTS.MESSAGE_DURATION_SHORT;
+
+    switch (type) {
+        case 'success':
+            messageType = 'success';
+            messageDuration = CONSTANTS.MESSAGE_DURATION_SHORT;
+            break;
+
+        case 'error':
+        case 'form-error':
+            messageType = 'error';
+            messageDuration = CONSTANTS.MESSAGE_DURATION_SHORT;
+            break;
+
+        case 'celebration':
+            messageType = 'success';
+            messageDuration = CONSTANTS.MESSAGE_DURATION_MEDIUM;
+            if (goalTitle) {
+                finalMessage = `🎉 Congratulations! Goal "${goalTitle}" completed!`;
+            } else {
+                finalMessage = `🎉 ${message}`;
+            }
+            break;
+
+        case 'reactivated':
+            messageType = 'success';
+            messageDuration = CONSTANTS.MESSAGE_DURATION_SHORT;
+            if (goalTitle) {
+                finalMessage = `🔄 Goal "${goalTitle}" reactivated!`;
+            } else {
+                finalMessage = `🔄 ${message}`;
+            }
+            break;
+
+        case 'auto-complete':
+            messageType = 'success';
+            messageDuration = 3000; // Special duration for auto-completion
+            if (goalTitle) {
+                finalMessage = `🎉 Goal "${goalTitle}" completed! Great job!`;
+            } else {
+                finalMessage = `🎉 ${message}`;
+            }
+            break;
+
+        default:
+            messageType = 'success';
+            messageDuration = CONSTANTS.MESSAGE_DURATION_SHORT;
+    }
+
+    // Use custom duration if provided
+    if (duration) {
+        messageDuration = duration;
+    }
+
+    createInlineMessage(messageType, finalMessage, {
+        container: document.body,
+        position: 'top',
+        duration: messageDuration
+    });
+}
+
+// ================================
 // GOALS MANAGEMENT MODULE
 // ================================
 // Complete goal lifecycle management including creation, editing, deletion,
 // progress tracking, pagination, and template-based goal creation system
 //
-// TODO: Create standardized showGoalMessage() function to consolidate 12+ createInlineMessage calls
 // TODO: Extract common pagination calculation patterns to shared utility functions
 
 // ================================
@@ -502,11 +599,7 @@ async function saveGoal() {
     
     if (!titleElement || !descriptionElement || !typeElement || !periodElement || !targetElement || !iconElement) {
         console.error('Goal form elements not found');
-        createInlineMessage('error', 'Goal form not properly initialized', {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
-        });
+        showGoalMessage('form-error', 'Goal form not properly initialized');
         return;
     }
     
@@ -520,11 +613,7 @@ async function saveGoal() {
     console.log('Goal form values:', { title, description, type, period, target, icon });
     
     if (!title || !target || target < 1) {
-        createInlineMessage('error', 'Please fill in all required fields with valid values', {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
-        });
+        showGoalMessage('form-error', 'Please fill in all required fields with valid values');
         return;
     }
     
@@ -548,12 +637,7 @@ async function saveGoal() {
             await saveGoals(currentGoals);
             await displayGoals();
             cancelGoalDialog();
-            // TODO: Replace with standardized showGoalMessage('success', 'Goal updated successfully!')
-            createInlineMessage('success', 'Goal updated successfully!', {
-                container: document.body,
-                position: 'top',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
+            showGoalMessage('success', 'Goal updated successfully!');
             delete window.editingGoalId;
         }
     } else {
@@ -589,19 +673,10 @@ async function saveGoal() {
             console.log('Goals display updated');
             
             cancelGoalDialog();
-            // TODO: Replace with standardized showGoalMessage('success', 'Goal created successfully!')
-            createInlineMessage('success', 'Goal created successfully!', {
-                container: document.body,
-                position: 'top',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
+            showGoalMessage('success', 'Goal created successfully!');
         } catch (error) {
             console.error('Error creating goal:', error);
-            createInlineMessage('error', 'Failed to create goal. Please try again.', {
-                container: document.body,
-                position: 'top',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
+            showGoalMessage('error', 'Failed to create goal. Please try again.');
         }
     }
 }
@@ -676,12 +751,7 @@ async function completeGoal(goalId) {
     
     await saveGoals(getAllGoals());
     await displayGoals();
-    // TODO: Replace with standardized showGoalMessage('celebration', goal.title)
-    createInlineMessage('success', `🎉 Congratulations! Goal "${goal.title}" completed!`, {
-        container: document.body,
-        position: 'top',
-        duration: CONSTANTS.MESSAGE_DURATION_MEDIUM
-    });
+    showGoalMessage('celebration', 'Goal completed!', { goalTitle: goal.title });
 }
 
 /**
@@ -722,19 +792,10 @@ async function reactivateGoal(goalId) {
         }
         
         await displayGoals();
-        // TODO: Replace with standardized showGoalMessage('reactivated', goal.title)
-        createInlineMessage('success', `🔄 Goal "${goal.title}" reactivated!`, {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
-        });
+        showGoalMessage('reactivated', 'Goal reactivated!', { goalTitle: goal.title });
     } catch (error) {
         console.error('Error reactivating goal:', error);
-        createInlineMessage('error', 'Failed to reactivate goal. Please try again.', {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
-        });
+        showGoalMessage('error', 'Failed to reactivate goal. Please try again.');
     }
 }
 
@@ -855,22 +916,14 @@ async function confirmDeleteGoal(goalId) {
             await displayGoals();
             
             // Show success message
-            createInlineMessage('success', 'Goal deleted successfully', {
-                container: document.body,
-                position: 'top',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
+            showGoalMessage('success', 'Goal deleted successfully');
         } catch (error) {
             console.error('Error deleting goal:', error);
             
             // Restore UI on error
             cancelGoalDelete(goalId);
             
-            createInlineMessage('error', 'Failed to delete goal. Please try again.', {
-                container: document.body,
-                position: 'top',
-                duration: CONSTANTS.MESSAGE_DURATION_SHORT
-            });
+            showGoalMessage('error', 'Failed to delete goal. Please try again.');
         }
     });
 }
