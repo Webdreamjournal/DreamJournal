@@ -589,53 +589,58 @@ async function calculateGoalProgress(goal) {
 }
 
 // ================================
-// 6. GOAL CREATION & TEMPLATE SYSTEM
+// 6. GOAL FORM AND DIALOG SYSTEM
 // ================================
 
 /**
- * Displays modal dialog for creating new goals with optional template pre-population.
- * 
- * This function creates and displays a modal dialog with form fields for goal creation.
- * When a template is provided, the form is pre-populated with template values.
- * The dialog includes validation and focuses the title field for immediate input.
- * 
- * TODO: Split into buildGoalFormHTML() and showGoalDialog() functions
- * 
- * @function showCreateGoalDialog
- * @param {string|null} [template=null] - Template key to pre-populate form, or null for blank form
- * @returns {void}
- * @since 1.0.0
+ * Builds the HTML content for the goal creation/editing form.
+ *
+ * This function generates the complete HTML structure for the goal form including
+ * all form fields, labels, validation attributes, and action buttons. It supports
+ * template-based pre-population and proper accessibility markup.
+ *
+ * @function buildGoalFormHTML
+ * @param {Object|null} [templateData=null] - Template data to pre-populate form fields
+ * @param {boolean} [isEdit=false] - Whether this form is for editing (affects title and button text)
+ * @returns {string} Complete HTML string for the goal form
+ * @since 2.02.49
+ *
  * @example
- * // Show blank goal creation dialog
- * showCreateGoalDialog();
- * 
+ * // Build blank form HTML
+ * const formHTML = buildGoalFormHTML();
+ *
  * @example
- * // Show dialog with template pre-filled
- * showCreateGoalDialog('lucid_beginner');
+ * // Build form with template data
+ * const templateData = GOAL_TEMPLATES['lucid_beginner'];
+ * const formHTML = buildGoalFormHTML(templateData);
+ *
+ * @example
+ * // Build form for editing
+ * const formHTML = buildGoalFormHTML(null, true);
  */
-function showCreateGoalDialog(template = null) {
-    console.log('showCreateGoalDialog called with template:', template);
-    
-    const dialog = document.createElement('div');
-    dialog.className = 'pin-overlay';
-    dialog.style.display = 'flex';
-    
-    const templateData = template ? GOAL_TEMPLATES[template] : null;
-    
-    dialog.innerHTML = `
+function buildGoalFormHTML(templateData = null, isEdit = false) {
+    const formTitle = isEdit ? 'Edit Goal' :
+                     templateData ? 'Create Goal from Template' : 'Create New Goal';
+    const buttonText = isEdit ? 'Update Goal' : 'Create Goal';
+
+    return `
         <div class="pin-container">
-            <h3>${template ? 'Create Goal from Template' : 'Create New Goal'}</h3>
+            <h3>${formTitle}</h3>
             <div class="form-group">
                 <label for="goalTitle">Goal Title</label>
-                <input type="text" id="goalTitle" class="form-control" value="${templateData?.title || ''}" required>
+                <input type="text" id="goalTitle" class="form-control"
+                       value="${templateData?.title || ''}"
+                       required
+                       aria-describedby="goalTitleHelp">
             </div>
             <div class="form-group">
                 <label for="goalDescription">Description</label>
-                <textarea id="goalDescription" class="form-control" rows="3">${templateData?.description || ''}</textarea>
+                <textarea id="goalDescription" class="form-control" rows="3"
+                          aria-describedby="goalDescriptionHelp">${templateData?.description || ''}</textarea>
             </div>
             <div class="form-group">
                 <label for="goalType">Goal Type</label>
-                <select id="goalType" class="form-control">
+                <select id="goalType" class="form-control" aria-describedby="goalTypeHelp">
                     <option value="lucid_count" ${templateData?.type === 'lucid_count' ? 'selected' : ''}>Lucid Dreams Count</option>
                     <option value="recall_streak" ${templateData?.type === 'recall_streak' ? 'selected' : ''}>Dream Recall Streak</option>
                     <option value="journal_streak" ${templateData?.type === 'journal_streak' ? 'selected' : ''}>Journal Writing Streak</option>
@@ -645,7 +650,7 @@ function showCreateGoalDialog(template = null) {
             </div>
             <div class="form-group">
                 <label for="goalPeriod">Time Period</label>
-                <select id="goalPeriod" class="form-control">
+                <select id="goalPeriod" class="form-control" aria-describedby="goalPeriodHelp">
                     <option value="monthly" ${templateData?.period === 'monthly' ? 'selected' : ''}>Monthly</option>
                     <option value="streak" ${templateData?.period === 'streak' ? 'selected' : ''}>Consecutive Days</option>
                     <option value="total" ${templateData?.period === 'total' ? 'selected' : ''}>All Time Total</option>
@@ -653,21 +658,141 @@ function showCreateGoalDialog(template = null) {
             </div>
             <div class="form-group">
                 <label for="goalTarget">Target Number</label>
-                <input type="number" id="goalTarget" class="form-control" value="${templateData?.target || 1}" min="1" required>
+                <input type="number" id="goalTarget" class="form-control"
+                       value="${templateData?.target || 1}"
+                       min="1"
+                       required
+                       aria-describedby="goalTargetHelp">
             </div>
             <div class="form-group">
                 <label for="goalIcon">Icon (optional)</label>
-                <input type="text" id="goalIcon" class="form-control" value="${templateData?.icon || '🎯'}" maxlength="2">
+                <input type="text" id="goalIcon" class="form-control"
+                       value="${templateData?.icon || '🎯'}"
+                       maxlength="2"
+                       aria-describedby="goalIconHelp">
             </div>
             <div class="pin-buttons">
-                <button data-action="save-goal" class="btn btn-primary">Create Goal</button>
+                <button data-action="save-goal" class="btn btn-primary">${buttonText}</button>
                 <button data-action="cancel-goal-dialog" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     `;
-    
+}
+
+/**
+ * Creates and displays a goal dialog with the specified content.
+ *
+ * This function creates the modal dialog container, sets up proper styling,
+ * injects the provided HTML content, and displays the dialog. It handles
+ * the DOM manipulation and focus management for the dialog.
+ *
+ * @function showGoalDialog
+ * @param {string} htmlContent - The HTML content to display in the dialog
+ * @param {boolean} [focusTitle=true] - Whether to focus the title field after showing
+ * @returns {void}
+ * @since 2.02.49
+ *
+ * @example
+ * // Show dialog with custom HTML content
+ * const formHTML = buildGoalFormHTML();
+ * showGoalDialog(formHTML);
+ *
+ * @example
+ * // Show dialog without auto-focusing title
+ * showGoalDialog(formHTML, false);
+ */
+function showGoalDialog(htmlContent, focusTitle = true) {
+    const dialog = document.createElement('div');
+    dialog.className = 'pin-overlay';
+    dialog.style.display = 'flex';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'goalDialogTitle');
+
+    dialog.innerHTML = htmlContent;
+
     document.body.appendChild(dialog);
-    document.getElementById('goalTitle').focus();
+
+    if (focusTitle) {
+        const titleField = document.getElementById('goalTitle');
+        if (titleField) {
+            titleField.focus();
+        }
+    }
+}
+
+/**
+ * Populates the goal form with existing goal data for editing.
+ *
+ * This function fills all form fields with the provided goal's current values
+ * and updates the dialog's title and button text to reflect the editing context.
+ * It handles proper field population and UI state updates.
+ *
+ * @function populateGoalEditForm
+ * @param {Goal} goal - The goal object containing data to populate the form
+ * @returns {void}
+ * @since 2.02.49
+ *
+ * @example
+ * // Populate form for editing
+ * const goal = { title: 'My Goal', description: 'Goal desc', type: 'custom', ... };
+ * populateGoalEditForm(goal);
+ */
+function populateGoalEditForm(goal) {
+    // Fill form fields with current goal values
+    const titleField = document.getElementById('goalTitle');
+    const descriptionField = document.getElementById('goalDescription');
+    const typeField = document.getElementById('goalType');
+    const periodField = document.getElementById('goalPeriod');
+    const targetField = document.getElementById('goalTarget');
+    const iconField = document.getElementById('goalIcon');
+
+    if (titleField) titleField.value = goal.title;
+    if (descriptionField) descriptionField.value = goal.description;
+    if (typeField) typeField.value = goal.type;
+    if (periodField) periodField.value = goal.period;
+    if (targetField) targetField.value = goal.target;
+    if (iconField) iconField.value = goal.icon;
+
+    // Update dialog title and button text for editing context
+    const dialog = document.querySelector('.pin-overlay:not(#pinOverlay)');
+    if (dialog) {
+        const dialogTitle = dialog.querySelector('h3');
+        const saveButton = dialog.querySelector('[data-action="save-goal"]');
+        if (dialogTitle) dialogTitle.textContent = 'Edit Goal';
+        if (saveButton) saveButton.textContent = 'Update Goal';
+    }
+}
+
+// ================================
+// 7. GOAL CREATION & TEMPLATE SYSTEM
+// ================================
+
+/**
+ * Displays modal dialog for creating new goals with optional template pre-population.
+ *
+ * This function creates and displays a modal dialog with form fields for goal creation.
+ * When a template is provided, the form is pre-populated with template values.
+ * The dialog includes validation and focuses the title field for immediate input.
+ *
+ * @function showCreateGoalDialog
+ * @param {string|null} [template=null] - Template key to pre-populate form, or null for blank form
+ * @returns {void}
+ * @since 1.0.0
+ * @example
+ * // Show blank goal creation dialog
+ * showCreateGoalDialog();
+ *
+ * @example
+ * // Show dialog with template pre-filled
+ * showCreateGoalDialog('lucid_beginner');
+ */
+function showCreateGoalDialog(template = null) {
+    console.log('showCreateGoalDialog called with template:', template);
+
+    const templateData = template ? GOAL_TEMPLATES[template] : null;
+    const formHTML = buildGoalFormHTML(templateData, false);
+    showGoalDialog(formHTML, true);
 }
 
 /**
@@ -819,14 +944,12 @@ async function saveGoal() {
 
 /**
  * Loads existing goal data into the edit form with dialog configuration.
- * 
+ *
  * This function finds the specified goal, opens the creation dialog, and populates
  * all form fields with the goal's current values. It also updates the dialog's
  * title and button text to reflect the editing context. Uses a timeout to ensure
  * DOM elements are ready before population.
- * 
- * TODO: Extract form population to populateGoalEditForm() function
- * 
+ *
  * @function editGoal
  * @param {string} goalId - Unique identifier of the goal to edit
  * @returns {void}
@@ -838,26 +961,13 @@ async function saveGoal() {
 function editGoal(goalId) {
     const goal = allGoals.find(g => g.id === goalId);
     if (!goal) return;
-    
+
     window.editingGoalId = goalId; // Store ID for save function
     showCreateGoalDialog();
-    
-    // TODO: Extract form population to populateGoalEditForm() function
-    // Fill current values
+
+    // Use timeout to ensure DOM elements are ready before population
     setTimeout(() => {
-        document.getElementById('goalTitle').value = goal.title;
-        document.getElementById('goalDescription').value = goal.description;
-        document.getElementById('goalType').value = goal.type;
-        document.getElementById('goalPeriod').value = goal.period;
-        document.getElementById('goalTarget').value = goal.target;
-        document.getElementById('goalIcon').value = goal.icon;
-        
-        // Update dialog title and button text
-        const dialog = document.querySelector('.pin-overlay:not(#pinOverlay)');
-        const dialogTitle = dialog.querySelector('h3');
-        const saveButton = dialog.querySelector('[data-action="save-goal"]');
-        if (dialogTitle) dialogTitle.textContent = 'Edit Goal';
-        if (saveButton) saveButton.textContent = 'Update Goal';
+        populateGoalEditForm(goal);
     }, 10);
 }
 
