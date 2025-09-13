@@ -45,13 +45,14 @@
 import { CONSTANTS } from './constants.js';
 import { calendarState } from './state.js';
 import { loadDreams, loadGoals } from './storage.js';
-import { 
-    createInlineMessage, 
-    escapeHtml, 
-    formatDateKey, 
+import {
+    createInlineMessage,
+    escapeHtml,
+    formatDateKey,
     formatDisplayDate,
-    createPieChartColors, 
-    createPieChartHTML 
+    createPieChartColors,
+    createPieChartHTML,
+    calculateMostCommonItems
 } from './dom-helpers.js';
 
 // ================================
@@ -392,33 +393,21 @@ import {
             const recentDreams = dreams.filter(d => new Date(d.timestamp) > weekAgo).length;
             
             // Most common emotion analysis
-            // TODO: Extract emotion analysis to calculateMostCommonItems() utility function - duplicated pattern
             const emotions = dreams
                 .map(d => d.emotions)
                 .filter(e => e && e.trim())
-                .flatMap(e => e.split(',').map(em => em.trim().toLowerCase()));
-            
-            const emotionCounts = {};
-            emotions.forEach(emotion => {
-                emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
-            });
-            
-            const topEmotion = Object.keys(emotionCounts).length > 0 ? 
-                Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0] : null;
+                .flatMap(e => e.split(',').map(em => em.trim()));
+
+            const topEmotionResult = calculateMostCommonItems(emotions);
+            const topEmotion = topEmotionResult.item ? [topEmotionResult.item, topEmotionResult.count] : null;
             
             // Most common tag analysis
-            // TODO: Use same calculateMostCommonItems() utility function - identical counting pattern
             const tags = dreams
                 .flatMap(d => Array.isArray(d.tags) ? d.tags : [])
                 .filter(t => t && t.trim());
-            
-            const tagCounts = {};
-            tags.forEach(tag => {
-                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-            });
-            
-            const topTag = Object.keys(tagCounts).length > 0 ? 
-                Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0] : null;
+
+            const topTagResult = calculateMostCommonItems(tags, false); // Keep original casing for tags
+            const topTag = topTagResult.item ? [topTagResult.item, topTagResult.count] : null;
             
             // Update display elements
             const totalElement = document.getElementById('totalDreamsCount');
