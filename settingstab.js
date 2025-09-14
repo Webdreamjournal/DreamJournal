@@ -586,10 +586,12 @@ async function showEncryptionSetupDialog() {
             title: 'Set Up Data Encryption',
             description: 'Create a strong password to encrypt your dreams and goals data.',
             requireConfirm: true,
-            primaryButtonText: 'Enable Encryption'
+            primaryButtonText: 'Enable Encryption',
+            validate: validateEncryptionPassword  // Validate inside the dialog
         };
 
         // showPasswordDialog returns a Promise with the password or null if cancelled
+        // Validation errors will be shown inside the dialog
         const password = await showPasswordDialog(config);
 
         if (!password) {
@@ -597,14 +599,7 @@ async function showEncryptionSetupDialog() {
             return;
         }
 
-        // Validate password meets security requirements
-        const validation = validateEncryptionPassword(password);
-        if (!validation.valid) {
-            createInlineMessage('error', validation.error);
-            return;
-        }
-
-        // Set up encryption with the validated password
+        // Password is already validated, proceed with setup
         await setupEncryption(password);
 
     } catch (error) {
@@ -738,25 +733,11 @@ async function disableEncryption() {
         // Import required functions
         const { showPasswordDialog, testEncryptionPassword } = await import('./security.js');
 
-        // Step 1: Verify current encryption password
-        const passwordConfig = {
-            title: 'Verify Encryption Password',
-            description: 'Enter your current encryption password to disable encryption and decrypt your data.',
-            requireConfirm: false,
-            primaryButtonText: 'Verify Password'
-        };
-
-        const password = await showPasswordDialog(passwordConfig);
+        // Step 1: Verify current encryption password with retry logic
+        const password = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword);
 
         if (!password) {
-            // User cancelled password entry
-            return;
-        }
-
-        // Test the password to ensure it's correct
-        const passwordTest = await testEncryptionPassword(password);
-        if (!passwordTest.valid) {
-            createInlineMessage('error', 'Incorrect password. Cannot disable encryption without valid password.');
+            // User cancelled or failed verification
             return;
         }
 
@@ -786,6 +767,66 @@ async function disableEncryption() {
         console.error('Error disabling encryption:', error);
         createInlineMessage('error', 'Failed to disable encryption. Please try again.');
     }
+}
+
+/**
+ * Verifies encryption password with retry logic and inline error display.
+ *
+ * This helper function handles password verification for encryption disable operations
+ * with user-friendly error handling. If password verification fails, it shows an
+ * error message and allows the user to retry until they enter the correct password
+ * or cancel the operation.
+ *
+ * @async
+ * @function
+ * @param {Function} showPasswordDialog - Password dialog function
+ * @param {Function} testEncryptionPassword - Password testing function
+ * @param {number} maxAttempts - Maximum number of retry attempts (default: 3)
+ * @returns {Promise<string|null>} Verified password or null if cancelled/failed
+ * @throws {Error} When password testing encounters technical errors
+ * @since 2.03.01
+ * @private
+ */
+async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, maxAttempts = 3) {
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+        let title = 'Verify Encryption Password';
+        let description = 'Enter your current encryption password to disable encryption and decrypt your data.';
+
+        // Show error context for retry attempts
+        if (attempts > 0) {
+            const remaining = maxAttempts - attempts;
+            title = 'Incorrect Password - Try Again';
+            description = `The password you entered is incorrect. You have ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.\n\nEnter your current encryption password to disable encryption and decrypt your data.`;
+        }
+
+        const passwordConfig = {
+            title,
+            description,
+            requireConfirm: false,
+            primaryButtonText: attempts === 0 ? 'Verify Password' : 'Try Again'
+        };
+
+        const password = await showPasswordDialog(passwordConfig);
+
+        if (!password) {
+            // User cancelled
+            return null;
+        }
+
+        // Test the password
+        const passwordTest = await testEncryptionPassword(password);
+        if (passwordTest.valid) {
+            return password; // Success!
+        }
+
+        attempts++;
+    }
+
+    // Max attempts reached
+    createInlineMessage('error', `Failed to verify password after ${maxAttempts} attempts. Encryption remains enabled.`);
+    return null;
 }
 
 /**

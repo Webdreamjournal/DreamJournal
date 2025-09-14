@@ -403,29 +403,51 @@ function showPasswordDialog(config) {
             function handleConfirm() {
                 const password = passwordInput.value;
                 const confirmPassword = confirmInput ? confirmInput.value : password;
-                
+                const errorDiv = document.getElementById('passwordError');
+
+                // Clear previous errors
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                    errorDiv.textContent = '';
+                }
+
                 if (!password) {
+                    showError('Please enter a password');
                     passwordInput.focus();
                     return;
                 }
-                
+
                 if (config.requireConfirm && password !== confirmPassword) {
-                    // Show error in the dedicated error div
-                    const errorDiv = document.getElementById('passwordError');
-                    if (errorDiv) {
-                        errorDiv.textContent = 'Passwords do not match';
-                        errorDiv.style.display = 'block';
-                        setTimeout(() => {
-                            errorDiv.style.display = 'none';
-                            errorDiv.textContent = '';
-                        }, 3000);
-                    }
+                    showError('Passwords do not match');
                     confirmInput.focus();
                     return;
                 }
-                
+
+                // Run custom validation if provided
+                if (config.validate && typeof config.validate === 'function') {
+                    const validation = config.validate(password);
+                    if (!validation.valid) {
+                        showError(validation.error);
+                        passwordInput.focus();
+                        return;
+                    }
+                }
+
                 cleanup();
                 resolve(password);
+            }
+
+            /**
+             * Shows error message in the dialog's error container.
+             * @private
+             * @param {string} message - Error message to display
+             */
+            function showError(message) {
+                const errorDiv = document.getElementById('passwordError');
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                }
             }
             
             /**
