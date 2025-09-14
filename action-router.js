@@ -65,7 +65,7 @@ import {
     startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
     verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer,
     showChangeEncryptionPasswordDialog, confirmChangeEncryptionPassword, cancelPasswordDialog,
-    showForgotEncryptionPassword, wipeAllData, confirmDataWipe, switchToPinEntry
+    showForgotEncryptionPassword, wipeAllData, confirmDataWipe
 } from './security.js';
 
 // Dream CRUD operations
@@ -465,7 +465,6 @@ const ACTION_MAP = {
         'show-forgot-encryption-password': () => showForgotEncryptionPassword(), // Show forgot encryption password options
         'wipe-all-data': () => wipeAllData(),                               // Emergency data wipe for forgotten passwords
         'confirm-data-wipe': () => confirmDataWipe(),                       // Confirm and execute complete data wipe
-        'switch-to-pin-entry': () => switchToPinEntry(),                    // Switch from password to PIN authentication
         
         // ================================
         // AUTOCOMPLETE MANAGEMENT SYSTEM

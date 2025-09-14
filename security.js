@@ -1602,17 +1602,8 @@ async function renderUnifiedAuthenticationScreen(containerElement) {
  * @private
  */
 function renderEncryptionAuthenticationScreen(containerElement, requirements, timerInstructions) {
-    let title = '🔐 Enter Encryption Password';
-    let description = 'Enter your encryption password to decrypt and access your dream journal data.';
-    let switchToPinOption = '';
-
-    if (requirements.bothEnabled) {
-        title = '🔐 Enter Password or PIN';
-        description = 'Enter your encryption password to decrypt your data, or use your PIN for quicker access.';
-        switchToPinOption = `
-            <button data-action="switch-to-pin-entry" class="btn btn-secondary">Use PIN Instead</button>
-        `;
-    }
+    const title = '🔐 Enter Encryption Password';
+    const description = 'Enter your encryption password to decrypt and access your dream journal data.';
 
     containerElement.innerHTML = `
         <div class="flex-center" style="min-height: 400px;">
@@ -1626,7 +1617,6 @@ function renderEncryptionAuthenticationScreen(containerElement, requirements, ti
                 <input type="password" id="lockScreenPasswordInput" placeholder="Enter encryption password" maxlength="128" class="input-pin w-full mb-lg">
                 <div class="flex-center gap-sm flex-wrap">
                     <button data-action="verify-encryption-password" class="btn btn-primary">🔓 Unlock Journal</button>
-                    ${switchToPinOption}
                     <button data-action="show-forgot-encryption-password" class="btn btn-secondary">Forgot Password?</button>
                 </div>
                 <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
@@ -1769,26 +1759,6 @@ async function wipeAllData() {
     }
 }
 
-/**
- * Switches from encryption password entry to PIN entry mode.
- *
- * For users with both encryption and PIN enabled, this allows switching
- * to the faster PIN authentication method instead of entering the full
- * encryption password.
- *
- * @function
- * @since 2.03.01
- * @example
- * // Called from "Use PIN Instead" button
- * switchToPinEntry();
- */
-function switchToPinEntry() {
-    const lockTab = document.getElementById('lockTab');
-    if (!lockTab) return;
-
-    // Re-render with PIN interface
-    renderPinAuthenticationScreen(lockTab, '');
-}
 
 /**
  * Confirms and executes complete data wipe after user confirmation.
@@ -3051,9 +3021,8 @@ async function getAuthenticationRequirements() {
     const encryptionEnabled = getEncryptionEnabled();
 
     return {
-        pinRequired: pinEnabled && !encryptionEnabled,
-        encryptionRequired: encryptionEnabled,
-        bothEnabled: pinEnabled && encryptionEnabled
+        pinRequired: pinEnabled && !encryptionEnabled,  // PIN only if encryption is disabled
+        encryptionRequired: encryptionEnabled           // Encryption takes priority over PIN
     };
 }
 
@@ -3736,7 +3705,6 @@ export {
     showEncryptionPasswordScreen,
     verifyEncryptionPassword,
     testEncryptionPassword,
-    switchToPinEntry,
 
     // Enhanced password screens (Phase 5.2)
     hidePasswordDialog,
