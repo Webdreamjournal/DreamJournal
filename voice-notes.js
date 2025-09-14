@@ -1452,7 +1452,10 @@ async function displayVoiceNotes() {
                     const sizeKB = Math.round(note.size / CONSTANTS.BYTES_PER_KB);
                     const sizeMB = (note.size / CONSTANTS.BYTES_PER_MB).toFixed(1);
                     const sizeDisplay = note.size < CONSTANTS.BYTES_PER_MB ? `${sizeKB} KB` : `${sizeMB} MB`;
-                    
+
+                    // Format date for accessibility
+                    const formattedDate = note.dateString;
+
                     // Check if transcription is available
                     const hasTranscription = note.transcription && note.transcription.trim();
                     const transcriptionIndicator = hasTranscription ? ' • 📝 Transcribed' : '';
