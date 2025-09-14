@@ -1625,24 +1625,64 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Retrieves autocomplete suggestions for tags or dream signs.
-     * 
+     * Retrieves autocomplete suggestions for tags or dream signs (raw version without encryption support).
+     *
      * This function loads user-defined suggestions from the autocomplete store,
      * falling back to predefined lists from constants.js if no custom data exists.
      * Returns suggestions sorted alphabetically for consistent display.
-     * 
+     * This is the raw version used internally by the encryption-enhanced version.
+     *
      * @async
      * @function
      * @param {('tags'|'dreamSigns')} type - Type of suggestions to retrieve
      * @returns {Promise<Array<string>>} Array of suggestion strings, sorted alphabetically
      * @throws {Error} Database errors are handled gracefully with fallback to defaults
-     * @since 1.0.0
+     * @since 2.03.04
+     * @example
+     * const tagSuggestions = await getAutocompleteSuggestionsRaw('tags');
+     * const dreamSignSuggestions = await getAutocompleteSuggestionsRaw('dreamSigns');
+     */
+    async function getAutocompleteSuggestionsRaw(type) {
+        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+
+        // For new users or migrated users, use the new unified 'autocomplete' store
+        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+            const autocompleteData = await loadItemFromStoreRaw('autocomplete', storeId);
+            if (autocompleteData && autocompleteData.items) {
+                // Sort alphabetically for consistent display
+                return autocompleteData.items.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+            }
+        }
+
+        // Fallback for new users - return the predefined lists from constants.js
+        console.warn(`No saved autocomplete data found for ${type}. Using default list.`);
+        const isTags = type === 'tags';
+        const defaultList = isTags ? commonTags : commonDreamSigns;
+        return defaultList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    }
+
+    /**
+     * Enhanced getAutocompleteSuggestions with encryption support.
+     *
+     * This function retrieves autocomplete suggestions and automatically handles
+     * decryption if the data is encrypted. Falls back to unencrypted data or
+     * defaults if decryption fails or encryption is not enabled.
+     *
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of suggestions to retrieve
+     * @returns {Promise<Array<string>>} Array of suggestion strings, sorted alphabetically
+     * @throws {Error} Database errors are handled gracefully with fallback to defaults
+     * @since 2.03.04
      * @example
      * const tagSuggestions = await getAutocompleteSuggestions('tags');
      * const dreamSignSuggestions = await getAutocompleteSuggestions('dreamSigns');
      */
     async function getAutocompleteSuggestions(type) {
         const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+
+        // Import encryption state from state.js
+        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
 
         // For new users or migrated users, use the new unified 'autocomplete' store
         if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
@@ -1820,6 +1860,67 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         });
 
         console.log(`Learned ${newItems.length} new ${type}: ${newItems.join(', ')}`);
+    }
+
+    /**
+     * Enhanced autocomplete saving with encryption support.
+     *
+     * This function saves autocomplete suggestions to the appropriate store
+     * and automatically handles encryption if encryption is enabled.
+     * Provides a unified interface for saving both tags and dream signs data.
+     *
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of suggestions to save
+     * @param {Array<string>} suggestions - Array of suggestion strings to save
+     * @returns {Promise<boolean>} True if save was successful, false otherwise
+     * @throws {Error} Database errors are handled gracefully
+     * @since 2.03.04
+     * @example
+     * const success = await saveAutocompleteSuggestions('tags', ['lucid', 'nightmare']);
+     */
+    async function saveAutocompleteSuggestions(type, suggestions) {
+        if (!suggestions || !Array.isArray(suggestions)) {
+            console.error('saveAutocompleteSuggestions: Invalid suggestions array provided');
+            return false;
+        }
+
+        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+
+        try {
+            // Use the standard saveItemToStore which handles encryption automatically
+            const success = await saveItemToStore('autocomplete', {
+                id: storeId,
+                items: suggestions.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+            });
+
+            return success;
+        } catch (error) {
+            console.error(`Failed to save autocomplete suggestions for ${type}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Retrieves raw autocomplete suggestions without encryption handling.
+     * This function is used internally when encryption processing is handled separately.
+     *
+     * @async
+     * @function
+     * @param {('tags'|'dreamSigns')} type - Type of suggestions to retrieve
+     * @returns {Promise<Object|null>} Raw autocomplete data object or null if not found
+     * @since 2.03.04
+     * @example
+     * const rawData = await getAutocompleteSuggestionsRawData('tags');
+     */
+    async function getAutocompleteSuggestionsRawData(type) {
+        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+
+        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+            return await loadItemFromStoreRaw('autocomplete', storeId);
+        }
+
+        return null;
     }
 
 
@@ -2244,8 +2345,8 @@ async function shouldEncryptStore(storeName) {
     // Voice notes are never encrypted (binary data complexity)
     if (storeName === VOICE_STORE_NAME) return false;
 
-    // Encrypt dreams and goals stores
-    return ['dreams', 'goals'].includes(storeName);
+    // Encrypt dreams, goals, and autocomplete stores
+    return ['dreams', 'goals', 'autocomplete'].includes(storeName);
 }
 
 /**
@@ -2406,6 +2507,9 @@ export {
     
     // Autocomplete operations
     getAutocompleteSuggestions,
+    getAutocompleteSuggestionsRaw,
+    getAutocompleteSuggestionsRawData,
+    saveAutocompleteSuggestions,
     addCustomAutocompleteItem,
     deleteAutocompleteItem,
     learnAutocompleteItems,
