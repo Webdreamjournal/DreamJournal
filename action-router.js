@@ -64,7 +64,8 @@ import {
     setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
     startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
     verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer,
-    showChangeEncryptionPasswordDialog, confirmChangeEncryptionPassword, cancelPasswordDialog
+    showChangeEncryptionPasswordDialog, confirmChangeEncryptionPassword, cancelPasswordDialog,
+    showForgotEncryptionPassword, wipeAllData, confirmDataWipe, switchToPinEntry
 } from './security.js';
 
 // Dream CRUD operations

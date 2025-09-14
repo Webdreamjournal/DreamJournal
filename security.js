@@ -3162,11 +3162,18 @@ async function showEncryptionPasswordScreen() {
  * // Tests password and unlocks app if correct
  */
 async function verifyEncryptionPassword() {
-    const passwordInput = document.getElementById('encryptionPassword');
+    // Check for both popup (encryptionPassword) and lock screen (lockScreenPasswordInput) inputs
+    const passwordInput = document.getElementById('lockScreenPasswordInput') || document.getElementById('encryptionPassword');
     const password = passwordInput?.value?.trim();
 
     if (!password) {
-        showMessage('error', 'Please enter your password');
+        // Show error in appropriate container
+        const feedback = document.getElementById('lockScreenFeedback');
+        if (feedback) {
+            feedback.innerHTML = '<div class="message-base message-error">Please enter your password</div>';
+        } else {
+            showMessage('error', 'Please enter your password');
+        }
         return;
     }
 
@@ -3205,13 +3212,29 @@ async function verifyEncryptionPassword() {
             });
         } else {
             setFailedPinAttempts(getFailedPinAttempts() + 1);
-            showMessage('error', 'Incorrect password. Please try again.');
+
+            // Show error in appropriate container
+            const feedback = document.getElementById('lockScreenFeedback');
+            if (feedback) {
+                feedback.innerHTML = '<div class="message-base message-error">Incorrect password. Please try again.</div>';
+            } else {
+                showMessage('error', 'Incorrect password. Please try again.');
+            }
+
             passwordInput.value = '';
             passwordInput.focus();
         }
     } catch (error) {
         console.error('Password verification error:', error);
-        showMessage('error', 'Error verifying password. Please try again.');
+
+        // Show error in appropriate container
+        const feedback = document.getElementById('lockScreenFeedback');
+        if (feedback) {
+            feedback.innerHTML = '<div class="message-base message-error">Error verifying password. Please try again.</div>';
+        } else {
+            showMessage('error', 'Error verifying password. Please try again.');
+        }
+
         passwordInput.value = '';
         passwordInput.focus();
     }
