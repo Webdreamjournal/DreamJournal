@@ -63,7 +63,8 @@ import {
     restoreWarningBanner, completeRecovery, completePinSetup, showSetNewPinScreen,
     setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
     startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
-    verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer
+    verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer,
+    showChangeEncryptionPasswordDialog, confirmChangeEncryptionPassword, cancelPasswordDialog
 } from './security.js';
 
 // Dream CRUD operations
@@ -441,7 +442,14 @@ const ACTION_MAP = {
         // ENCRYPTION SETTINGS MANAGEMENT
         // ================================
         'toggle-encryption': () => toggleEncryption(),                      // Enable/disable data encryption
-        'change-encryption-password': () => changeEncryptionPassword(),     // Change encryption password
+        'change-encryption-password': () => changeEncryptionPassword(),     // Change encryption password (Settings tab)
+
+        // ================================
+        // ENHANCED PASSWORD SCREENS (Phase 5.2)
+        // ================================
+        'show-change-encryption-password-dialog': () => showChangeEncryptionPasswordDialog(), // Show enhanced password change dialog
+        'confirm-change-encryption-password': () => confirmChangeEncryptionPassword(),        // Process password change from dialog
+        'cancel-password-dialog': () => cancelPasswordDialog(),                               // Cancel password dialog operation
 
         // ================================
         // LOCK SCREEN INTERFACE SYSTEM

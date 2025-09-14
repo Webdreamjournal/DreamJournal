@@ -40,19 +40,25 @@
 // ================================
 
 import { CONSTANTS } from './constants.js';
-import { 
-    isAppLocked, 
-    isUnlocked, 
+import {
+    isAppLocked,
+    isUnlocked,
     getFailedPinAttempts,
     setFailedPinAttempts,
-    preLockActiveTab, 
+    preLockActiveTab,
     setPreLockActiveTab,
     activeAppTab,
     setUnlocked,
-    setAppLocked 
+    setAppLocked,
+    setEncryptionPassword,
+    clearDecryptedDataCache
 } from './state.js';
 import { createInlineMessage, switchAppTab, showAllTabButtons, hideAllTabButtons, renderPinScreen } from './dom-helpers.js';
-import { isLocalStorageAvailable, loadDreams } from './storage.js';
+import {
+    isLocalStorageAvailable, loadDreams, saveItemToStore,
+    loadDreamsRaw, loadGoalsRaw, getAutocompleteSuggestionsRaw,
+    isEncryptedItem, decryptItemFromStorage, encryptItemForStorage
+} from './storage.js';
 import { displayDreams } from './dream-crud.js';
 
 // ================================
@@ -2942,6 +2948,388 @@ function switchToPinEntry() {
 }
 
 // ================================
+// ENHANCED PASSWORD SCREENS (Phase 5.2)
+// ================================
+
+/**
+ * Global reference to current password dialog overlay for cleanup.
+ * Used by hidePasswordDialog() to remove the currently displayed dialog.
+ *
+ * @type {HTMLElement|null}
+ * @private
+ * @since 2.03.05
+ */
+let currentPasswordDialog = null;
+
+/**
+ * Hides and removes the currently displayed password dialog.
+ *
+ * Removes the password dialog overlay from the DOM and clears the global
+ * reference. This function provides a clean way to programmatically dismiss
+ * password dialogs, especially useful for success scenarios or error handling.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.03.05
+ * @example
+ * // Show password dialog, then hide it on success
+ * showChangeEncryptionPasswordDialog();
+ * // ... user enters passwords and validation succeeds ...
+ * hidePasswordDialog();
+ * createInlineMessage('Password changed successfully!', 'success');
+ */
+function hidePasswordDialog() {
+    if (currentPasswordDialog && currentPasswordDialog.parentNode) {
+        currentPasswordDialog.parentNode.removeChild(currentPasswordDialog);
+        currentPasswordDialog = null;
+    }
+}
+
+/**
+ * Shows enhanced password change dialog for encryption.
+ *
+ * Displays a comprehensive password change dialog with three input fields:
+ * current password, new password, and confirmation. Uses action-based button
+ * system for integration with the existing action router. The dialog includes
+ * proper accessibility features and integrates with the app's UI theme.
+ *
+ * This function creates a more advanced password dialog than the basic
+ * showPasswordDialog(), supporting multiple labeled inputs and action-based
+ * event handling for seamless integration with the application's event system.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.03.05
+ * @example
+ * // Display password change dialog
+ * showChangeEncryptionPasswordDialog();
+ * // Dialog appears with three password fields and action buttons
+ * // User interaction handled by action router
+ */
+function showChangeEncryptionPasswordDialog() {
+    const config = {
+        title: 'Change Encryption Password',
+        description: 'Enter your current password, then set a new password.',
+        inputs: [
+            {
+                type: 'password',
+                id: 'currentPassword',
+                placeholder: 'Current password',
+                label: 'Current Password'
+            },
+            {
+                type: 'password',
+                id: 'newPassword',
+                placeholder: 'New password',
+                label: 'New Password'
+            },
+            {
+                type: 'password',
+                id: 'confirmPassword',
+                placeholder: 'Confirm new password',
+                label: 'Confirm New Password'
+            }
+        ],
+        buttons: [
+            {
+                text: 'Change Password',
+                action: 'confirm-change-encryption-password',
+                class: 'btn btn-primary'
+            },
+            {
+                text: 'Cancel',
+                action: 'cancel-password-dialog',
+                class: 'btn btn-secondary'
+            }
+        ],
+        primaryButtonText: 'Change Password'
+    };
+
+    showEnhancedPasswordDialog(config);
+}
+
+/**
+ * Shows an enhanced password dialog with multiple inputs and action buttons.
+ *
+ * Creates a customizable password dialog that supports multiple labeled input fields
+ * and action-based buttons for integration with the application's event routing system.
+ * This is an enhanced version of the basic showPasswordDialog() that supports more
+ * complex scenarios like password changes with validation.
+ *
+ * @private
+ * @function
+ * @param {Object} config - Dialog configuration object
+ * @param {string} config.title - Dialog title text
+ * @param {string} config.description - Dialog description/instructions
+ * @param {Array<Object>} config.inputs - Input field configurations
+ * @param {string} config.inputs[].type - Input type (e.g., 'password')
+ * @param {string} config.inputs[].id - Input element ID
+ * @param {string} config.inputs[].placeholder - Input placeholder text
+ * @param {string} config.inputs[].label - Input label text
+ * @param {Array<Object>} config.buttons - Button configurations
+ * @param {string} config.buttons[].text - Button text
+ * @param {string} config.buttons[].action - Data-action attribute value
+ * @param {string} config.buttons[].class - Button CSS classes
+ * @returns {void}
+ * @since 2.03.05
+ */
+function showEnhancedPasswordDialog(config) {
+    // Remove existing dialog if present
+    hidePasswordDialog();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.style.display = 'flex';
+
+    // Generate input fields HTML
+    const inputsHTML = config.inputs.map(input => `
+        <div class="form-group">
+            <label for="${input.id}" class="form-label">${input.label}</label>
+            <input type="${input.type}"
+                   id="${input.id}"
+                   placeholder="${input.placeholder}"
+                   class="form-control mb-sm"
+                   style="width: 100%">
+        </div>
+    `).join('');
+
+    // Generate buttons HTML
+    const buttonsHTML = config.buttons.map(button => `
+        <button class="${button.class}"
+                data-action="${button.action}">
+            ${button.text}
+        </button>
+    `).join('');
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h2>${config.title}</h2>
+            <p class="mb-md">${config.description}</p>
+
+            ${inputsHTML}
+
+            <div class="button-group">
+                ${buttonsHTML}
+            </div>
+
+            <div id="passwordDialogFeedback" class="notification-message error" style="display: none;"></div>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    currentPasswordDialog = overlay;
+
+    // Focus first input field
+    const firstInput = modal.querySelector('input');
+    if (firstInput) {
+        firstInput.focus();
+    }
+
+    // Add Enter key support
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const primaryButton = modal.querySelector('[data-action="confirm-change-encryption-password"]');
+            if (primaryButton) {
+                primaryButton.click();
+            }
+        }
+    });
+}
+
+/**
+ * Processes encryption password change request.
+ *
+ * Handles the complete password change workflow including validation,
+ * current password verification, and re-encryption of all encrypted data
+ * with the new password. Provides comprehensive error handling and user
+ * feedback throughout the process.
+ *
+ * This function performs the following steps:
+ * 1. Validates input fields and password requirements
+ * 2. Verifies the current password is correct
+ * 3. Re-encrypts all encrypted data with the new password
+ * 4. Updates the session encryption password
+ * 5. Provides success feedback and closes the dialog
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>}
+ * @since 2.03.05
+ * @throws {Error} When password change fails due to validation or re-encryption errors
+ * @example
+ * // Called automatically by action router when user clicks "Change Password"
+ * // action-router.js handles the data-action="confirm-change-encryption-password"
+ * await confirmChangeEncryptionPassword();
+ */
+async function confirmChangeEncryptionPassword() {
+    const currentPassword = document.getElementById('currentPassword')?.value;
+    const newPassword = document.getElementById('newPassword')?.value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value;
+    const feedbackDiv = document.getElementById('passwordDialogFeedback');
+
+    /**
+     * Shows error message in the dialog feedback area.
+     * @private
+     */
+    function showDialogError(message) {
+        if (feedbackDiv) {
+            feedbackDiv.textContent = message;
+            feedbackDiv.style.display = 'block';
+        }
+    }
+
+    // Validation
+    if (!currentPassword) {
+        showDialogError('Please enter your current password');
+        document.getElementById('currentPassword')?.focus();
+        return;
+    }
+
+    if (!newPassword) {
+        showDialogError('Please enter a new password');
+        document.getElementById('newPassword')?.focus();
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showDialogError('New passwords do not match');
+        document.getElementById('confirmPassword')?.focus();
+        return;
+    }
+
+    const validation = validateEncryptionPassword(newPassword);
+    if (!validation.valid) {
+        showDialogError(validation.error);
+        document.getElementById('newPassword')?.focus();
+        return;
+    }
+
+    try {
+        // Test current password
+        const testResult = await testEncryptionPassword(currentPassword);
+        if (!testResult.valid) {
+            showDialogError('Current password is incorrect');
+            document.getElementById('currentPassword')?.focus();
+            return;
+        }
+
+        // Show progress feedback
+        showDialogError('Changing password... Please wait.');
+        feedbackDiv.className = 'notification-message info';
+
+        // Re-encrypt all data with new password
+        await reEncryptAllData(currentPassword, newPassword);
+
+        // Update session password
+        setEncryptionPassword(newPassword);
+
+        hidePasswordDialog();
+        createInlineMessage('Encryption password changed successfully!', 'success');
+
+    } catch (error) {
+        console.error('Password change error:', error);
+        showDialogError('Failed to change password. Please try again.');
+        feedbackDiv.className = 'notification-message error';
+    }
+}
+
+/**
+ * Re-encrypts all encrypted data with a new password.
+ *
+ * Performs a comprehensive re-encryption operation across all encrypted data stores
+ * (dreams, goals, and autocomplete) when the user changes their encryption password.
+ * This function ensures data remains accessible with the new password while maintaining
+ * complete data integrity throughout the process.
+ *
+ * The function processes each data type sequentially:
+ * 1. Dreams: Decrypts with old password, re-encrypts with new password
+ * 2. Goals: Decrypts with old password, re-encrypts with new password
+ * 3. Autocomplete: Decrypts with old password, re-encrypts with new password
+ * 4. Clears decrypted data cache to force reload with new password
+ *
+ * @async
+ * @function
+ * @param {string} oldPassword - Current encryption password for decryption
+ * @param {string} newPassword - New encryption password for re-encryption
+ * @returns {Promise<void>}
+ * @since 2.03.05
+ * @throws {Error} When re-encryption fails for any data type
+ * @example
+ * // Re-encrypt all data when user changes password
+ * await reEncryptAllData('oldPassword123', 'newPassword456');
+ * // All encrypted data now uses newPassword456
+ */
+async function reEncryptAllData(oldPassword, newPassword) {
+    try {
+        // Re-encrypt dreams
+        const dreams = await loadDreamsRaw();
+        for (const dream of dreams) {
+            if (isEncryptedItem(dream)) {
+                const decrypted = await decryptItemFromStorage(dream, oldPassword);
+                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                await saveItemToStore('dreams', reEncrypted);
+            }
+        }
+
+        // Re-encrypt goals
+        const goals = await loadGoalsRaw();
+        for (const goal of goals) {
+            if (isEncryptedItem(goal)) {
+                const decrypted = await decryptItemFromStorage(goal, oldPassword);
+                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                await saveItemToStore('goals', reEncrypted);
+            }
+        }
+
+        // Re-encrypt autocomplete (handle both tags and dreamSigns)
+        const autocompleteTypes = ['tags', 'dreamSigns'];
+        for (const type of autocompleteTypes) {
+            try {
+                const autocomplete = await getAutocompleteSuggestionsRaw(type);
+                if (autocomplete && isEncryptedItem(autocomplete)) {
+                    const decrypted = await decryptItemFromStorage(autocomplete, oldPassword);
+                    const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                    await saveItemToStore('autocomplete', reEncrypted);
+                }
+            } catch (error) {
+                // Autocomplete may not exist for this type, continue with other types
+                console.warn(`Autocomplete ${type} re-encryption skipped:`, error.message);
+            }
+        }
+
+        // Clear cache to force reload with new password
+        clearDecryptedDataCache();
+
+    } catch (error) {
+        console.error('Re-encryption error:', error);
+        throw new Error('Failed to re-encrypt data with new password');
+    }
+}
+
+/**
+ * Cancels the current password dialog operation.
+ *
+ * Handles the cancel action for password dialogs by hiding the dialog
+ * and providing appropriate user feedback. This function is called when
+ * the user clicks the "Cancel" button in password change dialogs.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.03.05
+ * @example
+ * // Called automatically by action router when user clicks "Cancel"
+ * // action-router.js handles the data-action="cancel-password-dialog"
+ * cancelPasswordDialog();
+ */
+function cancelPasswordDialog() {
+    hidePasswordDialog();
+}
+
+// ================================
 // ES MODULE EXPORTS
 // ================================
 
@@ -3014,6 +3402,13 @@ export {
     verifyEncryptionPassword,
     testEncryptionPassword,
     switchToPinEntry,
+
+    // Enhanced password screens (Phase 5.2)
+    hidePasswordDialog,
+    showChangeEncryptionPasswordDialog,
+    confirmChangeEncryptionPassword,
+    reEncryptAllData,
+    cancelPasswordDialog,
 
     // Application control
     toggleLock,
