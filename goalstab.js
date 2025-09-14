@@ -293,15 +293,63 @@ function validateGoalForm() {
 }
 
 // ================================
+// ENCRYPTION HELPER FUNCTIONS
+// ================================
+
+/**
+ * Determines if goals should be encrypted based on current encryption settings.
+ *
+ * This helper function checks if encryption is enabled globally and if an encryption
+ * password is available in the current session. It provides a centralized way to
+ * determine whether goal data should be encrypted before storage operations.
+ * Uses dynamic imports to avoid circular dependencies.
+ *
+ * @async
+ * @function shouldEncryptGoal
+ * @returns {Promise<boolean>} True if goals should be encrypted, false otherwise
+ * @since 2.03.01
+ *
+ * @example
+ * // Check if goal should be encrypted before saving
+ * if (await shouldEncryptGoal()) {
+ *   const encrypted = await encryptItemForStorage(goalData, password);
+ *   await saveItemToStore('goals', encrypted);
+ * } else {
+ *   await saveGoals(goalData);
+ * }
+ *
+ * @example
+ * // Use in conditional logic
+ * const encryptionNeeded = await shouldEncryptGoal();
+ * console.log('Goal encryption required:', encryptionNeeded);
+ */
+async function shouldEncryptGoal() {
+    try {
+        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+        return getEncryptionEnabled() && getEncryptionPassword();
+    } catch (error) {
+        console.error('Error checking encryption status:', error);
+        return false;
+    }
+}
+
+// ================================
 // GOAL CRUD OPERATIONS
 // ================================
 
 /**
- * Creates a new goal with the provided form data and saves it to storage.
+ * Creates a new goal with the provided form data and saves it to storage with encryption support.
  *
- * This function handles the complete goal creation process including ID generation,
- * data initialization, storage persistence, UI updates, and user feedback. It includes
+ * This enhanced function handles the complete goal creation process including ID generation,
+ * data initialization, encryption handling, storage persistence, UI updates, and user feedback.
+ * It supports both encrypted and unencrypted storage based on encryption settings and includes
  * special handling for custom goal types and comprehensive error handling.
+ *
+ * **Encryption Support:**
+ * - Automatically encrypts goal data if encryption is enabled and password is available
+ * - Falls back to unencrypted storage if encryption is not enabled
+ * - Updates memory state with unencrypted data for immediate UI operations
+ * - Handles encryption errors gracefully with user feedback
  *
  * @async
  * @function createNewGoal
@@ -313,19 +361,24 @@ function validateGoalForm() {
  * @param {number} formData.target - Target number to achieve
  * @param {string} formData.icon - Goal icon (emoji)
  * @returns {Promise<void>} Promise that resolves when goal creation is complete
- * @throws {Error} When goal creation or storage fails
- * @since 2.02.49
+ * @throws {Error} When goal creation, encryption, or storage fails
+ * @since 2.03.01
  *
  * @example
  * // Create a new goal with validated form data
  * const formData = { title: 'Lucid Dreams', type: 'lucid_count', target: 5, ... };
  * await createNewGoal(formData);
+ *
+ * @example
+ * // Create encrypted goal (automatically handled if encryption is enabled)
+ * const formData = { title: 'Private Goal', type: 'custom', target: 10, ... };
+ * await createNewGoal(formData); // Will be encrypted if encryption is enabled
  */
 async function createNewGoal(formData) {
     const { title, description, type, period, target, icon } = formData;
 
     const createdAt = new Date().toISOString();
-    const goal = {
+    const goalData = {
         id: generateUniqueId({
             title: title,
             timestamp: createdAt,
@@ -344,13 +397,34 @@ async function createNewGoal(formData) {
     };
 
     try {
-        const currentGoals = getAllGoals();
-        currentGoals.push(goal);
-        setAllGoals(currentGoals);
-        console.log('Goal added to array, total goals:', currentGoals.length);
+        // Handle encryption if enabled
+        if (await shouldEncryptGoal()) {
+            const { getEncryptionPassword } = await import('./state.js');
+            const { saveItemToStore, encryptItemForStorage } = await import('./storage.js');
+            const password = getEncryptionPassword();
 
-        await saveGoals(currentGoals);
-        console.log('Goals saved to storage');
+            if (!password) {
+                throw new Error('Encryption enabled but password not available in session');
+            }
+
+            // Encrypt for storage
+            const encryptedData = await encryptItemForStorage(goalData, password);
+            await saveItemToStore('goals', encryptedData);
+            console.log('Goal encrypted and saved to storage');
+        } else {
+            // Save unencrypted using existing mechanism
+            const currentGoals = getAllGoals();
+            currentGoals.push(goalData);
+            setAllGoals(currentGoals);
+            await saveGoals(currentGoals);
+            console.log('Goal saved to storage (unencrypted)');
+        }
+
+        // Update memory state with unencrypted data (for immediate UI operations)
+        const currentGoals = getAllGoals();
+        currentGoals.push(goalData);
+        setAllGoals(currentGoals);
+        console.log('Goal added to memory state, total goals:', currentGoals.length);
 
         await displayGoals();
         console.log('Goals display updated');
@@ -359,17 +433,31 @@ async function createNewGoal(formData) {
         showGoalMessage('success', 'Goal created successfully!');
     } catch (error) {
         console.error('Error creating goal:', error);
-        showGoalMessage('error', 'Failed to create goal. Please try again.');
+
+        // Provide specific error message for encryption issues
+        if (error.message.includes('password') || error.message.includes('encrypt')) {
+            showGoalMessage('error', 'Failed to encrypt goal. Please check your encryption settings.');
+        } else {
+            showGoalMessage('error', 'Failed to create goal. Please try again.');
+        }
+
         throw error; // Re-throw for caller handling
     }
 }
 
 /**
- * Updates an existing goal with new form data and saves changes to storage.
+ * Updates an existing goal with new form data and saves changes to storage with encryption support.
  *
- * This function handles the complete goal update process including data merging,
- * special handling for goal type conversion, storage persistence, UI updates,
- * and user feedback. It preserves existing goal metadata while updating editable fields.
+ * This enhanced function handles the complete goal update process including data merging,
+ * encryption handling, special handling for goal type conversion, storage persistence,
+ * UI updates, and user feedback. It preserves existing goal metadata while updating
+ * editable fields and handles both encrypted and unencrypted storage scenarios.
+ *
+ * **Encryption Support:**
+ * - Automatically encrypts updated goal data if encryption is enabled and password is available
+ * - Falls back to unencrypted storage if encryption is not enabled
+ * - Updates memory state with unencrypted data for immediate UI operations
+ * - Handles encryption errors gracefully with user feedback
  *
  * @async
  * @function updateExistingGoal
@@ -382,13 +470,18 @@ async function createNewGoal(formData) {
  * @param {number} formData.target - Updated target number
  * @param {string} formData.icon - Updated goal icon
  * @returns {Promise<void>} Promise that resolves when goal update is complete
- * @throws {Error} When goal update or storage fails
- * @since 2.02.49
+ * @throws {Error} When goal update, encryption, or storage fails
+ * @since 2.03.01
  *
  * @example
  * // Update an existing goal with new data
  * const formData = { title: 'Updated Goal', target: 10, ... };
  * await updateExistingGoal('goal-123', formData);
+ *
+ * @example
+ * // Update encrypted goal (automatically handled if encryption is enabled)
+ * const formData = { title: 'Updated Private Goal', target: 15, ... };
+ * await updateExistingGoal('goal-456', formData); // Will be encrypted if encryption is enabled
  */
 async function updateExistingGoal(goalId, formData) {
     const { title, description, type, period, target, icon } = formData;
@@ -401,7 +494,7 @@ async function updateExistingGoal(goalId, formData) {
 
     try {
         // Update existing goal with new data
-        currentGoals[goalIndex] = {
+        const updatedGoalData = {
             ...currentGoals[goalIndex],
             title,
             description,
@@ -415,8 +508,32 @@ async function updateExistingGoal(goalId, formData) {
                 ? 0 : currentGoals[goalIndex].currentProgress
         };
 
+        // Handle encryption if enabled
+        if (await shouldEncryptGoal()) {
+            const { getEncryptionPassword } = await import('./state.js');
+            const { saveItemToStore, encryptItemForStorage } = await import('./storage.js');
+            const password = getEncryptionPassword();
+
+            if (!password) {
+                throw new Error('Encryption enabled but password not available in session');
+            }
+
+            // Encrypt for storage
+            const encryptedData = await encryptItemForStorage(updatedGoalData, password);
+            await saveItemToStore('goals', encryptedData);
+            console.log('Goal encrypted and updated in storage');
+        } else {
+            // Save unencrypted using existing mechanism
+            currentGoals[goalIndex] = updatedGoalData;
+            setAllGoals(currentGoals);
+            await saveGoals(currentGoals);
+            console.log('Goal updated in storage (unencrypted)');
+        }
+
+        // Update memory state with unencrypted data (for immediate UI operations)
+        currentGoals[goalIndex] = updatedGoalData;
         setAllGoals(currentGoals);
-        await saveGoals(currentGoals);
+
         await displayGoals();
         cancelGoalDialog();
         showGoalMessage('success', 'Goal updated successfully!');
@@ -425,7 +542,14 @@ async function updateExistingGoal(goalId, formData) {
         delete window.editingGoalId;
     } catch (error) {
         console.error('Error updating goal:', error);
-        showGoalMessage('error', 'Failed to update goal. Please try again.');
+
+        // Provide specific error message for encryption issues
+        if (error.message.includes('password') || error.message.includes('encrypt')) {
+            showGoalMessage('error', 'Failed to encrypt goal update. Please check your encryption settings.');
+        } else {
+            showGoalMessage('error', 'Failed to update goal. Please try again.');
+        }
+
         throw error; // Re-throw for caller handling
     }
 }
