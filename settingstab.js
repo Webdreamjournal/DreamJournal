@@ -628,10 +628,12 @@ async function setupEncryption(password) {
 
         // Encrypt existing goals
         const goals = await loadGoalsRaw();
+        let goalsEncryptedCount = 0;
         for (const goal of goals) {
             if (!goal.encrypted) { // Don't re-encrypt already encrypted items
                 const encrypted = await encryptItemForStorage(goal, password);
                 await saveItemToStore('goals', encrypted);
+                goalsEncryptedCount++;
             }
         }
 
@@ -645,7 +647,8 @@ async function setupEncryption(password) {
             renderSettingsTab(settingsTab);
         }
 
-        createInlineMessage('success', `Encryption enabled successfully! ${encryptedCount > 0 ? `${encryptedCount} dreams encrypted.` : 'All data is now encrypted.'}`);
+        const totalEncrypted = encryptedCount + goalsEncryptedCount;
+        createInlineMessage('success', `Encryption enabled successfully! ${totalEncrypted > 0 ? `${encryptedCount} dreams and ${goalsEncryptedCount} goals encrypted.` : 'All data is now encrypted.'}`);
 
     } catch (error) {
         console.error('Error setting up encryption:', error);
