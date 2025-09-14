@@ -431,6 +431,146 @@ async function updateExistingGoal(goalId, formData) {
 }
 
 // ================================
+// GOALS UI HELPER FUNCTIONS
+// ================================
+
+/**
+ * Calculates the total number of pages needed for a given item count.
+ *
+ * This utility function standardizes pagination calculations across the goals system
+ * by providing a consistent way to compute page counts based on item quantities
+ * and the configured items-per-page setting.
+ *
+ * @function calculateTotalPages
+ * @param {number} itemCount - The total number of items to paginate
+ * @returns {number} The total number of pages needed (minimum 1)
+ * @since 2.02.49
+ *
+ * @example
+ * // Calculate pages for 25 goals with 10 per page
+ * const totalPages = calculateTotalPages(25); // Returns 3
+ *
+ * @example
+ * // Handle edge cases
+ * const emptyPages = calculateTotalPages(0); // Returns 1
+ * const oneItemPages = calculateTotalPages(1); // Returns 1
+ */
+function calculateTotalPages(itemCount) {
+    if (itemCount <= 0) return 1;
+    return Math.ceil(itemCount / CONSTANTS.GOALS_PER_PAGE);
+}
+
+/**
+ * Calculates pagination information for both active and completed goals.
+ *
+ * This function provides comprehensive pagination data including total pages
+ * for both goal status types, helping to maintain consistent pagination
+ * behavior across the goals system.
+ *
+ * @function calculateGoalsPaginationInfo
+ * @param {Array<Goal>} goals - Array of all goals to analyze
+ * @returns {Object} Pagination information object
+ * @returns {Object} return.active - Active goals pagination info
+ * @returns {number} return.active.totalPages - Total pages for active goals
+ * @returns {number} return.active.count - Number of active goals
+ * @returns {Object} return.completed - Completed goals pagination info
+ * @returns {number} return.completed.totalPages - Total pages for completed goals
+ * @returns {number} return.completed.count - Number of completed goals
+ * @since 2.02.49
+ *
+ * @example
+ * // Get pagination info for current goals
+ * const paginationInfo = calculateGoalsPaginationInfo(getAllGoals());
+ * console.log('Active pages:', paginationInfo.active.totalPages);
+ * console.log('Completed pages:', paginationInfo.completed.totalPages);
+ */
+function calculateGoalsPaginationInfo(goals) {
+    const activeGoals = goals.filter(goal => goal.status === 'active');
+    const completedGoals = goals.filter(goal => goal.status === 'completed');
+
+    return {
+        active: {
+            totalPages: calculateTotalPages(activeGoals.length),
+            count: activeGoals.length
+        },
+        completed: {
+            totalPages: calculateTotalPages(completedGoals.length),
+            count: completedGoals.length
+        }
+    };
+}
+
+/**
+ * Validates and adjusts a page number to ensure it's within valid bounds.
+ *
+ * This utility function ensures page numbers stay within valid ranges,
+ * automatically adjusting invalid page numbers to the nearest valid value.
+ * Used to prevent pagination errors when items are added or removed.
+ *
+ * @function validatePageNumber
+ * @param {number} currentPage - The page number to validate
+ * @param {number} totalPages - The total number of available pages
+ * @returns {number} A valid page number within bounds
+ * @since 2.02.49
+ *
+ * @example
+ * // Validate page numbers
+ * const validPage = validatePageNumber(5, 3); // Returns 3 (adjusted down)
+ * const minPage = validatePageNumber(0, 5); // Returns 1 (adjusted up)
+ * const okPage = validatePageNumber(2, 5); // Returns 2 (no change)
+ */
+function validatePageNumber(currentPage, totalPages) {
+    if (currentPage < 1) return 1;
+    if (currentPage > totalPages && totalPages > 0) return totalPages;
+    return currentPage;
+}
+
+/**
+ * Adjusts pagination after goal status changes to prevent empty pages.
+ *
+ * This function handles the complex logic of adjusting pagination when goals
+ * change status (e.g., completed to active, or vice versa). It ensures that
+ * users don't end up on empty pages after status changes and maintains
+ * a smooth user experience.
+ *
+ * @async
+ * @function adjustPaginationAfterStatusChange
+ * @param {Array<Goal>} goals - Current array of all goals
+ * @param {'active'|'completed'|'both'} changedStatus - Which status category was affected
+ * @returns {Promise<void>} Promise that resolves when pagination is adjusted
+ * @since 2.02.49
+ *
+ * @example
+ * // Adjust pagination after completing a goal
+ * await adjustPaginationAfterStatusChange(getAllGoals(), 'completed');
+ *
+ * @example
+ * // Adjust pagination after reactivating a goal
+ * await adjustPaginationAfterStatusChange(getAllGoals(), 'active');
+ */
+async function adjustPaginationAfterStatusChange(goals, changedStatus) {
+    const paginationInfo = calculateGoalsPaginationInfo(goals);
+
+    if (changedStatus === 'completed' || changedStatus === 'both') {
+        // Adjust completed goals pagination
+        const currentCompletedPage = getCompletedGoalsPage();
+        const validCompletedPage = validatePageNumber(currentCompletedPage, paginationInfo.completed.totalPages);
+        if (validCompletedPage !== currentCompletedPage) {
+            setCompletedGoalsPage(validCompletedPage);
+        }
+    }
+
+    if (changedStatus === 'active' || changedStatus === 'both') {
+        // Adjust active goals pagination
+        const currentActivePage = getActiveGoalsPage();
+        const validActivePage = validatePageNumber(currentActivePage, paginationInfo.active.totalPages);
+        if (validActivePage !== currentActivePage) {
+            setActiveGoalsPage(validActivePage);
+        }
+    }
+}
+
+// ================================
 // GOALS MESSAGING SYSTEM
 // ================================
 
@@ -534,7 +674,6 @@ function showGoalMessage(type, message, options = {}) {
 // Complete goal lifecycle management including creation, editing, deletion,
 // progress tracking, pagination, and template-based goal creation system
 //
-// TODO: Extract common pagination calculation patterns to shared utility functions
 
 // ================================
 // 1. GOALS SYSTEM INITIALIZATION
@@ -606,18 +745,8 @@ async function displayGoals() {
         .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt)); // Sort newest first
     
     // Reset pagination if current page would be empty
-    const activeTotalPages = Math.ceil(activeGoals.length / CONSTANTS.GOALS_PER_PAGE);
-    const completedTotalPages = Math.ceil(completedGoals.length / CONSTANTS.GOALS_PER_PAGE);
-    
-    const currentActiveGoalsPage = getActiveGoalsPage();
-    const currentCompletedGoalsPage = getCompletedGoalsPage();
-    
-    if (currentActiveGoalsPage > activeTotalPages && activeTotalPages > 0) {
-        setActiveGoalsPage(activeTotalPages);
-    }
-    if (currentCompletedGoalsPage > completedTotalPages && completedTotalPages > 0) {
-        setCompletedGoalsPage(completedTotalPages);
-    }
+    await adjustPaginationAfterStatusChange(allGoals, 'both');
+    const paginationInfo = calculateGoalsPaginationInfo(allGoals);
     
     // Show/hide no goals messages
     noGoalsMessage.style.display = activeGoals.length === 0 ? 'block' : 'none';
@@ -636,9 +765,9 @@ async function displayGoals() {
     }
     
     // Render active goals pagination
-    if (activeTotalPages > 1) {
+    if (paginationInfo.active.totalPages > 1) {
         activePagination.style.display = 'block';
-        activePagination.innerHTML = createPaginationHTML(getActiveGoalsPage(), activeTotalPages, 'active-goals-page');
+        activePagination.innerHTML = createPaginationHTML(getActiveGoalsPage(), paginationInfo.active.totalPages, 'active-goals-page');
     } else {
         activePagination.style.display = 'none';
     }
@@ -656,9 +785,9 @@ async function displayGoals() {
     }
     
     // Render completed goals pagination
-    if (completedTotalPages > 1) {
+    if (paginationInfo.completed.totalPages > 1) {
         completedPagination.style.display = 'block';
-        completedPagination.innerHTML = createPaginationHTML(getCompletedGoalsPage(), completedTotalPages, 'completed-goals-page');
+        completedPagination.innerHTML = createPaginationHTML(getCompletedGoalsPage(), paginationInfo.completed.totalPages, 'completed-goals-page');
     } else {
         completedPagination.style.display = 'none';
     }
@@ -1116,13 +1245,8 @@ async function reactivateGoal(goalId) {
     try {
         await saveGoals(getAllGoals());
         
-        // TODO: Extract pagination adjustment logic to adjustPaginationAfterStatusChange() function
-        // Check if we need to adjust pagination after reactivation
-        const remainingCompleted = getAllGoals().filter(g => g.status === 'completed');
-        const completedTotalPages = Math.ceil(remainingCompleted.length / CONSTANTS.GOALS_PER_PAGE);
-        if (getCompletedGoalsPage() > completedTotalPages && completedTotalPages > 0) {
-            setCompletedGoalsPage(completedTotalPages);
-        }
+        // Adjust pagination after reactivation
+        await adjustPaginationAfterStatusChange(getAllGoals(), 'completed');
         
         await displayGoals();
         showGoalMessage('reactivated', 'Goal reactivated!', { goalTitle: goal.title });
