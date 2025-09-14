@@ -895,27 +895,104 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Loads lucid dreaming goals from persistent storage with fallback support.
-     * 
-     * Attempts to load goals from IndexedDB first, falling back to localStorage
-     * if IndexedDB is unavailable. Returns an empty array if no goals are found
-     * or if all storage methods fail.
-     * 
+     * Loads lucid dreaming goals from persistent storage with encryption support and fallback.
+     *
+     * This enhanced function attempts to load goals from IndexedDB first, then falls
+     * back to localStorage if IndexedDB is unavailable. Automatically handles both
+     * encrypted and unencrypted goals, decrypting as needed based on encryption settings.
+     * If no goals are found or all storage methods fail, returns an empty array.
+     *
+     * **Mixed Data Support:**
+     * - Supports loading both encrypted and unencrypted goals from the same store
+     * - Gracefully handles decryption failures by skipping affected items
+     * - Maintains backward compatibility with existing unencrypted data
+     *
+     * **Encryption Processing:**
+     * - Automatically detects encrypted items using `isEncryptedItem()`
+     * - Uses session password from encryption state for decryption
+     * - Falls back to raw data loading if encryption is not enabled
+     *
      * @async
      * @function
-     * @returns {Promise<Array<Goal>>} Array of goal objects, empty if none found
-     * @throws {Error} Handled gracefully with fallback storage attempts
-     * @since 1.0.0
+     * @returns {Promise<Array<Goal>>} Array of decrypted goal objects, empty if none found
+     * @throws {Error} When encryption password is required but not available
+     * @since 2.03.01
      * @example
+     * // Load all goals (automatically handles encryption)
      * const userGoals = await loadGoals();
      * console.log(`User has ${userGoals.length} active goals`);
+     *
+     * @example
+     * // Error handling for missing encryption password
+     * try {
+     *   const goals = await loadGoals();
+     *   displayGoals(goals);
+     * } catch (error) {
+     *   if (error.message.includes('password')) {
+     *     showPasswordPrompt();
+     *   }
+     * }
      */
     async function loadGoals() {
+        const rawGoals = await loadGoalsRaw();
+
+        if (!rawGoals.length) {
+            return rawGoals;
+        }
+
+        // Import encryption state dynamically to avoid circular dependencies
+        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+
+        if (!getEncryptionEnabled()) {
+            return rawGoals;
+        }
+
+        const processedGoals = [];
+        const password = getEncryptionPassword();
+
+        for (const goal of rawGoals) {
+            try {
+                if (isEncryptedItem(goal)) {
+                    if (!password) {
+                        throw new Error('Encryption password required but not available in session');
+                    }
+
+                    const decrypted = await decryptItemFromStorage(goal, password);
+                    processedGoals.push(decrypted);
+                } else {
+                    processedGoals.push(goal);
+                }
+            } catch (error) {
+                console.error(`Failed to decrypt goal ${goal.id}:`, error);
+                // Skip this goal but continue processing others
+            }
+        }
+
+        return processedGoals;
+    }
+
+    /**
+     * Loads lucid dreaming goals from persistent storage with fallback support (raw version).
+     *
+     * Attempts to load goals from IndexedDB first, falling back to localStorage
+     * if IndexedDB is unavailable. Returns raw data without encryption processing.
+     * Used internally by the enhanced loadGoals() function.
+     *
+     * @async
+     * @function
+     * @returns {Promise<Array<Goal>>} Array of raw goal objects, empty if none found
+     * @throws {Error} Handled gracefully with fallback storage attempts
+     * @since 2.03.01
+     * @example
+     * const rawGoals = await loadGoalsRaw();
+     * console.log(`Found ${rawGoals.length} raw goals`);
+     */
+    async function loadGoalsRaw() {
         if (isIndexedDBAvailable()) {
             const goals = await loadGoalsFromIndexedDB();
             if (goals !== null) return goals;
         }
-        
+
         if (isLocalStorageAvailable()) {
             try {
                 const stored = localStorage.getItem('dreamJournalGoals');
@@ -924,7 +1001,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 console.error('Error loading goals from localStorage:', error);
             }
         }
-        
+
         return [];
     }
 
@@ -2316,6 +2393,7 @@ export {
     
     // Goals operations
     loadGoals,
+    loadGoalsRaw,
     saveGoals,
     loadGoalsFromIndexedDB,
     saveGoalsToIndexedDB,
