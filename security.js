@@ -51,7 +51,10 @@ import {
     setUnlocked,
     setAppLocked,
     setEncryptionPassword,
-    clearDecryptedDataCache
+    clearDecryptedDataCache,
+    getEncryptionEnabled,
+    getEncryptionPassword,
+    getPreLockActiveTab
 } from './state.js';
 import { createInlineMessage, switchAppTab, showAllTabButtons, hideAllTabButtons, renderPinScreen } from './dom-helpers.js';
 import {
@@ -60,6 +63,7 @@ import {
     isEncryptedItem, decryptItemFromStorage, encryptItemForStorage
 } from './storage.js';
 import { displayDreams } from './dream-crud.js';
+import { initializeApplicationData } from './main.js';
 
 // ================================
 // TYPE DEFINITIONS
@@ -1328,52 +1332,120 @@ async function verifyLockScreenPin() {
      * await verifyPin();
      * // Unlocks app or shows error message
      */
+    /**
+     * Enhanced PIN verification that handles encryption bypass and coordination.
+     *
+     * Verifies the entered PIN and unlocks the application while providing intelligent
+     * messaging about encryption status when both PIN and encryption are enabled.
+     * This enhanced version coordinates with the encryption system to provide users
+     * with clear feedback about which authentication methods are active.
+     *
+     * **Enhanced Features (Phase 5.3):**
+     * - Detects when both PIN and encryption are enabled
+     * - Provides informative messages about encryption password requirements
+     * - Coordinates with smart authentication system for seamless user experience
+     * - Maintains backward compatibility with PIN-only authentication
+     *
+     * @async
+     * @function
+     * @returns {Promise<void>}
+     * @since 1.0.0
+     * @version 2.03.05
+     * @example
+     * // Called when user submits PIN in overlay
+     * await verifyPin();
+     * // If both PIN and encryption enabled, shows appropriate guidance
+     */
     async function verifyPin() {
-        const enteredPin = document.getElementById('pinInput').value;
+        const pinInput = document.getElementById('pinInput');
+        const enteredPin = pinInput?.value?.trim();
         const feedback = document.getElementById('pinFeedback');
-        
+
         if (!enteredPin) {
-            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter your PIN</span>';
+            if (feedback) {
+                feedback.innerHTML = '<span style="color: var(--error-color);">Please enter your PIN</span>';
+            } else {
+                createInlineMessage('Please enter your PIN', 'error');
+            }
             return;
         }
-        
+
         try {
             const storedData = getStoredPinData();
             if (!storedData) {
-                feedback.innerHTML = '<span style="color: var(--error-color);">No PIN found. Please set up a new PIN.</span>';
+                const errorMsg = 'No PIN found. Please set up a new PIN.';
+                if (feedback) {
+                    feedback.innerHTML = `<span style="color: var(--error-color);">${errorMsg}</span>`;
+                } else {
+                    createInlineMessage(errorMsg, 'error');
+                }
                 return;
             }
-            
+
             const isValid = await verifyPinHash(enteredPin, storedData);
-            
+
             if (isValid) {
                 setUnlocked(true);
+                setAppLocked(false);
                 setFailedPinAttempts(0);
+
+                // Enhanced encryption coordination (Phase 5.3)
+                // If encryption is also enabled, note that encryption password still needed
+                const encryptionEnabled = getEncryptionEnabled();
+                if (encryptionEnabled && !getEncryptionPassword()) {
+                    createInlineMessage('PIN unlocked. Note: Encrypted data requires password.', 'info');
+                } else if (!encryptionEnabled) {
+                    // Standard PIN-only unlock message
+                    setTimeout(() => {
+                        const container = document.querySelector('.main-content');
+                        if (container) {
+                            createInlineMessage('Successfully unlocked! Welcome back to your dream journal.', 'success', {
+                                container: container,
+                                position: 'top',
+                                duration: 3000
+                            });
+                        }
+                    }, 100);
+                }
+
+                await initializeApplicationData();
                 hidePinOverlay();
                 updateSecurityControls();
-                displayDreams();
-                
-                setTimeout(() => {
-                    const container = document.querySelector('.main-content');
-                    createInlineMessage('success', 'Successfully unlocked! Welcome back to your dream journal.', {
-                        container: container,
-                        position: 'top',
-                        duration: 3000
-                    });
-                }, 100);
+                switchAppTab(getPreLockActiveTab() || 'journal');
+
             } else {
                 setFailedPinAttempts(getFailedPinAttempts() + 1);
-                feedback.innerHTML = '<span style="color: var(--error-color);">Incorrect PIN. Please try again.</span>';
-                document.getElementById('pinInput').value = '';
-                
+                const errorMsg = 'Incorrect PIN. Please try again.';
+
+                if (feedback) {
+                    feedback.innerHTML = `<span style="color: var(--error-color);">${errorMsg}</span>`;
+                } else {
+                    createInlineMessage(errorMsg, 'error');
+                }
+
+                if (pinInput) {
+                    pinInput.value = '';
+                    pinInput.focus();
+                }
+
                 if (getFailedPinAttempts() >= CONSTANTS.PIN_MAX_ATTEMPTS) {
                     setTimeout(() => showForgotPin(), 100);
                 }
             }
         } catch (error) {
             console.error('PIN verification error:', error);
-            feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification failed. Please try again.</span>';
-            document.getElementById('pinInput').value = '';
+            const errorMsg = 'Error verifying PIN. Please try again.';
+
+            if (feedback) {
+                feedback.innerHTML = `<span style="color: var(--error-color);">${errorMsg}</span>`;
+            } else {
+                createInlineMessage(errorMsg, 'error');
+            }
+
+            if (pinInput) {
+                pinInput.value = '';
+                pinInput.focus();
+            }
         }
     }
     
