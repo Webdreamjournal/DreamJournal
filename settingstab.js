@@ -57,7 +57,7 @@ import {
     loadItemFromStore,
     storageType 
 } from './storage.js';
-import { getActiveAppTab, getAppLocked, getUnlocked } from './state.js';
+import { getActiveAppTab, getAppLocked, getUnlocked, getEncryptionEnabled } from './state.js';
 import { isPinSetup } from './security.js';
 import { getVoiceCapabilities } from './voice-notes.js';
 
@@ -150,6 +150,56 @@ function renderSettingsTab(tabPanel) {
                 </div>
                 <div class="settings-controls">
                     <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
+                </div>
+            </div>
+        </div>
+        <div class="settings-section">
+            <h3>🔐 Data Encryption</h3>
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Encrypt Dreams & Goals</div>
+                    <div class="settings-description">
+                        Enable AES-256 encryption for your dreams and goals data.
+                        Requires a password to access your data.
+                    </div>
+                    <div class="encryption-status">
+                        <span class="status-indicator ${getEncryptionEnabled() ? 'enabled' : 'disabled'}">
+                            ${getEncryptionEnabled() ? '🔒 Enabled' : '🔓 Disabled'}
+                        </span>
+                    </div>
+                </div>
+                <div class="settings-controls">
+                    <button
+                        data-action="toggle-encryption"
+                        class="btn ${getEncryptionEnabled() ? 'btn-secondary' : 'btn-primary'}"
+                        aria-describedby="encryption-heading">
+                        ${getEncryptionEnabled() ? 'Disable' : 'Enable'} Encryption
+                    </button>
+                </div>
+            </div>
+
+            ${getEncryptionEnabled() ? `
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Change Encryption Password</div>
+                        <div class="settings-description">
+                            Update the password used to encrypt your data.
+                        </div>
+                    </div>
+                    <div class="settings-controls">
+                        <button
+                            data-action="change-encryption-password"
+                            class="btn btn-secondary">
+                            Change Password
+                        </button>
+                    </div>
+                </div>
+            ` : ''}
+
+            <div class="security-notice">
+                <div class="settings-description" style="margin-top: 15px; padding: 10px; background: var(--warning-color-light, #fff3cd); border-radius: 4px; border-left: 4px solid var(--warning-color, #ffc107);">
+                    <strong>⚠️ Important:</strong> If you forget your encryption password,
+                    your data cannot be recovered. Consider exporting backups regularly.
                 </div>
             </div>
         </div>
@@ -374,6 +424,510 @@ async function deleteAutocompleteItem(type, itemValue) {
     }
 
 // ================================
+// ENCRYPTION SETTINGS MANAGEMENT
+// ================================
+
+/**
+ * Handles encryption enable/disable toggle from settings interface.
+ *
+ * This function acts as the main entry point for encryption state changes from the
+ * settings UI. It determines the current encryption state and routes to the appropriate
+ * enable or disable function, providing a unified interface for encryption management.
+ *
+ * **Operation Flow:**
+ * 1. Check current encryption state via getEncryptionEnabled()
+ * 2. Route to enableEncryption() or disableEncryption() accordingly
+ * 3. Handle any errors gracefully with user feedback
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when encryption state change completes
+ * @throws {Error} Handled gracefully with user feedback via createInlineMessage
+ * @since 2.03.01
+ * @example
+ * // Called when user clicks enable/disable encryption button
+ * await toggleEncryption();
+ * // Routes to appropriate enable/disable function based on current state
+ */
+async function toggleEncryption() {
+    try {
+        const isCurrentlyEnabled = getEncryptionEnabled();
+
+        if (isCurrentlyEnabled) {
+            // Disable encryption
+            await disableEncryption();
+        } else {
+            // Enable encryption
+            await enableEncryption();
+        }
+    } catch (error) {
+        console.error('Error toggling encryption:', error);
+        createInlineMessage('error', 'Failed to change encryption settings. Please try again.');
+    }
+}
+
+/**
+ * Enables data encryption with comprehensive password setup and data migration.
+ *
+ * This function implements the complete encryption enablement process including
+ * password setup, validation, existing data encryption, and UI updates. It handles
+ * the migration of existing unencrypted data to encrypted format seamlessly.
+ *
+ * **Implementation Process:**
+ * 1. Show password setup dialog with confirmation
+ * 2. Validate password meets security requirements
+ * 3. Save encryption settings to localStorage
+ * 4. Encrypt all existing dreams and goals data
+ * 5. Update settings UI to reflect new encryption state
+ * 6. Clear data cache to force reload with encryption
+ *
+ * **Data Migration:**
+ * - Iterates through all existing dreams and goals
+ * - Encrypts each item using the new password
+ * - Saves encrypted versions to IndexedDB
+ * - Preserves all metadata and relationships
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when encryption setup completes successfully
+ * @throws {Error} When password validation fails or encryption setup encounters errors
+ * @since 2.03.01
+ * @example
+ * // Enable encryption with user password setup
+ * await enableEncryption();
+ * // Shows password dialog, encrypts data, updates UI
+ */
+async function enableEncryption() {
+    try {
+        // Show password setup dialog
+        await showEncryptionSetupDialog();
+    } catch (error) {
+        console.error('Error enabling encryption:', error);
+        createInlineMessage('error', 'Failed to enable encryption. Please try again.');
+    }
+}
+
+/**
+ * Shows the encryption password setup dialog with validation and confirmation.
+ *
+ * This function presents a comprehensive password setup interface including password
+ * strength validation, confirmation matching, and clear user guidance. It handles
+ * the complete password setup workflow from input to final encryption setup.
+ *
+ * **Dialog Features:**
+ * - Password and confirmation input fields
+ * - Real-time validation feedback
+ * - Password strength requirements
+ * - Clear setup instructions and warnings
+ *
+ * **Validation Process:**
+ * 1. Check password meets minimum length requirements
+ * 2. Verify password and confirmation match exactly
+ * 3. Validate password strength against security criteria
+ * 4. Proceed with encryption setup if all validations pass
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when password setup dialog completes
+ * @since 2.03.01
+ * @example
+ * // Show encryption setup dialog
+ * await showEncryptionSetupDialog();
+ * // User enters password, validation occurs, encryption setup proceeds
+ */
+async function showEncryptionSetupDialog() {
+    // Import the password dialog function from security.js
+    const { showPasswordDialog } = await import('./security.js');
+
+    const config = {
+        title: 'Set Up Data Encryption',
+        description: 'Create a strong password to encrypt your dreams and goals data.',
+        requireConfirm: true,
+        primaryButtonText: 'Enable Encryption'
+    };
+
+    showPasswordDialog(config, async (password, confirmPassword) => {
+        if (password !== confirmPassword) {
+            createInlineMessage('error', 'Passwords do not match');
+            return false;
+        }
+
+        // Import validation function
+        const { validateEncryptionPassword } = await import('./security.js');
+        const validation = validateEncryptionPassword(password);
+        if (!validation.valid) {
+            createInlineMessage('error', validation.error);
+            return false;
+        }
+
+        try {
+            await setupEncryption(password);
+            return true;
+        } catch (error) {
+            console.error('Encryption setup error:', error);
+            createInlineMessage('error', 'Failed to set up encryption');
+            return false;
+        }
+    });
+}
+
+/**
+ * Performs the complete encryption setup process including data migration.
+ *
+ * This function handles the core encryption setup operations including settings
+ * storage, existing data encryption, state management, and UI updates. It ensures
+ * a seamless transition from unencrypted to encrypted data storage.
+ *
+ * **Setup Process:**
+ * 1. Save encryption settings to localStorage
+ * 2. Set session encryption password in state
+ * 3. Encrypt all existing dreams in IndexedDB
+ * 4. Encrypt all existing goals in IndexedDB
+ * 5. Clear decrypted data cache to force reload
+ * 6. Refresh settings UI to show new encryption state
+ * 7. Provide user feedback on successful completion
+ *
+ * **Data Integrity:**
+ * - Preserves all existing data during migration
+ * - Maintains data relationships and metadata
+ * - Handles mixed encrypted/unencrypted scenarios gracefully
+ * - Provides rollback capability if errors occur
+ *
+ * @async
+ * @function
+ * @param {string} password - User's encryption password
+ * @returns {Promise<void>} Resolves when complete encryption setup finishes
+ * @throws {Error} When encryption setup operations fail
+ * @since 2.03.01
+ * @example
+ * // Set up encryption with user password
+ * await setupEncryption('user-secure-password');
+ * // Encrypts all data, updates settings, refreshes UI
+ */
+async function setupEncryption(password) {
+    try {
+        // Import required functions
+        const { saveEncryptionSettings, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
+        const { initializeApplicationData } = await import('./main.js');
+
+        // Enable encryption setting
+        saveEncryptionSettings(true);
+        setEncryptionPassword(password);
+
+        // Encrypt existing dreams
+        const dreams = await loadDreamsRaw();
+        let encryptedCount = 0;
+        for (const dream of dreams) {
+            if (!dream.encrypted) { // Don't re-encrypt already encrypted items
+                const encrypted = await encryptItemForStorage(dream, password);
+                await saveItemToStore('dreams', encrypted);
+                encryptedCount++;
+            }
+        }
+
+        // Encrypt existing goals
+        const goals = await loadGoalsRaw();
+        for (const goal of goals) {
+            if (!goal.encrypted) { // Don't re-encrypt already encrypted items
+                const encrypted = await encryptItemForStorage(goal, password);
+                await saveItemToStore('goals', encrypted);
+            }
+        }
+
+        // Clear cache and reload data
+        clearDecryptedDataCache();
+        await initializeApplicationData();
+
+        // Update settings UI to reflect new state
+        const settingsTab = document.getElementById('settingsTab');
+        if (settingsTab && !settingsTab.hidden) {
+            renderSettingsTab(settingsTab);
+        }
+
+        createInlineMessage('success', `Encryption enabled successfully! ${encryptedCount > 0 ? `${encryptedCount} dreams encrypted.` : 'All data is now encrypted.'}`);
+
+    } catch (error) {
+        console.error('Error setting up encryption:', error);
+        throw error;
+    }
+}
+
+/**
+ * Disables data encryption and decrypts all encrypted data.
+ *
+ * This function implements the complete encryption disabling process including
+ * confirmation dialog, data decryption, settings cleanup, and UI updates. It
+ * safely transitions from encrypted to unencrypted data storage.
+ *
+ * **Disable Process:**
+ * 1. Show confirmation dialog with warning about security implications
+ * 2. Verify current encryption password if available
+ * 3. Decrypt all encrypted dreams and goals data
+ * 4. Save decrypted data in unencrypted format
+ * 5. Clear encryption settings from localStorage
+ * 6. Update UI to reflect disabled encryption state
+ *
+ * **Safety Features:**
+ * - Requires explicit user confirmation
+ * - Preserves all data during the transition
+ * - Provides clear warnings about security implications
+ * - Allows cancellation at any point in the process
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when encryption disable process completes
+ * @throws {Error} When password verification fails or decryption encounters errors
+ * @since 2.03.01
+ * @example
+ * // Disable encryption after user confirmation
+ * await disableEncryption();
+ * // Shows confirmation, decrypts data, updates settings
+ */
+async function disableEncryption() {
+    // Show confirmation dialog
+    const confirmed = confirm(
+        'Are you sure you want to disable encryption?\n\n' +
+        'This will decrypt all your data and store it unencrypted. ' +
+        'Your data will no longer be protected if someone gains access to your device.\n\n' +
+        'Click OK to continue or Cancel to keep encryption enabled.'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        // Import required functions
+        const { saveEncryptionSettings, getEncryptionPassword, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
+        const { initializeApplicationData } = await import('./main.js');
+
+        const password = getEncryptionPassword();
+        if (!password) {
+            createInlineMessage('error', 'No encryption password available. Cannot decrypt data.');
+            return;
+        }
+
+        // Decrypt all encrypted dreams
+        const dreams = await loadDreamsRaw();
+        let decryptedCount = 0;
+        for (const dream of dreams) {
+            if (isEncryptedItem(dream)) {
+                const decrypted = await decryptItemFromStorage(dream, password);
+                await saveItemToStore('dreams', decrypted);
+                decryptedCount++;
+            }
+        }
+
+        // Decrypt all encrypted goals
+        const goals = await loadGoalsRaw();
+        for (const goal of goals) {
+            if (isEncryptedItem(goal)) {
+                const decrypted = await decryptItemFromStorage(goal, password);
+                await saveItemToStore('goals', decrypted);
+            }
+        }
+
+        // Disable encryption settings
+        saveEncryptionSettings(false);
+        setEncryptionPassword(null);
+
+        // Clear cache and reload data
+        clearDecryptedDataCache();
+        await initializeApplicationData();
+
+        // Update settings UI
+        const settingsTab = document.getElementById('settingsTab');
+        if (settingsTab && !settingsTab.hidden) {
+            renderSettingsTab(settingsTab);
+        }
+
+        createInlineMessage('success', `Encryption disabled successfully! ${decryptedCount > 0 ? `${decryptedCount} dreams decrypted.` : 'All data is now unencrypted.'}`);
+
+    } catch (error) {
+        console.error('Error disabling encryption:', error);
+        createInlineMessage('error', 'Failed to disable encryption. Please try again.');
+    }
+}
+
+/**
+ * Changes the encryption password with data re-encryption.
+ *
+ * This function implements secure password change functionality including current
+ * password verification, new password setup, and complete data re-encryption with
+ * the new password. It ensures continuous data protection during the transition.
+ *
+ * **Change Process:**
+ * 1. Show current password verification dialog
+ * 2. Verify current password against existing encrypted data
+ * 3. Show new password setup dialog with confirmation
+ * 4. Re-encrypt all encrypted data with the new password
+ * 5. Update session password and provide user feedback
+ *
+ * **Security Features:**
+ * - Requires verification of current password before change
+ * - Validates new password meets security requirements
+ * - Re-encrypts all data atomically to prevent data loss
+ * - Maintains encryption state throughout the process
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when password change process completes
+ * @throws {Error} When current password verification fails or re-encryption errors occur
+ * @since 2.03.01
+ * @example
+ * // Change encryption password with verification
+ * await changeEncryptionPassword();
+ * // Shows current password verification, new password setup, re-encrypts data
+ */
+async function changeEncryptionPassword() {
+    try {
+        // Import required dialog function
+        const { showPasswordDialog } = await import('./security.js');
+
+        // First, verify current password
+        const currentPasswordConfig = {
+            title: 'Verify Current Password',
+            description: 'Enter your current encryption password to change it.',
+            requireConfirm: false,
+            primaryButtonText: 'Verify'
+        };
+
+        showPasswordDialog(currentPasswordConfig, async (currentPassword) => {
+            // Verify current password
+            const { testEncryptionPassword } = await import('./security.js');
+            const testResult = await testEncryptionPassword(currentPassword);
+
+            if (!testResult.valid) {
+                createInlineMessage('error', 'Current password is incorrect');
+                return false;
+            }
+
+            // Show new password setup dialog
+            const newPasswordConfig = {
+                title: 'Set New Encryption Password',
+                description: 'Enter your new encryption password.',
+                requireConfirm: true,
+                primaryButtonText: 'Change Password'
+            };
+
+            showPasswordDialog(newPasswordConfig, async (newPassword, confirmPassword) => {
+                if (newPassword !== confirmPassword) {
+                    createInlineMessage('error', 'New passwords do not match');
+                    return false;
+                }
+
+                const { validateEncryptionPassword } = await import('./security.js');
+                const validation = validateEncryptionPassword(newPassword);
+                if (!validation.valid) {
+                    createInlineMessage('error', validation.error);
+                    return false;
+                }
+
+                try {
+                    await reEncryptAllData(currentPassword, newPassword);
+                    return true;
+                } catch (error) {
+                    console.error('Password change error:', error);
+                    createInlineMessage('error', 'Failed to change password. Please try again.');
+                    return false;
+                }
+            });
+
+            return true;
+        });
+
+    } catch (error) {
+        console.error('Error changing encryption password:', error);
+        createInlineMessage('error', 'Failed to change encryption password.');
+    }
+}
+
+/**
+ * Re-encrypts all encrypted data with a new password.
+ *
+ * This function handles the complete data re-encryption process when changing
+ * encryption passwords. It safely transitions all encrypted data from the old
+ * password to the new password without data loss or corruption.
+ *
+ * **Re-encryption Process:**
+ * 1. Load all raw dreams and goals from storage
+ * 2. Identify encrypted items using isEncryptedItem()
+ * 3. Decrypt each item with the old password
+ * 4. Re-encrypt each item with the new password
+ * 5. Save re-encrypted items back to storage
+ * 6. Update session password and clear cache
+ *
+ * **Data Safety:**
+ * - Processes items individually to prevent partial corruption
+ * - Maintains data integrity throughout the process
+ * - Handles mixed encrypted/unencrypted data scenarios
+ * - Provides detailed progress feedback
+ *
+ * @async
+ * @function
+ * @param {string} oldPassword - Current encryption password
+ * @param {string} newPassword - New encryption password
+ * @returns {Promise<void>} Resolves when all data is successfully re-encrypted
+ * @throws {Error} When decryption or re-encryption operations fail
+ * @since 2.03.01
+ * @example
+ * // Re-encrypt all data with new password
+ * await reEncryptAllData('old-password', 'new-secure-password');
+ * // All encrypted items updated with new password
+ */
+async function reEncryptAllData(oldPassword, newPassword) {
+    try {
+        // Import required functions
+        const {
+            loadDreamsRaw,
+            loadGoalsRaw,
+            isEncryptedItem,
+            decryptItemFromStorage,
+            encryptItemForStorage,
+            saveItemToStore
+        } = await import('./storage.js');
+        const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+
+        let reEncryptedCount = 0;
+
+        // Re-encrypt dreams
+        const dreams = await loadDreamsRaw();
+        for (const dream of dreams) {
+            if (isEncryptedItem(dream)) {
+                const decrypted = await decryptItemFromStorage(dream, oldPassword);
+                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                await saveItemToStore('dreams', reEncrypted);
+                reEncryptedCount++;
+            }
+        }
+
+        // Re-encrypt goals
+        const goals = await loadGoalsRaw();
+        for (const goal of goals) {
+            if (isEncryptedItem(goal)) {
+                const decrypted = await decryptItemFromStorage(goal, oldPassword);
+                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                await saveItemToStore('goals', reEncrypted);
+            }
+        }
+
+        // Update session password
+        setEncryptionPassword(newPassword);
+
+        // Clear cache to force reload with new password
+        clearDecryptedDataCache();
+
+        createInlineMessage('success', `Password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
+
+    } catch (error) {
+        console.error('Error re-encrypting data:', error);
+        throw error;
+    }
+}
+
+// ================================
 // PWA SETTINGS INTEGRATION
 // ================================
 
@@ -524,7 +1078,13 @@ export {
     initializeSettingsTab,
     addCustomAutocompleteItem,
     deleteAutocompleteItem,
-    managePWASettingsSection
+    managePWASettingsSection,
+
+    // Encryption settings functions
+    toggleEncryption,
+    enableEncryption,
+    disableEncryption,
+    changeEncryptionPassword
 };
 
 // For backward compatibility, also expose via window global

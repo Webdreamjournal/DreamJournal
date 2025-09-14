@@ -47,7 +47,12 @@ import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, 
 import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
-import { addCustomAutocompleteItem, deleteAutocompleteItem } from './settingstab.js';
+import {
+    addCustomAutocompleteItem,
+    deleteAutocompleteItem,
+    toggleEncryption,
+    changeEncryptionPassword
+} from './settingstab.js';
 
 // Security module
 import {
@@ -431,7 +436,13 @@ const ACTION_MAP = {
         'show-set-new-pin-screen': () => showSetNewPinScreen(),             // Show new PIN entry screen
         'setup-new-pin': () => setupNewPin(),                               // Setup new PIN
         'confirm-new-pin': () => confirmNewPin(),                           // Confirm new PIN entry
-        
+
+        // ================================
+        // ENCRYPTION SETTINGS MANAGEMENT
+        // ================================
+        'toggle-encryption': () => toggleEncryption(),                      // Enable/disable data encryption
+        'change-encryption-password': () => changeEncryptionPassword(),     // Change encryption password
+
         // ================================
         // LOCK SCREEN INTERFACE SYSTEM
         // ================================
