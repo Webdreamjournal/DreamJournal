@@ -655,11 +655,7 @@ async function initializeApp() {
         setAppLocked(true);
         setUnlocked(false);
         setPreLockActiveTab('journal');
-
-        // Show appropriate authentication screen
-        await showAuthenticationScreen();
-
-        // Hide main UI until authenticated
+        switchAppTab('lock', true);
         hideAllTabButtons();
     } else {
         setUnlocked(true);
