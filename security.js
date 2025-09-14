@@ -3258,24 +3258,6 @@ async function testEncryptionPassword(password) {
     }
 }
 
-/**
- * Switches from encryption password entry back to PIN entry screen.
- *
- * Navigation function for dual authentication scenarios where users can choose
- * between encryption password and PIN authentication. Resets the overlay to
- * standard PIN entry interface with proper state management.
- *
- * @function
- * @since 2.03.01
- * @example
- * // Called when user clicks "Use PIN instead" link
- * switchToPinEntry();
- * // Returns to standard PIN entry screen
- */
-function switchToPinEntry() {
-    resetPinOverlay();
-    // Focus will be set automatically by resetPinOverlay
-}
 
 // ================================
 // ENHANCED PASSWORD SCREENS (Phase 5.2)
