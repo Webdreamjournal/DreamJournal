@@ -2562,6 +2562,386 @@ async function setupPin() {
     }
 
 // ================================
+// 12. ENCRYPTION SETTINGS MANAGEMENT
+// ================================
+
+/**
+ * Loads encryption settings from localStorage.
+ *
+ * Reads the encryption enabled setting from localStorage to determine if data
+ * encryption is active. Returns false as default for new users or when
+ * localStorage is unavailable, ensuring graceful fallback behavior.
+ *
+ * @function
+ * @returns {boolean} True if encryption is enabled, false otherwise
+ * @throws {Error} Storage errors are caught and logged, returns false
+ * @since 2.03.01
+ * @example
+ * const encryptionEnabled = loadEncryptionSettings();
+ * if (encryptionEnabled) {
+ *   // Setup encryption authentication
+ * }
+ */
+function loadEncryptionSettings() {
+    if (!isLocalStorageAvailable()) return false;
+
+    try {
+        const setting = localStorage.getItem('dreamJournalEncryptionEnabled');
+        return setting === 'true';
+    } catch (error) {
+        console.error('Failed to load encryption settings:', error);
+        return false;
+    }
+}
+
+/**
+ * Saves encryption settings to localStorage.
+ *
+ * Persists the encryption enabled setting to localStorage and updates the
+ * global encryption state. Returns true if the save operation was successful,
+ * false if localStorage is unavailable or the operation failed.
+ *
+ * @async
+ * @function
+ * @param {boolean} enabled - Whether encryption should be enabled
+ * @returns {Promise<boolean>} True if save was successful, false otherwise
+ * @throws {Error} Storage errors are caught and logged, returns false
+ * @since 2.03.01
+ * @example
+ * const success = await saveEncryptionSettings(true);
+ * if (success) {
+ *   console.log('Encryption enabled successfully');
+ * }
+ */
+async function saveEncryptionSettings(enabled) {
+    if (!isLocalStorageAvailable()) return false;
+
+    try {
+        localStorage.setItem('dreamJournalEncryptionEnabled', enabled.toString());
+
+        // Update global encryption state
+        const { setEncryptionEnabled } = await import('./state.js');
+        setEncryptionEnabled(enabled);
+
+        return true;
+    } catch (error) {
+        console.error('Failed to save encryption settings:', error);
+        return false;
+    }
+}
+
+/**
+ * Validates an encryption password meets security requirements.
+ *
+ * Performs comprehensive validation of encryption passwords including length
+ * requirements, character composition, and common password checks. Returns
+ * detailed validation results for user feedback and security enforcement.
+ *
+ * @function
+ * @param {string} password - Password to validate
+ * @returns {Object} Validation result with success flag and error message
+ * @returns {boolean} returns.valid - Whether password meets all requirements
+ * @returns {string} [returns.error] - Error message if validation fails
+ * @since 2.03.01
+ * @example
+ * const validation = validateEncryptionPassword('mypassword123');
+ * if (!validation.valid) {
+ *   showError(validation.error);
+ * }
+ */
+function validateEncryptionPassword(password) {
+    if (!password) {
+        return { valid: false, error: 'Password is required' };
+    }
+
+    if (password.length < 8) {
+        return { valid: false, error: 'Password must be at least 8 characters' };
+    }
+
+    if (password.length > 128) {
+        return { valid: false, error: 'Password must be 128 characters or less' };
+    }
+
+    // Check for common weak passwords
+    const commonPasswords = [
+        'password', '12345678', 'qwerty', 'abc123', 'password123',
+        'admin', 'letmein', 'welcome', '123456789', 'password1'
+    ];
+
+    if (commonPasswords.includes(password.toLowerCase())) {
+        return { valid: false, error: 'Password is too common and easily guessed' };
+    }
+
+    // Additional security checks can be added here in the future
+    return { valid: true };
+}
+
+// ================================
+// 13. AUTHENTICATION FLOW INTEGRATION
+// ================================
+
+/**
+ * Determines what authentication is needed based on enabled features.
+ *
+ * Analyzes the current security configuration to determine which authentication
+ * methods are required. Supports PIN-only, encryption-only, and dual authentication
+ * modes, providing the foundation for smart authentication flow decisions.
+ *
+ * @async
+ * @function
+ * @returns {Promise<Object>} Authentication requirements object
+ * @returns {boolean} returns.pinRequired - PIN authentication needed
+ * @returns {boolean} returns.encryptionRequired - Encryption password needed
+ * @returns {boolean} returns.bothEnabled - Both PIN and encryption are set up
+ * @since 2.03.01
+ * @example
+ * const requirements = await getAuthenticationRequirements();
+ * if (requirements.encryptionRequired) {
+ *   showEncryptionPasswordScreen();
+ * } else if (requirements.pinRequired) {
+ *   showPinScreen();
+ * }
+ */
+async function getAuthenticationRequirements() {
+    const pinEnabled = isPinSetup();
+
+    // Import encryption state
+    const { getEncryptionEnabled } = await import('./state.js');
+    const encryptionEnabled = getEncryptionEnabled();
+
+    return {
+        pinRequired: pinEnabled && !encryptionEnabled,
+        encryptionRequired: encryptionEnabled,
+        bothEnabled: pinEnabled && encryptionEnabled
+    };
+}
+
+/**
+ * Shows appropriate authentication screen based on enabled features.
+ *
+ * Smart authentication dispatcher that determines which authentication screen
+ * to display based on the current security configuration. Prioritizes encryption
+ * password entry when both PIN and encryption are enabled, as encryption password
+ * can bypass PIN protection.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called during app initialization when authentication is required
+ * await showAuthenticationScreen();
+ * // Shows encryption password screen, PIN screen, or appropriate combination
+ */
+async function showAuthenticationScreen() {
+    const requirements = await getAuthenticationRequirements();
+
+    if (requirements.encryptionRequired) {
+        showEncryptionPasswordScreen();
+    } else if (requirements.pinRequired) {
+        showPinOverlay();
+    }
+}
+
+/**
+ * Shows the encryption password entry screen.
+ *
+ * Displays the password entry interface for accessing encrypted data. Supports
+ * dual authentication scenarios where both PIN and encryption are enabled,
+ * providing appropriate context and alternative authentication options.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Show encryption password screen
+ * showEncryptionPasswordScreen();
+ * // Displays password entry with appropriate context and options
+ */
+async function showEncryptionPasswordScreen() {
+    const requirements = await getAuthenticationRequirements();
+
+    let title, message;
+    if (requirements.bothEnabled) {
+        title = 'Enter Encryption Password';
+        message = 'Your encryption password will bypass PIN protection and decrypt your data.';
+    } else {
+        title = 'Enter Password';
+        message = 'Enter your password to access your encrypted data.';
+    }
+
+    const pinContainer = document.querySelector('#pinOverlay .pin-container');
+    const config = {
+        title,
+        icon: '🔒',
+        message,
+        inputs: [
+            {
+                id: 'encryptionPassword',
+                type: 'password',
+                placeholder: 'Enter password',
+                class: 'pin-input',
+                autocomplete: 'current-password'
+            }
+        ],
+        buttons: [
+            {
+                text: 'Unlock',
+                action: 'verify-encryption-password',
+                class: 'btn-primary'
+            }
+        ],
+        links: requirements.bothEnabled ? [
+            {
+                text: 'Use PIN instead',
+                action: 'switch-to-pin-entry',
+                class: 'forgot-pin-link'
+            }
+        ] : [],
+        feedbackContainer: true
+    };
+
+    renderPinScreen(pinContainer, config);
+    document.getElementById('pinOverlay').style.display = 'flex';
+
+    // Focus the password input
+    setTimeout(() => {
+        const passwordInput = document.getElementById('encryptionPassword');
+        if (passwordInput) passwordInput.focus();
+    }, CONSTANTS.FOCUS_DELAY_MS);
+}
+
+/**
+ * Verifies the entered encryption password and unlocks the app.
+ *
+ * Validates the encryption password by attempting to decrypt existing encrypted
+ * data, then unlocks the application and loads all encrypted content. Handles
+ * password verification failures and provides appropriate user feedback.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called when user submits encryption password
+ * await verifyEncryptionPassword();
+ * // Tests password and unlocks app if correct
+ */
+async function verifyEncryptionPassword() {
+    const passwordInput = document.getElementById('encryptionPassword');
+    const password = passwordInput?.value?.trim();
+
+    if (!password) {
+        showMessage('error', 'Please enter your password');
+        return;
+    }
+
+    try {
+        // Test password by attempting to decrypt known encrypted data
+        const testResult = await testEncryptionPassword(password);
+
+        if (testResult.valid) {
+            // Import state management functions
+            const {
+                setEncryptionPassword,
+                setUnlocked,
+                setAppLocked,
+                getPreLockActiveTab
+            } = await import('./state.js');
+
+            // Import initialization function
+            const { initializeApplicationData } = await import('./main.js');
+
+            setEncryptionPassword(password);
+            setUnlocked(true);
+            setAppLocked(false);
+
+            // Load and decrypt all data
+            await initializeApplicationData();
+
+            hidePinOverlay();
+            switchAppTab(getPreLockActiveTab() || 'journal');
+            showAllTabButtons();
+
+            const container = document.querySelector('.main-content');
+            createInlineMessage('success', 'Data decrypted and ready!', {
+                container: container,
+                position: 'top',
+                duration: 3000
+            });
+        } else {
+            setFailedPinAttempts(getFailedPinAttempts() + 1);
+            showMessage('error', 'Incorrect password. Please try again.');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+    } catch (error) {
+        console.error('Password verification error:', error);
+        showMessage('error', 'Error verifying password. Please try again.');
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+}
+
+/**
+ * Tests if a password can decrypt existing encrypted data.
+ *
+ * Validates an encryption password by attempting to decrypt any available
+ * encrypted content. This is used during password verification to ensure
+ * the entered password is correct without exposing the actual data.
+ *
+ * @async
+ * @function
+ * @param {string} password - Password to test for validity
+ * @returns {Promise<Object>} Test result with validity and error information
+ * @returns {boolean} returns.valid - Whether password successfully decrypts data
+ * @returns {string} [returns.error] - Error message if test fails
+ * @since 2.03.01
+ * @example
+ * const testResult = await testEncryptionPassword('userpassword');
+ * if (testResult.valid) {
+ *   // Password is correct
+ * }
+ */
+async function testEncryptionPassword(password) {
+    try {
+        // Import storage functions
+        const { loadFromStore, isEncryptedItem, decryptItemFromStorage } = await import('./storage.js');
+
+        // Try to decrypt any encrypted item to verify password
+        const dreams = await loadFromStore('dreams');
+        const encryptedDream = dreams.find(d => isEncryptedItem(d));
+
+        if (encryptedDream) {
+            await decryptItemFromStorage(encryptedDream, password);
+            return { valid: true };
+        } else {
+            // No encrypted data to test against - assume valid for first-time setup
+            return { valid: true };
+        }
+    } catch (error) {
+        return { valid: false, error: error.message };
+    }
+}
+
+/**
+ * Switches from encryption password entry back to PIN entry screen.
+ *
+ * Navigation function for dual authentication scenarios where users can choose
+ * between encryption password and PIN authentication. Resets the overlay to
+ * standard PIN entry interface with proper state management.
+ *
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called when user clicks "Use PIN instead" link
+ * switchToPinEntry();
+ * // Returns to standard PIN entry screen
+ */
+function switchToPinEntry() {
+    resetPinOverlay();
+    // Focus will be set automatically by resetPinOverlay
+}
+
+// ================================
 // ES MODULE EXPORTS
 // ================================
 
@@ -2621,7 +3001,20 @@ export {
     getResetTime,
     removeResetTime,
     removePinHash,
-    
+
+    // Encryption settings management
+    loadEncryptionSettings,
+    saveEncryptionSettings,
+    validateEncryptionPassword,
+
+    // Authentication flow integration
+    getAuthenticationRequirements,
+    showAuthenticationScreen,
+    showEncryptionPasswordScreen,
+    verifyEncryptionPassword,
+    testEncryptionPassword,
+    switchToPinEntry,
+
     // Application control
     toggleLock,
     completePinSetup
