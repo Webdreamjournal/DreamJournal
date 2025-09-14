@@ -1643,7 +1643,16 @@ async function renderAutocompleteManagementList(type) {
             container.innerHTML = listHtml;
         } catch (error) {
             console.error(`Error rendering ${type} list:`, error);
-            container.innerHTML = `<div class="message-error">Failed to load ${type} list.</div>`;
+
+            // Provide user-friendly error messages based on error type
+            let errorMessage = `Failed to load ${type} list.`;
+            if (error.message.includes('Encryption password required')) {
+                errorMessage = `Failed to load ${type} list. Encryption password required.`;
+            } else if (error.message.includes('password')) {
+                errorMessage = `Failed to load ${type} list. Check encryption status.`;
+            }
+
+            container.innerHTML = `<div class="message-error">${errorMessage}</div>`;
         }
     }
 

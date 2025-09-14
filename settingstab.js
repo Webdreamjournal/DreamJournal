@@ -301,28 +301,33 @@ function renderSettingsTab(tabPanel) {
 // Note: renderAutocompleteManagementList is now imported from dom-helpers.js
 
 /**
- * Adds a custom autocomplete item for tags or dream signs.
- * 
+ * Enhanced addCustomAutocompleteItem with encryption support.
+ *
  * Reads the value from the appropriate input field, validates it, and adds it
- * to the autocomplete suggestions store. Prevents duplicates and provides user
- * feedback through inline messages. Automatically refreshes the management list
- * after successful addition.
- * 
+ * to the autocomplete suggestions store. Handles both encrypted and unencrypted
+ * data seamlessly. Prevents duplicates and provides user feedback through inline
+ * messages. Automatically refreshes the management list after successful addition.
+ *
  * **Validation Rules:**
  * - Item must not be empty after trimming
  * - Item must not already exist (case-insensitive)
  * - Input is automatically converted to lowercase
- * 
+ *
+ * **Encryption Support:**
+ * - Automatically handles encrypted autocomplete data
+ * - Provides specific error messages for encryption issues
+ * - Falls back gracefully when encryption password is unavailable
+ *
  * @async
  * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to add
  * @returns {Promise<void>} Resolves when add operation completes
- * @throws {Error} Database errors are handled with user feedback
- * 
+ * @throws {Error} Database and encryption errors are handled with user feedback
+ *
  * @example
  * // Called when user clicks add button for custom tags
  * await addCustomAutocompleteItem('tags');
- * 
- * @since 2.02.05
+ *
+ * @since 2.03.04
  */
 async function addCustomAutocompleteItem(type) {
         const inputId = type === 'tags' ? 'newTagInput' : 'newDreamSignInput';
@@ -331,47 +336,64 @@ async function addCustomAutocompleteItem(type) {
 
         const newItem = input.value.trim().toLowerCase();
         if (!newItem) {
-            createInlineMessage('warning', 'Please enter a value', { 
+            createInlineMessage('warning', 'Please enter a value', {
                 container: input.parentElement,
                 position: 'top'
             });
             return;
         }
 
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
-        
-        // Get existing suggestions
-        const existingSuggestions = await getAutocompleteSuggestions(type);
-        
-        // Check if item already exists (case insensitive)
-        if (existingSuggestions.some(item => item.toLowerCase() === newItem)) {
-            createInlineMessage('warning', 'This item already exists', {
-                container: input.parentElement,
-                position: 'top'
-            });
-            return;
-        }
+        try {
+            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
 
-        // Add the new item
-        const updatedSuggestions = [...existingSuggestions, newItem];
-        
-        // Save to autocomplete store
-        const success = await saveItemToStore('autocomplete', {
-            id: storeId,
-            items: updatedSuggestions
-        });
+            // Get existing suggestions with enhanced error handling
+            const existingSuggestions = await getAutocompleteSuggestions(type);
 
-        if (success) {
-            input.value = '';
-            createInlineMessage('success', `Added "${newItem}" successfully`, {
-                container: input.parentElement,
-                position: 'top'
+            // Check if item already exists (case insensitive)
+            if (existingSuggestions.some(item => item.toLowerCase() === newItem)) {
+                createInlineMessage('warning', 'This item already exists', {
+                    container: input.parentElement,
+                    position: 'top'
+                });
+                return;
+            }
+
+            // Add the new item
+            const updatedSuggestions = [...existingSuggestions, newItem];
+
+            // Save to autocomplete store with encryption support
+            const success = await saveItemToStore('autocomplete', {
+                id: storeId,
+                items: updatedSuggestions
             });
-            
-            // Re-render the management list
-            renderAutocompleteManagementList(type);
-        } else {
-            createInlineMessage('error', 'Failed to add item', {
+
+            if (success) {
+                input.value = '';
+                createInlineMessage('success', `Added "${newItem}" successfully`, {
+                    container: input.parentElement,
+                    position: 'top'
+                });
+
+                // Re-render the management list
+                renderAutocompleteManagementList(type);
+            } else {
+                createInlineMessage('error', 'Failed to add item', {
+                    container: input.parentElement,
+                    position: 'top'
+                });
+            }
+        } catch (error) {
+            console.error('Error adding autocomplete item:', error);
+
+            // Provide user-friendly error messages based on error type
+            let errorMessage = 'Failed to add item. Please try again.';
+            if (error.message.includes('Encryption password required')) {
+                errorMessage = 'Failed to add item. Encryption password required.';
+            } else if (error.message.includes('password')) {
+                errorMessage = 'Failed to add item. Check encryption status.';
+            }
+
+            createInlineMessage('error', errorMessage, {
                 container: input.parentElement,
                 position: 'top'
             });
@@ -379,47 +401,67 @@ async function addCustomAutocompleteItem(type) {
     }
 
 /**
- * Deletes a custom autocomplete item for tags or dream signs.
- * 
+ * Enhanced deleteAutocompleteItem with encryption support.
+ *
  * This function removes a specific item from the autocomplete suggestions
- * for the given type. Performs case-insensitive matching when finding the
- * item to delete and provides user feedback through inline messages.
- * 
+ * for the given type. Handles both encrypted and unencrypted data seamlessly.
+ * Performs case-insensitive matching when finding the item to delete and
+ * provides user feedback through inline messages.
+ *
+ * **Encryption Support:**
+ * - Automatically handles encrypted autocomplete data
+ * - Provides specific error messages for encryption issues
+ * - Falls back gracefully when encryption password is unavailable
+ *
  * @async
  * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to delete
  * @param {string} itemValue - Value of the item to delete
  * @returns {Promise<void>} Resolves when delete operation completes
- * @throws {Error} Database errors are handled with user feedback
- * 
+ * @throws {Error} Database and encryption errors are handled with user feedback
+ *
  * @example
  * await deleteAutocompleteItem('tags', 'nightmare');
- * 
- * @since 2.02.05
+ *
+ * @since 2.03.04
  */
 async function deleteAutocompleteItem(type, itemValue) {
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
-        
-        // Get existing suggestions
-        const existingSuggestions = await getAutocompleteSuggestions(type);
-        
-        // Remove the item (case insensitive)
-        const updatedSuggestions = existingSuggestions.filter(
-            item => item.toLowerCase() !== itemValue.toLowerCase()
-        );
-        
-        // Save updated list
-        const success = await saveItemToStore('autocomplete', {
-            id: storeId,
-            items: updatedSuggestions
-        });
+        try {
+            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
 
-        if (success) {
-            createInlineMessage('success', `Deleted "${itemValue}" successfully`);
-            
-            // Re-render the management list
-            renderAutocompleteManagementList(type);
-        } else {
-            createInlineMessage('error', 'Failed to delete item');
+            // Get existing suggestions with enhanced error handling
+            const existingSuggestions = await getAutocompleteSuggestions(type);
+
+            // Remove the item (case insensitive)
+            const updatedSuggestions = existingSuggestions.filter(
+                item => item.toLowerCase() !== itemValue.toLowerCase()
+            );
+
+            // Save updated list with encryption support
+            const success = await saveItemToStore('autocomplete', {
+                id: storeId,
+                items: updatedSuggestions
+            });
+
+            if (success) {
+                createInlineMessage('success', `Deleted "${itemValue}" successfully`);
+
+                // Re-render the management list
+                renderAutocompleteManagementList(type);
+            } else {
+                createInlineMessage('error', 'Failed to delete item');
+            }
+        } catch (error) {
+            console.error('Error deleting autocomplete item:', error);
+
+            // Provide user-friendly error messages based on error type
+            let errorMessage = 'Failed to delete item. Please try again.';
+            if (error.message.includes('Encryption password required')) {
+                errorMessage = 'Failed to delete item. Encryption password required.';
+            } else if (error.message.includes('password')) {
+                errorMessage = 'Failed to delete item. Check encryption status.';
+            }
+
+            createInlineMessage('error', errorMessage);
         }
     }
 
