@@ -619,6 +619,50 @@ let calendarState = {
 let dailyTips = [];
 
 // ===================================================================================
+// ENCRYPTION STATE
+// ===================================================================================
+
+/**
+ * Current encryption password for session-based decryption.
+ *
+ * Kept in memory only during authenticated sessions. Used to decrypt encrypted
+ * data on demand without requiring password re-entry during app usage.
+ * Cleared when app is locked or session ends for security.
+ *
+ * @type {string|null}
+ * @default null
+ * @since 2.03.01
+ */
+let encryptionPassword = null;
+
+/**
+ * Flag indicating whether data encryption is enabled.
+ *
+ * Loaded from localStorage on app initialization. When true, dreams and goals
+ * data will be encrypted using AES-256-GCM before storage in IndexedDB.
+ * Controls encryption behavior throughout the application.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.03.01
+ */
+let encryptionEnabled = false;
+
+/**
+ * Cache of decrypted data for current session to improve performance.
+ *
+ * Prevents repeated decryption operations during app usage by storing
+ * decrypted items keyed by store name and ID. Cleared on app lock,
+ * password change, or session end. Improves user experience by avoiding
+ * decryption delays for recently accessed data.
+ *
+ * @type {Map<string, any>}
+ * @default new Map()
+ * @since 2.03.01
+ */
+let decryptedDataCache = new Map();
+
+// ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
 
@@ -1106,6 +1150,68 @@ function getFailedPinAttempts() {
     return failedPinAttempts;
 }
 
+/**
+ * Gets the current encryption password for the session.
+ *
+ * @returns {string|null} The current encryption password or null if not set
+ * @since 2.03.01
+ */
+function getEncryptionPassword() {
+    return encryptionPassword;
+}
+
+/**
+ * Sets the encryption password for the current session.
+ *
+ * @param {string|null} password - The encryption password to set or null to clear
+ * @since 2.03.01
+ */
+function setEncryptionPassword(password) {
+    encryptionPassword = password;
+}
+
+/**
+ * Gets whether data encryption is currently enabled.
+ *
+ * @returns {boolean} True if encryption is enabled, false otherwise
+ * @since 2.03.01
+ */
+function getEncryptionEnabled() {
+    return encryptionEnabled;
+}
+
+/**
+ * Sets whether data encryption should be enabled.
+ *
+ * @param {boolean} enabled - Whether encryption should be enabled
+ * @since 2.03.01
+ */
+function setEncryptionEnabled(enabled) {
+    encryptionEnabled = enabled;
+}
+
+/**
+ * Gets the decrypted data cache for the current session.
+ *
+ * @returns {Map<string, any>} The decrypted data cache map
+ * @since 2.03.01
+ */
+function getDecryptedDataCache() {
+    return decryptedDataCache;
+}
+
+/**
+ * Clears all entries from the decrypted data cache.
+ *
+ * Used when locking the app, changing passwords, or ending sessions
+ * to ensure cached decrypted data is properly cleared for security.
+ *
+ * @since 2.03.01
+ */
+function clearDecryptedDataCache() {
+    decryptedDataCache.clear();
+}
+
 // Export all global state variables and functions for ES module compatibility
 export {
     // Application Data State
@@ -1164,7 +1270,13 @@ export {
     getCurrentTipIndex,
     setFailedPinAttempts,
     getFailedPinAttempts,
-    
+    getEncryptionPassword,
+    setEncryptionPassword,
+    getEncryptionEnabled,
+    setEncryptionEnabled,
+    getDecryptedDataCache,
+    clearDecryptedDataCache,
+
     // Voice Recording & Transcription State
     mediaRecorder,
     audioChunks,
@@ -1214,5 +1326,10 @@ export {
     
     // Calendar & Statistics State
     calendarState,
-    dailyTips
+    dailyTips,
+
+    // Encryption State
+    encryptionPassword,
+    encryptionEnabled,
+    decryptedDataCache
 };
