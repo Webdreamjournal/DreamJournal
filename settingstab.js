@@ -704,19 +704,21 @@ async function setupEncryption(password) {
  * Disables data encryption and decrypts all encrypted data.
  *
  * This function implements the complete encryption disabling process including
- * confirmation dialog, data decryption, settings cleanup, and UI updates. It
- * safely transitions from encrypted to unencrypted data storage.
+ * password verification, custom confirmation dialog, data decryption, settings
+ * cleanup, and UI updates. It safely transitions from encrypted to unencrypted
+ * data storage using the application's custom popup system.
  *
  * **Disable Process:**
- * 1. Show confirmation dialog with warning about security implications
- * 2. Verify current encryption password if available
+ * 1. Verify current encryption password using custom password dialog
+ * 2. Show confirmation dialog with security warnings using custom UI
  * 3. Decrypt all encrypted dreams and goals data
  * 4. Save decrypted data in unencrypted format
- * 5. Clear encryption settings from localStorage
+ * 5. Clear encryption settings from localStorage and session state
  * 6. Update UI to reflect disabled encryption state
  *
  * **Safety Features:**
- * - Requires explicit user confirmation
+ * - Requires current password verification before proceeding
+ * - Uses custom popup system (no browser confirm() dialogs)
  * - Preserves all data during the transition
  * - Provides clear warnings about security implications
  * - Allows cancellation at any point in the process
@@ -727,75 +729,126 @@ async function setupEncryption(password) {
  * @throws {Error} When password verification fails or decryption encounters errors
  * @since 2.03.01
  * @example
- * // Disable encryption after user confirmation
+ * // Disable encryption after user password verification and confirmation
  * await disableEncryption();
- * // Shows confirmation, decrypts data, updates settings
+ * // Shows password verification, confirmation dialog, decrypts data, updates settings
  */
 async function disableEncryption() {
-    // Show confirmation dialog
-    const confirmed = confirm(
-        'Are you sure you want to disable encryption?\n\n' +
-        'This will decrypt all your data and store it unencrypted. ' +
-        'Your data will no longer be protected if someone gains access to your device.\n\n' +
-        'Click OK to continue or Cancel to keep encryption enabled.'
-    );
-
-    if (!confirmed) {
-        return;
-    }
-
     try {
         // Import required functions
-        const { saveEncryptionSettings, getEncryptionPassword, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
-        const { initializeApplicationData } = await import('./main.js');
+        const { showPasswordDialog, testEncryptionPassword } = await import('./security.js');
 
-        const password = getEncryptionPassword();
+        // Step 1: Verify current encryption password
+        const passwordConfig = {
+            title: 'Verify Encryption Password',
+            description: 'Enter your current encryption password to disable encryption and decrypt your data.',
+            requireConfirm: false,
+            primaryButtonText: 'Verify Password'
+        };
+
+        const password = await showPasswordDialog(passwordConfig);
+
         if (!password) {
-            createInlineMessage('error', 'No encryption password available. Cannot decrypt data.');
+            // User cancelled password entry
             return;
         }
 
-        // Decrypt all encrypted dreams
-        const dreams = await loadDreamsRaw();
-        let decryptedCount = 0;
-        for (const dream of dreams) {
-            if (isEncryptedItem(dream)) {
-                const decrypted = await decryptItemFromStorage(dream, password);
-                await saveItemToStore('dreams', decrypted);
-                decryptedCount++;
-            }
+        // Test the password to ensure it's correct
+        const passwordTest = await testEncryptionPassword(password);
+        if (!passwordTest.valid) {
+            createInlineMessage('error', 'Incorrect password. Cannot disable encryption without valid password.');
+            return;
         }
 
-        // Decrypt all encrypted goals
-        const goals = await loadGoalsRaw();
-        for (const goal of goals) {
-            if (isEncryptedItem(goal)) {
-                const decrypted = await decryptItemFromStorage(goal, password);
-                await saveItemToStore('goals', decrypted);
-            }
+        // Step 2: Show confirmation dialog using custom system
+        const confirmConfig = {
+            title: 'Disable Data Encryption?',
+            description: 'This will decrypt all your data and store it unencrypted.\n\n' +
+                        '⚠️ Your dreams and goals will no longer be protected if someone gains access to your device.\n\n' +
+                        'Are you sure you want to continue?',
+            requireConfirm: false,
+            primaryButtonText: 'Yes, Disable Encryption',
+            cancelButtonText: 'Keep Encryption Enabled'
+        };
+
+        const confirmPassword = await showPasswordDialog(confirmConfig);
+
+        if (!confirmPassword) {
+            // User cancelled confirmation
+            createInlineMessage('info', 'Encryption remains enabled.');
+            return;
         }
 
-        // Disable encryption settings
-        saveEncryptionSettings(false);
-        setEncryptionPassword(null);
-
-        // Clear cache and reload data
-        clearDecryptedDataCache();
-        await initializeApplicationData();
-
-        // Update settings UI
-        const settingsTab = document.getElementById('settingsTab');
-        if (settingsTab && !settingsTab.hidden) {
-            renderSettingsTab(settingsTab);
-        }
-
-        createInlineMessage('success', `Encryption disabled successfully! ${decryptedCount > 0 ? `${decryptedCount} dreams decrypted.` : 'All data is now unencrypted.'}`);
+        // Step 3: Proceed with decryption
+        await performEncryptionDisabling(password);
 
     } catch (error) {
         console.error('Error disabling encryption:', error);
         createInlineMessage('error', 'Failed to disable encryption. Please try again.');
     }
+}
+
+/**
+ * Performs the actual encryption disabling operations including data decryption.
+ *
+ * This helper function handles the core decryption operations after password
+ * verification and user confirmation have been completed. It decrypts all
+ * encrypted data, updates settings, and refreshes the UI.
+ *
+ * @async
+ * @function
+ * @param {string} password - Verified encryption password for decryption
+ * @returns {Promise<void>} Resolves when decryption operations complete
+ * @throws {Error} When decryption or settings update operations fail
+ * @since 2.03.01
+ * @private
+ */
+async function performEncryptionDisabling(password) {
+    // Import required functions
+    const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+    const { saveEncryptionSettings } = await import('./security.js');
+    const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
+    const { initializeApplicationData } = await import('./main.js');
+
+    // Decrypt all encrypted dreams
+    const dreams = await loadDreamsRaw();
+    let decryptedCount = 0;
+    for (const dream of dreams) {
+        if (isEncryptedItem(dream)) {
+            const decrypted = await decryptItemFromStorage(dream, password);
+            await saveItemToStore('dreams', decrypted);
+            decryptedCount++;
+        }
+    }
+
+    // Decrypt all encrypted goals
+    const goals = await loadGoalsRaw();
+    let goalsDecryptedCount = 0;
+    for (const goal of goals) {
+        if (isEncryptedItem(goal)) {
+            const decrypted = await decryptItemFromStorage(goal, password);
+            await saveItemToStore('goals', decrypted);
+            goalsDecryptedCount++;
+        }
+    }
+
+    // Disable encryption settings
+    await saveEncryptionSettings(false);
+    setEncryptionEnabled(false);
+    setEncryptionPassword(null);
+
+    // Clear cache and reload data
+    clearDecryptedDataCache();
+    await initializeApplicationData();
+
+    // Update settings UI
+    const settingsTab = document.getElementById('settingsTab');
+    if (settingsTab && !settingsTab.hidden) {
+        renderSettingsTab(settingsTab);
+    }
+
+    const totalDecrypted = decryptedCount + goalsDecryptedCount;
+    createInlineMessage('success', `Encryption disabled successfully! ${totalDecrypted > 0 ? `${decryptedCount} dreams and ${goalsDecryptedCount} goals decrypted.` : 'All data is now unencrypted.'}`);
 }
 
 /**
