@@ -684,6 +684,7 @@ async function setupEncryption(password) {
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
+            initializeSettingsTab();
         }
 
         const totalEncrypted = encryptedCount + goalsEncryptedCount;
@@ -963,6 +964,7 @@ async function performEncryptionDisabling(password) {
     const settingsTab = document.getElementById('settingsTab');
     if (settingsTab && !settingsTab.hidden) {
         renderSettingsTab(settingsTab);
+        initializeSettingsTab();
     }
 
     const totalDecrypted = decryptedCount + goalsDecryptedCount;
@@ -1035,6 +1037,7 @@ async function changeEncryptionPassword() {
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
+            initializeSettingsTab();
         }
 
         createInlineMessage('success', `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
