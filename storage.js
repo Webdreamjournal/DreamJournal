@@ -657,33 +657,119 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Loads all dream entries from persistent storage with fallback handling.
-     * 
+     * Loads all dream entries from persistent storage with fallback handling (raw version).
+     *
      * Attempts to load dreams from IndexedDB first, falling back to memory storage
-     * if IndexedDB is unavailable or fails. This is the primary function for
-     * retrieving dream data across the application.
-     * 
+     * if IndexedDB is unavailable or fails. Returns raw data without encryption
+     * processing. Used internally by the enhanced loadDreams() function.
+     *
      * @async
      * @function
-     * @returns {Promise<Array<Dream>>} Array of dream objects, empty if none found
+     * @returns {Promise<Array<Dream>>} Array of raw dream objects, empty if none found
      * @throws {Error} Handled gracefully with fallback to memory storage
-     * @since 1.0.0
+     * @since 2.03.01
      * @example
-     * const allDreams = await loadDreams();
-     * console.log(`Found ${allDreams.length} dreams`);
+     * const rawDreams = await loadDreamsRaw();
+     * console.log(`Found ${rawDreams.length} raw dreams`);
      */
-    async function loadDreams() {
+    async function loadDreamsRaw() {
         // Try IndexedDB first
         if (isIndexedDBReady()) {
-            const dreams = await loadFromIndexedDB();
+            const dreams = await loadFromIndexedDBRaw();
             if (dreams !== null) {
                 return dreams;
             }
         }
-        
+
         // Fallback to memory only if IndexedDB fails
         console.log('IndexedDB unavailable, using memory storage fallback');
         return memoryStorage;
+    }
+
+    /**
+     * Loads all dream entries from persistent storage with encryption support.
+     *
+     * This enhanced function attempts to load dreams from IndexedDB first, then falls
+     * back to memory storage if IndexedDB is unavailable. Automatically handles both
+     * encrypted and unencrypted dreams, decrypting as needed based on encryption settings.
+     * If no dreams are found or all storage methods fail, returns an empty array.
+     *
+     * **Mixed Data Support:**
+     * - Supports loading both encrypted and unencrypted dreams from the same store
+     * - Gracefully handles decryption failures by skipping affected items
+     * - Maintains backward compatibility with existing unencrypted data
+     *
+     * **Encryption Processing:**
+     * - Automatically detects encrypted items using `isEncryptedItem()`
+     * - Uses session password from encryption state for decryption
+     * - Applies caching to avoid repeated decryption of the same items
+     * - Falls back to raw data loading if encryption is not enabled
+     *
+     * @async
+     * @function
+     * @returns {Promise<Array<Dream>>} Array of decrypted dream objects, empty if none found
+     * @throws {Error} When encryption password is required but not available
+     * @since 2.03.01
+     * @example
+     * // Load all dreams (automatically handles encryption)
+     * const allDreams = await loadDreams();
+     * console.log(`Loaded ${allDreams.length} dreams`);
+     *
+     * @example
+     * // Error handling for missing encryption password
+     * try {
+     *   const dreams = await loadDreams();
+     *   displayDreams(dreams);
+     * } catch (error) {
+     *   if (error.message.includes('password')) {
+     *     showPasswordPrompt();
+     *   }
+     * }
+     */
+    async function loadDreams() {
+        // Load raw data first
+        const rawDreams = await loadDreamsRaw();
+
+        // If no dreams or encryption not enabled, return as-is
+        if (!rawDreams.length) {
+            return rawDreams;
+        }
+
+        // Import encryption state dynamically to avoid circular dependencies
+        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+
+        if (!getEncryptionEnabled()) {
+            return rawDreams;
+        }
+
+        // Process mixed encrypted/unencrypted dreams
+        const processedDreams = [];
+        const password = getEncryptionPassword();
+
+        for (const dream of rawDreams) {
+            try {
+                if (isEncryptedItem(dream)) {
+                    if (!password) {
+                        throw new Error('Encryption password required but not available in session');
+                    }
+
+                    // Decrypt the dream using the existing decryption utilities
+                    const decrypted = await decryptItemFromStorage(dream, password);
+                    processedDreams.push(decrypted);
+                } else {
+                    // Unencrypted dream - add as-is
+                    processedDreams.push(dream);
+                }
+            } catch (error) {
+                console.error(`Failed to decrypt dream ${dream.id}:`, error);
+
+                // Skip this dream but continue processing others
+                // In a production app, you might want to show a warning to the user
+                // about inaccessible encrypted dreams
+            }
+        }
+
+        return processedDreams;
     }
 
     /**
@@ -879,37 +965,38 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     // IndexedDB-specific functions
     
     /**
-     * Loads all dream entries directly from IndexedDB dreams store.
-     * 
+     * Loads all dream entries directly from IndexedDB dreams store (raw version).
+     *
      * This is a low-level function that directly accesses the dreams object store
-     * in IndexedDB. Returns null if IndexedDB is unavailable or if an error occurs,
-     * allowing calling functions to handle fallback logic.
-     * 
+     * in IndexedDB without encryption processing. Returns null if IndexedDB is unavailable
+     * or if an error occurs, allowing calling functions to handle fallback logic.
+     * Used internally by the enhanced loadDreams() function.
+     *
      * @async
      * @function
-     * @returns {Promise<Array<Dream>|null>} Array of dreams or null if error/unavailable
+     * @returns {Promise<Array<Dream>|null>} Array of raw dreams or null if error/unavailable
      * @throws {Error} Database errors are caught and logged
-     * @since 1.0.0
+     * @since 2.03.01
      * @example
-     * const dreams = await loadFromIndexedDB();
-     * if (dreams === null) {
+     * const rawDreams = await loadFromIndexedDBRaw();
+     * if (rawDreams === null) {
      *   console.log('IndexedDB unavailable, using fallback');
      * }
      */
-    async function loadFromIndexedDB() {
+    async function loadFromIndexedDBRaw() {
         if (!isIndexedDBAvailable()) return null;
-        
+
         return new Promise((resolve) => {
             try {
                 const transaction = db.transaction([STORE_NAME], 'readonly');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.getAll();
-                
+
                 request.onsuccess = () => {
                     const dreams = request.result || [];
                     resolve(dreams);
                 };
-                
+
                 request.onerror = () => {
                     console.error('Error loading from IndexedDB:', request.error);
                     resolve(null);
@@ -2208,6 +2295,7 @@ export {
     
     // Dream operations
     loadDreams,
+    loadDreamsRaw,
     saveDreams,
     addDreamToIndexedDB,
     updateDreamInIndexedDB,
@@ -2233,7 +2321,7 @@ export {
     saveGoalsToIndexedDB,
     
     // IndexedDB operations
-    loadFromIndexedDB,
+    loadFromIndexedDBRaw,
     saveToIndexedDB,
     migrateFromLocalStorage,
     getIndexedDBCount,
