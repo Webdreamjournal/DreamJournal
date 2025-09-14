@@ -745,8 +745,8 @@ async function displayGoals() {
         .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt)); // Sort newest first
     
     // Reset pagination if current page would be empty
-    await adjustPaginationAfterStatusChange(allGoals, 'both');
-    const paginationInfo = calculateGoalsPaginationInfo(allGoals);
+    await adjustPaginationAfterStatusChange(currentGoals, 'both');
+    const paginationInfo = calculateGoalsPaginationInfo(currentGoals);
     
     // Show/hide no goals messages
     noGoalsMessage.style.display = activeGoals.length === 0 ? 'block' : 'none';
