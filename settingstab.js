@@ -741,20 +741,17 @@ async function disableEncryption() {
             return;
         }
 
-        // Step 2: Show confirmation dialog using custom system
-        const confirmConfig = {
+        // Step 2: Show confirmation dialog (no password required, just confirmation)
+        const confirmed = await showConfirmationDialog({
             title: 'Disable Data Encryption?',
             description: 'This will decrypt all your data and store it unencrypted.\n\n' +
                         '⚠️ Your dreams and goals will no longer be protected if someone gains access to your device.\n\n' +
                         'Are you sure you want to continue?',
-            requireConfirm: false,
             primaryButtonText: 'Yes, Disable Encryption',
             cancelButtonText: 'Keep Encryption Enabled'
-        };
+        });
 
-        const confirmPassword = await showPasswordDialog(confirmConfig);
-
-        if (!confirmPassword) {
+        if (!confirmed) {
             // User cancelled confirmation
             createInlineMessage('info', 'Encryption remains enabled.');
             return;
@@ -767,6 +764,86 @@ async function disableEncryption() {
         console.error('Error disabling encryption:', error);
         createInlineMessage('error', 'Failed to disable encryption. Please try again.');
     }
+}
+
+/**
+ * Shows a confirmation dialog without password input fields.
+ *
+ * This function creates a simple yes/no confirmation dialog using the same
+ * styling as password dialogs but without any input fields. Useful for
+ * final confirmations after password verification is already complete.
+ *
+ * @async
+ * @function
+ * @param {Object} config - Dialog configuration object
+ * @param {string} config.title - Dialog title text
+ * @param {string} config.description - Dialog description/warning text
+ * @param {string} config.primaryButtonText - Primary action button text
+ * @param {string} config.cancelButtonText - Cancel button text
+ * @returns {Promise<boolean>} True if confirmed, false if cancelled
+ * @since 2.03.01
+ * @private
+ */
+async function showConfirmationDialog(config) {
+    return new Promise((resolve) => {
+        // Remove any existing confirmation dialog
+        const existingOverlay = document.querySelector('.pin-overlay[data-dialog="confirmation"]');
+        if (existingOverlay) existingOverlay.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'pin-overlay';
+        overlay.style.display = 'flex';
+        overlay.setAttribute('data-dialog', 'confirmation');
+
+        overlay.innerHTML = `
+            <div class="pin-container">
+                <h2>⚠️ ${config.title}</h2>
+                <p style="white-space: pre-line; line-height: 1.5; margin-bottom: 20px;">${config.description}</p>
+                <div class="pin-buttons">
+                    <button class="btn btn-primary" id="confirmBtn">${config.primaryButtonText}</button>
+                    <button class="btn btn-secondary" id="cancelBtn">${config.cancelButtonText || 'Cancel'}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // Focus the cancel button (safer default)
+        cancelBtn.focus();
+
+        function cleanup() {
+            document.body.removeChild(overlay);
+        }
+
+        confirmBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(true);
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            cleanup();
+            resolve(false);
+        });
+
+        // Handle Escape key
+        overlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                cleanup();
+                resolve(false);
+            }
+        });
+
+        // Handle Enter key (confirm action)
+        overlay.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                cleanup();
+                resolve(true);
+            }
+        });
+    });
 }
 
 /**
