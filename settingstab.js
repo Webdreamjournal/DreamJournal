@@ -578,39 +578,39 @@ async function enableEncryption() {
  * // User enters password, validation occurs, encryption setup proceeds
  */
 async function showEncryptionSetupDialog() {
-    // Import the password dialog function from security.js
-    const { showPasswordDialog } = await import('./security.js');
+    try {
+        // Import the password dialog function from security.js
+        const { showPasswordDialog, validateEncryptionPassword } = await import('./security.js');
 
-    const config = {
-        title: 'Set Up Data Encryption',
-        description: 'Create a strong password to encrypt your dreams and goals data.',
-        requireConfirm: true,
-        primaryButtonText: 'Enable Encryption'
-    };
+        const config = {
+            title: 'Set Up Data Encryption',
+            description: 'Create a strong password to encrypt your dreams and goals data.',
+            requireConfirm: true,
+            primaryButtonText: 'Enable Encryption'
+        };
 
-    showPasswordDialog(config, async (password, confirmPassword) => {
-        if (password !== confirmPassword) {
-            createInlineMessage('error', 'Passwords do not match');
-            return false;
+        // showPasswordDialog returns a Promise with the password or null if cancelled
+        const password = await showPasswordDialog(config);
+
+        if (!password) {
+            // User cancelled the dialog
+            return;
         }
 
-        // Import validation function
-        const { validateEncryptionPassword } = await import('./security.js');
+        // Validate password meets security requirements
         const validation = validateEncryptionPassword(password);
         if (!validation.valid) {
             createInlineMessage('error', validation.error);
-            return false;
+            return;
         }
 
-        try {
-            await setupEncryption(password);
-            return true;
-        } catch (error) {
-            console.error('Encryption setup error:', error);
-            createInlineMessage('error', 'Failed to set up encryption');
-            return false;
-        }
-    });
+        // Set up encryption with the validated password
+        await setupEncryption(password);
+
+    } catch (error) {
+        console.error('Encryption setup dialog error:', error);
+        createInlineMessage('error', 'Failed to set up encryption dialog');
+    }
 }
 
 /**
@@ -649,12 +649,14 @@ async function showEncryptionSetupDialog() {
 async function setupEncryption(password) {
     try {
         // Import required functions
-        const { saveEncryptionSettings, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { setEncryptionPassword, clearDecryptedDataCache, setEncryptionEnabled } = await import('./state.js');
+        const { saveEncryptionSettings } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
         // Enable encryption setting
-        saveEncryptionSettings(true);
+        await saveEncryptionSettings(true);
+        setEncryptionEnabled(true);
         setEncryptionPassword(password);
 
         // Encrypt existing dreams
