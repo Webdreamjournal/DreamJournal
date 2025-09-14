@@ -197,7 +197,7 @@ function renderSettingsTab(tabPanel) {
             ` : ''}
 
             <div class="security-notice">
-                <div class="settings-description" style="margin-top: 15px; padding: 10px; background: var(--warning-color-light, #fff3cd); border-radius: 4px; border-left: 4px solid var(--warning-color, #ffc107);">
+                <div class="settings-description" style="margin-top: 15px; padding: 10px; background: var(--warning-color-light, #333102ff); border-radius: 4px; border-left: 4px solid var(--warning-color, #5c4b1aff);">
                     <strong>⚠️ Important:</strong> If you forget your encryption password,
                     your data cannot be recovered. Consider exporting backups regularly.
                 </div>
