@@ -1001,64 +1001,47 @@ async function performEncryptionDisabling(password) {
  */
 async function changeEncryptionPassword() {
     try {
-        // Import required dialog function
-        const { showPasswordDialog } = await import('./security.js');
+        // Import required functions
+        const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword } = await import('./security.js');
 
-        // First, verify current password
-        const currentPasswordConfig = {
-            title: 'Verify Current Password',
-            description: 'Enter your current encryption password to change it.',
-            requireConfirm: false,
-            primaryButtonText: 'Verify'
+        // Step 1: Verify current password with retry logic
+        const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword);
+
+        if (!currentPassword) {
+            // User cancelled or failed verification
+            return;
+        }
+
+        // Step 2: Get new password
+        const newPasswordConfig = {
+            title: 'Set New Encryption Password',
+            description: 'Enter your new encryption password.',
+            requireConfirm: true,
+            primaryButtonText: 'Change Password',
+            validate: validateEncryptionPassword  // Validate new password inside dialog
         };
 
-        showPasswordDialog(currentPasswordConfig, async (currentPassword) => {
-            // Verify current password
-            const { testEncryptionPassword } = await import('./security.js');
-            const testResult = await testEncryptionPassword(currentPassword);
+        const newPassword = await showPasswordDialog(newPasswordConfig);
 
-            if (!testResult.valid) {
-                createInlineMessage('error', 'Current password is incorrect');
-                return false;
-            }
+        if (!newPassword) {
+            // User cancelled new password entry
+            return;
+        }
 
-            // Show new password setup dialog
-            const newPasswordConfig = {
-                title: 'Set New Encryption Password',
-                description: 'Enter your new encryption password.',
-                requireConfirm: true,
-                primaryButtonText: 'Change Password'
-            };
+        // Step 3: Re-encrypt all data with new password
+        const reEncryptedCount = await reEncryptAllData(currentPassword, newPassword);
 
-            showPasswordDialog(newPasswordConfig, async (newPassword, confirmPassword) => {
-                if (newPassword !== confirmPassword) {
-                    createInlineMessage('error', 'New passwords do not match');
-                    return false;
-                }
+        // Step 4: Update settings UI
+        const settingsTab = document.getElementById('settingsTab');
+        if (settingsTab && !settingsTab.hidden) {
+            renderSettingsTab(settingsTab);
+        }
 
-                const { validateEncryptionPassword } = await import('./security.js');
-                const validation = validateEncryptionPassword(newPassword);
-                if (!validation.valid) {
-                    createInlineMessage('error', validation.error);
-                    return false;
-                }
-
-                try {
-                    await reEncryptAllData(currentPassword, newPassword);
-                    return true;
-                } catch (error) {
-                    console.error('Password change error:', error);
-                    createInlineMessage('error', 'Failed to change password. Please try again.');
-                    return false;
-                }
-            });
-
-            return true;
-        });
+        createInlineMessage('success', `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
 
     } catch (error) {
         console.error('Error changing encryption password:', error);
-        createInlineMessage('error', 'Failed to change encryption password.');
+        createInlineMessage('error', 'Failed to change encryption password. Please try again.');
     }
 }
 
@@ -1137,7 +1120,8 @@ async function reEncryptAllData(oldPassword, newPassword) {
         // Clear cache to force reload with new password
         clearDecryptedDataCache();
 
-        createInlineMessage('success', `Password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
+        // Return count for success message in calling function
+        return reEncryptedCount;
 
     } catch (error) {
         console.error('Error re-encrypting data:', error);
