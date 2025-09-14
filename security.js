@@ -341,43 +341,42 @@ async function decryptData(encryptedData, password) {
  */
 function showPasswordDialog(config) {
         return new Promise((resolve) => {
+            // Remove any existing password dialog
+            const existingOverlay = document.querySelector('.pin-overlay[data-dialog="password"]');
+            if (existingOverlay) existingOverlay.remove();
+
             const overlay = document.createElement('div');
-            overlay.className = 'overlay';
+            overlay.className = 'pin-overlay';
             overlay.style.display = 'flex';
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <h2>${config.title}</h2>
-                    <p class="mb-md">${config.description}</p>
-                    
-                    <div class="form-group">
-                        <input type="password" 
-                               id="passwordInput" 
-                               placeholder="Enter password"
-                               class="form-control mb-sm"
-                               style="width: 100%">
-                    </div>
-                    
-                    ${config.requireConfirm ? `
-                    <div class="form-group">
-                        <input type="password" 
-                               id="confirmPasswordInput" 
-                               placeholder="Confirm password"
-                               class="form-control mb-md"
-                               style="width: 100%">
-                    </div>
-                    ` : '<div class="mb-md"></div>'}
-                    
-                    <div class="button-group">
+            overlay.setAttribute('data-dialog', 'password');
+
+            const confirmInputHTML = config.requireConfirm ? `
+                <input type="password"
+                       id="confirmPasswordInput"
+                       class="pin-input"
+                       placeholder="Confirm password"
+                       maxlength="50"
+                       style="margin-top: 10px;">
+            ` : '';
+
+            overlay.innerHTML = `
+                <div class="pin-container">
+                    <h2>🔒 ${config.title}</h2>
+                    <p>${config.description}</p>
+                    <input type="password"
+                           id="passwordInput"
+                           class="pin-input"
+                           placeholder="Enter password"
+                           maxlength="50">
+                    ${confirmInputHTML}
+                    <div class="pin-buttons">
                         <button class="btn btn-primary" id="confirmPasswordBtn">${config.primaryButtonText}</button>
                         <button class="btn btn-secondary" id="cancelPasswordBtn">Cancel</button>
                     </div>
+                    <div id="passwordError" class="notification-message error"></div>
                 </div>
             `;
-            
-            overlay.appendChild(modal);
+
             document.body.appendChild(overlay);
             
             const passwordInput = document.getElementById('passwordInput');
@@ -411,13 +410,17 @@ function showPasswordDialog(config) {
                 }
                 
                 if (config.requireConfirm && password !== confirmPassword) {
-                    // Create inline error message instead of alert
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'text-error text-sm mb-sm';
-                    errorDiv.textContent = 'Passwords do not match';
-                    confirmInput.parentNode.insertBefore(errorDiv, confirmInput.nextSibling);
+                    // Show error in the dedicated error div
+                    const errorDiv = document.getElementById('passwordError');
+                    if (errorDiv) {
+                        errorDiv.textContent = 'Passwords do not match';
+                        errorDiv.style.display = 'block';
+                        setTimeout(() => {
+                            errorDiv.style.display = 'none';
+                            errorDiv.textContent = '';
+                        }, 3000);
+                    }
                     confirmInput.focus();
-                    setTimeout(() => errorDiv.remove(), 3000);
                     return;
                 }
                 
