@@ -143,12 +143,65 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     // TAG & DREAM SIGN MANAGEMENT FUNCTIONS
 
     /**
-     * Loads a single item from a specified IndexedDB object store by ID.
-     * 
-     * This is a generic function that can retrieve any single item from any
-     * object store by its primary key. Returns null if the item is not found,
-     * the store doesn't exist, or IndexedDB is unavailable.
-     * 
+     * Loads a single item from a specified IndexedDB object store by ID with encryption support.
+     *
+     * This enhanced function retrieves items from IndexedDB and automatically handles
+     * decryption if the item is encrypted. Falls back to raw loading if decryption fails
+     * or if encryption is not enabled. Supports both encrypted and unencrypted items.
+     *
+     * @async
+     * @function
+     * @param {string} storeName - Name of the IndexedDB object store
+     * @param {string|number} id - Primary key of the item to retrieve
+     * @returns {Promise<Object|null>} Retrieved item (decrypted if necessary) or null if not found
+     * @throws {Error} When IndexedDB transaction fails or decryption fails
+     * @since 2.03.01
+     * @example
+     * const dream = await loadItemFromStore('dreams', 'dream-123');
+     * const goal = await loadItemFromStore('goals', 'goal-456');
+     */
+    async function loadItemFromStore(storeName, id) {
+        const rawItem = await loadItemFromStoreRaw(storeName, id);
+        if (!rawItem) return null;
+
+        // Handle encrypted items
+        if (isEncryptedItem(rawItem)) {
+            // Import encryption state from state.js
+            const { getEncryptionPassword, getDecryptedDataCache } = await import('./state.js');
+            const password = getEncryptionPassword();
+
+            if (!password) {
+                throw new Error('Encryption password required but not available');
+            }
+
+            // Check cache first to avoid repeated decryption
+            const cacheKey = `${storeName}:${id}`;
+            const cache = getDecryptedDataCache();
+            if (cache.has(cacheKey)) {
+                return cache.get(cacheKey);
+            }
+
+            // Decrypt and cache the result
+            try {
+                const decryptedItem = await decryptItemFromStorage(rawItem, password);
+                cache.set(cacheKey, decryptedItem);
+                return decryptedItem;
+            } catch (error) {
+                console.error(`Failed to decrypt item ${id} from store ${storeName}:`, error);
+                throw error;
+            }
+        }
+
+        return rawItem; // Unencrypted item
+    }
+
+    /**
+     * Loads a single item from a specified IndexedDB object store by ID (raw version).
+     *
+     * This is the original generic function that retrieves items without encryption
+     * handling. Used internally by the enhanced loadItemFromStore function and available
+     * for cases where raw access is needed.
+     *
      * @async
      * @function
      * @param {string} storeName - Name of the IndexedDB object store
@@ -157,10 +210,9 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * @throws {Error} When IndexedDB transaction fails
      * @since 1.0.0
      * @example
-     * const dream = await loadItemFromStore('dreams', 'dream-123');
-     * const goal = await loadItemFromStore('goals', 'goal-456');
+     * const rawDream = await loadItemFromStoreRaw('dreams', 'dream-123');
      */
-    async function loadItemFromStore(storeName, id) {
+    async function loadItemFromStoreRaw(storeName, id) {
         if (!isIndexedDBAvailable()) return null;
 
         return new Promise((resolve) => {
@@ -1998,6 +2050,134 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
 // ===================================================================================
+// ENCRYPTION UTILITIES
+// ===================================================================================
+
+/**
+ * Determines if an item should be encrypted based on store name and settings.
+ *
+ * Evaluates whether items in a particular IndexedDB store should be encrypted
+ * based on the global encryption settings and store-specific encryption policies.
+ * Voice notes are excluded from encryption due to binary data complexity.
+ *
+ * @async
+ * @function
+ * @param {string} storeName - IndexedDB store name to evaluate
+ * @returns {Promise<boolean>} True if items in this store should be encrypted
+ * @since 2.03.01
+ * @example
+ * const shouldEncrypt = await shouldEncryptStore('dreams');
+ * if (shouldEncrypt) {
+ *   // Apply encryption before storage
+ * }
+ */
+async function shouldEncryptStore(storeName) {
+    // Import encryption state from state.js
+    const { getEncryptionEnabled } = await import('./state.js');
+
+    if (!getEncryptionEnabled()) return false;
+
+    // Voice notes are never encrypted (binary data complexity)
+    if (storeName === VOICE_STORE_NAME) return false;
+
+    // Encrypt dreams and goals stores
+    return ['dreams', 'goals'].includes(storeName);
+}
+
+/**
+ * Checks if a data item is in encrypted format.
+ *
+ * Examines a data item to determine if it has been encrypted by checking
+ * for the presence of encryption wrapper properties. Encrypted items have
+ * a specific structure with encrypted flag and Uint8Array data.
+ *
+ * @function
+ * @param {any} item - Data item to check for encryption
+ * @returns {boolean} True if item is encrypted
+ * @since 2.03.01
+ * @example
+ * const item = await loadItemFromStore('dreams', 'dream-123');
+ * if (isEncryptedItem(item)) {
+ *   // Item needs decryption
+ * }
+ */
+function isEncryptedItem(item) {
+    return item &&
+           typeof item === 'object' &&
+           item.encrypted === true &&
+           item.data instanceof Uint8Array;
+}
+
+/**
+ * Encrypts a data item for storage in IndexedDB.
+ *
+ * Takes a plain data item and encrypts it using the provided password.
+ * The original item is JSON-stringified before encryption, and the result
+ * is wrapped in a standardized encrypted item structure with metadata.
+ *
+ * @async
+ * @function
+ * @param {any} item - Original data item to encrypt
+ * @param {string} password - Encryption password to use
+ * @returns {Promise<Object>} Encrypted item wrapper with metadata
+ * @throws {Error} When encryption process fails
+ * @since 2.03.01
+ * @example
+ * const plainDream = { id: '123', title: 'My Dream', content: 'I dreamed...' };
+ * const encrypted = await encryptItemForStorage(plainDream, 'mypassword');
+ * // Returns: { id: '123', encrypted: true, data: Uint8Array(...), created: '...', modified: '...' }
+ */
+async function encryptItemForStorage(item, password) {
+    // Import encryption functions from security.js
+    const { encryptData } = await import('./security.js');
+
+    const plaintext = JSON.stringify(item);
+    const encryptedData = await encryptData(plaintext, password);
+
+    return {
+        id: item.id,
+        encrypted: true,
+        data: encryptedData,
+        created: item.created || new Date().toISOString(),
+        modified: new Date().toISOString()
+    };
+}
+
+/**
+ * Decrypts a data item from storage.
+ *
+ * Takes an encrypted item wrapper and decrypts it using the provided password.
+ * The decrypted data is JSON-parsed to restore the original object structure,
+ * and original timestamps are preserved from the wrapper metadata.
+ *
+ * @async
+ * @function
+ * @param {Object} encryptedItem - Encrypted item wrapper from storage
+ * @param {string} password - Decryption password to use
+ * @returns {Promise<any>} Original data item after decryption
+ * @throws {Error} When decryption fails or password is incorrect
+ * @since 2.03.01
+ * @example
+ * const encryptedItem = await loadItemFromStoreRaw('dreams', 'dream-123');
+ * if (isEncryptedItem(encryptedItem)) {
+ *   const plainDream = await decryptItemFromStorage(encryptedItem, 'mypassword');
+ * }
+ */
+async function decryptItemFromStorage(encryptedItem, password) {
+    // Import decryption functions from security.js
+    const { decryptData } = await import('./security.js');
+
+    const decryptedText = await decryptData(encryptedItem.data, password);
+    const item = JSON.parse(decryptedText);
+
+    // Restore original timestamps from wrapper metadata
+    if (encryptedItem.created) item.created = encryptedItem.created;
+    if (encryptedItem.modified) item.modified = encryptedItem.modified;
+
+    return item;
+}
+
+// ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
 
@@ -2015,9 +2195,16 @@ export {
     
     // Generic storage operations
     loadItemFromStore,
+    loadItemFromStoreRaw,
     loadFromStore,
     saveItemToStore,
     saveToStore,
+
+    // Encryption utilities
+    shouldEncryptStore,
+    isEncryptedItem,
+    encryptItemForStorage,
+    decryptItemFromStorage,
     
     // Dream operations
     loadDreams,
