@@ -461,6 +461,10 @@ const ACTION_MAP = {
         'return-to-lock-screen': () => returnToLockScreen(),                // Return to main lock screen
         'verify-lock-screen-dream-titles': () => verifyLockScreenDreamTitles(), // Verify dream titles on lock screen
         'confirm-lock-screen-timer': () => confirmLockScreenTimer(),        // Confirm timer on lock screen
+        'show-forgot-encryption-password': () => showForgotEncryptionPassword(), // Show forgot encryption password options
+        'wipe-all-data': () => wipeAllData(),                               // Emergency data wipe for forgotten passwords
+        'confirm-data-wipe': () => confirmDataWipe(),                       // Confirm and execute complete data wipe
+        'switch-to-pin-entry': () => switchToPinEntry(),                    // Switch from password to PIN authentication
         
         // ================================
         // AUTOCOMPLETE MANAGEMENT SYSTEM

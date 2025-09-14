@@ -1512,7 +1512,7 @@ async function verifyLockScreenPin() {
      * returnToLockScreen();
      * // Shows main PIN entry interface with timer info if applicable
      */
-    function returnToLockScreen() {
+    async function returnToLockScreen() {
         const lockTab = document.getElementById('lockTab');
         if (!lockTab) {
             // Fallback in case tab doesn't exist, though it should
@@ -1520,57 +1520,367 @@ async function verifyLockScreenPin() {
             return;
         }
 
-        // Check if there's an active timer to show instructional text
-        const resetTime = getResetTime();
-        let timerInstructions = '';
+        // Render the appropriate authentication screen based on requirements
+        await renderUnifiedAuthenticationScreen(lockTab);
 
-        if (resetTime) {
-            const remainingTime = resetTime - Date.now();
-            if (remainingTime > 0) {
-                const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
-                const days = Math.ceil(hours / 24);
+        // Ensure the tab is active
+        switchAppTab('lock');
+    }
 
-                let timeDisplay = '';
-                if (days > 1) {
-                    timeDisplay = `${days} days`;
-                } else if (hours > 1) {
-                    timeDisplay = `${hours} hours`;
-                } else {
-                    timeDisplay = 'Less than 1 hour';
-                }
+/**
+ * Renders unified authentication screen supporting both PIN and encryption password.
+ *
+ * This function creates a smart authentication interface that adapts based on the
+ * user's security configuration. It detects whether PIN, encryption, or both are
+ * enabled and renders the appropriate interface with contextual messaging and
+ * recovery options tailored to each authentication method.
+ *
+ * **Authentication Scenarios:**
+ * - PIN only: Shows 6-digit PIN input with dream title/timer recovery
+ * - Encryption only: Shows password input with data wipe recovery option
+ * - Both enabled: Shows password input with PIN fallback and appropriate recovery
+ *
+ * @async
+ * @function
+ * @param {HTMLElement} containerElement - The lock tab element to render into
+ * @returns {Promise<void>} Resolves when rendering is complete
+ * @since 2.03.01
+ * @private
+ */
+async function renderUnifiedAuthenticationScreen(containerElement) {
+    const requirements = await getAuthenticationRequirements();
 
-                timerInstructions = `
-                    <div class="message-base message-info mb-md text-sm">
-                        ⏰ Recovery timer active (${timeDisplay} remaining)<br>
-                        <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
-                    </div>
-                `;
+    // Check for active PIN recovery timer
+    const resetTime = getResetTime();
+    let timerInstructions = '';
+
+    if (resetTime && requirements.pinRequired) {
+        const remainingTime = resetTime - Date.now();
+        if (remainingTime > 0) {
+            const hours = Math.ceil(remainingTime / (1000 * 60 * 60));
+            const days = Math.ceil(hours / 24);
+
+            let timeDisplay = '';
+            if (days > 1) {
+                timeDisplay = `${days} days`;
+            } else if (hours > 1) {
+                timeDisplay = `${hours} hours`;
+            } else {
+                timeDisplay = 'Less than 1 hour';
+            }
+
+            timerInstructions = `
+                <div class="message-base message-info mb-md text-sm">
+                    ⏰ Recovery timer active (${timeDisplay} remaining)<br>
+                    <span class="text-sm font-normal">Press "Forgot PIN?" again when timer expires to unlock</span>
+                </div>
+            `;
+        }
+    }
+
+    // Determine the appropriate interface based on authentication requirements
+    if (requirements.encryptionRequired) {
+        // Encryption password interface (with or without PIN fallback)
+        renderEncryptionAuthenticationScreen(containerElement, requirements, timerInstructions);
+    } else if (requirements.pinRequired) {
+        // PIN-only interface
+        renderPinAuthenticationScreen(containerElement, timerInstructions);
+    } else {
+        // Should not happen, but fallback to PIN interface
+        renderPinAuthenticationScreen(containerElement, timerInstructions);
+    }
+}
+
+/**
+ * Renders encryption password authentication interface.
+ *
+ * @async
+ * @function
+ * @param {HTMLElement} containerElement - Container to render into
+ * @param {Object} requirements - Authentication requirements
+ * @param {string} timerInstructions - Timer instruction HTML
+ * @private
+ */
+function renderEncryptionAuthenticationScreen(containerElement, requirements, timerInstructions) {
+    let title = '🔐 Enter Encryption Password';
+    let description = 'Enter your encryption password to decrypt and access your dream journal data.';
+    let switchToPinOption = '';
+
+    if (requirements.bothEnabled) {
+        title = '🔐 Enter Password or PIN';
+        description = 'Enter your encryption password to decrypt your data, or use your PIN for quicker access.';
+        switchToPinOption = `
+            <button data-action="switch-to-pin-entry" class="btn btn-secondary">Use PIN Instead</button>
+        `;
+    }
+
+    containerElement.innerHTML = `
+        <div class="flex-center" style="min-height: 400px;">
+            <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                <div class="text-4xl mb-lg">🔐</div>
+                <h2 class="text-primary mb-md text-xl">${title}</h2>
+                <p class="text-secondary mb-lg line-height-relaxed">
+                    ${description}
+                </p>
+                ${timerInstructions}
+                <input type="password" id="lockScreenPasswordInput" placeholder="Enter encryption password" maxlength="128" class="input-pin w-full mb-lg">
+                <div class="flex-center gap-sm flex-wrap">
+                    <button data-action="verify-encryption-password" class="btn btn-primary">🔓 Unlock Journal</button>
+                    ${switchToPinOption}
+                    <button data-action="show-forgot-encryption-password" class="btn btn-secondary">Forgot Password?</button>
+                </div>
+                <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
+            </div>
+        </div>
+    `;
+
+    // Focus the password input
+    const passwordInput = document.getElementById('lockScreenPasswordInput');
+    if (passwordInput) {
+        setTimeout(() => passwordInput.focus(), 100);
+    }
+}
+
+/**
+ * Renders PIN authentication interface (legacy interface for PIN-only scenarios).
+ *
+ * @function
+ * @param {HTMLElement} containerElement - Container to render into
+ * @param {string} timerInstructions - Timer instruction HTML
+ * @private
+ */
+function renderPinAuthenticationScreen(containerElement, timerInstructions) {
+    containerElement.innerHTML = `
+        <div class="flex-center" style="min-height: 400px;">
+            <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                <div class="text-4xl mb-lg">🔒</div>
+                <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
+                <p class="text-secondary mb-lg line-height-relaxed">
+                    Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
+                </p>
+                ${timerInstructions}
+                <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
+                <div class="flex-center gap-sm flex-wrap">
+                    <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
+                    <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
+                </div>
+                <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
+            </div>
+        </div>
+    `;
+
+    // Focus the PIN input
+    const pinInput = document.getElementById('lockScreenPinInput');
+    if (pinInput) {
+        setTimeout(() => pinInput.focus(), 100);
+    }
+}
+
+/**
+ * Shows forgot encryption password recovery options.
+ *
+ * Displays recovery options for users who have forgotten their encryption password.
+ * Since encrypted data cannot be recovered without the password, the primary option
+ * is complete data wipe with appropriate warnings and confirmations.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called from lock screen "Forgot Password?" button
+ * showForgotEncryptionPassword();
+ */
+async function showForgotEncryptionPassword() {
+    const lockTab = document.getElementById('lockTab');
+    if (!lockTab) return;
+
+    const lockCard = lockTab.querySelector('.card-elevated') || lockTab;
+
+    lockCard.innerHTML = `
+        <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+            <div class="text-4xl mb-lg">🔐❓</div>
+            <h2 class="text-primary mb-md text-xl">Forgot Encryption Password?</h2>
+            <p class="text-secondary mb-lg line-height-relaxed">
+                <strong style="color: var(--error-color);">⚠️ Important:</strong><br>
+                Encrypted data cannot be recovered without your password. Your only option is to wipe all data and start fresh.
+            </p>
+
+            <div class="message-base message-error mb-lg text-sm">
+                <strong>This will permanently delete:</strong><br>
+                • All encrypted dreams and goals<br>
+                • All app settings and preferences<br>
+                • All voice notes and data<br>
+                <br>
+                <strong>This action cannot be undone!</strong>
+            </div>
+
+            <div class="flex-center gap-sm flex-wrap">
+                <button data-action="wipe-all-data" class="btn btn-error">🗑️ Wipe All Data</button>
+                <button data-action="return-to-lock-screen" class="btn btn-secondary">← Back</button>
+            </div>
+            <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
+        </div>
+    `;
+}
+
+/**
+ * Performs complete data wipe for forgotten encryption password recovery.
+ *
+ * This is a nuclear option that completely wipes all user data when encryption
+ * password is forgotten. Provides multiple confirmation steps to prevent
+ * accidental data loss, then clears all databases and settings.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called after user confirms data wipe
+ * await wipeAllData();
+ */
+async function wipeAllData() {
+    const lockTab = document.getElementById('lockTab');
+    if (!lockTab) return;
+
+    const lockCard = lockTab.querySelector('.card-elevated') || lockTab;
+
+    // Show final confirmation
+    lockCard.innerHTML = `
+        <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+            <div class="text-4xl mb-lg">⚠️</div>
+            <h2 class="text-primary mb-md text-xl">Final Confirmation</h2>
+            <p class="text-secondary mb-lg line-height-relaxed">
+                Type <strong>DELETE EVERYTHING</strong> to confirm complete data wipe:
+            </p>
+
+            <input type="text" id="wipeConfirmationInput" placeholder="Type: DELETE EVERYTHING" class="input-pin w-full mb-lg">
+
+            <div class="flex-center gap-sm flex-wrap">
+                <button data-action="confirm-data-wipe" class="btn btn-error">🗑️ Confirm Wipe</button>
+                <button data-action="show-forgot-encryption-password" class="btn btn-secondary">← Back</button>
+            </div>
+            <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
+        </div>
+    `;
+
+    // Focus the confirmation input
+    const confirmInput = document.getElementById('wipeConfirmationInput');
+    if (confirmInput) {
+        setTimeout(() => confirmInput.focus(), 100);
+    }
+}
+
+/**
+ * Switches from encryption password entry to PIN entry mode.
+ *
+ * For users with both encryption and PIN enabled, this allows switching
+ * to the faster PIN authentication method instead of entering the full
+ * encryption password.
+ *
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called from "Use PIN Instead" button
+ * switchToPinEntry();
+ */
+function switchToPinEntry() {
+    const lockTab = document.getElementById('lockTab');
+    if (!lockTab) return;
+
+    // Re-render with PIN interface
+    renderPinAuthenticationScreen(lockTab, '');
+}
+
+/**
+ * Confirms and executes complete data wipe after user confirmation.
+ *
+ * Validates the confirmation text and performs complete application data wipe
+ * including IndexedDB, localStorage, and session data. This is irreversible
+ * and completely resets the application to fresh install state.
+ *
+ * @async
+ * @function
+ * @since 2.03.01
+ * @example
+ * // Called after user types confirmation text
+ * await confirmDataWipe();
+ */
+async function confirmDataWipe() {
+    const confirmInput = document.getElementById('wipeConfirmationInput');
+    const feedback = document.getElementById('lockScreenFeedback');
+
+    if (!confirmInput || !feedback) return;
+
+    const confirmText = confirmInput.value.trim();
+
+    if (confirmText !== 'DELETE EVERYTHING') {
+        feedback.innerHTML = '<div class="message-base message-error">Please type exactly: DELETE EVERYTHING</div>';
+        confirmInput.focus();
+        return;
+    }
+
+    try {
+        feedback.innerHTML = '<div class="message-base message-info">Wiping all data...</div>';
+
+        // Import required functions
+        const {
+            setEncryptionEnabled,
+            setEncryptionPassword,
+            clearDecryptedDataCache,
+            setUnlocked,
+            setAppLocked
+        } = await import('./state.js');
+
+        // Clear IndexedDB databases
+        const databases = await indexedDB.databases();
+        for (const db of databases) {
+            if (db.name && db.name.includes('Dream')) {
+                const deleteReq = indexedDB.deleteDatabase(db.name);
+                await new Promise((resolve, reject) => {
+                    deleteReq.onsuccess = () => resolve();
+                    deleteReq.onerror = () => reject(deleteReq.error);
+                });
             }
         }
 
-        lockTab.innerHTML = `
-            <div class="flex-center" style="min-height: 400px;">
-                <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
-                    <div class="text-4xl mb-lg">🔒</div>
-                    <h2 class="text-primary mb-md text-xl">Journal Locked</h2>
-                    <p class="text-secondary mb-lg line-height-relaxed">
-                        Your dream journal is protected with a PIN. Enter your PIN to access your dreams and all app features.
-                    </p>
-                    ${timerInstructions}
-                    <input type="password" id="lockScreenPinInput" placeholder="Enter PIN" maxlength="6" class="input-pin w-full mb-lg">
-                    <div class="flex-center gap-sm flex-wrap">
-                        <button data-action="verify-lock-screen-pin" class="btn btn-primary">🔓 Unlock Journal</button>
-                        <button data-action="show-lock-screen-forgot-pin" class="btn btn-secondary">Forgot PIN?</button>
-                    </div>
-                    <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-                </div>
-            </div>
-        `;
+        // Clear all localStorage
+        if (typeof(Storage) !== "undefined" && localStorage) {
+            localStorage.clear();
+        }
 
-        // Ensure the tab is active and focus is set
-        switchAppTab('lock');
+        // Clear all session state
+        setEncryptionEnabled(false);
+        setEncryptionPassword(null);
+        clearDecryptedDataCache();
+        setUnlocked(false);
+        setAppLocked(false);
+
+        // Clear any PIN settings
+        removePinHash();
+        removeResetTime();
+
+        // Show success message and redirect
+        const lockTab = document.getElementById('lockTab');
+        if (lockTab) {
+            lockTab.innerHTML = `
+                <div class="flex-center" style="min-height: 400px;">
+                    <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                        <div class="text-4xl mb-lg">✅</div>
+                        <h2 class="text-primary mb-md text-xl">Data Wiped Successfully</h2>
+                        <p class="text-secondary mb-lg line-height-relaxed">
+                            All application data has been permanently deleted. The app will reload with a fresh start.
+                        </p>
+                        <button onclick="window.location.reload()" class="btn btn-primary">🔄 Reload Application</button>
+                    </div>
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        console.error('Error during data wipe:', error);
+        feedback.innerHTML = '<div class="message-base message-error">Error wiping data. Please try again or reload the application.</div>';
     }
-    
+}
+
 /**
      * Initiates dream title recovery specifically on the lock screen.
      * 
@@ -2764,13 +3074,8 @@ async function getAuthenticationRequirements() {
  * // Shows encryption password screen, PIN screen, or appropriate combination
  */
 async function showAuthenticationScreen() {
-    const requirements = await getAuthenticationRequirements();
-
-    if (requirements.encryptionRequired) {
-        showEncryptionPasswordScreen();
-    } else if (requirements.pinRequired) {
-        showPinOverlay();
-    }
+    // All authentication now happens on the lock screen for consistency
+    await returnToLockScreen();
 }
 
 /**
@@ -3434,6 +3739,11 @@ export {
     confirmChangeEncryptionPassword,
     reEncryptAllData,
     cancelPasswordDialog,
+
+    // Encryption password recovery functions
+    showForgotEncryptionPassword,
+    wipeAllData,
+    confirmDataWipe,
 
     // Application control
     toggleLock,
