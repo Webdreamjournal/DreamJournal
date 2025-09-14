@@ -655,7 +655,16 @@ async function initializeApp() {
         setAppLocked(true);
         setUnlocked(false);
         setPreLockActiveTab('journal');
-        switchAppTab('lock', true);
+
+        // Use smart authentication to show appropriate screen
+        if (requirements.pinRequired && !requirements.encryptionRequired) {
+            // PIN only - show lock tab
+            switchAppTab('lock', true);
+        } else {
+            // Encryption required (with or without PIN) - show encryption password screen
+            switchAppTab('journal', true);
+            showAuthenticationScreen();
+        }
         hideAllTabButtons();
     } else {
         setUnlocked(true);
