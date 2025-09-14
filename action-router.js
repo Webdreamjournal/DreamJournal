@@ -50,9 +50,9 @@ import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNa
 import { addCustomAutocompleteItem, deleteAutocompleteItem } from './settingstab.js';
 
 // Security module
-import { 
-    toggleLock, showPinSetup, setupPin, showPinOverlay, hidePinOverlay, 
-    verifyPin, showRemovePin, showForgotPin,
+import {
+    toggleLock, showPinSetup, setupPin, showPinOverlay, hidePinOverlay,
+    verifyPin, verifyEncryptionPassword, showRemovePin, showForgotPin,
     confirmRemovePin, executePinRemoval, completePinRemoval, startTitleRecovery,
     verifyDreamTitles, startTimerRecovery, confirmStartTimer, confirmCancelTimer,
     restoreWarningBanner, completeRecovery, completePinSetup, showSetNewPinScreen,
@@ -409,6 +409,8 @@ const ACTION_MAP = {
         // PIN SECURITY & AUTHENTICATION SYSTEM
         // ================================
         'verify-pin': () => verifyPin(),                                     // Verify PIN entry for authentication
+        'verify-encryption-password': () => verifyEncryptionPassword(),     // Verify encryption password for authentication
+        'switch-to-pin-entry': () => showPinOverlay(),                      // Switch from password to PIN authentication
         'hide-pin-overlay': () => hidePinOverlay(),                         // Hide PIN entry overlay
         // 'confirm-password': () => confirmPassword(),                        // Confirm password entry - FUNCTION REMOVED, using showPasswordDialog instead
         // 'cancel-password': () => cancelPassword(),                          // Cancel password entry - FUNCTION REMOVED, using showPasswordDialog instead
