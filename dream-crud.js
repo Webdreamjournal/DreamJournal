@@ -76,6 +76,64 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
 // display, filtering, sorting, pagination, and search functionality
 
 // ================================
+// ENCRYPTION HELPER FUNCTIONS
+// ================================
+
+/**
+ * Determines if dream data should be encrypted based on current encryption settings.
+ *
+ * This helper function checks the global encryption state to determine whether
+ * new dreams should be saved in encrypted format. It verifies both that encryption
+ * is enabled and that a valid encryption password is available in the current session.
+ *
+ * **Decision Logic:**
+ * 1. Returns false if encryption is disabled globally
+ * 2. Returns false if encryption is enabled but no password is available
+ * 3. Returns true only if both encryption is enabled AND password is available
+ *
+ * @async
+ * @function
+ * @returns {Promise<boolean>} True if dreams should be encrypted, false otherwise
+ * @since 2.03.01
+ * @example
+ * // Check if dream should be encrypted before saving
+ * if (await shouldEncryptDream()) {
+ *   const encrypted = await encryptItemForStorage(dreamData, password);
+ *   await saveItemToStore('dreams', encrypted);
+ * } else {
+ *   await saveItemToStore('dreams', dreamData);
+ * }
+ *
+ * @example
+ * // Use in save operations to conditionally encrypt
+ * const encrypt = await shouldEncryptDream();
+ * console.log(`Dreams will be ${encrypt ? 'encrypted' : 'unencrypted'}`);
+ */
+async function shouldEncryptDream() {
+    try {
+        // Import encryption state dynamically to avoid circular dependencies
+        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+
+        // Check if encryption is enabled globally
+        if (!getEncryptionEnabled()) {
+            return false;
+        }
+
+        // Check if encryption password is available in session
+        const password = getEncryptionPassword();
+        if (!password) {
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        // If there's any error importing or checking encryption state, default to false
+        console.error('Error checking encryption settings for dreams:', error);
+        return false;
+    }
+}
+
+// ================================
 // 1. CORE DREAM CRUD OPERATIONS
 // ================================
 
@@ -149,17 +207,53 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             dateString: formatDateTimeDisplay(dreamDate)
         };
         
-        // Try fast path first
-        let saveSuccess = false;
-        if (isIndexedDBAvailable()) {
-            saveSuccess = await addDreamToIndexedDB(newDream);
-        }
-        
-        // Fallback if the fast method fails
-        if (!saveSuccess) {
-            const dreams = await loadDreams();
+        // Handle encryption if enabled
+        if (await shouldEncryptDream()) {
+            try {
+                // Import encryption functions and get password
+                const { getEncryptionPassword } = await import('./state.js');
+                const { encryptItemForStorage, saveItemToStore } = await import('./storage.js');
+
+                const password = getEncryptionPassword();
+                if (!password) {
+                    throw new Error('Encryption enabled but password not available in session');
+                }
+
+                // Encrypt the dream for storage
+                const encryptedDream = await encryptItemForStorage(newDream, password);
+
+                // Save encrypted dream to storage
+                await saveItemToStore('dreams', encryptedDream);
+
+                // Update memory state with unencrypted data
+                dreams.unshift(newDream);
+
+            } catch (error) {
+                console.error('Error encrypting and saving dream:', error);
+                createInlineMessage('error', 'Failed to save encrypted dream. Please try again.', {
+                    container: document.querySelector('.entry-form'),
+                    position: 'bottom'
+                });
+                return;
+            }
+        } else {
+            // No encryption - use existing save logic
+
+            // Try fast path first
+            let saveSuccess = false;
+            if (isIndexedDBAvailable()) {
+                saveSuccess = await addDreamToIndexedDB(newDream);
+            }
+
+            // Fallback if the fast method fails
+            if (!saveSuccess) {
+                const currentDreams = await loadDreams();
+                currentDreams.unshift(newDream);
+                await saveDreams(currentDreams);
+            }
+
+            // Update memory state with unencrypted data
             dreams.unshift(newDream);
-            await saveDreams(dreams);
         }
         
         // Clear form fields and reset pagination using helper functions
@@ -574,19 +668,61 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
             lastModified: new Date().toISOString()
         };
 
-        // Try fast path first
-        let updateSuccess = false;
-        if (isIndexedDBAvailable()) {
-            updateSuccess = await updateDreamInIndexedDB(updatedDream);
-        }
-        
-        // Fallback if the fast method fails
-        if (!updateSuccess) {
-            const dreams = await loadDreams();
+        // Handle encryption if enabled
+        if (await shouldEncryptDream()) {
+            try {
+                // Import encryption functions and get password
+                const { getEncryptionPassword } = await import('./state.js');
+                const { encryptItemForStorage, saveItemToStore } = await import('./storage.js');
+
+                const password = getEncryptionPassword();
+                if (!password) {
+                    throw new Error('Encryption enabled but password not available in session');
+                }
+
+                // Encrypt the updated dream for storage
+                const encryptedDream = await encryptItemForStorage(updatedDream, password);
+
+                // Save encrypted dream to storage
+                await saveItemToStore('dreams', encryptedDream);
+
+                // Update memory state with unencrypted data
+                const dreamIndex = dreams.findIndex(d => d.id.toString() === dreamId.toString());
+                if (dreamIndex !== -1) {
+                    dreams[dreamIndex] = updatedDream;
+                }
+
+            } catch (error) {
+                console.error('Error encrypting and saving dream edit:', error);
+                createInlineMessage('error', 'Failed to save encrypted dream changes. Please try again.', {
+                    container: document.querySelector(`#dream-${dreamId}`),
+                    position: 'bottom'
+                });
+                return;
+            }
+        } else {
+            // No encryption - use existing save logic
+
+            // Try fast path first
+            let updateSuccess = false;
+            if (isIndexedDBAvailable()) {
+                updateSuccess = await updateDreamInIndexedDB(updatedDream);
+            }
+
+            // Fallback if the fast method fails
+            if (!updateSuccess) {
+                const currentDreams = await loadDreams();
+                const dreamIndex = currentDreams.findIndex(d => d.id.toString() === dreamId.toString());
+                if (dreamIndex !== -1) {
+                    currentDreams[dreamIndex] = updatedDream;
+                    await saveDreams(currentDreams);
+                }
+            }
+
+            // Update memory state with unencrypted data
             const dreamIndex = dreams.findIndex(d => d.id.toString() === dreamId.toString());
             if (dreamIndex !== -1) {
                 dreams[dreamIndex] = updatedDream;
-                await saveDreams(dreams);
             }
         }
         await displayDreams();
@@ -2069,6 +2205,9 @@ import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, 
 // ================================
 
 export {
+    // Encryption helper functions
+    shouldEncryptDream,
+
     // Core CRUD operations
     saveDream,
     editDream,
