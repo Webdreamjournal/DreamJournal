@@ -293,6 +293,144 @@ function validateGoalForm() {
 }
 
 // ================================
+// GOAL CRUD OPERATIONS
+// ================================
+
+/**
+ * Creates a new goal with the provided form data and saves it to storage.
+ *
+ * This function handles the complete goal creation process including ID generation,
+ * data initialization, storage persistence, UI updates, and user feedback. It includes
+ * special handling for custom goal types and comprehensive error handling.
+ *
+ * @async
+ * @function createNewGoal
+ * @param {Object} formData - Validated form data containing goal properties
+ * @param {string} formData.title - Goal title
+ * @param {string} formData.description - Goal description
+ * @param {string} formData.type - Goal type (lucid_count, recall_streak, etc.)
+ * @param {string} formData.period - Time period (monthly, streak, total)
+ * @param {number} formData.target - Target number to achieve
+ * @param {string} formData.icon - Goal icon (emoji)
+ * @returns {Promise<void>} Promise that resolves when goal creation is complete
+ * @throws {Error} When goal creation or storage fails
+ * @since 2.02.49
+ *
+ * @example
+ * // Create a new goal with validated form data
+ * const formData = { title: 'Lucid Dreams', type: 'lucid_count', target: 5, ... };
+ * await createNewGoal(formData);
+ */
+async function createNewGoal(formData) {
+    const { title, description, type, period, target, icon } = formData;
+
+    const createdAt = new Date().toISOString();
+    const goal = {
+        id: generateUniqueId({
+            title: title,
+            timestamp: createdAt,
+            type: 'goal'
+        }),
+        title,
+        description,
+        type,
+        period,
+        target,
+        icon,
+        status: 'active',
+        createdAt: createdAt,
+        // Initialize currentProgress field for custom goals
+        currentProgress: type === 'custom' ? 0 : undefined
+    };
+
+    try {
+        const currentGoals = getAllGoals();
+        currentGoals.push(goal);
+        setAllGoals(currentGoals);
+        console.log('Goal added to array, total goals:', currentGoals.length);
+
+        await saveGoals(currentGoals);
+        console.log('Goals saved to storage');
+
+        await displayGoals();
+        console.log('Goals display updated');
+
+        cancelGoalDialog();
+        showGoalMessage('success', 'Goal created successfully!');
+    } catch (error) {
+        console.error('Error creating goal:', error);
+        showGoalMessage('error', 'Failed to create goal. Please try again.');
+        throw error; // Re-throw for caller handling
+    }
+}
+
+/**
+ * Updates an existing goal with new form data and saves changes to storage.
+ *
+ * This function handles the complete goal update process including data merging,
+ * special handling for goal type conversion, storage persistence, UI updates,
+ * and user feedback. It preserves existing goal metadata while updating editable fields.
+ *
+ * @async
+ * @function updateExistingGoal
+ * @param {string} goalId - Unique identifier of the goal to update
+ * @param {Object} formData - Validated form data containing updated goal properties
+ * @param {string} formData.title - Updated goal title
+ * @param {string} formData.description - Updated goal description
+ * @param {string} formData.type - Updated goal type
+ * @param {string} formData.period - Updated time period
+ * @param {number} formData.target - Updated target number
+ * @param {string} formData.icon - Updated goal icon
+ * @returns {Promise<void>} Promise that resolves when goal update is complete
+ * @throws {Error} When goal update or storage fails
+ * @since 2.02.49
+ *
+ * @example
+ * // Update an existing goal with new data
+ * const formData = { title: 'Updated Goal', target: 10, ... };
+ * await updateExistingGoal('goal-123', formData);
+ */
+async function updateExistingGoal(goalId, formData) {
+    const { title, description, type, period, target, icon } = formData;
+
+    const currentGoals = getAllGoals();
+    const goalIndex = currentGoals.findIndex(g => g.id === goalId);
+    if (goalIndex === -1) {
+        throw new Error(`Goal with ID ${goalId} not found`);
+    }
+
+    try {
+        // Update existing goal with new data
+        currentGoals[goalIndex] = {
+            ...currentGoals[goalIndex],
+            title,
+            description,
+            type,
+            period,
+            target,
+            icon,
+            updatedAt: new Date().toISOString(),
+            // Initialize currentProgress for goals being converted to custom type
+            currentProgress: type === 'custom' && currentGoals[goalIndex].currentProgress === undefined
+                ? 0 : currentGoals[goalIndex].currentProgress
+        };
+
+        setAllGoals(currentGoals);
+        await saveGoals(currentGoals);
+        await displayGoals();
+        cancelGoalDialog();
+        showGoalMessage('success', 'Goal updated successfully!');
+
+        // Clean up editing state
+        delete window.editingGoalId;
+    } catch (error) {
+        console.error('Error updating goal:', error);
+        showGoalMessage('error', 'Failed to update goal. Please try again.');
+        throw error; // Re-throw for caller handling
+    }
+}
+
+// ================================
 // GOALS MESSAGING SYSTEM
 // ================================
 
@@ -844,15 +982,13 @@ function createTemplateGoal(templateKey) {
 // ================================
 
 /**
- * Saves a new goal or updates an existing goal with validation and error handling.
- * 
- * This function handles both goal creation and editing by checking for the presence
- * of a global editingGoalId variable. It validates form data, performs data integrity
- * checks, and provides user feedback through inline messages. The function also
- * handles special initialization for custom goal types.
- * 
- * TODO: Split into validateGoalForm(), createNewGoal(), and updateExistingGoal() functions
- * 
+ * Handles saving both new and existing goals with comprehensive validation and error handling.
+ *
+ * This function serves as the main entry point for goal persistence operations. It performs
+ * data integrity checks, validates form input, and delegates to appropriate creation or
+ * update operations. The function manages UI state transitions and user feedback through
+ * the specialized CRUD operation functions.
+ *
  * @async
  * @function saveGoal
  * @returns {Promise<void>} Promise that resolves when save operation completes
@@ -865,82 +1001,31 @@ function createTemplateGoal(templateKey) {
 async function saveGoal() {
     console.log('saveGoal function called');
 
-    // Validate goals data integrity
-    const currentGoals = await validateGoalsDataIntegrity();
-    setAllGoals(currentGoals);
+    try {
+        // Validate goals data integrity
+        const currentGoals = await validateGoalsDataIntegrity();
+        setAllGoals(currentGoals);
 
-    // Validate form data
-    const validation = validateGoalForm();
-    if (!validation.isValid) {
-        console.error('Goal form validation failed:', validation.errors);
-        showGoalMessage('form-error', validation.errors[0]);
-        return;
-    }
+        // Validate form data
+        const validation = validateGoalForm();
+        if (!validation.isValid) {
+            console.error('Goal form validation failed:', validation.errors);
+            showGoalMessage('form-error', validation.errors[0]);
+            return;
+        }
 
-    const { title, description, type, period, target, icon } = validation.formData;
-    console.log('Goal form values:', { title, description, type, period, target, icon });
-    
-    if (window.editingGoalId) {
-        // Edit existing goal
-        const goalIndex = currentGoals.findIndex(g => g.id === window.editingGoalId);
-        if (goalIndex !== -1) {
-            currentGoals[goalIndex] = {
-                ...currentGoals[goalIndex],
-                title,
-                description,
-                type,
-                period,
-                target,
-                icon,
-                updatedAt: new Date().toISOString(),
-                // Initialize currentProgress for goals being converted to custom
-                currentProgress: type === 'custom' && currentGoals[goalIndex].currentProgress === undefined ? 0 : currentGoals[goalIndex].currentProgress
-            };
-            setAllGoals(currentGoals);
-            await saveGoals(currentGoals);
-            await displayGoals();
-            cancelGoalDialog();
-            showGoalMessage('success', 'Goal updated successfully!');
-            delete window.editingGoalId;
+        console.log('Goal form values:', validation.formData);
+
+        // Delegate to appropriate CRUD operation
+        if (window.editingGoalId) {
+            await updateExistingGoal(window.editingGoalId, validation.formData);
+        } else {
+            await createNewGoal(validation.formData);
         }
-    } else {
-        // Create new goal
-        const createdAt = new Date().toISOString();
-        const goal = {
-            id: generateUniqueId({
-                title: title,
-                timestamp: createdAt,
-                type: 'goal'
-            }),
-            title,
-            description,
-            type,
-            period,
-            target,
-            icon,
-            status: 'active',
-            createdAt: createdAt,
-            // Add currentProgress field for custom goals
-            currentProgress: type === 'custom' ? 0 : undefined
-        };
-        
-        try {
-            currentGoals.push(goal);
-            console.log('Goal added to array, total goals:', currentGoals.length);
-            setAllGoals(currentGoals);
-            
-            await saveGoals(currentGoals);
-            console.log('Goals saved to storage');
-            
-            await displayGoals();
-            console.log('Goals display updated');
-            
-            cancelGoalDialog();
-            showGoalMessage('success', 'Goal created successfully!');
-        } catch (error) {
-            console.error('Error creating goal:', error);
-            showGoalMessage('error', 'Failed to create goal. Please try again.');
-        }
+    } catch (error) {
+        console.error('Error in saveGoal operation:', error);
+        // Error messages are handled by the individual CRUD functions
+        // No additional error handling needed here
     }
 }
 
