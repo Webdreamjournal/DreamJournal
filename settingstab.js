@@ -493,13 +493,17 @@ async function deleteAutocompleteItem(type, itemValue) {
  */
 async function toggleEncryption() {
     try {
+        console.log('toggleEncryption called');
         const isCurrentlyEnabled = getEncryptionEnabled();
+        console.log('Current encryption state:', isCurrentlyEnabled);
 
         if (isCurrentlyEnabled) {
             // Disable encryption
+            console.log('Calling disableEncryption');
             await disableEncryption();
         } else {
             // Enable encryption
+            console.log('Calling enableEncryption');
             await enableEncryption();
         }
     } catch (error) {
@@ -541,8 +545,10 @@ async function toggleEncryption() {
  */
 async function enableEncryption() {
     try {
+        console.log('enableEncryption called');
         // Show password setup dialog
         await showEncryptionSetupDialog();
+        console.log('enableEncryption completed');
     } catch (error) {
         console.error('Error enabling encryption:', error);
         createInlineMessage('error', 'Failed to enable encryption. Please try again.');
@@ -579,8 +585,10 @@ async function enableEncryption() {
  */
 async function showEncryptionSetupDialog() {
     try {
+        console.log('showEncryptionSetupDialog called');
         // Import the password dialog function from security.js
         const { showPasswordDialog, validateEncryptionPassword } = await import('./security.js');
+        console.log('Security.js imports loaded successfully');
 
         const config = {
             title: 'Set Up Data Encryption',
@@ -589,23 +597,30 @@ async function showEncryptionSetupDialog() {
             primaryButtonText: 'Enable Encryption'
         };
 
+        console.log('Showing password dialog with config:', config);
         // showPasswordDialog returns a Promise with the password or null if cancelled
         const password = await showPasswordDialog(config);
+        console.log('Password dialog result:', password ? 'Password entered' : 'Cancelled');
 
         if (!password) {
             // User cancelled the dialog
+            console.log('User cancelled password dialog');
             return;
         }
 
         // Validate password meets security requirements
+        console.log('Validating password');
         const validation = validateEncryptionPassword(password);
+        console.log('Password validation result:', validation);
         if (!validation.valid) {
             createInlineMessage('error', validation.error);
             return;
         }
 
         // Set up encryption with the validated password
+        console.log('Calling setupEncryption');
         await setupEncryption(password);
+        console.log('setupEncryption completed');
 
     } catch (error) {
         console.error('Encryption setup dialog error:', error);
@@ -648,51 +663,70 @@ async function showEncryptionSetupDialog() {
  */
 async function setupEncryption(password) {
     try {
+        console.log('setupEncryption called with password length:', password.length);
         // Import required functions
+        console.log('Importing required modules...');
         const { setEncryptionPassword, clearDecryptedDataCache, setEncryptionEnabled } = await import('./state.js');
         const { saveEncryptionSettings } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
+        console.log('All modules imported successfully');
 
         // Enable encryption setting
+        console.log('Saving encryption settings...');
         await saveEncryptionSettings(true);
+        console.log('Setting encryption state in memory...');
         setEncryptionEnabled(true);
         setEncryptionPassword(password);
+        console.log('Encryption settings saved');
 
         // Encrypt existing dreams
+        console.log('Loading existing dreams...');
         const dreams = await loadDreamsRaw();
+        console.log('Found dreams:', dreams.length);
         let encryptedCount = 0;
         for (const dream of dreams) {
             if (!dream.encrypted) { // Don't re-encrypt already encrypted items
+                console.log('Encrypting dream:', dream.id);
                 const encrypted = await encryptItemForStorage(dream, password);
                 await saveItemToStore('dreams', encrypted);
                 encryptedCount++;
             }
         }
+        console.log('Dreams encrypted:', encryptedCount);
 
         // Encrypt existing goals
+        console.log('Loading existing goals...');
         const goals = await loadGoalsRaw();
+        console.log('Found goals:', goals.length);
         let goalsEncryptedCount = 0;
         for (const goal of goals) {
             if (!goal.encrypted) { // Don't re-encrypt already encrypted items
+                console.log('Encrypting goal:', goal.id);
                 const encrypted = await encryptItemForStorage(goal, password);
                 await saveItemToStore('goals', encrypted);
                 goalsEncryptedCount++;
             }
         }
+        console.log('Goals encrypted:', goalsEncryptedCount);
 
         // Clear cache and reload data
+        console.log('Clearing cache and reloading data...');
         clearDecryptedDataCache();
         await initializeApplicationData();
+        console.log('Data reloaded');
 
         // Update settings UI to reflect new state
+        console.log('Updating settings UI...');
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
         }
+        console.log('Settings UI updated');
 
         const totalEncrypted = encryptedCount + goalsEncryptedCount;
         createInlineMessage('success', `Encryption enabled successfully! ${totalEncrypted > 0 ? `${encryptedCount} dreams and ${goalsEncryptedCount} goals encrypted.` : 'All data is now encrypted.'}`);
+        console.log('setupEncryption completed successfully');
 
     } catch (error) {
         console.error('Error setting up encryption:', error);
