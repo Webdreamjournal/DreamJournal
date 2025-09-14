@@ -47,11 +47,12 @@
 
 // Foundation modules
 import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
-import { 
+import {
     getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
     deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
     scrollDebounceTimer, recordingTimer, currentPlayingAudio, mediaRecorder,
-    isDreamFormCollapsed, setIsDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab
+    isDreamFormCollapsed, setIsDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab,
+    getEncryptionEnabled, setEncryptionEnabled
 } from './state.js';
 
 // Core utilities
@@ -65,9 +66,10 @@ import {
 } from './dom-helpers.js';
 
 // Security system
-import { 
+import {
     isPinSetup, getResetTime, removeResetTime, removePinHash, updateTimerWarning,
-    updateSecurityControls, verifyLockScreenPin
+    updateSecurityControls, verifyLockScreenPin, loadEncryptionSettings,
+    getAuthenticationRequirements, showAuthenticationScreen
 } from './security.js';
 
 // Dream CRUD operations
@@ -567,49 +569,72 @@ function restoreDreamFormState() {
 // ================================
 
 /**
- * Main application initialization sequence.
- * 
+ * Main application initialization sequence with smart authentication.
+ *
  * This is the primary entry point for application initialization, designed to
- * orchestrate a two-phase startup process that optimizes perceived performance 
- * and prevents content flashing:
- * 
+ * orchestrate a two-phase startup process that optimizes perceived performance
+ * and prevents content flashing. Enhanced with smart authentication logic that
+ * automatically determines which security method to use based on user configuration.
+ *
  * **Phase 1: Immediate Setup**
  * - Fast, synchronous operations that must complete before UI is visible
  * - Browser compatibility checks
  * - Theme initialization
- * - PIN security state determination
+ * - Encryption settings loading
+ * - Smart authentication requirements analysis
+ * - Appropriate authentication screen display
  * - Initial UI state configuration
- * 
- * **Phase 2: Deferred Initialization**  
+ *
+ * **Phase 2: Deferred Initialization**
  * - Slower, asynchronous operations that can happen after UI is responsive
  * - Service worker registration
  * - Database initialization
  * - Data migration
  * - Event listener setup
  * - Application data loading
- * 
+ *
+ * **Smart Authentication Logic:**
+ * - If encryption is enabled, shows encryption password screen
+ * - If only PIN is enabled, shows PIN screen
+ * - If both are enabled, prioritizes encryption password (bypasses PIN)
+ * - If neither is enabled, proceeds normally
+ * - Handles PIN reset timer expiration gracefully
+ *
  * This approach ensures the user sees a responsive interface immediately while
- * heavier initialization tasks complete in the background.
- * 
+ * heavier initialization tasks complete in the background, with seamless
+ * authentication integration that adapts to the user's security configuration.
+ *
  * @async
  * @function
  * @since 1.0.0
+ * @version 2.03.05
  * @todo Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions for better separation of fast startup vs slower initialization tasks
  * @example
  * // Called by app entry point:
  * import { initializeApp } from './main.js';
  * document.addEventListener('DOMContentLoaded', initializeApp);
+ *
+ * @example
+ * // Smart authentication scenarios:
+ * // 1. Encryption enabled: Shows password screen
+ * // 2. PIN only: Shows PIN screen
+ * // 3. Both enabled: Shows password screen (encryption bypasses PIN)
+ * // 4. Neither: Normal app initialization
  */
 async function initializeApp() {
-    
+
     // ================================
     // PHASE 1: IMMEDIATE SETUP
     // ================================
     // Fast, synchronous initialization to prevent content flashing
-    
+
     checkBrowserCompatibility();
     initializeTheme();
-    
+
+    // Load encryption settings and update global state
+    const encryptionEnabled = loadEncryptionSettings();
+    setEncryptionEnabled(encryptionEnabled);
+
     // Handle PIN timer expiration and determine initial app state
     const resetTime = getResetTime();
     let timerExpiredAndRemovedPin = false;
@@ -621,14 +646,20 @@ async function initializeApp() {
         failedPinAttempts = 0;
         timerExpiredAndRemovedPin = true;
     }
-    const pinIsSetUp = isPinSetup();
 
-    // Initialize app in correct state based on PIN setup and timer status
-    if (pinIsSetUp && !timerExpiredAndRemovedPin) {
-        setUnlocked(false);
+    // Determine authentication needs using smart authentication logic
+    const requirements = await getAuthenticationRequirements();
+
+    // Initialize app in correct state based on authentication requirements
+    if ((requirements.encryptionRequired || requirements.pinRequired) && !timerExpiredAndRemovedPin) {
         setAppLocked(true);
+        setUnlocked(false);
         setPreLockActiveTab('journal');
-        switchAppTab('lock', true); 
+
+        // Show appropriate authentication screen
+        await showAuthenticationScreen();
+
+        // Hide main UI until authenticated
         hideAllTabButtons();
     } else {
         setUnlocked(true);
