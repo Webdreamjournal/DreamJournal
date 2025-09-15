@@ -56,6 +56,7 @@
  * @constant {string}
  * @since 2.0.0
  */
+
 const CACHE_NAME = 'dream-journal-v2-04-13';
 
 /**

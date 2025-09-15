@@ -879,23 +879,12 @@ async function exportAllData() {
 async function importAllData(event) {
         const file = event.target.files[0];
         if (!file) return;
-
-        // Create and show import progress indicator
-        const progressContainer = createImportProgressIndicator();
-        updateImportProgress(1, 'validating'); // Step 1: File Validation
-
+        
         try {
-            // Step 1: File Validation
-            await new Promise(resolve => setTimeout(resolve, 100)); // Brief pause for UX
-
             // Check if encryption is enabled
             const encryptionEnabled = document.getElementById('fullDataEncryption').checked;
             const isEncryptedFile = file.name.endsWith('.enc');
-
-            // Step 2: Reading File
-            updateImportProgress(2, 'reading');
-            await new Promise(resolve => setTimeout(resolve, 200)); // Brief pause for UX
-
+            
             // Read file
             const fileData = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -917,9 +906,6 @@ async function importAllData(event) {
                     throw new Error('Selected file appears to be unencrypted. Uncheck encryption or select an encrypted (.enc) file.');
                 }
                 
-                // Step 3: Password Entry (for encrypted files)
-                updateImportProgress(3, 'password');
-
                 // Show password dialog
                 const password = await showPasswordDialog({
                     type: 'import',
@@ -928,17 +914,12 @@ async function importAllData(event) {
                     requireConfirm: false,
                     primaryButtonText: 'Decrypt & Import'
                 });
-
+                
                 if (!password) {
-                    removeImportProgressIndicator();
                     event.target.value = '';
                     return;
                 }
-
-                // Step 4: Decryption
-                updateImportProgress(4, 'decrypting');
-                await new Promise(resolve => setTimeout(resolve, 300)); // Brief pause for UX
-
+                
                 try {
                     text = await decryptData(new Uint8Array(fileData), password);
                 } catch (decryptError) {
@@ -950,23 +931,15 @@ async function importAllData(event) {
                 }
                 text = fileData;
             }
-
-            // Step 5: Data Parsing
-            updateImportProgress(5, 'parsing');
-            await new Promise(resolve => setTimeout(resolve, 200)); // Brief pause for UX
-
+            
             // Parse JSON data
             const importData = JSON.parse(text);
-
+            
             // Validate import data structure
             if (!importData.data || (!importData.data.dreams && !importData.data.goals)) {
                 throw new Error('Invalid import file format. No dreams or goals data found.');
             }
-
-            // Step 6: Processing Data
-            updateImportProgress(6, 'processing');
-            await new Promise(resolve => setTimeout(resolve, 300)); // Brief pause for UX
-
+            
             const stats = { importedDreams: 0, importedGoals: 0, skippedDreams: 0, skippedGoals: 0 };
             
             // Import dreams with duplicate checking
@@ -1171,30 +1144,24 @@ async function importAllData(event) {
                 stats.importedSettings = importedSettings;
             }
             
-            // Step 7: Finalizing Import
-            updateImportProgress(7, 'finalizing');
-
             // Refresh all displays
             await Promise.all([
                 displayDreams(),
                 displayGoals()
             ]);
-
-            // Step 8: Completed
-            updateImportProgress(8, 'completed');
-
+            
             // Show success message with import statistics
             const totalImported = stats.importedDreams + stats.importedGoals;
             const totalSkipped = stats.skippedDreams + stats.skippedGoals;
             const autocompleteImported = stats.importedAutocomplete || 0;
             const settingsImported = stats.importedSettings || 0;
-
+            
             let message = '';
             const extraItems = [];
             if (autocompleteImported > 0) extraItems.push(`${autocompleteImported} autocomplete items`);
             if (settingsImported > 0) extraItems.push(`theme setting`);
             const extraText = extraItems.length > 0 ? `, ${extraItems.join(', ')}` : '';
-
+            
             if (totalImported > 0 && totalSkipped > 0) {
                 message = `Complete import finished! Added ${stats.importedDreams} dreams, ${stats.importedGoals} goals${extraText}, skipped ${totalSkipped} duplicates.`;
             } else if (totalImported > 0 || autocompleteImported > 0 || settingsImported > 0) {
@@ -1204,34 +1171,20 @@ async function importAllData(event) {
             } else {
                 message = 'No new data found in the import file.';
             }
-
+            
             createInlineMessage('success', message, {
                 container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
-
-            // Auto-hide progress after success
-            setTimeout(() => {
-                removeImportProgressIndicator();
-            }, 2000);
             
         } catch (error) {
             console.error('Complete import error:', error);
-
-            // Show error progress state
-            updateImportProgress(0, 'error');
-
             createInlineMessage('error', 'Complete import error: ' + error.message, {
                 container: document.getElementById('settingsTab') || document.querySelector('.main-content'),
                 position: 'top',
                 duration: 5000
             });
-
-            // Auto-hide progress after error
-            setTimeout(() => {
-                removeImportProgressIndicator();
-            }, 3000);
         } finally {
             event.target.value = '';
         }
@@ -1648,277 +1601,6 @@ function cancelImportPassword() {
         window.importPasswordResolve(null);
         delete window.importPasswordResolve;
     }
-}
-
-// ================================
-// PROGRESS INDICATOR SYSTEM
-// ================================
-
-/**
- * Creates and displays a multi-step progress indicator for data import operations.
- *
- * This function creates a comprehensive progress indicator that shows users the current
- * step in a multi-step import process. It includes proper ARIA accessibility features,
- * visual progress indication, and step descriptions for screen readers.
- *
- * @function createImportProgressIndicator
- * @returns {HTMLElement} The progress container element for further manipulation
- * @since 2.04.01
- *
- * @example
- * // Create progress indicator at start of import
- * const progressContainer = createImportProgressIndicator();
- * updateImportProgress(1, 'validating');
- */
-function createImportProgressIndicator() {
-    // Remove existing progress indicator if present
-    removeImportProgressIndicator();
-
-    const container = document.createElement('div');
-    container.id = 'import-progress-container';
-    container.className = 'import-progress-container';
-    container.setAttribute('role', 'status');
-    container.setAttribute('aria-live', 'polite');
-    container.setAttribute('aria-label', 'Import progress indicator');
-
-    // Define import steps
-    const steps = [
-        { id: 1, label: 'File Validation', desc: 'Checking file format and size' },
-        { id: 2, label: 'Reading File', desc: 'Loading file contents' },
-        { id: 3, label: 'Password Entry', desc: 'Authenticating encrypted data' },
-        { id: 4, label: 'Decryption', desc: 'Decrypting file contents' },
-        { id: 5, label: 'Data Parsing', desc: 'Processing JSON data structure' },
-        { id: 6, label: 'Processing Data', desc: 'Validating and organizing entries' },
-        { id: 7, label: 'Finalizing Import', desc: 'Updating displays and indexes' },
-        { id: 8, label: 'Completed', desc: 'Import process finished successfully' }
-    ];
-
-    container.innerHTML = `
-        <div class="import-progress-header">
-            <h3>Import Progress</h3>
-            <div class="import-progress-status" id="import-progress-status" aria-live="assertive">
-                Initializing import process...
-            </div>
-        </div>
-        <div class="form-progress" role="progressbar" aria-valuemin="0" aria-valuemax="8" aria-valuenow="0">
-            ${steps.map((step, index) => `
-                <div class="form-progress-step" id="progress-step-${step.id}" data-step="${step.id}">
-                    <div class="form-progress-indicator" aria-hidden="true">${step.id}</div>
-                    <div class="form-progress-label">
-                        <span class="step-title">${step.label}</span>
-                        <span class="step-description">${step.desc}</span>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-
-    // Insert at top of settings tab or main content
-    const settingsTab = document.getElementById('settingsTab');
-    const targetContainer = settingsTab || document.querySelector('.main-content') || document.body;
-
-    if (settingsTab) {
-        settingsTab.insertBefore(container, settingsTab.firstChild);
-    } else {
-        targetContainer.appendChild(container);
-    }
-
-    // Add CSS if not already present
-    addImportProgressStyles();
-
-    return container;
-}
-
-/**
- * Updates the import progress indicator to show the current step and status.
- *
- * This function updates both the visual progress indicator and provides appropriate
- * screen reader announcements. It manages ARIA attributes and visual states to
- * ensure comprehensive accessibility during the import process.
- *
- * @function updateImportProgress
- * @param {number} currentStep - The current step number (1-8, or 0 for error)
- * @param {'validating'|'reading'|'password'|'decrypting'|'parsing'|'processing'|'finalizing'|'completed'|'error'} status - Current status description
- * @returns {void}
- * @since 2.04.01
- *
- * @example
- * // Update to show step 3 (password entry)
- * updateImportProgress(3, 'password');
- *
- * @example
- * // Show error state
- * updateImportProgress(0, 'error');
- */
-function updateImportProgress(currentStep, status) {
-    const container = document.getElementById('import-progress-container');
-    if (!container) return;
-
-    const progressBar = container.querySelector('.form-progress');
-    const statusElement = container.querySelector('#import-progress-status');
-
-    // Update progress bar ARIA attributes
-    if (progressBar) {
-        progressBar.setAttribute('aria-valuenow', Math.max(0, currentStep));
-    }
-
-    // Update status messages
-    const statusMessages = {
-        validating: 'Validating file format and checking compatibility...',
-        reading: 'Reading file contents and preparing data...',
-        password: 'Waiting for password entry to decrypt file...',
-        decrypting: 'Decrypting file contents with provided password...',
-        parsing: 'Parsing JSON data and validating structure...',
-        processing: 'Processing entries and checking for duplicates...',
-        finalizing: 'Finalizing import and updating displays...',
-        completed: 'Import completed successfully! All data has been imported.',
-        error: 'Import failed. Please check the error message and try again.'
-    };
-
-    if (statusElement && statusMessages[status]) {
-        statusElement.textContent = statusMessages[status];
-    }
-
-    // Update visual step states
-    const allSteps = container.querySelectorAll('.form-progress-step');
-    allSteps.forEach((stepElement, index) => {
-        const stepNumber = index + 1;
-        stepElement.classList.remove('active', 'completed', 'error');
-
-        if (currentStep === 0 && status === 'error') {
-            // Error state - highlight all steps in error
-            stepElement.classList.add('error');
-        } else if (stepNumber < currentStep) {
-            stepElement.classList.add('completed');
-        } else if (stepNumber === currentStep) {
-            stepElement.classList.add('active');
-        }
-    });
-
-    // Special handling for completion
-    if (currentStep === 8 && status === 'completed') {
-        const lastStep = container.querySelector('#progress-step-8');
-        if (lastStep) {
-            lastStep.classList.add('completed');
-        }
-    }
-}
-
-/**
- * Removes the import progress indicator from the DOM.
- *
- * This function cleans up the progress indicator after the import process
- * is complete or when an error occurs. It ensures proper DOM cleanup and
- * removes any associated event listeners.
- *
- * @function removeImportProgressIndicator
- * @returns {void}
- * @since 2.04.01
- *
- * @example
- * // Remove progress indicator after import completion
- * setTimeout(() => {
- *     removeImportProgressIndicator();
- * }, 2000);
- */
-function removeImportProgressIndicator() {
-    const container = document.getElementById('import-progress-container');
-    if (container && container.parentNode) {
-        container.parentNode.removeChild(container);
-    }
-}
-
-/**
- * Adds CSS styles for the import progress indicator if not already present.
- *
- * This function dynamically adds the necessary CSS styles for the progress
- * indicator system. It checks if styles are already present to avoid duplication
- * and ensures consistent visual appearance across different themes.
- *
- * @function addImportProgressStyles
- * @returns {void}
- * @since 2.04.01
- * @private
- */
-function addImportProgressStyles() {
-    // Check if styles already exist
-    if (document.getElementById('import-progress-styles')) {
-        return;
-    }
-
-    const style = document.createElement('style');
-    style.id = 'import-progress-styles';
-    style.textContent = `
-        .import-progress-container {
-            background: var(--bg-elevated);
-            border: 2px solid var(--border-color);
-            border-radius: var(--border-radius-lg);
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .import-progress-header {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .import-progress-header h3 {
-            color: var(--text-primary);
-            margin-bottom: 8px;
-            font-size: 18px;
-        }
-
-        .import-progress-status {
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-weight: var(--font-weight-medium);
-        }
-
-        .form-progress {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            margin-top: 15px;
-        }
-
-        @media (max-width: 768px) {
-            .form-progress {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
-            }
-        }
-
-        .form-progress-step {
-            text-align: center;
-            position: relative;
-        }
-
-        .form-progress-step .step-title {
-            font-weight: var(--font-weight-semibold);
-            font-size: 12px;
-            display: block;
-        }
-
-        .form-progress-step .step-description {
-            font-size: 10px;
-            color: var(--text-tertiary);
-            display: block;
-            margin-top: 2px;
-        }
-
-        .form-progress-step.error .form-progress-indicator {
-            background: var(--error-color);
-            border-color: var(--error-color);
-            color: white;
-        }
-
-        .form-progress-step.error .step-title {
-            color: var(--error-color);
-        }
-    `;
-
-    document.head.appendChild(style);
 }
 
 // ================================

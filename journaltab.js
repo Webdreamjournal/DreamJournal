@@ -71,126 +71,72 @@ function renderJournalTab(tabPanel) {
                     <span class="text-xs text-secondary font-normal">(Press Enter to collapse)</span>
                 </h3>
                 
-                <!-- Basic Dream Information Fieldset -->
-                <fieldset class="form-fieldset">
-                    <legend class="form-legend">Basic Dream Information</legend>
-
-                    <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
-                    <div class="form-group">
-                        <label for="dreamDate">
-                            Dream Date & Time <span class="required-indicator" aria-label="required field">*</span>
-                        </label>
-                        <input type="datetime-local"
-                               id="dreamDate"
-                               class="form-control"
-                               required
-                               aria-required="true"
-                               aria-describedby="dreamDate-help dreamDate-error"
-                               aria-invalid="false">
-                        <small id="dreamDate-help" class="small-helper">
-                            When did this dream occur? This helps track patterns over time.
-                        </small>
-                        <div id="dreamDate-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
-                    </div>
-
-                    <!-- Lucidity Status Checkbox - Marks dream as lucid for statistics -->
-                    <div class="lucid-checkbox">
-                        <input type="checkbox"
-                               id="isLucid"
-                               aria-describedby="isLucid-help">
-                        <label for="isLucid">This was a lucid dream ✨</label>
-                        <small id="isLucid-help" class="small-helper">
-                            Check this if you were aware you were dreaming during the dream.
-                        </small>
-                    </div>
-
-                    <!-- Dream Title Field - Optional custom title (used for PIN recovery) -->
-                    <div class="form-group">
-                        <label for="dreamTitle">Dream Title (optional)</label>
-                        <input type="text"
-                               id="dreamTitle"
-                               class="form-control"
-                               placeholder="Give your dream a memorable title..."
-                               aria-describedby="dreamTitle-help dreamTitle-error"
-                               aria-invalid="false">
-                        <small id="dreamTitle-help" class="small-helper">
-                            Optional: Create a short, memorable title for easy reference.
-                        </small>
-                        <div id="dreamTitle-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
-                    </div>
-                </fieldset>
+                <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
+                <div class="form-group">
+                    <label for="dreamDate">Dream Date & Time</label>
+                    <input type="datetime-local" id="dreamDate" class="form-control">
+                </div>
+                
+                <!-- Lucidity Status Checkbox - Marks dream as lucid for statistics -->
+                <div class="lucid-checkbox">
+                    <input type="checkbox" id="isLucid">
+                    <label for="isLucid">This was a lucid dream ✨</label>
+                </div>
+                
+                <!-- Dream Title Field - Optional custom title (used for PIN recovery) -->
+                <div class="form-group">
+                    <label for="dreamTitle">Dream Title (optional)</label>
+                    <input type="text" id="dreamTitle" class="form-control" placeholder="Give your dream a memorable title...">
+                </div>
                 
                 <!-- Dream Description Field - Main content (required field) -->
                 <div class="form-group">
-                    <label for="dreamContent">
-                        Dream Description <span class="required-indicator" aria-label="required field">*</span>
-                    </label>
-                    <textarea id="dreamContent"
-                              class="form-control"
-                              placeholder="Describe your dream in as much detail as you can remember..."
-                              required
-                              aria-required="true"
-                              aria-describedby="dreamContent-help dreamContent-error"
-                              aria-invalid="false"></textarea>
-                    <small id="dreamContent-help" class="small-helper">
-                        Share as much detail as you can remember - emotions, colors, people, places, and unusual elements.
-                    </small>
-                    <div id="dreamContent-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                    <label for="dreamContent">Dream Description</label>
+                    <textarea id="dreamContent" class="form-control" placeholder="Describe your dream in as much detail as you can remember..." required></textarea>
                 </div>
                 
-                <!-- Dream Analysis Fieldset -->
-                <fieldset class="form-fieldset">
-                    <legend class="form-legend">Dream Analysis & Categorization</legend>
-
-                    <!-- Emotions Field - Comma-separated emotional states with autocomplete -->
-                    <div class="form-group">
-                        <label for="dreamEmotions">Emotions Experienced (optional)</label>
-                        <input type="text"
-                               id="dreamEmotions"
-                               class="form-control"
-                               placeholder="e.g., happy, anxious, excited, confused (separate with commas)"
-                               aria-describedby="emotions-help dreamEmotions-error"
-                               aria-invalid="false">
-                        <small id="emotions-help" class="small-helper">
-                            Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
-                        </small>
-                        <div id="dreamEmotions-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                <!-- Emotions Field - Comma-separated emotional states with autocomplete -->
+                <div class="form-group">
+                    <label for="dreamEmotions">Emotions Experienced (optional)</label>
+                    <input type="text" 
+                           id="dreamEmotions" 
+                           class="form-control" 
+                           placeholder="e.g., happy, anxious, excited, confused (separate with commas)"
+                           aria-describedby="emotions-help">
+                    <small id="emotions-help" class="small-helper">
+                        Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
+                    </small>
+                </div>
+                
+                <!-- Tags Field - Thematic categorization with autocomplete support -->
+                <div class="form-group">
+                    <label for="dreamTags">Tags & Themes (optional)</label>
+                    <div class="tag-input-group">
+                        <input type="text" 
+                               id="dreamTags" 
+                               class="form-control" 
+                               placeholder="e.g., family, flying, school, animals (separate with commas)"
+                               aria-describedby="tags-help">
                     </div>
-
-                    <!-- Tags Field - Thematic categorization with autocomplete support -->
-                    <div class="form-group">
-                        <label for="dreamTags">Tags & Themes (optional)</label>
-                        <div class="tag-input-group">
-                            <input type="text"
-                                   id="dreamTags"
-                                   class="form-control"
-                                   placeholder="e.g., family, flying, school, animals (separate with commas)"
-                                   aria-describedby="tags-help dreamTags-error"
-                                   aria-invalid="false">
-                        </div>
-                        <small id="tags-help" class="small-helper">
-                            Tag your dream with themes, people, places, objects, or activities for easy searching
-                        </small>
-                        <div id="dreamTags-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                    <small id="tags-help" class="small-helper">
+                        Tag your dream with themes, people, places, objects, or activities for easy searching
+                    </small>
+                </div>
+                
+                <!-- Dream Signs Field - Lucidity trigger tracking with autocomplete -->
+                <div class="form-group">
+                    <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
+                    <div class="tag-input-group">
+                        <input type="text" 
+                               id="dreamSigns" 
+                               class="form-control" 
+                               placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)"
+                               aria-describedby="signs-help">
                     </div>
-
-                    <!-- Dream Signs Field - Lucidity trigger tracking with autocomplete -->
-                    <div class="form-group">
-                        <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
-                        <div class="tag-input-group">
-                            <input type="text"
-                                   id="dreamSigns"
-                                   class="form-control"
-                                   placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)"
-                                   aria-describedby="signs-help dreamSigns-error"
-                                   aria-invalid="false">
-                        </div>
-                        <small id="signs-help" class="small-helper-warning">
-                            Elements that could trigger lucidity - track these to improve dream awareness!
-                        </small>
-                        <div id="dreamSigns-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
-                    </div>
-                </fieldset>
+                    <small id="signs-help" class="small-helper-warning">
+                        Elements that could trigger lucidity - track these to improve dream awareness!
+                    </small>
+                </div>
                 
                 <!-- Save Button - Submits dream form via data-action event delegation -->
                 <button data-action="save-dream" class="btn btn-primary" aria-keyshortcuts="Control+Enter">Save Dream</button>
