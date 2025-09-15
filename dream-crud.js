@@ -45,7 +45,7 @@ import {
     generateUniqueId,
     isIndexedDBAvailable
 } from './storage.js';
-import { createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
 
 /**
  * Filter values extracted from UI controls for dream processing.
@@ -342,6 +342,15 @@ async function shouldEncryptDream() {
             if (filteredDreams.length === 0) {
                 showNoResultsMessage(container, filterType, searchTerm);
                 clearPagination();
+
+                // Announce no results for screen readers
+                const { searchTerm: currentSearchTerm, filterType: currentFilterType } = getFilterValues();
+                if (currentSearchTerm || currentFilterType !== 'all') {
+                    const filterText = currentFilterType !== 'all' ? ` ${currentFilterType}` : '';
+                    announceLiveMessage('search', `No${filterText} dreams found matching your search.`);
+                } else {
+                    announceLiveMessage('search', 'No dreams recorded yet.');
+                }
                 return;
             }
             
@@ -350,7 +359,16 @@ async function shouldEncryptDream() {
             
             // Render dreams
             container.innerHTML = paginatedDreams.map(renderDreamHTML).filter(html => html).join('');
-            
+
+            // Announce search results for screen readers
+            const { searchTerm, filterType } = getFilterValues();
+            if (searchTerm || filterType !== 'all') {
+                const filterText = filterType !== 'all' ? ` ${filterType}` : '';
+                announceLiveMessage('search', `Found ${totalDreams}${filterText} dreams matching your search.`);
+            } else {
+                announceLiveMessage('search', `Displaying ${totalDreams} dreams.`);
+            }
+
             // Render pagination
             renderPaginationHTML(limitValue, totalPages, totalDreams, paginatedDreams);
             

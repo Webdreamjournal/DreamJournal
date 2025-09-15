@@ -107,6 +107,52 @@ function createActionButton(action, id, text, className = 'btn', extraAttrs = {}
 // ===================================================================================
 
 /**
+ * Announces messages to appropriate accessibility live regions for screen readers.
+ *
+ * This function determines the correct live region based on message type and announces
+ * the message content to screen reader users. It provides immediate accessibility
+ * feedback for all dynamic content changes in the application.
+ *
+ * @param {string} type - Message type: 'success', 'error', 'warning', 'info', 'form', 'search', 'status', 'progress', 'validation'
+ * @param {string} text - Message content to announce
+ * @since 2.04.01
+ * @example
+ * // Announce form feedback
+ * announceLiveMessage('success', 'Dream saved successfully!');
+ *
+ * @example
+ * // Announce search results
+ * announceLiveMessage('search', 'Found 15 dreams matching your search');
+ */
+function announceLiveMessage(type, text) {
+    // Map message types to appropriate live regions
+    const liveRegionMap = {
+        'success': 'status-announcer',
+        'error': 'validation-announcer',
+        'warning': 'status-announcer',
+        'info': 'status-announcer',
+        'form': 'form-announcer',
+        'search': 'search-announcer',
+        'status': 'status-announcer',
+        'progress': 'progress-announcer',
+        'validation': 'validation-announcer'
+    };
+
+    // Get the appropriate live region ID
+    const regionId = liveRegionMap[type] || 'status-announcer';
+    const liveRegion = document.getElementById(regionId);
+
+    if (liveRegion) {
+        // Clear previous content and announce new message
+        liveRegion.textContent = '';
+        // Use setTimeout to ensure screen readers pick up the change
+        setTimeout(() => {
+            liveRegion.textContent = text;
+        }, 50);
+    }
+}
+
+/**
  * Creates an inline notification message with consistent styling and auto-hide functionality.
  * 
  * Provides a unified notification system supporting multiple message types with customizable
@@ -121,6 +167,7 @@ function createActionButton(action, id, text, className = 'btn', extraAttrs = {}
  * @param {boolean} [options.autoHide=true] - Whether to automatically remove message after duration
  * @param {number} [options.duration] - Auto-hide duration in milliseconds (defaults: success=3000, others=5000)
  * @param {string} [options.className=''] - Additional CSS classes to apply
+ * @param {boolean} [options.announceToLiveRegion=true] - Whether to announce to accessibility live regions
  * @returns {Element} The created message element
  * @throws {TypeError} When type is not a valid message type
  * @since 1.0.0
@@ -150,14 +197,15 @@ function createInlineMessage(type, text, options = {}) {
             position = 'top', // Insert position: 'top' or 'bottom'
             autoHide = true, // Whether to automatically remove message
             duration = type === 'success' ? 3000 : 5000, // Auto-hide duration (success = 3s, others = 5s)
-            className = '' // Additional CSS classes
+            className = '', // Additional CSS classes
+            announceToLiveRegion = true // Whether to announce to accessibility live regions
         } = options;
-        
+
         // Create message element with consistent styling
         const msg = document.createElement('div');
         msg.className = `message-base message-${type} ${className}`.trim();
         msg.textContent = text;
-        
+
         // Insert message into specified container
         if (container) {
             if (position === 'top') {
@@ -165,7 +213,7 @@ function createInlineMessage(type, text, options = {}) {
             } else {
                 container.appendChild(msg);
             }
-            
+
             // Set up auto-hide timer if enabled
             if (autoHide) {
                 setTimeout(() => {
@@ -175,7 +223,12 @@ function createInlineMessage(type, text, options = {}) {
                 }, duration);
             }
         }
-        
+
+        // Announce message to appropriate live region for screen readers
+        if (announceToLiveRegion) {
+            announceLiveMessage(type, text);
+        }
+
         return msg;
     }
 
@@ -2611,6 +2664,7 @@ export {
     createActionButton,
     
     // Message & Notification System
+    announceLiveMessage,
     createInlineMessage,
     
     // Display & Layout Helpers

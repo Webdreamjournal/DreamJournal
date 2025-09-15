@@ -33,7 +33,7 @@
 import { CONSTANTS, GOAL_TEMPLATES } from './constants.js';
 import { getAllGoals, setAllGoals, getActiveGoalsPage, getCompletedGoalsPage, setActiveGoalsPage, setCompletedGoalsPage, goalDeleteTimeouts, withMutex } from './state.js';
 import { loadGoals, saveGoals, generateUniqueId, loadDreams } from './storage.js';
-import { createInlineMessage, escapeHtml, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, escapeHtml, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
 import { calculateDreamRecallStreak, calculateJournalingStreak } from './statstab.js';
 
 // ================================

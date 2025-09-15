@@ -42,7 +42,7 @@ import {
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
-import { createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate } from './dom-helpers.js';
 import { 
     encryptData, 
     decryptData,
