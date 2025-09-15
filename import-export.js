@@ -1096,10 +1096,8 @@ async function importAllData(event) {
                         const mergedTags = [...currentTags, ...newTags].sort((a, b) => 
                             a.toLowerCase().localeCompare(b.toLowerCase())
                         );
-                        await saveItemToStore('autocomplete', {
-                            id: 'tags',
-                            items: mergedTags
-                        });
+                        const { saveAutocompleteSuggestions } = await import('./storage.js');
+                        await saveAutocompleteSuggestions('tags', mergedTags);
                         importedAutocomplete += newTags.length;
                     }
                 }
@@ -1119,10 +1117,8 @@ async function importAllData(event) {
                         const mergedDreamSigns = [...currentDreamSigns, ...newDreamSigns].sort((a, b) => 
                             a.toLowerCase().localeCompare(b.toLowerCase())
                         );
-                        await saveItemToStore('autocomplete', {
-                            id: 'dreamSigns',
-                            items: mergedDreamSigns
-                        });
+                        const { saveAutocompleteSuggestions } = await import('./storage.js');
+                        await saveAutocompleteSuggestions('dreamSigns', mergedDreamSigns);
                         importedAutocomplete += newDreamSigns.length;
                     }
                 }

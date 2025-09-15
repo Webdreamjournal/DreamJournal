@@ -1570,12 +1570,23 @@ function hideSearchLoading() {
  */
 async function initializeAutocomplete() {
     try {
-        const [tags, signs] = await Promise.all([
-            getAutocompleteSuggestions('tags'),
-            getAutocompleteSuggestions('dreamSigns')
-        ]);
-        setupTagAutocomplete('dreamTags', tags);
-        setupTagAutocomplete('dreamSigns', signs);
+        // Check if encryption is enabled
+        const { getEncryptionEnabled } = await import('./state.js');
+
+        if (getEncryptionEnabled()) {
+            // For encrypted data, set up lazy loading autocomplete
+            // Data will only be decrypted when user actually focuses on input fields
+            setupLazySecureAutocomplete('dreamTags', 'tags');
+            setupLazySecureAutocomplete('dreamSigns', 'dreamSigns');
+        } else {
+            // For unencrypted data, use normal initialization
+            const [tags, signs] = await Promise.all([
+                getAutocompleteSuggestions('tags'),
+                getAutocompleteSuggestions('dreamSigns')
+            ]);
+            setupTagAutocomplete('dreamTags', tags);
+            setupTagAutocomplete('dreamSigns', signs);
+        }
     } catch (error) {
         console.error("Failed to initialize autocomplete:", error);
         setupTagAutocomplete('dreamTags', commonTags);
@@ -1584,8 +1595,90 @@ async function initializeAutocomplete() {
 }
 
 /**
+ * Sets up secure lazy-loading autocomplete for encrypted data.
+ *
+ * This function implements a security-conscious approach to autocomplete for encrypted data.
+ * Instead of loading and decrypting all autocomplete data at startup, it only decrypts
+ * data when the user actually focuses on the input field, and clears it from memory
+ * after a timeout to minimize exposure of sensitive data.
+ *
+ * **Security Features:**
+ * - Data is only decrypted when needed (on focus)
+ * - Decrypted data is cleared from memory after use
+ * - Reduces exposure window for sensitive autocomplete data
+ * - Falls back to common defaults if decryption fails
+ *
+ * @async
+ * @function
+ * @param {string} elementId - ID of the input element to attach autocomplete to
+ * @param {('tags'|'dreamSigns')} dataType - Type of autocomplete data to load
+ * @returns {void}
+ * @since 2.03.04
+ * @example
+ * setupLazySecureAutocomplete('dreamTags', 'tags');
+ * // Autocomplete data will only be decrypted when user focuses on the input
+ */
+async function setupLazySecureAutocomplete(elementId, dataType) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    let decryptedData = null;
+    let timeoutId = null;
+
+    // Function to clear sensitive data from memory
+    const clearSensitiveData = () => {
+        if (decryptedData) {
+            // Overwrite array contents for security
+            decryptedData.fill('');
+            decryptedData = null;
+        }
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    // Set up focus event to decrypt data on demand
+    element.addEventListener('focus', async () => {
+        try {
+            // Clear any existing timeout
+            if (timeoutId) clearTimeout(timeoutId);
+
+            // Decrypt data if not already available
+            if (!decryptedData) {
+                const { getAutocompleteSuggestions } = await import('./storage.js');
+                decryptedData = await getAutocompleteSuggestions(dataType);
+            }
+
+            // Set up autocomplete with decrypted data
+            setupTagAutocomplete(elementId, decryptedData);
+
+            // Set timeout to clear data after 5 minutes of inactivity
+            timeoutId = setTimeout(clearSensitiveData, 5 * 60 * 1000);
+
+        } catch (error) {
+            console.error(`Failed to load secure autocomplete for ${dataType}:`, error);
+            // Fall back to default data
+            const { commonTags, commonDreamSigns } = await import('./constants.js');
+            const fallbackData = dataType === 'tags' ? commonTags : commonDreamSigns;
+            setupTagAutocomplete(elementId, fallbackData);
+        }
+    });
+
+    // Clear data when user leaves the field
+    element.addEventListener('blur', () => {
+        // Set a shorter timeout when user leaves the field
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(clearSensitiveData, 30 * 1000); // 30 seconds
+    });
+
+    // Clear data when page is about to unload
+    window.addEventListener('beforeunload', clearSensitiveData);
+}
+
+/**
  * Renders autocomplete management list for tags or dream signs.
- * 
+ *
  * Creates an interactive list of autocomplete suggestions with delete functionality.
  * Handles loading states, empty states, and error conditions gracefully. All items
  * are treated uniformly with delete capabilities.
@@ -2551,6 +2644,7 @@ export {
     
     // Autocomplete System
     initializeAutocomplete,
+    setupLazySecureAutocomplete,
     setupTagAutocomplete,
     renderAutocompleteManagementList,
     

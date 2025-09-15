@@ -362,10 +362,8 @@ async function addCustomAutocompleteItem(type) {
             const updatedSuggestions = [...existingSuggestions, newItem];
 
             // Save to autocomplete store with encryption support
-            const success = await saveItemToStore('autocomplete', {
-                id: storeId,
-                items: updatedSuggestions
-            });
+            const { saveAutocompleteSuggestions } = await import('./storage.js');
+            const success = await saveAutocompleteSuggestions(type, updatedSuggestions);
 
             if (success) {
                 input.value = '';
@@ -437,10 +435,8 @@ async function deleteAutocompleteItem(type, itemValue) {
             );
 
             // Save updated list with encryption support
-            const success = await saveItemToStore('autocomplete', {
-                id: storeId,
-                items: updatedSuggestions
-            });
+            const { saveAutocompleteSuggestions } = await import('./storage.js');
+            const success = await saveAutocompleteSuggestions(type, updatedSuggestions);
 
             if (success) {
                 createInlineMessage('success', `Deleted "${itemValue}" successfully`);
