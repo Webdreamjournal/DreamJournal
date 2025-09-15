@@ -982,6 +982,156 @@
             min-height: 120px; /* Provides adequate space for dream descriptions - roughly 4-5 lines of text */
             resize: vertical;
         }
+
+        /* ================================ */
+        /* ACCESSIBILITY FORM ENHANCEMENTS */
+        /* ================================ */
+
+        /* Fieldset and legend styles for grouped form controls */
+        .form-fieldset {
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 25px;
+            background: var(--bg-secondary);
+        }
+
+        .form-legend {
+            font-size: 18px;
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+            padding: 0 10px;
+            margin-bottom: 0;
+        }
+
+        /* Required field indicators */
+        .required-indicator {
+            color: var(--error-color);
+            font-weight: bold;
+            margin-left: 3px;
+        }
+
+        /* Error message styling */
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            font-weight: var(--font-weight-medium);
+            margin-top: 5px;
+            padding: 8px 12px;
+            background: var(--error-bg);
+            border: 1px solid var(--error-border);
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--error-color);
+        }
+
+        /* Form validation states */
+        .form-control[aria-invalid="true"] {
+            border-color: var(--error-color);
+            background: var(--error-bg-light);
+        }
+
+        .form-control[aria-invalid="false"]:focus {
+            border-color: var(--success-color);
+            box-shadow: 0 0 0 2px var(--success-bg);
+        }
+
+        /* Progress indicators for multi-step forms */
+        .form-progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .form-progress-step {
+            flex: 1;
+            position: relative;
+            text-align: center;
+        }
+
+        .form-progress-step::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 1;
+        }
+
+        .form-progress-step:last-child::before {
+            display: none;
+        }
+
+        .form-progress-indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-secondary);
+            position: relative;
+            z-index: 2;
+            margin-bottom: 8px;
+        }
+
+        .form-progress-step.active .form-progress-indicator {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .form-progress-step.completed .form-progress-indicator {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+
+        .form-progress-step.completed::before {
+            background: var(--success-color);
+        }
+
+        .form-progress-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .form-progress-step.active .form-progress-label {
+            color: var(--text-primary);
+            font-weight: var(--font-weight-semibold);
+        }
+
+        /* Form submission feedback */
+        .form-feedback {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid;
+        }
+
+        .form-feedback.success {
+            background: var(--success-bg);
+            border-left-color: var(--success-color);
+            color: var(--success-text);
+        }
+
+        .form-feedback.error {
+            background: var(--error-bg);
+            border-left-color: var(--error-color);
+            color: var(--error-text);
+        }
+
+        .form-feedback.info {
+            background: var(--info-bg);
+            border-left-color: var(--info-color);
+            color: var(--info-text);
+        }
         .lucid-checkbox {
             display: flex;
             align-items: center;

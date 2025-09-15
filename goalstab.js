@@ -1037,51 +1037,114 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
     return `
         <div class="pin-container">
             <h3>${formTitle}</h3>
-            <div class="form-group">
-                <label for="goalTitle">Goal Title</label>
-                <input type="text" id="goalTitle" class="form-control"
-                       value="${templateData?.title || ''}"
-                       required
-                       aria-describedby="goalTitleHelp">
-            </div>
-            <div class="form-group">
-                <label for="goalDescription">Description</label>
-                <textarea id="goalDescription" class="form-control" rows="3"
-                          aria-describedby="goalDescriptionHelp">${templateData?.description || ''}</textarea>
-            </div>
-            <div class="form-group">
-                <label for="goalType">Goal Type</label>
-                <select id="goalType" class="form-control" aria-describedby="goalTypeHelp">
-                    <option value="lucid_count" ${templateData?.type === 'lucid_count' ? 'selected' : ''}>Lucid Dreams Count</option>
-                    <option value="recall_streak" ${templateData?.type === 'recall_streak' ? 'selected' : ''}>Dream Recall Streak</option>
-                    <option value="journal_streak" ${templateData?.type === 'journal_streak' ? 'selected' : ''}>Journal Writing Streak</option>
-                    <option value="dream_signs_count" ${templateData?.type === 'dream_signs_count' ? 'selected' : ''}>Dream Signs Collection</option>
-                    <option value="custom" ${templateData?.type === 'custom' ? 'selected' : ''}>Custom (Manual Tracking)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="goalPeriod">Time Period</label>
-                <select id="goalPeriod" class="form-control" aria-describedby="goalPeriodHelp">
-                    <option value="monthly" ${templateData?.period === 'monthly' ? 'selected' : ''}>Monthly</option>
-                    <option value="streak" ${templateData?.period === 'streak' ? 'selected' : ''}>Consecutive Days</option>
-                    <option value="total" ${templateData?.period === 'total' ? 'selected' : ''}>All Time Total</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="goalTarget">Target Number</label>
-                <input type="number" id="goalTarget" class="form-control"
-                       value="${templateData?.target || 1}"
-                       min="1"
-                       required
-                       aria-describedby="goalTargetHelp">
-            </div>
-            <div class="form-group">
-                <label for="goalIcon">Icon (optional)</label>
-                <input type="text" id="goalIcon" class="form-control"
-                       value="${templateData?.icon || '🎯'}"
-                       maxlength="2"
-                       aria-describedby="goalIconHelp">
-            </div>
+
+            <!-- Goal Basic Information Fieldset -->
+            <fieldset class="form-fieldset">
+                <legend class="form-legend">Goal Information</legend>
+
+                <div class="form-group">
+                    <label for="goalTitle">
+                        Goal Title <span class="required-indicator" aria-label="required field">*</span>
+                    </label>
+                    <input type="text" id="goalTitle" class="form-control"
+                           value="${templateData?.title || ''}"
+                           required
+                           aria-required="true"
+                           aria-describedby="goalTitleHelp goalTitle-error"
+                           aria-invalid="false">
+                    <small id="goalTitleHelp" class="small-helper">
+                        Give your goal a clear, motivating title.
+                    </small>
+                    <div id="goalTitle-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="goalDescription">Description (optional)</label>
+                    <textarea id="goalDescription" class="form-control" rows="3"
+                              aria-describedby="goalDescriptionHelp goalDescription-error"
+                              aria-invalid="false">${templateData?.description || ''}</textarea>
+                    <small id="goalDescriptionHelp" class="small-helper">
+                        Optional: Add details about what you want to achieve and why.
+                    </small>
+                    <div id="goalDescription-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+            </fieldset>
+
+            <!-- Goal Configuration Fieldset -->
+            <fieldset class="form-fieldset">
+                <legend class="form-legend">Goal Configuration</legend>
+
+                <div class="form-group">
+                    <label for="goalType">
+                        Goal Type <span class="required-indicator" aria-label="required field">*</span>
+                    </label>
+                    <select id="goalType" class="form-control"
+                            required
+                            aria-required="true"
+                            aria-describedby="goalTypeHelp goalType-error"
+                            aria-invalid="false">
+                        <option value="lucid_count" ${templateData?.type === 'lucid_count' ? 'selected' : ''}>Lucid Dreams Count</option>
+                        <option value="recall_streak" ${templateData?.type === 'recall_streak' ? 'selected' : ''}>Dream Recall Streak</option>
+                        <option value="journal_streak" ${templateData?.type === 'journal_streak' ? 'selected' : ''}>Journal Writing Streak</option>
+                        <option value="dream_signs_count" ${templateData?.type === 'dream_signs_count' ? 'selected' : ''}>Dream Signs Collection</option>
+                        <option value="custom" ${templateData?.type === 'custom' ? 'selected' : ''}>Custom (Manual Tracking)</option>
+                    </select>
+                    <small id="goalTypeHelp" class="small-helper">
+                        Choose what type of progress to track.
+                    </small>
+                    <div id="goalType-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="goalPeriod">
+                        Time Period <span class="required-indicator" aria-label="required field">*</span>
+                    </label>
+                    <select id="goalPeriod" class="form-control"
+                            required
+                            aria-required="true"
+                            aria-describedby="goalPeriodHelp goalPeriod-error"
+                            aria-invalid="false">
+                        <option value="monthly" ${templateData?.period === 'monthly' ? 'selected' : ''}>Monthly</option>
+                        <option value="streak" ${templateData?.period === 'streak' ? 'selected' : ''}>Consecutive Days</option>
+                        <option value="total" ${templateData?.period === 'total' ? 'selected' : ''}>All Time Total</option>
+                    </select>
+                    <small id="goalPeriodHelp" class="small-helper">
+                        How should progress be calculated over time?
+                    </small>
+                    <div id="goalPeriod-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="goalTarget">
+                        Target Number <span class="required-indicator" aria-label="required field">*</span>
+                    </label>
+                    <input type="number" id="goalTarget" class="form-control"
+                           value="${templateData?.target || 1}"
+                           min="1" max="1000"
+                           required
+                           aria-required="true"
+                           aria-describedby="goalTargetHelp goalTarget-error"
+                           aria-invalid="false">
+                    <small id="goalTargetHelp" class="small-helper">
+                        What number do you want to reach? (1-1000)
+                    </small>
+                    <div id="goalTarget-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="goalIcon">Icon (optional)</label>
+                    <input type="text" id="goalIcon" class="form-control"
+                           value="${templateData?.icon || '🎯'}"
+                           maxlength="2"
+                           aria-describedby="goalIconHelp goalIcon-error"
+                           aria-invalid="false">
+                    <small id="goalIconHelp" class="small-helper">
+                        Choose an emoji to represent your goal (max 2 characters).
+                    </small>
+                    <div id="goalIcon-error" class="error-message" role="alert" aria-live="polite" style="display: none;"></div>
+                </div>
+            </fieldset>
+
             <div class="pin-buttons">
                 <button data-action="save-goal" class="btn btn-primary">${buttonText}</button>
                 <button data-action="cancel-goal-dialog" class="btn btn-secondary">Cancel</button>
@@ -1259,8 +1322,34 @@ async function saveGoal() {
         const currentGoals = await validateGoalsDataIntegrity();
         setAllGoals(currentGoals);
 
-        // Validate form data
+        // Validate form data using both internal and new validation systems
         const validation = validateGoalForm();
+
+        // Additional validation using the new FormValidation system if available
+        if (window.FormValidation && validation.formData) {
+            const formValidationResult = window.FormValidation.validateForm('goal', {
+                goalTitle: validation.formData.title,
+                goalDescription: validation.formData.description,
+                goalType: validation.formData.type,
+                goalPeriod: validation.formData.period,
+                goalTarget: validation.formData.target,
+                goalIcon: validation.formData.icon
+            });
+
+            if (!formValidationResult.isValid) {
+                // Focus the first error field
+                if (formValidationResult.firstErrorField) {
+                    window.FormValidation.focusFirstError(formValidationResult.firstErrorField);
+                }
+
+                window.FormValidation.showFormSubmissionFeedback('error',
+                    `Please fix ${formValidationResult.errorCount} validation error${formValidationResult.errorCount > 1 ? 's' : ''} before saving your goal.`,
+                    { persistent: true, announceImmediately: true }
+                );
+                return;
+            }
+        }
+
         if (!validation.isValid) {
             console.error('Goal form validation failed:', validation.errors);
             showGoalMessage('form-error', validation.errors[0]);

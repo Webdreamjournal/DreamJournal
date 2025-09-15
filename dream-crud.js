@@ -166,19 +166,48 @@ async function shouldEncryptDream() {
         const emotionsElement = document.getElementById('dreamEmotions');
         const tagsElement = document.getElementById('dreamTags');
         const dreamSignsElement = document.getElementById('dreamSigns');
-        
-        if (!contentElement?.value.trim()) {
-            contentElement.style.borderColor = 'var(--error-color)';
-            const errorMsg = document.createElement('div');
-            errorMsg.className = 'message-error text-sm mt-sm';
-            errorMsg.textContent = 'Please enter a dream description before saving.';
-            contentElement.parentElement.appendChild(errorMsg);
-            
-            setTimeout(() => {
-                contentElement.style.borderColor = 'var(--border-color)';
-                errorMsg.remove();
-            }, 3000);
-            return;
+
+        // Prepare form data for validation
+        const formData = {
+            dreamDate: dreamDateElement?.value || '',
+            dreamContent: contentElement?.value || '',
+            dreamTitle: titleElement?.value || '',
+            dreamEmotions: emotionsElement?.value || '',
+            dreamTags: tagsElement?.value || '',
+            dreamSigns: dreamSignsElement?.value || ''
+        };
+
+        // Validate the entire form using the new validation system
+        if (window.FormValidation) {
+            const validationResult = window.FormValidation.validateForm('dream', formData);
+
+            if (!validationResult.isValid) {
+                // Focus the first error field and show submission feedback
+                if (validationResult.firstErrorField) {
+                    window.FormValidation.focusFirstError(validationResult.firstErrorField);
+                }
+
+                window.FormValidation.showFormSubmissionFeedback('error',
+                    `Please fix ${validationResult.errorCount} validation error${validationResult.errorCount > 1 ? 's' : ''} before saving your dream.`,
+                    { persistent: true, announceImmediately: true }
+                );
+                return;
+            }
+        } else {
+            // Fallback validation if FormValidation system is not available
+            if (!contentElement?.value.trim()) {
+                contentElement.style.borderColor = 'var(--error-color)';
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'message-error text-sm mt-sm';
+                errorMsg.textContent = 'Please enter a dream description before saving.';
+                contentElement.parentElement.appendChild(errorMsg);
+
+                setTimeout(() => {
+                    contentElement.style.borderColor = 'var(--border-color)';
+                    errorMsg.remove();
+                }, 3000);
+                return;
+            }
         }
 
         const tags = parseTagsFromInput(tagsElement.value);
@@ -260,10 +289,18 @@ async function shouldEncryptDream() {
         clearDreamForm(titleElement, contentElement, dreamDateElement, isLucidElement, emotionsElement, tagsElement, dreamSignsElement);
         resetPaginationToFirst();
         
+        // Show success feedback using both systems for comprehensive accessibility
         createInlineMessage('success', 'Dream saved successfully!', {
             container: document.querySelector('.entry-form'),
             position: 'bottom'
         });
+
+        if (window.FormValidation) {
+            window.FormValidation.showFormSubmissionFeedback('success',
+                'Dream saved successfully! Your dream has been added to your journal.',
+                { duration: 3000 }
+            );
+        }
         
         await displayDreams();
         await initializeAutocomplete();
