@@ -1316,11 +1316,15 @@ async function verifyLockScreenPin() {
                 
                 pinInput.value = '';
                 
-                setTimeout(() => {
+                setTimeout(async () => {
                     showAllTabButtons();
                     const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                     switchAppTab(targetTab);
                     updateSecurityControls();
+
+                    // Load and display all application data after successful lock screen PIN authentication
+                    const { initializeApplicationData } = await import('./main.js');
+                    await initializeApplicationData();
                 }, 200);
                 
             } else {
