@@ -1686,7 +1686,17 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
 
         // For new users or migrated users, use the new unified 'autocomplete' store
         if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
-            const autocompleteData = await loadItemFromStore('autocomplete', storeId);
+            let autocompleteData;
+
+            // Check if encryption is enabled and we have a password
+            if (getEncryptionEnabled() && getEncryptionPassword()) {
+                // Use encrypted loader when encryption is enabled and password is available
+                autocompleteData = await loadItemFromStore('autocomplete', storeId);
+            } else {
+                // Use raw loader when encryption is disabled or no password is set
+                autocompleteData = await loadItemFromStoreRaw('autocomplete', storeId);
+            }
+
             if (autocompleteData && autocompleteData.items) {
                 // Sort alphabetically for consistent display
                 return autocompleteData.items.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
