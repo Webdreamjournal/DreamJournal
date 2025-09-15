@@ -1790,6 +1790,13 @@
         .tab-panel:not(#journalTab) {
             padding: 20px;
         }
+
+        .main-content {
+            padding: 15px;
+            overflow-x: hidden;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
         
         /*
          * ================================
@@ -2618,6 +2625,7 @@
             border: var(--border-dashed);
             border-radius: var(--border-radius);
         }
+            
         
         /* ================================ */
         /* RESPONSIVE DESIGN & MOBILE       */
@@ -2656,14 +2664,7 @@
                 min-width: auto;
                 flex: none;
             }
-            
-            .main-content {
-                padding: 15px;
-                overflow-x: hidden;
-                max-width: 100%;
-                box-sizing: border-box;
-            }
-            
+
             .tab-panel:not(#journalTab) {
                 padding: 15px;
             }
