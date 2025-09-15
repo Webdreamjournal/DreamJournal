@@ -53,7 +53,7 @@ function renderJournalTab(tabPanel) {
     }
     
     tabPanel.innerHTML = `
-        <div class="main-content">
+        <div class="settings-section">
             
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (EXPANDED)     -->
@@ -141,23 +141,25 @@ function renderJournalTab(tabPanel) {
                 <!-- Save Button - Submits dream form via data-action event delegation -->
                 <button data-action="save-dream" class="btn btn-primary" aria-keyshortcuts="Control+Enter">Save Dream</button>
             </div>
-            
+
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (COLLAPSED)    -->
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormCollapsed">
                 <!-- Collapsed form header with expand functionality -->
-                <h3 data-action="toggle-dream-form" 
+                <h3 data-action="toggle-dream-form"
                     role="button"
                     tabindex="0"
                     aria-expanded="false"
                     aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
                     style="cursor: pointer; user-select: none;">
-                    📝 Record Your Dream 
+                    📝 Record Your Dream
                     <span class="text-xs text-secondary font-normal">(Press Enter to expand)</span>
                 </h3>
             </div>
-            
+        </div>
+
+        <div class="settings-section">
             <!-- ================================ -->
             <!-- VOICE RECORDING SYSTEM           -->
             <!-- ================================ -->
@@ -207,7 +209,9 @@ function renderJournalTab(tabPanel) {
                     </div>
                 </div>
             </div>
-            
+        </div>
+
+        <div class="settings-section">
             <!-- ================================ -->
             <!-- DREAMS SECTION HEADER            -->
             <!-- ================================ -->
