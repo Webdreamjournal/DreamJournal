@@ -361,7 +361,6 @@ async function shouldEncryptDream() {
             container.innerHTML = paginatedDreams.map(renderDreamHTML).filter(html => html).join('');
 
             // Announce search results for screen readers
-            const { searchTerm, filterType } = getFilterValues();
             if (searchTerm || filterType !== 'all') {
                 const filterText = filterType !== 'all' ? ` ${filterType}` : '';
                 announceLiveMessage('search', `Found ${totalDreams}${filterText} dreams matching your search.`);
