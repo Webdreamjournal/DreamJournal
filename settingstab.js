@@ -519,12 +519,12 @@ async function toggleEncryption() {
  * 1. Show password setup dialog with confirmation
  * 2. Validate password meets security requirements
  * 3. Save encryption settings to localStorage
- * 4. Encrypt all existing dreams and goals data
+ * 4. Encrypt all existing dreams, goals, and autocomplete data
  * 5. Update settings UI to reflect new encryption state
  * 6. Clear data cache to force reload with encryption
  *
  * **Data Migration:**
- * - Iterates through all existing dreams and goals
+ * - Iterates through all existing dreams, goals, and autocomplete data
  * - Encrypts each item using the new password
  * - Saves encrypted versions to IndexedDB
  * - Preserves all metadata and relationships
@@ -676,6 +676,25 @@ async function setupEncryption(password) {
             }
         }
 
+        // Encrypt existing autocomplete data (tags and dream signs)
+        const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
+        const autocompleteTypes = ['tags', 'dreamSigns'];
+        let autocompleteEncryptedCount = 0;
+
+        for (const type of autocompleteTypes) {
+            try {
+                const autocompleteData = await getAutocompleteSuggestionsRaw(type);
+                if (autocompleteData && !autocompleteData.encrypted) {
+                    const encrypted = await encryptItemForStorage(autocompleteData, password);
+                    await saveItemToStore('autocomplete', encrypted);
+                    autocompleteEncryptedCount++;
+                }
+            } catch (error) {
+                // Autocomplete may not exist for this type, continue with other types
+                console.warn(`Autocomplete ${type} encryption skipped:`, error.message);
+            }
+        }
+
         // Clear cache and reload data
         clearDecryptedDataCache();
         await initializeApplicationData();
@@ -687,8 +706,18 @@ async function setupEncryption(password) {
             initializeSettingsTab();
         }
 
-        const totalEncrypted = encryptedCount + goalsEncryptedCount;
-        createInlineMessage('success', `Encryption enabled successfully! ${totalEncrypted > 0 ? `${encryptedCount} dreams and ${goalsEncryptedCount} goals encrypted.` : 'All data is now encrypted.'}`);
+        const totalEncrypted = encryptedCount + goalsEncryptedCount + autocompleteEncryptedCount;
+        let message = 'Encryption enabled successfully!';
+        if (totalEncrypted > 0) {
+            const parts = [];
+            if (encryptedCount > 0) parts.push(`${encryptedCount} dreams`);
+            if (goalsEncryptedCount > 0) parts.push(`${goalsEncryptedCount} goals`);
+            if (autocompleteEncryptedCount > 0) parts.push(`${autocompleteEncryptedCount} autocomplete lists`);
+            message += ` ${parts.join(', ')} encrypted.`;
+        } else {
+            message += ' All data is now encrypted.';
+        }
+        createInlineMessage('success', message);
 
     } catch (error) {
         console.error('Error setting up encryption:', error);
@@ -707,7 +736,7 @@ async function setupEncryption(password) {
  * **Disable Process:**
  * 1. Verify current encryption password using custom password dialog
  * 2. Show confirmation dialog with security warnings using custom UI
- * 3. Decrypt all encrypted dreams and goals data
+ * 3. Decrypt all encrypted dreams, goals, and autocomplete data
  * 4. Save decrypted data in unencrypted format
  * 5. Clear encryption settings from localStorage and session state
  * 6. Update UI to reflect disabled encryption state
@@ -951,6 +980,25 @@ async function performEncryptionDisabling(password) {
         }
     }
 
+    // Decrypt all encrypted autocomplete data (tags and dream signs)
+    const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
+    const autocompleteTypes = ['tags', 'dreamSigns'];
+    let autocompleteDecryptedCount = 0;
+
+    for (const type of autocompleteTypes) {
+        try {
+            const autocompleteData = await getAutocompleteSuggestionsRaw(type);
+            if (autocompleteData && isEncryptedItem(autocompleteData)) {
+                const decrypted = await decryptItemFromStorage(autocompleteData, password);
+                await saveItemToStore('autocomplete', decrypted);
+                autocompleteDecryptedCount++;
+            }
+        } catch (error) {
+            // Autocomplete may not exist for this type, continue with other types
+            console.warn(`Autocomplete ${type} decryption skipped:`, error.message);
+        }
+    }
+
     // Disable encryption settings
     await saveEncryptionSettings(false);
     setEncryptionEnabled(false);
@@ -967,8 +1015,18 @@ async function performEncryptionDisabling(password) {
         initializeSettingsTab();
     }
 
-    const totalDecrypted = decryptedCount + goalsDecryptedCount;
-    createInlineMessage('success', `Encryption disabled successfully! ${totalDecrypted > 0 ? `${decryptedCount} dreams and ${goalsDecryptedCount} goals decrypted.` : 'All data is now unencrypted.'}`);
+    const totalDecrypted = decryptedCount + goalsDecryptedCount + autocompleteDecryptedCount;
+    let message = 'Encryption disabled successfully!';
+    if (totalDecrypted > 0) {
+        const parts = [];
+        if (decryptedCount > 0) parts.push(`${decryptedCount} dreams`);
+        if (goalsDecryptedCount > 0) parts.push(`${goalsDecryptedCount} goals`);
+        if (autocompleteDecryptedCount > 0) parts.push(`${autocompleteDecryptedCount} autocomplete lists`);
+        message += ` ${parts.join(', ')} decrypted.`;
+    } else {
+        message += ' All data is now unencrypted.';
+    }
+    createInlineMessage('success', message);
 }
 
 /**

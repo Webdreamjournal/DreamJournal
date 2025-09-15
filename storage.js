@@ -1748,11 +1748,27 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         // Add the new item
         const updatedSuggestions = [...existingSuggestions, newItem];
         
-        // Save to autocomplete store
-        const success = await saveItemToStore('autocomplete', {
+        // Save to autocomplete store with encryption support
+        const autocompleteData = {
             id: storeId,
             items: updatedSuggestions
-        });
+        };
+
+        let success;
+        const shouldEncrypt = await shouldEncryptStore('autocomplete');
+        if (shouldEncrypt) {
+            const { getEncryptionPassword } = await import('./state.js');
+            const password = getEncryptionPassword();
+            if (password) {
+                const encryptedData = await encryptItemForStorage(autocompleteData, password);
+                success = await saveItemToStore('autocomplete', encryptedData);
+            } else {
+                console.warn('Encryption enabled but no password available for autocomplete data');
+                success = await saveItemToStore('autocomplete', autocompleteData);
+            }
+        } else {
+            success = await saveItemToStore('autocomplete', autocompleteData);
+        }
 
         if (success) {
             input.value = '';
@@ -1799,11 +1815,27 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             item => item.toLowerCase() !== itemValue.toLowerCase()
         );
         
-        // Save updated list
-        const success = await saveItemToStore('autocomplete', {
+        // Save updated list with encryption support
+        const autocompleteData = {
             id: storeId,
             items: updatedSuggestions
-        });
+        };
+
+        let success;
+        const shouldEncrypt = await shouldEncryptStore('autocomplete');
+        if (shouldEncrypt) {
+            const { getEncryptionPassword } = await import('./state.js');
+            const password = getEncryptionPassword();
+            if (password) {
+                const encryptedData = await encryptItemForStorage(autocompleteData, password);
+                success = await saveItemToStore('autocomplete', encryptedData);
+            } else {
+                console.warn('Encryption enabled but no password available for autocomplete data');
+                success = await saveItemToStore('autocomplete', autocompleteData);
+            }
+        } else {
+            success = await saveItemToStore('autocomplete', autocompleteData);
+        }
 
         if (success) {
             createInlineMessage('success', `Deleted "${itemValue}" successfully`);
@@ -1853,11 +1885,27 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         // Add new items to existing suggestions
         const updatedSuggestions = [...existingSuggestions, ...newItems];
         
-        // Save updated list
-        await saveItemToStore('autocomplete', {
+        // Save updated list with encryption support
+        const autocompleteData = {
             id: storeId,
             items: updatedSuggestions
-        });
+        };
+
+        // Check if encryption is enabled and encrypt if necessary
+        const shouldEncrypt = await shouldEncryptStore('autocomplete');
+        if (shouldEncrypt) {
+            const { getEncryptionPassword } = await import('./state.js');
+            const password = getEncryptionPassword();
+            if (password) {
+                const encryptedData = await encryptItemForStorage(autocompleteData, password);
+                await saveItemToStore('autocomplete', encryptedData);
+            } else {
+                console.warn('Encryption enabled but no password available for autocomplete data');
+                await saveItemToStore('autocomplete', autocompleteData);
+            }
+        } else {
+            await saveItemToStore('autocomplete', autocompleteData);
+        }
 
         console.log(`Learned ${newItems.length} new ${type}: ${newItems.join(', ')}`);
     }
@@ -1868,6 +1916,9 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * This function saves autocomplete suggestions to the appropriate store
      * and automatically handles encryption if encryption is enabled.
      * Provides a unified interface for saving both tags and dream signs data.
+     *
+     * **Security Note:** Autocomplete data (tags and dream signs) is now properly
+     * encrypted when the user has encryption enabled, protecting sensitive dream content.
      *
      * @async
      * @function
@@ -1888,13 +1939,26 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
 
         try {
-            // Use the standard saveItemToStore which handles encryption automatically
-            const success = await saveItemToStore('autocomplete', {
+            const autocompleteData = {
                 id: storeId,
                 items: suggestions.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-            });
+            };
 
-            return success;
+            // Check if encryption is enabled and encrypt if necessary
+            const shouldEncrypt = await shouldEncryptStore('autocomplete');
+            if (shouldEncrypt) {
+                const { getEncryptionPassword } = await import('./state.js');
+                const password = getEncryptionPassword();
+                if (password) {
+                    const encryptedData = await encryptItemForStorage(autocompleteData, password);
+                    return await saveItemToStore('autocomplete', encryptedData);
+                } else {
+                    console.warn('Encryption enabled but no password available for autocomplete data');
+                    return await saveItemToStore('autocomplete', autocompleteData);
+                }
+            } else {
+                return await saveItemToStore('autocomplete', autocompleteData);
+            }
         } catch (error) {
             console.error(`Failed to save autocomplete suggestions for ${type}:`, error);
             return false;
