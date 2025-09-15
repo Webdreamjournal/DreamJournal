@@ -341,9 +341,10 @@
         .form-label-inline { font-size: 14px; font-weight: var(--font-weight-semibold); cursor: pointer; }
         
         /* Footer and structural elements */
-        .app-footer { background: var(--bg-light); border-top: 1px solid var(--border-color); 
-                      padding: 20px; margin-top: 40px; text-align: center; 
-                      color: var(--text-secondary); font-size: 14px; }
+        .app-footer { background: var(--bg-light); border-top: 1px solid var(--border-color);
+                      padding: 20px; margin-top: 40px; text-align: center;
+                      color: var(--text-secondary); font-size: 14px;
+                      border-radius: var(--border-radius); }
         .app-footer p { margin: 0; font-size: 12px; opacity: 0.8; }
         
         /* Feedback and autocomplete */
@@ -736,6 +737,7 @@
             padding: 20px;
             background: var(--bg-light);
             border-bottom: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
