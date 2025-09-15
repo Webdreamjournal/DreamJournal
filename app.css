@@ -344,7 +344,10 @@
         .app-footer { background: var(--bg-light); border: 2px solid var(--border-dark-l);
                       padding: 20px; margin-top: 40px; text-align: center;
                       color: var(--text-secondary); font-size: 14px;
-                      border-radius: var(--border-radius); }
+                      border-top-left-radius: 0;
+                      border-top-right-radius: 0;
+                      border-bottom-left-radius: var(--border-radius); 
+                      border-bottom-right-radius: var(--border-radius); }
         .app-footer p { margin: 0; font-size: 12px; opacity: 0.8; }
         
         /* Feedback and autocomplete */
@@ -697,6 +700,7 @@
             overflow: hidden;
             width: 100%;
             box-sizing: border-box;
+            padding-bottom: 0;
         }
         
         .search-loading {
@@ -1784,7 +1788,6 @@
         
         .tab-panel.active {
             display: block;
-            border-color: var(--primary-color);
         }
         
         .tab-panel:not(#journalTab) {
