@@ -1379,7 +1379,12 @@ async function verifyLockScreenPin() {
 
                 // Load and display all application data after successful PIN authentication
                 const { initializeApplicationData } = await import('./main.js');
+                const { switchAppTab, showAllTabButtons } = await import('./dom-helpers.js');
                 await initializeApplicationData();
+
+                // Switch to the journal tab and show all tab buttons
+                switchAppTab(getPreLockActiveTab() || 'journal');
+                showAllTabButtons();
 
                 setTimeout(() => {
                     const container = document.querySelector('.main-content');
