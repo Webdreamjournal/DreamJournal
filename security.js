@@ -1801,6 +1801,7 @@ async function confirmDataWipe() {
         feedback.innerHTML = '<div class="message-base message-info">Wiping all data...</div>';
 
         // Import required functions
+        console.log('confirmDataWipe: Importing state functions');
         const {
             setEncryptionEnabled,
             setEncryptionPassword,
@@ -1810,23 +1811,36 @@ async function confirmDataWipe() {
         } = await import('./state.js');
 
         // Clear IndexedDB databases
+        console.log('confirmDataWipe: Getting database list');
         const databases = await indexedDB.databases();
+        console.log('confirmDataWipe: Found databases:', databases.map(db => db.name));
+
         for (const db of databases) {
             if (db.name && db.name.includes('Dream')) {
+                console.log('confirmDataWipe: Deleting database:', db.name);
                 const deleteReq = indexedDB.deleteDatabase(db.name);
                 await new Promise((resolve, reject) => {
-                    deleteReq.onsuccess = () => resolve();
-                    deleteReq.onerror = () => reject(deleteReq.error);
+                    deleteReq.onsuccess = () => {
+                        console.log('confirmDataWipe: Successfully deleted database:', db.name);
+                        resolve();
+                    };
+                    deleteReq.onerror = () => {
+                        console.error('confirmDataWipe: Failed to delete database:', db.name, deleteReq.error);
+                        reject(deleteReq.error);
+                    };
                 });
             }
         }
 
         // Clear all localStorage
+        console.log('confirmDataWipe: Clearing localStorage');
         if (typeof(Storage) !== "undefined" && localStorage) {
             localStorage.clear();
+            console.log('confirmDataWipe: localStorage cleared');
         }
 
         // Clear all session state
+        console.log('confirmDataWipe: Clearing session state');
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDecryptedDataCache();
@@ -1834,10 +1848,12 @@ async function confirmDataWipe() {
         setAppLocked(false);
 
         // Clear any PIN settings
+        console.log('confirmDataWipe: Clearing PIN settings');
         removePinHash();
         removeResetTime();
 
         // Show success message and redirect
+        console.log('confirmDataWipe: Showing success message');
         const lockTab = document.getElementById('lockTab');
         if (lockTab) {
             lockTab.innerHTML = `
