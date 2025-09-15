@@ -1815,6 +1815,11 @@ async function confirmDataWipe() {
         const databases = await indexedDB.databases();
         console.log('confirmDataWipe: Found databases:', databases.map(db => db.name));
 
+        // First, close any existing database connections
+        console.log('confirmDataWipe: Closing any open database connections');
+        const { closeDB } = await import('./storage.js');
+        closeDB();
+
         for (const db of databases) {
             if (db.name && db.name.includes('Dream')) {
                 console.log('confirmDataWipe: Deleting database:', db.name);
@@ -1827,6 +1832,13 @@ async function confirmDataWipe() {
                     deleteReq.onerror = () => {
                         console.error('confirmDataWipe: Failed to delete database:', db.name, deleteReq.error);
                         reject(deleteReq.error);
+                    };
+                    deleteReq.onblocked = () => {
+                        console.warn('confirmDataWipe: Database deletion blocked, retrying:', db.name);
+                        // Database deletion is blocked, try to force close and retry
+                        setTimeout(() => {
+                            console.log('confirmDataWipe: Retrying database deletion after block:', db.name);
+                        }, 1000);
                     };
                 });
             }

@@ -2442,6 +2442,30 @@ async function decryptItemFromStorage(encryptedItem, password) {
     return item;
 }
 
+/**
+ * Closes the active IndexedDB database connection.
+ *
+ * This function safely closes any open database connections to allow for
+ * database deletion during data wipe operations. Should be called before
+ * attempting to delete the IndexedDB database.
+ *
+ * @function
+ * @since 2.03.04
+ * @example
+ * // Close database before deletion
+ * closeDB();
+ * await deleteDatabase();
+ */
+function closeDB() {
+    if (db) {
+        console.log('closeDB: Closing database connection');
+        db.close();
+        db = null;
+    } else {
+        console.log('closeDB: No active database connection to close');
+    }
+}
+
 // ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
@@ -2450,6 +2474,7 @@ async function decryptItemFromStorage(encryptedItem, password) {
 export {
     // Core database functions
     initDB,
+    closeDB,
     generateUniqueId,
     
     // Storage availability checks
