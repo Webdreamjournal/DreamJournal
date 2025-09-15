@@ -411,6 +411,12 @@ async function createNewGoal(formData) {
             const encryptedData = await encryptItemForStorage(goalData, password);
             await saveItemToStore('goals', encryptedData);
             console.log('Goal encrypted and saved to storage');
+
+            // Update memory state with unencrypted data (for immediate UI operations)
+            const currentGoals = getAllGoals();
+            currentGoals.push(goalData);
+            setAllGoals(currentGoals);
+            console.log('Goal added to memory state, total goals:', currentGoals.length);
         } else {
             // Save unencrypted using existing mechanism
             const currentGoals = getAllGoals();
@@ -419,12 +425,6 @@ async function createNewGoal(formData) {
             await saveGoals(currentGoals);
             console.log('Goal saved to storage (unencrypted)');
         }
-
-        // Update memory state with unencrypted data (for immediate UI operations)
-        const currentGoals = getAllGoals();
-        currentGoals.push(goalData);
-        setAllGoals(currentGoals);
-        console.log('Goal added to memory state, total goals:', currentGoals.length);
 
         await displayGoals();
         console.log('Goals display updated');
