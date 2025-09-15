@@ -719,15 +719,18 @@ async function initializeApp() {
     
     // Initialize autocomplete system
     initializeAutocomplete();
-    
-    // Display initial application data and restore user preferences
-    await initializeApplicationData(timerExpiredAndRemovedPin);
-    
-    // Initialize Journal tab if it's the active tab
-    if (getActiveAppTab() === 'journal') {
-        await initializeJournalTab();
+
+    // Only load application data if authentication is not required (prevents console spam)
+    if (!((requirements.encryptionRequired || requirements.pinRequired) && !timerExpiredAndRemovedPin)) {
+        // Display initial application data and restore user preferences
+        await initializeApplicationData(timerExpiredAndRemovedPin);
+
+        // Initialize Journal tab if it's the active tab
+        if (getActiveAppTab() === 'journal') {
+            await initializeJournalTab();
+        }
     }
-    
+
     // Restore dream form collapse state preference
     restoreDreamFormState();
 }

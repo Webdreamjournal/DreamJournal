@@ -1376,7 +1376,10 @@ async function verifyLockScreenPin() {
                 setFailedPinAttempts(0);
                 hidePinOverlay();
                 updateSecurityControls();
-                displayDreams();
+
+                // Load and display all application data after successful PIN authentication
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData();
 
                 setTimeout(() => {
                     const container = document.querySelector('.main-content');
@@ -2712,7 +2715,10 @@ async function setupPin() {
                 setFailedPinAttempts(0);
                 hidePinOverlay();
                 updateSecurityControls();
-                displayDreams();
+
+                // Load and display all application data after timer expiration recovery
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData();
                 
                 setTimeout(() => {
                     const container = document.querySelector('.main-content');
@@ -2817,7 +2823,10 @@ async function setupPin() {
         console.log('PIN setup complete - ensuring tabs are visible');
         showAllTabButtons();
         updateSecurityControls();
-        await displayDreams();
+
+        // Load and display all application data after PIN setup
+        const { initializeApplicationData } = await import('./main.js');
+        await initializeApplicationData();
     }
 
 /**
