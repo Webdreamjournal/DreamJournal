@@ -1636,9 +1636,10 @@ function renderEncryptionAuthenticationScreen(containerElement, requirements, ti
         </div>
     `;
 
-    // Focus the password input
+    // Focus the password input and ensure it starts empty
     const passwordInput = document.getElementById('lockScreenPasswordInput');
     if (passwordInput) {
+        passwordInput.value = ''; // Explicitly clear any retained value
         setTimeout(() => passwordInput.focus(), 100);
     }
 }
@@ -1671,9 +1672,10 @@ function renderPinAuthenticationScreen(containerElement, timerInstructions) {
         </div>
     `;
 
-    // Focus the PIN input
+    // Focus the PIN input and ensure it starts empty
     const pinInput = document.getElementById('lockScreenPinInput');
     if (pinInput) {
+        pinInput.value = ''; // Explicitly clear any retained value
         setTimeout(() => pinInput.focus(), 100);
     }
 }
@@ -3220,6 +3222,11 @@ async function verifyEncryptionPassword() {
             setEncryptionPassword(password);
             setUnlocked(true);
             setAppLocked(false);
+
+            // Clear the password input field for security
+            if (passwordInput) {
+                passwordInput.value = '';
+            }
 
             // Load and decrypt all data
             await initializeApplicationData();
