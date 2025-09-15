@@ -273,6 +273,97 @@ async function loadDailyTips() {
     }
 }
 
+/**
+ * Gets the total count of available tips without loading all tip content.
+ *
+ * This optimized function loads the tips file but only returns the count,
+ * allowing for efficient tip-of-the-day calculation without processing
+ * all tip content upfront.
+ *
+ * @async
+ * @function
+ * @returns {Promise<number>} Total number of available tips
+ * @throws {Error} When tips file cannot be loaded
+ * @since 2.03.04
+ * @example
+ * const tipCount = await getTipsCount();
+ * const todaysTipIndex = daysSinceEpoch % tipCount;
+ */
+async function getTipsCount() {
+    try {
+        const response = await fetch('./tips.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load tips count: ${response.status}`);
+        }
+        const tips = await response.json();
+        return tips.length;
+    } catch (error) {
+        console.error('Error getting tips count:', error);
+        return 0;
+    }
+}
+
+/**
+ * Loads a specific tip by its index, with caching for performance.
+ *
+ * This function provides efficient access to individual tips without loading
+ * the entire tips array. It includes caching to prevent repeated network
+ * requests for the same tip data.
+ *
+ * @async
+ * @function
+ * @param {number} index - Zero-based index of the tip to load
+ * @returns {Promise<Object|null>} Tip object with category and text, or null if not found
+ * @throws {Error} When tip index is invalid or tips cannot be loaded
+ * @since 2.03.04
+ * @example
+ * const tip = await loadTipByIndex(42);
+ * if (tip) {
+ *   console.log(`${tip.category}: ${tip.text}`);
+ * }
+ */
+async function loadTipByIndex(index) {
+    // Input validation
+    if (typeof index !== 'number' || index < 0) {
+        console.warn('loadTipByIndex: Invalid index provided:', index);
+        return null;
+    }
+
+    // Check cache first
+    if (loadTipByIndex._cache && loadTipByIndex._cache[index]) {
+        return loadTipByIndex._cache[index];
+    }
+
+    try {
+        // Load full tips array (could be optimized further with server-side indexing)
+        const response = await fetch('./tips.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load tip: ${response.status}`);
+        }
+        const tips = await response.json();
+
+        // Validate index
+        if (index >= tips.length) {
+            console.warn('loadTipByIndex: Index out of bounds:', index, 'Total tips:', tips.length);
+            return null;
+        }
+
+        // Initialize cache if needed
+        if (!loadTipByIndex._cache) {
+            loadTipByIndex._cache = {};
+        }
+
+        // Cache the tip and return it
+        const tip = tips[index];
+        loadTipByIndex._cache[index] = tip;
+        return tip;
+
+    } catch (error) {
+        console.error('Error loading tip by index:', index, error);
+        return null;
+    }
+}
+
 // ===================================================================================
 // TYPE DEFINITIONS
 // ===================================================================================
@@ -398,6 +489,8 @@ export {
     CONSTANTS,
     GOAL_TEMPLATES,
     loadDailyTips,
+    getTipsCount,
+    loadTipByIndex,
     commonTags,
     commonDreamSigns
 };

@@ -482,8 +482,8 @@ const ACTION_MAP = {
         // ================================
         // ADVICE & TIPS INTERFACE
         // ================================
-        'prev-tip': () => handleTipNavigation('prev'),                      // Navigate to previous tip
-        'next-tip': () => handleTipNavigation('next')                       // Navigate to next tip
+        'prev-tip': async () => await handleTipNavigation('prev'),             // Navigate to previous tip
+        'next-tip': async () => await handleTipNavigation('next')            // Navigate to next tip
     };
 
 // ================================

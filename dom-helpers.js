@@ -22,7 +22,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
-import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY, getTipsCount } from './constants.js';
 import { 
     getActiveAppTab,
     setActiveAppTab,
@@ -44,7 +44,7 @@ import { getResetTime, updateSecurityControls } from './security.js';
 import { initGoals, renderGoalsTab, initializeGoalsTab } from './goalstab.js';
 import { renderJournalTab, initializeJournalTab } from './journaltab.js';
 import { renderStatsTab, initializeStatsTab } from './statstab.js';
-import { renderAdviceTab, initializeAdviceTab } from './advicetab.js';
+import { renderAdviceTab, initializeAdviceTab, displayTipLazy } from './advicetab.js';
 import { displayVoiceNotes, getVoiceCapabilities } from './voice-notes.js';
 import { renderSettingsTab, initializeSettingsTab } from './settingstab.js';
 
@@ -2314,9 +2314,11 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
  * Uses modulo arithmetic to handle negative indices and out-of-bounds values safely,
  * ensuring the tip system is robust against invalid input.
  * 
+ * @async
  * @param {number} index - Tip index to display (can be negative or out of bounds)
- * @returns {void}
+ * @returns {Promise<void>} Promise that resolves when tip is displayed
  * @throws {TypeError} When index is not a number
+ * @throws {Error} When tip loading fails
  * @since 1.0.0
  * @example
  * // Display first tip
@@ -2330,19 +2332,35 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
  * // Out of bounds index wraps around
  * displayTip(1000); // Shows tip at (1000 % totalTips)
  */
-function displayTip(index) {
-    const tipTextElement = document.getElementById('tipText');
-    const tipCounterElement = document.getElementById('tipCounter');
+async function displayTip(index) {
+    try {
+        // Get total tips count for bounds checking
+        const totalTips = await getTipsCount();
 
-    if (tipTextElement && tipCounterElement && getDailyTips() && getDailyTips().length > 0) {
+        if (totalTips === 0) {
+            console.warn('No tips available for display');
+            return;
+        }
+
         // Ensure index is within bounds and handle negative numbers using modulo arithmetic
-        const safeIndex = ((index % getDailyTips().length) + getDailyTips().length) % getDailyTips().length;
+        const safeIndex = ((index % totalTips) + totalTips) % totalTips;
 
-        const tip = getDailyTips()[safeIndex];
-        // Display tip with proper HTML escaping for security
-        tipTextElement.innerHTML = `<h4 class="text-primary mb-md">${escapeHtml(tip.category)}</h4><p class="line-height-loose">${escapeHtml(tip.text)}</p>`;
-        tipCounterElement.textContent = `${safeIndex + 1} / ${getDailyTips().length}`;
-        setCurrentTipIndex(safeIndex); // Update global state
+        // Use the lazy loading display function
+        await displayTipLazy(safeIndex, totalTips);
+
+    } catch (error) {
+        console.error('Error displaying tip:', error);
+
+        // Show error message to user
+        const tipTextElement = document.getElementById('tipText');
+        if (tipTextElement) {
+            tipTextElement.innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-primary mb-md">Tip Temporarily Unavailable</h4>
+                    <p class="text-secondary">There was an error loading this tip. Please try again.</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -2352,9 +2370,11 @@ function displayTip(index) {
  * Provides navigation controls for the daily tips system, supporting both forward
  * and backward navigation with automatic bounds handling via the displayTip function.
  * 
+ * @async
  * @param {('next'|'prev')} direction - Navigation direction
- * @returns {void}
+ * @returns {Promise<void>} Promise that resolves when navigation is complete
  * @throws {TypeError} When direction is not 'next' or 'prev'
+ * @throws {Error} When tip loading fails during navigation
  * @since 1.0.0
  * @example
  * // Navigate to next tip
@@ -2364,14 +2384,14 @@ function displayTip(index) {
  * // Navigate to previous tip
  * handleTipNavigation('prev');
  */
-function handleTipNavigation(direction) {
+async function handleTipNavigation(direction) {
     let newIndex = getCurrentTipIndex();
     if (direction === 'next') {
         newIndex++;
     } else {
         newIndex--;
     }
-    displayTip(newIndex); // displayTip handles bounds checking
+    await displayTip(newIndex); // displayTip handles bounds checking
 }
 
 // ===================================================================================

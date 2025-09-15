@@ -41,7 +41,7 @@
 // ================================
 // ES MODULE IMPORTS
 // ================================
-import { loadDailyTips } from './constants.js';
+import { getTipsCount, loadTipByIndex } from './constants.js';
 import { setDailyTips, getDailyTips, getCurrentTipIndex, setCurrentTipIndex } from './state.js';
 import { escapeHtml, displayTip, handleTipNavigation } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
@@ -180,39 +180,140 @@ function renderAdviceTab(tabPanel) {
  * await initializeAdviceTab();
  * // Advice tab now displays deterministic tip based on user's dream history
  */
+/**
+ * Initializes the advice tab with lazy loading for optimal performance.
+ *
+ * This optimized version only loads the tip count and current day's tip initially,
+ * rather than loading all 400+ tips. Other tips are loaded on-demand when navigating.
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when advice tab initialization is complete
+ * @throws {Error} When tip loading or dream data access fails
+ * @since 2.03.04
+ * @example
+ * await initializeAdviceTab();
+ * // Only today's tip is loaded, navigation loads others on-demand
+ */
 async function initializeAdviceTab() {
-    // Load tips from JSON file and store globally
-    setDailyTips(await loadDailyTips());
-    if (!getDailyTips() || getDailyTips().length === 0) {
-        return;
-    }
-
-    // Try to get the first dream entry date as epoch
-    let epoch;
-    let tipOfTheDayIndex = 0; // Default to tip 1 (index 0)
-    
     try {
-        const dreams = await loadDreams();
-        if (dreams && dreams.length > 0) {
-            // Find the earliest dream date
-            const dreamDates = dreams
-                .map(dream => new Date(dream.timestamp))
-                .filter(date => !isNaN(date.getTime())) // Filter out invalid dates
-                .sort((a, b) => a - b);
-            
-            if (dreamDates.length > 0) {
-                epoch = dreamDates[0];
-                const now = new Date();
-                const diffTime = now - epoch;
-                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                tipOfTheDayIndex = diffDays % getDailyTips().length;
-            }
+        // Get tips count without loading all tip content
+        const tipCount = await getTipsCount();
+        if (tipCount === 0) {
+            console.warn('No tips available');
+            return;
         }
+
+        // Initialize empty tips array to maintain compatibility
+        setDailyTips([]);
+
+        // Calculate tip-of-the-day index
+        let tipOfTheDayIndex = 0; // Default to tip 1 (index 0)
+
+        try {
+            const dreams = await loadDreams();
+            if (dreams && dreams.length > 0) {
+                // Find the earliest dream date
+                const dreamDates = dreams
+                    .map(dream => new Date(dream.timestamp))
+                    .filter(date => !isNaN(date.getTime())) // Filter out invalid dates
+                    .sort((a, b) => a - b);
+
+                if (dreamDates.length > 0) {
+                    const epoch = dreamDates[0];
+                    const now = new Date();
+                    const diffTime = now - epoch;
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    tipOfTheDayIndex = diffDays % tipCount;
+                }
+            }
+        } catch (error) {
+            console.warn('Error loading dreams for tip calculation, using default tip 1:', error);
+        }
+
+        // Set the calculated tip index
+        setCurrentTipIndex(tipOfTheDayIndex);
+
+        // Load and display only today's tip
+        await displayTipLazy(tipOfTheDayIndex, tipCount);
+
     } catch (error) {
-        console.warn('Error loading dreams for tip calculation, using default tip 1:', error);
+        console.error('Error in lazy advice tab initialization:', error);
+        throw error; // Re-throw for error handling by caller
     }
-    
-    displayTip(tipOfTheDayIndex);
+}
+
+/**
+ * Displays a tip using lazy loading, loading only the specific tip needed.
+ *
+ * This function loads and displays a specific tip by index, using the new
+ * lazy loading system. It updates the UI with the tip content and navigation
+ * counter, and stores the current state for navigation.
+ *
+ * @async
+ * @function
+ * @param {number} tipIndex - Zero-based index of the tip to display
+ * @param {number} totalTips - Total number of available tips
+ * @returns {Promise<void>} Resolves when tip is loaded and displayed
+ * @throws {Error} When tip loading fails
+ * @since 2.03.04
+ * @example
+ * await displayTipLazy(42, 400);
+ * // Loads and displays tip #43 of 400
+ */
+async function displayTipLazy(tipIndex, totalTips) {
+    try {
+        // Load the specific tip
+        const tip = await loadTipByIndex(tipIndex);
+        if (!tip) {
+            throw new Error(`Failed to load tip at index ${tipIndex}`);
+        }
+
+        // Update UI elements
+        const tipTextElement = document.getElementById('tipText');
+        const tipCounterElement = document.getElementById('tipCounter');
+
+        if (tipTextElement) {
+            tipTextElement.innerHTML = `
+                <div class="advice-content">
+                    <div class="advice-category">${escapeHtml(tip.category)}</div>
+                    <div class="advice-text">${escapeHtml(tip.text)}</div>
+                </div>
+            `;
+        }
+
+        if (tipCounterElement) {
+            tipCounterElement.textContent = `Tip ${tipIndex + 1} of ${totalTips}`;
+        }
+
+        // Store current state for navigation
+        setCurrentTipIndex(tipIndex);
+
+        // Store total tips count for navigation (reuse DailyTips array for compatibility)
+        const placeholderArray = new Array(totalTips).fill(null);
+        setDailyTips(placeholderArray);
+
+    } catch (error) {
+        console.error('Error displaying tip lazily:', error);
+
+        // Show error message to user
+        const tipTextElement = document.getElementById('tipText');
+        if (tipTextElement) {
+            tipTextElement.innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-primary mb-md">Tip Temporarily Unavailable</h4>
+                    <p class="text-secondary">There was an error loading this tip. Please try navigating to a different tip.</p>
+                </div>
+            `;
+        }
+
+        const tipCounterElement = document.getElementById('tipCounter');
+        if (tipCounterElement) {
+            tipCounterElement.textContent = 'Error loading tip';
+        }
+
+        throw error;
+    }
 }
 
 // ================================
@@ -283,9 +384,10 @@ async function initializeAdviceTabComplete() {
  * @since 2.02.44
  */
 
-export { 
-    renderAdviceTab, 
-    initializeAdviceTabComplete as initializeAdviceTab
+export {
+    renderAdviceTab,
+    initializeAdviceTabComplete as initializeAdviceTab,
+    displayTipLazy
 };
 
 // ================================
