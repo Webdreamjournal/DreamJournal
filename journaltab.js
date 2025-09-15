@@ -53,12 +53,10 @@ function renderJournalTab(tabPanel) {
     }
     
     tabPanel.innerHTML = `
-        <div class="settings-section">
-            
-            <!-- ================================ -->
-            <!-- DREAM ENTRY FORM (EXPANDED)     -->
-            <!-- ================================ -->
-            <div class="entry-form" id="dreamFormFull">
+        <!-- ================================ -->
+        <!-- DREAM ENTRY FORM (EXPANDED)     -->
+        <!-- ================================ -->
+        <div class="entry-form" id="dreamFormFull">
                 <!-- Collapsible form header with toggle functionality -->
                 <h3 id="journal-main-heading" 
                     tabindex="0" 
@@ -142,28 +140,26 @@ function renderJournalTab(tabPanel) {
                 <button data-action="save-dream" class="btn btn-primary" aria-keyshortcuts="Control+Enter">Save Dream</button>
             </div>
 
-            <!-- ================================ -->
-            <!-- DREAM ENTRY FORM (COLLAPSED)    -->
-            <!-- ================================ -->
-            <div class="entry-form" id="dreamFormCollapsed">
-                <!-- Collapsed form header with expand functionality -->
-                <h3 data-action="toggle-dream-form"
-                    role="button"
-                    tabindex="0"
-                    aria-expanded="false"
-                    aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
-                    style="cursor: pointer; user-select: none;">
-                    📝 Record Your Dream
-                    <span class="text-xs text-secondary font-normal">(Press Enter to expand)</span>
-                </h3>
-            </div>
+        <!-- ================================ -->
+        <!-- DREAM ENTRY FORM (COLLAPSED)    -->
+        <!-- ================================ -->
+        <div class="entry-form" id="dreamFormCollapsed">
+            <!-- Collapsed form header with expand functionality -->
+            <h3 data-action="toggle-dream-form"
+                role="button"
+                tabindex="0"
+                aria-expanded="false"
+                aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
+                style="cursor: pointer; user-select: none;">
+                📝 Record Your Dream
+                <span class="text-xs text-secondary font-normal">(Press Enter to expand)</span>
+            </h3>
         </div>
 
-        <div class="settings-section">
-            <!-- ================================ -->
-            <!-- VOICE RECORDING SYSTEM           -->
-            <!-- ================================ -->
-            <div class="voice-tabs-container">
+        <!-- ================================ -->
+        <!-- VOICE RECORDING SYSTEM           -->
+        <!-- ================================ -->
+        <div class="voice-tabs-container">
                 <!-- Voice Tab Navigation -->
                 <div class="voice-tabs">
                     <!-- Recording Tab - Live voice recording with transcription -->
@@ -209,13 +205,11 @@ function renderJournalTab(tabPanel) {
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="settings-section">
-            <!-- ================================ -->
-            <!-- DREAMS SECTION HEADER            -->
-            <!-- ================================ -->
-            <div class="dreams-section-header">
+        <!-- ================================ -->
+        <!-- DREAMS SECTION HEADER            -->
+        <!-- ================================ -->
+        <div class="dreams-section-header">
                 <h3>Your Dreams</h3>
                 
                 <!-- Dreams Management Controls -->
@@ -290,7 +284,7 @@ function renderJournalTab(tabPanel) {
             <div class="entries-section">
                 <!-- Dreams List Container - Dynamically populated by dream-crud.js -->
                 <div id="entriesContainer"></div>
-                
+
                 <!-- Pagination Controls Container - Shows page navigation when needed -->
                 <div id="paginationContainer"></div>
             </div>

@@ -2141,6 +2141,19 @@
             width: 100%;
             box-sizing: border-box;
         }
+
+        /* Journal Tab Container Styling - Match settings-section appearance */
+        .entry-form,
+        .voice-tabs-container,
+        .dreams-section-header {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            padding: 25px;
+            margin-bottom: 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
         
         .settings-section h3 {
             color: var(--text-primary);
