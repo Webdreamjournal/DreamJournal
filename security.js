@@ -1046,10 +1046,10 @@ function updateSecurityControls() {
             }
         }
         
-        // Always show settings lock button too
+        // Show settings lock button only when PIN is set
         if (lockBtnSettings) {
-            lockBtnSettings.style.display = 'inline-block';
             if (isPinSetup()) {
+                lockBtnSettings.style.display = 'inline-block';
                 if (isUnlocked && !isAppLocked) {
                     lockBtnSettings.textContent = '🔒 Lock Journal';
                     lockBtnSettings.title = 'Lock your journal with your PIN to keep dreams private';
@@ -1058,8 +1058,8 @@ function updateSecurityControls() {
                     lockBtnSettings.title = 'Unlock your journal by entering your PIN';
                 }
             } else {
-                lockBtnSettings.textContent = '🔒 Setup & Lock';
-                lockBtnSettings.title = 'Set up a PIN to secure your dreams, then lock the journal';
+                // Hide lock button when no PIN is set
+                lockBtnSettings.style.display = 'none';
             }
         }
         

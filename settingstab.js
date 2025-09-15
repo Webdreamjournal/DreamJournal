@@ -150,6 +150,7 @@ function renderSettingsTab(tabPanel) {
                 </div>
                 <div class="settings-controls">
                     <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
+                    <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" aria-keyshortcuts="Control+L" style="display: none;">🔒 Lock Journal</button>
                 </div>
             </div>
         </div>

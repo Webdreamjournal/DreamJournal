@@ -270,9 +270,6 @@ function renderJournalTab(tabPanel) {
                 
                 <!-- Dreams Management Controls -->
                 <div class="dreams-controls">
-                    <!-- Security Lock Button - PIN setup and app locking -->
-                    <button data-action="toggle-lock" id="lockBtn" class="btn btn-lock" title="Set up a PIN to secure your dreams, then lock the journal" aria-keyshortcuts="Control+L">🔒 Setup & Lock</button>
-                    
                     <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
                     <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
                 </div>
