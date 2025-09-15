@@ -81,8 +81,7 @@ import {
 // Voice notes system
 import { updateRecordButtonState } from './voice-notes.js';
 
-// Goals system
-import { initGoals } from './goalstab.js';
+// Goals system - initGoals removed, now lazy-loaded via tab switching
 
 // Journal tab system
 import { initializeJournalTab } from './journaltab.js';
@@ -688,10 +687,9 @@ async function initializeApp() {
     setupPWAInstall();
 
     setupEventDelegation();
-    
+
     await initDB();
-    await initGoals();
-    
+
     // Ensure tab container exists for dynamic tab content creation
     await ensureTabContainerExists();
     
