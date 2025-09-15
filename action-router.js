@@ -12,7 +12,7 @@
  * 3. Unified event delegation - Single click and change handlers for the entire app
  * 
  * @module ActionRouter
- * @version 2.02.48
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 2.0.0
  * @requires constants

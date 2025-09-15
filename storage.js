@@ -7,7 +7,7 @@
      * suggestions with proper error handling, validation, and migration support.
      * 
      * @module storage
-     * @version 2.02.05
+     * @version 2.04.00
      * @author Development Team
      * @since 1.0.0
      * @requires constants

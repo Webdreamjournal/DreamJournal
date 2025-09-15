@@ -9,7 +9,7 @@
  * the initialization logic and this file handles the DOM event binding.
  * 
  * @module AppEntryPoint
- * @version 2.02.05
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 2.02.05
  * @requires ./main.js

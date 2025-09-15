@@ -7,7 +7,7 @@
  * optimal performance and reliability.
  * 
  * @module DreamCRUD
- * @version 2.02.05
+ * @version 2.04.00
  * @since 1.0.0
  * @requires constants
  * @requires state

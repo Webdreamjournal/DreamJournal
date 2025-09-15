@@ -7,7 +7,7 @@
  * creating circular dependencies.
  * 
  * @module PWA
- * @version 2.02.22
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 2.02.22
  * @example

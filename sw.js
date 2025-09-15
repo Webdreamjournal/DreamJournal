@@ -25,7 +25,7 @@
  * - Old caches are automatically cleaned up during activation
  * - Service worker can be force-updated via message passing
  * 
- * @version 2.02.20
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 2.0.0
  * @example
@@ -56,7 +56,7 @@
  * @constant {string}
  * @since 2.0.0
  */
-const CACHE_NAME = 'dream-journal-v2-03-04';
+const CACHE_NAME = 'dream-journal-v2-04-00';
 
 /**
  * List of essential files to cache for complete offline functionality.
@@ -88,8 +88,8 @@ const urlsToCache = [
   './security.js',        // PIN protection and encryption
   './dream-crud.js',      // Dream management
   './voice-notes.js',     // Voice recording
-  './goals.js',           // Goals system
-  './stats.js',           // Statistics and analytics
+  './goalstab.js',        // Goals system
+  './statstab.js',        // Statistics and analytics
   './import-export.js',   // Data import/export
   './action-router.js',   // Event delegation
   './main.js'             // App initialization

@@ -6,7 +6,7 @@
  * HSL-based theme system and centralized event handling via data-action attributes.
  * 
  * @module DOMHelpers
- * @version 2.02.48
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants

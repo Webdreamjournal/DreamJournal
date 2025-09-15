@@ -33,7 +33,7 @@
  * - PWA installation integration
  * 
  * @module settingstab  
- * @version 2.02.06
+ * @version 2.04.00
  * @since 2.02.05
  * @author Dream Journal Application
  */

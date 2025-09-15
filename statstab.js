@@ -20,7 +20,7 @@
  * 11. Dream Signs Analysis - Dream sign frequency and lucidity effectiveness
  * 
  * @module StatisticsModule
- * @version 2.02.47
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires storage

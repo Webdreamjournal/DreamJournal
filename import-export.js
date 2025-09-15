@@ -13,7 +13,7 @@
  * automatic format detection and user validation.
  * 
  * @module ImportExport
- * @version 2.02.05
+ * @version 2.04.00
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
