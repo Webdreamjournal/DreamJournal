@@ -1775,20 +1775,29 @@ async function wipeAllData() {
  * await confirmDataWipe();
  */
 async function confirmDataWipe() {
+    console.log('confirmDataWipe: Function called');
     const confirmInput = document.getElementById('wipeConfirmationInput');
     const feedback = document.getElementById('lockScreenFeedback');
 
-    if (!confirmInput || !feedback) return;
+    if (!confirmInput || !feedback) {
+        console.log('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
+        return;
+    }
 
     const confirmText = confirmInput.value.trim();
+    console.log('confirmDataWipe: User entered text:', JSON.stringify(confirmText));
 
     if (confirmText !== 'DELETE EVERYTHING') {
+        console.log('confirmDataWipe: Text validation failed');
         feedback.innerHTML = '<div class="message-base message-error">Please type exactly: DELETE EVERYTHING</div>';
         confirmInput.focus();
         return;
     }
 
+    console.log('confirmDataWipe: Text validation passed, proceeding with wipe');
+
     try {
+        console.log('confirmDataWipe: Starting data wipe process');
         feedback.innerHTML = '<div class="message-base message-info">Wiping all data...</div>';
 
         // Import required functions
