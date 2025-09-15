@@ -128,9 +128,9 @@
         .message-info { background: var(--notification-info-bg); color: var(--info-color); }
         
         /* Input utilities */
-        .input-pin { padding: 15px; border: 2px solid var(--border-color); border-radius: var(--border-radius); 
-                     font-size: 18px; text-align: center; letter-spacing: 3px; font-family: monospace; 
-                     background: var(--bg-input); }
+        .input-pin { padding: 15px; border: 2px solid var(--border-color); border-radius: var(--border-radius);
+                     font-size: 18px; text-align: center; letter-spacing: 3px; font-family: monospace;
+                     background: var(--bg-input); color: var(--text-primary); }
         
         /* Box shadow utilities */
         .shadow-lg { box-shadow: var(--shadow-lg); }
@@ -1663,6 +1663,7 @@
             margin-bottom: 20px;
             font-family: monospace;
             background: var(--bg-input);
+            color: var(--text-primary);
         }
         .pin-input:focus {
             outline: none;
