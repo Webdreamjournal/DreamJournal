@@ -1732,7 +1732,9 @@ async function showForgotEncryptionPassword() {
  *
  * This is a nuclear option that completely wipes all user data when encryption
  * password is forgotten. Provides multiple confirmation steps to prevent
- * accidental data loss, then clears all databases and settings.
+ * accidental data loss. When PIN protection is configured, requires both PIN
+ * verification and text confirmation for enhanced security. For non-PIN users,
+ * uses text confirmation only for backward compatibility.
  *
  * @async
  * @function
@@ -1746,30 +1748,100 @@ async function wipeAllData() {
     if (!lockTab) return;
 
     const lockCard = lockTab.querySelector('.card-elevated') || lockTab;
+    const hasPinProtection = isPinSetup();
 
-    // Show final confirmation
-    lockCard.innerHTML = `
-        <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
-            <div class="text-4xl mb-lg">⚠️</div>
-            <h2 class="text-primary mb-md text-xl">Final Confirmation</h2>
-            <p class="text-secondary mb-lg line-height-relaxed">
-                Type <strong>DELETE EVERYTHING</strong> to confirm complete data wipe:
-            </p>
+    if (hasPinProtection) {
+        // Enhanced confirmation for PIN-protected accounts
+        lockCard.innerHTML = `
+            <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                <div class="text-4xl mb-lg">🔐⚠️</div>
+                <h2 class="text-primary mb-md text-xl">Enhanced Security Confirmation</h2>
+                <p class="text-secondary mb-lg line-height-relaxed">
+                    <strong>PIN protection detected.</strong><br>
+                    For your security, you must verify your identity with both your PIN and confirmation text.
+                </p>
 
-            <input type="text" id="wipeConfirmationInput" placeholder="Type: DELETE EVERYTHING" class="input-pin w-full mb-lg">
+                <div class="mb-lg">
+                    <label for="wipePinInput" class="block text-sm font-medium text-secondary mb-sm">Enter your PIN:</label>
+                    <input
+                        type="password"
+                        id="wipePinInput"
+                        placeholder="Enter PIN"
+                        class="input-pin w-full mb-md"
+                        maxlength="6"
+                        aria-label="Enter your PIN to verify identity before data wipe"
+                        aria-describedby="wipePinHelp"
+                    >
+                    <div id="wipePinHelp" class="text-xs text-secondary">Your 4-6 digit PIN is required to proceed</div>
+                </div>
 
-            <div class="flex-center gap-sm flex-wrap">
-                <button data-action="confirm-data-wipe" class="btn btn-error">🗑️ Confirm Wipe</button>
-                <button data-action="show-forgot-encryption-password" class="btn btn-secondary">← Back</button>
+                <div class="mb-lg">
+                    <label for="wipeConfirmationInput" class="block text-sm font-medium text-secondary mb-sm">Type confirmation text:</label>
+                    <input
+                        type="text"
+                        id="wipeConfirmationInput"
+                        placeholder="Type: DELETE EVERYTHING"
+                        class="input-pin w-full"
+                        aria-label="Type DELETE EVERYTHING to confirm complete data wipe"
+                        aria-describedby="wipeConfirmHelp"
+                    >
+                    <div id="wipeConfirmHelp" class="text-xs text-secondary">Must type exactly: DELETE EVERYTHING</div>
+                </div>
+
+                <div class="flex-center gap-sm flex-wrap">
+                    <button data-action="confirm-data-wipe" class="btn btn-error" aria-describedby="wipeButtonHelp">
+                        🗑️ Confirm Wipe
+                    </button>
+                    <button data-action="show-forgot-pin" class="btn btn-secondary">
+                        🔑 Forgot PIN?
+                    </button>
+                    <button data-action="show-forgot-encryption-password" class="btn btn-secondary">
+                        ← Back
+                    </button>
+                </div>
+                <div id="wipeButtonHelp" class="sr-only">Requires both valid PIN and exact confirmation text to proceed</div>
+                <div id="lockScreenFeedback" class="mt-md p-sm feedback-container" role="alert" aria-live="polite"></div>
             </div>
-            <div id="lockScreenFeedback" class="mt-md p-sm feedback-container"></div>
-        </div>
-    `;
+        `;
 
-    // Focus the confirmation input
-    const confirmInput = document.getElementById('wipeConfirmationInput');
-    if (confirmInput) {
-        setTimeout(() => confirmInput.focus(), 100);
+        // Focus the PIN input first
+        const pinInput = document.getElementById('wipePinInput');
+        if (pinInput) {
+            setTimeout(() => pinInput.focus(), 100);
+        }
+    } else {
+        // Standard confirmation for non-PIN accounts (backward compatibility)
+        lockCard.innerHTML = `
+            <div class="card-elevated card-lg text-center max-w-sm w-full shadow-lg">
+                <div class="text-4xl mb-lg">⚠️</div>
+                <h2 class="text-primary mb-md text-xl">Final Confirmation</h2>
+                <p class="text-secondary mb-lg line-height-relaxed">
+                    Type <strong>DELETE EVERYTHING</strong> to confirm complete data wipe:
+                </p>
+
+                <input
+                    type="text"
+                    id="wipeConfirmationInput"
+                    placeholder="Type: DELETE EVERYTHING"
+                    class="input-pin w-full mb-lg"
+                    aria-label="Type DELETE EVERYTHING to confirm complete data wipe"
+                    aria-describedby="wipeConfirmHelp"
+                >
+                <div id="wipeConfirmHelp" class="text-xs text-secondary mb-lg">Must type exactly: DELETE EVERYTHING</div>
+
+                <div class="flex-center gap-sm flex-wrap">
+                    <button data-action="confirm-data-wipe" class="btn btn-error">🗑️ Confirm Wipe</button>
+                    <button data-action="show-forgot-encryption-password" class="btn btn-secondary">← Back</button>
+                </div>
+                <div id="lockScreenFeedback" class="mt-md p-sm feedback-container" role="alert" aria-live="polite"></div>
+            </div>
+        `;
+
+        // Focus the confirmation input
+        const confirmInput = document.getElementById('wipeConfirmationInput');
+        if (confirmInput) {
+            setTimeout(() => confirmInput.focus(), 100);
+        }
     }
 }
 
@@ -1777,38 +1849,104 @@ async function wipeAllData() {
 /**
  * Confirms and executes complete data wipe after user confirmation.
  *
- * Validates the confirmation text and performs complete application data wipe
- * including IndexedDB, localStorage, and session data. This is irreversible
- * and completely resets the application to fresh install state.
+ * Validates user input based on PIN protection status. For PIN-protected accounts,
+ * requires both valid PIN verification and exact confirmation text. For non-PIN
+ * accounts, validates confirmation text only. Performs complete application data
+ * wipe including IndexedDB, localStorage, and session data when validation passes.
+ * This operation is irreversible and completely resets the application to fresh
+ * install state.
  *
  * @async
  * @function
  * @since 2.03.01
  * @example
- * // Called after user types confirmation text
+ * // Called after user provides required confirmation(s)
+ * await confirmDataWipe();
+ *
+ * @example
+ * // For PIN-protected accounts - validates both PIN and text
+ * // For non-PIN accounts - validates text only
  * await confirmDataWipe();
  */
 async function confirmDataWipe() {
     console.log('confirmDataWipe: Function called');
     const confirmInput = document.getElementById('wipeConfirmationInput');
     const feedback = document.getElementById('lockScreenFeedback');
+    const hasPinProtection = isPinSetup();
 
     if (!confirmInput || !feedback) {
         console.log('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
         return;
     }
 
-    const confirmText = confirmInput.value.trim();
-    console.log('confirmDataWipe: User entered text:', JSON.stringify(confirmText));
+    if (hasPinProtection) {
+        // Enhanced validation for PIN-protected accounts
+        const pinInput = document.getElementById('wipePinInput');
+        if (!pinInput) {
+            console.log('confirmDataWipe: Missing PIN input element');
+            feedback.innerHTML = '<div class="message-base message-error">PIN input not found. Please refresh and try again.</div>';
+            return;
+        }
 
-    if (confirmText !== 'DELETE EVERYTHING') {
-        console.log('confirmDataWipe: Text validation failed');
-        feedback.innerHTML = '<div class="message-base message-error">Please type exactly: DELETE EVERYTHING</div>';
-        confirmInput.focus();
-        return;
+        const enteredPin = pinInput.value.trim();
+        const confirmText = confirmInput.value.trim();
+
+        console.log('confirmDataWipe: PIN-protected validation - PIN length:', enteredPin.length, 'text:', JSON.stringify(confirmText));
+
+        // Validate PIN first
+        if (!enteredPin || enteredPin.length < 4) {
+            console.log('confirmDataWipe: PIN validation failed - insufficient length');
+            feedback.innerHTML = '<div class="message-base message-error" role="alert">Please enter your PIN to verify your identity.</div>';
+            pinInput.focus();
+            return;
+        }
+
+        // Verify PIN against stored hash
+        try {
+            const storedData = getStoredPinData();
+            const isPinValid = await verifyPinHash(enteredPin, storedData);
+
+            if (!isPinValid) {
+                console.log('confirmDataWipe: PIN verification failed');
+                feedback.innerHTML = '<div class="message-base message-error" role="alert">Incorrect PIN. Please verify your PIN and try again.</div>';
+                pinInput.value = '';
+                pinInput.focus();
+                return;
+            }
+
+            console.log('confirmDataWipe: PIN verification successful');
+        } catch (error) {
+            console.error('confirmDataWipe: PIN verification error:', error);
+            feedback.innerHTML = '<div class="message-base message-error" role="alert">PIN verification failed. Please try again.</div>';
+            pinInput.focus();
+            return;
+        }
+
+        // Validate confirmation text
+        if (confirmText !== 'DELETE EVERYTHING') {
+            console.log('confirmDataWipe: Text validation failed for PIN-protected account');
+            feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
+            confirmInput.focus();
+            return;
+        }
+
+        console.log('confirmDataWipe: Both PIN and text validation passed for PIN-protected account');
+    } else {
+        // Standard validation for non-PIN accounts (backward compatibility)
+        const confirmText = confirmInput.value.trim();
+        console.log('confirmDataWipe: Non-PIN validation - text:', JSON.stringify(confirmText));
+
+        if (confirmText !== 'DELETE EVERYTHING') {
+            console.log('confirmDataWipe: Text validation failed for non-PIN account');
+            feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
+            confirmInput.focus();
+            return;
+        }
+
+        console.log('confirmDataWipe: Text validation passed for non-PIN account');
     }
 
-    console.log('confirmDataWipe: Text validation passed, proceeding with wipe');
+    console.log('confirmDataWipe: All validations passed, proceeding with wipe');
 
     try {
         console.log('confirmDataWipe: Starting data wipe process');

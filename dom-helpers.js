@@ -23,11 +23,12 @@
 // ===================================================================================
 
 import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY, getTipsCount, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
-import { 
+import {
     getActiveAppTab,
     setActiveAppTab,
     getAppLocked,
     setAppLocked,
+    getUnlocked,
     getPreLockActiveTab,
     setPreLockActiveTab,
     getDailyTips,
@@ -1290,7 +1291,7 @@ function syncSettingsDisplay() {
         
         if (setupBtnSettings && lockBtnSettings) {
             if (isPinSetup()) {
-                if (isUnlocked) {
+                if (getUnlocked()) {
                     lockBtnSettings.style.display = 'inline-block';
                     lockBtnSettings.textContent = '🔒 Lock';
                     setupBtnSettings.textContent = '⚙️ Change/Remove PIN';
