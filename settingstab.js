@@ -2,9 +2,9 @@
  * @fileoverview Settings Tab Module - Dedicated handler for application settings interface
  * 
  * This module manages all settings tab functionality including:
- * - Settings UI generation and layout  
+ * - Settings UI generation and layout
  * - Theme management interface
- * - Security settings (PIN setup interface)
+ * - Security settings (PIN setup and data encryption interface)
  * - Data management (export/import UI)
  * - Autocomplete management interface
  * - PWA installation interface
@@ -87,8 +87,8 @@ console.log('Loading Settings Tab Module v2.02.06');
  * 
  * This function generates the entire settings tab HTML structure including:
  * - Appearance section (theme selector)
- * - Security section (PIN setup controls)
- * - Data management section (export/import controls) 
+ * - Security section (PIN setup and data encryption controls)
+ * - Data management section (export/import controls)
  * - Autocomplete management section (tags and dream signs)
  * 
  * The function dynamically determines current theme settings to pre-select
@@ -143,6 +143,8 @@ function renderSettingsTab(tabPanel) {
         </div>
         <div class="settings-section">
             <h3>🔐 Security</h3>
+
+            <!-- PIN Protection -->
             <div class="settings-row">
                 <div>
                     <div class="settings-label">PIN Protection</div>
@@ -153,12 +155,11 @@ function renderSettingsTab(tabPanel) {
                     <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" aria-keyshortcuts="Control+L" style="display: none;">🔒 Lock Journal</button>
                 </div>
             </div>
-        </div>
-        <div class="settings-section">
-            <h3>🔐 Data Encryption</h3>
+
+            <!-- Data Encryption -->
             <div class="settings-row">
                 <div>
-                    <div class="settings-label">Encrypt Dreams & Goals</div>
+                    <div class="settings-label">Data Encryption</div>
                     <div class="settings-description">
                         Enable AES-256 encryption for your dreams and goals data.
                         Requires a password to access your data.
