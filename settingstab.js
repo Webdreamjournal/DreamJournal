@@ -720,10 +720,8 @@ async function setupEncryption(password) {
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
             initializeSettingsTab();
+            // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
         }
-
-        // Explicitly sync settings display to ensure PIN buttons reflect correct state
-        syncSettingsDisplay();
 
         const totalEncrypted = encryptedCount + goalsEncryptedCount + autocompleteEncryptedCount;
         let message = 'Encryption enabled successfully!';
@@ -1032,10 +1030,8 @@ async function performEncryptionDisabling(password) {
     if (settingsTab && !settingsTab.hidden) {
         renderSettingsTab(settingsTab);
         initializeSettingsTab();
+        // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
     }
-
-    // Explicitly sync settings display to ensure PIN buttons reflect correct state
-    syncSettingsDisplay();
 
     const totalDecrypted = decryptedCount + goalsDecryptedCount + autocompleteDecryptedCount;
     let message = 'Encryption disabled successfully!';
@@ -1118,10 +1114,8 @@ async function changeEncryptionPassword() {
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
             initializeSettingsTab();
+            // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
         }
-
-        // Explicitly sync settings display to ensure PIN buttons reflect correct state
-        syncSettingsDisplay();
 
         createInlineMessage('success', `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
 

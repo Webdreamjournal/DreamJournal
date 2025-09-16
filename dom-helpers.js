@@ -41,7 +41,7 @@ import {
     setActiveVoiceTab
 } from './state.js';
 import { isLocalStorageAvailable, getAutocompleteSuggestions } from './storage.js';
-import { getResetTime, updateSecurityControls } from './security.js';
+import { getResetTime, updateSecurityControls, isPinSetup } from './security.js';
 import { initGoals, renderGoalsTab, initializeGoalsTab } from './goalstab.js';
 import { renderJournalTab, initializeJournalTab } from './journaltab.js';
 import { renderStatsTab, initializeStatsTab } from './statstab.js';
