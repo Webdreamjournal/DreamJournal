@@ -228,7 +228,10 @@ function renderJournalTab(tabPanel) {
 
                 <!-- Search and Filter Controls Group -->
                 <div class="search-filter-section">
-                    <h4 class="section-header">🔍 Search & Filter</h4>
+                    <div class="section-header-with-action">
+                        <h4 class="section-header">🔍 Search & Filter</h4>
+                        <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
+                    </div>
                     <div class="search-filter-group">
                         <!-- Search Box - Full-text search across all dream fields -->
                         <input type="text"

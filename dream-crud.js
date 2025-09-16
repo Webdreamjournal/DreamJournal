@@ -2217,6 +2217,64 @@ async function shouldEncryptDream() {
         }, delay));
     }
 
+/**
+ * Clears all search and filter criteria to their default values.
+ *
+ * Resets all search and filter controls in the dreams interface to their default
+ * empty/default state, including search box, lucidity filter, and date range filters.
+ * After clearing, automatically triggers a filter refresh to show all dreams.
+ *
+ * @function clearSearchFilters
+ * @returns {void}
+ * @since 2.04.15
+ * @example
+ * // Clear all filters and show all dreams
+ * clearSearchFilters();
+ * // Result: Search box empty, filter set to "All Dreams", dates cleared
+ */
+function clearSearchFilters() {
+    try {
+        // Clear search box
+        const searchBox = document.getElementById('searchBox');
+        if (searchBox) {
+            searchBox.value = '';
+        }
+
+        // Reset lucidity filter to "All Dreams"
+        const filterSelect = document.getElementById('filterSelect');
+        if (filterSelect) {
+            filterSelect.value = 'all';
+        }
+
+        // Clear date range filters
+        const startDateInput = document.getElementById('startDateFilter');
+        if (startDateInput) {
+            startDateInput.value = '';
+        }
+
+        const endDateInput = document.getElementById('endDateFilter');
+        if (endDateInput) {
+            endDateInput.value = '';
+        }
+
+        // Trigger filter refresh to show all dreams
+        debouncedFilter(50); // Short delay for responsive feel
+
+        // Provide user feedback
+        const { createInlineMessage } = import('./dom-helpers.js');
+        createInlineMessage.then(fn => {
+            fn('success', 'Search and filters cleared', {
+                container: document.querySelector('.search-filter-section'),
+                position: 'bottom',
+                duration: 2000
+            });
+        });
+
+    } catch (error) {
+        console.error('Error clearing search filters:', error);
+    }
+}
+
 // ================================
 // ES MODULE EXPORTS
 // ================================
@@ -2272,9 +2330,10 @@ export {
     // Debounced functions
     debouncedSearch,
     debouncedFilter,
-    
+
     // UI helper functions
     showLoadingMessage,
     showNoResultsMessage,
-    clearPagination
+    clearPagination,
+    clearSearchFilters
 };

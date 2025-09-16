@@ -71,7 +71,7 @@ import {
 // Dream CRUD operations
 import {
     saveDream, editDream, deleteDream, confirmDelete,
-    saveDreamEdit, cancelDreamEdit, goToPage, debouncedFilter
+    saveDreamEdit, cancelDreamEdit, goToPage, debouncedFilter, clearSearchFilters
 } from './dream-crud.js';
 
 // Voice notes system
@@ -315,7 +315,8 @@ const ACTION_MAP = {
         'export-all-data': () => exportAllData(),                           // Export complete application data to JSON
         'import-all-data': () => document.getElementById('importAllDataFile').click(), // Trigger complete data import file dialog
         'export-ai': () => exportForAIAnalysis(),                           // Export dreams formatted for AI analysis
-        
+        'clear-search-filters': () => clearSearchFilters(),                 // Clear all search and filter criteria to defaults
+
         // ================================
         // APPLICATION INTERFACE MANAGEMENT
         // ================================
@@ -406,6 +407,17 @@ const ACTION_MAP = {
         'select-month': handleSelectMonth,                                   // Select specific calendar month
         'select-year': handleSelectYear,                                     // Select specific calendar year
         'go-to-date': (ctx) => {                                             // Navigate to specific date in journal
+            // Clear search and lucidity filters for focused date viewing
+            const searchBox = document.getElementById('searchBox');
+            const filterSelect = document.getElementById('filterSelect');
+
+            if (searchBox) {
+                searchBox.value = '';
+            }
+            if (filterSelect) {
+                filterSelect.value = 'all';
+            }
+
             // Use utility function for date filter setup, then trigger filtering if successful
             if (setDateFilter(ctx.element.dataset.date)) {
                 debouncedFilter();

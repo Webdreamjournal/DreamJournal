@@ -770,6 +770,17 @@
             opacity: 0.8;
         }
 
+        .section-header-with-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .section-header-with-action .section-header {
+            margin: 0;
+        }
+
         .search-filter-group {
             display: flex;
             gap: 10px;
