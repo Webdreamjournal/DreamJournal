@@ -214,11 +214,7 @@ function renderJournalTab(tabPanel) {
             <div class="dreams-section-header">
                 <h3>Your Dreams</h3>
                 
-                <!-- Dreams Management Controls -->
-                <div class="dreams-controls">
-                    <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
-                    <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
-                </div>
+
             </div>
             
             <!-- ================================ -->
@@ -283,6 +279,12 @@ function renderJournalTab(tabPanel) {
                             <option value="all">Show All</option>
                         </select>
                     </div>
+                </div>
+
+                                <!-- Dreams Management Controls -->
+                <div class="dreams-controls">
+                    <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
+                    <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
                 </div>
 
                 <!-- Visual Break Between Controls and Dream List -->
