@@ -85,7 +85,7 @@ import {
 // Goals system - import business logic functions
 import {
     showCreateGoalDialog, createTemplateGoal, editGoal, completeGoal,
-    reactivateGoal, deleteGoal, confirmDeleteGoal, saveGoal, cancelGoalDialog,
+    reactivateGoal, deleteGoal, cancelGoalDelete, confirmDeleteGoal, saveGoal, cancelGoalDialog,
     displayGoals
 } from './goalstab.js';
 
@@ -355,6 +355,7 @@ const ACTION_MAP = {
         'complete-goal': (ctx) => completeGoal(ctx.goalId),                 // Mark goal as completed
         'reactivate-goal': (ctx) => reactivateGoal(ctx.goalId),             // Reactivate completed goal
         'delete-goal': (ctx) => deleteGoal(ctx.goalId),                     // Delete goal with confirmation
+        'cancel-goal-delete': (ctx) => cancelGoalDelete(ctx.goalId),        // Cancel goal deletion countdown
         'confirm-delete-goal': (ctx) => confirmDeleteGoal(ctx.goalId),      // Confirm goal deletion
         'save-goal': () => saveGoal(),                                       // Save goal form data
         'cancel-goal-dialog': () => cancelGoalDialog(),                     // Cancel goal dialog and cleanup
@@ -849,25 +850,39 @@ async function increaseGoalProgress(goalId) {
     try {
         await saveGoals(getAllGoals());
         await displayGoals();
-        
+
+        // Show progress update confirmation
+        const percentage = Math.round((newProgress / goal.target) * 100);
+        const { ErrorMessenger } = await import('./error-messenger.js');
+        await ErrorMessenger.showSuccess('GOAL_PROGRESS_UPDATED', {
+            current: newProgress,
+            target: goal.target,
+            percentage: percentage,
+            isComplete: newProgress >= goal.target
+        }, {
+            forceContext: 'goals',
+            duration: 4000
+        });
+
         // Auto-complete the goal if target reached
         if (newProgress >= goal.target && goal.status !== 'completed') {
-            const { createInlineMessage } = await import('./dom-helpers.js');
-            setTimeout(() => {
-                createInlineMessage('success', `🎉 Goal "${goal.title}" completed! Great job!`, {
-                    container: document.body,
-                    position: 'top',
-                    duration: 3000
+            setTimeout(async () => {
+                await ErrorMessenger.showSuccess('GOAL_COMPLETED', {
+                    goalTitle: goal.title
+                }, {
+                    forceContext: 'goals',
+                    duration: 6000
                 });
-            }, 100);
+            }, 1000);
         }
     } catch (error) {
         console.error('Error updating goal progress:', error);
-        const { createInlineMessage } = await import('./dom-helpers.js');
-        createInlineMessage('error', 'Failed to update goal progress', {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
+        const { ErrorMessenger } = await import('./error-messenger.js');
+        await ErrorMessenger.showError('GOAL_UPDATE_FAILED', {
+            error: error.message || 'Unknown error'
+        }, {
+            forceContext: 'goals',
+            duration: 8000
         });
     }
 }
@@ -901,13 +916,27 @@ async function decreaseGoalProgress(goalId) {
     try {
         await saveGoals(getAllGoals());
         await displayGoals();
+
+        // Show progress update confirmation
+        const percentage = Math.round((newProgress / goal.target) * 100);
+        const { ErrorMessenger } = await import('./error-messenger.js');
+        await ErrorMessenger.showSuccess('GOAL_PROGRESS_UPDATED', {
+            current: newProgress,
+            target: goal.target,
+            percentage: percentage,
+            isComplete: newProgress >= goal.target
+        }, {
+            forceContext: 'goals',
+            duration: 3000
+        });
     } catch (error) {
         console.error('Error updating goal progress:', error);
-        const { createInlineMessage } = await import('./dom-helpers.js');
-        createInlineMessage('error', 'Failed to update goal progress', {
-            container: document.body,
-            position: 'top',
-            duration: CONSTANTS.MESSAGE_DURATION_SHORT
+        const { ErrorMessenger } = await import('./error-messenger.js');
+        await ErrorMessenger.showError('GOAL_UPDATE_FAILED', {
+            error: error.message || 'Unknown error'
+        }, {
+            forceContext: 'goals',
+            duration: 8000
         });
     }
 }

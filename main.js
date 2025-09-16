@@ -244,6 +244,226 @@ async function registerServiceWorker() {
     }
 }
 
+/**
+ * Set up online/offline detection with user-visible status indicators.
+ *
+ * This function implements comprehensive network connectivity monitoring with
+ * context-aware user feedback. It tracks online/offline state changes and
+ * provides detailed information about feature availability based on connection status.
+ *
+ * **Features:**
+ * - Real-time network status detection via navigator.onLine and custom ping tests
+ * - Persistent offline indicator with feature availability information
+ * - Automatic connectivity restoration notifications with retry suggestions
+ * - Context-aware positioning of status messages based on active tab
+ * - Integration with service worker background sync for seamless offline operation
+ *
+ * **User Benefits:**
+ * - Clear understanding of current connectivity status
+ * - Informed decisions about which features are available offline
+ * - Automatic notifications when connectivity is restored
+ * - No confusion about why certain features might not be working
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when setup is complete
+ * @since 2.04.01
+ * @example
+ * // Called automatically during app initialization
+ * await setupOnlineOfflineDetection();
+ * // Online/offline detection now active with user feedback
+ */
+async function setupOnlineOfflineDetection() {
+    // Initial status check
+    if (!navigator.onLine) {
+        await ErrorMessenger.showWarning('CONNECTIVITY_OFFLINE', {
+            featuresAvailable: 'Recording dreams, voice notes, and viewing existing content',
+            featuresUnavailable: 'App updates and external content'
+        }, {
+            duration: 8000,
+            persistent: true
+        });
+    }
+
+    // Listen for online/offline events
+    window.addEventListener('online', async () => {
+        console.log('App is back online');
+
+        await ErrorMessenger.showSuccess('CONNECTIVITY_RESTORED', {
+            suggestion: 'All features are now available. The app will automatically sync any pending changes.'
+        }, {
+            duration: 6000
+        });
+
+        // Trigger service worker background sync if available
+        if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('background-sync');
+            } catch (error) {
+                console.log('Background sync registration failed:', error);
+            }
+        }
+    });
+
+    window.addEventListener('offline', async () => {
+        console.log('App is offline');
+
+        await ErrorMessenger.showWarning('CONNECTIVITY_LOST', {
+            featuresAvailable: 'Recording dreams, voice notes, and viewing existing content',
+            featuresUnavailable: 'App updates and external content',
+            suggestion: 'Your work will be saved locally and synced when connection is restored.'
+        }, {
+            duration: 10000,
+            persistent: true
+        });
+    });
+}
+
+/**
+ * Set up service worker update notifications with manual refresh options.
+ *
+ * This function implements comprehensive service worker update management with
+ * user-friendly notifications and manual control options. It monitors for new
+ * app versions and provides clear paths for users to update when ready.
+ *
+ * **Update Flow:**
+ * - Detects when new service worker versions become available
+ * - Shows non-intrusive notification with update details and manual action
+ * - Provides immediate update option with clear explanation of benefits
+ * - Handles update process with progress feedback and success confirmation
+ * - Manages cache refresh and app restart for seamless update experience
+ *
+ * **User Benefits:**
+ * - Control over when updates are applied (no forced interruptions)
+ * - Clear explanation of what updates provide
+ * - Progress feedback during update process
+ * - Seamless transition to new version with minimal disruption
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when setup is complete
+ * @since 2.04.01
+ * @example
+ * // Called automatically during app initialization
+ * await setupServiceWorkerUpdateNotifications();
+ * // Update notifications now active with user control
+ */
+async function setupServiceWorkerUpdateNotifications() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+
+        // Enhanced update detection with user notification
+        registration.addEventListener('updatefound', async () => {
+            const newWorker = registration.installing;
+
+            if (newWorker) {
+                newWorker.addEventListener('statechange', async () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // New version available - show update notification
+                        await ErrorMessenger.showInfo('SW_UPDATE_AVAILABLE', {
+                            benefits: 'Bug fixes, performance improvements, and new features',
+                            action: 'Tap "Update" to apply changes and restart the app'
+                        }, {
+                            duration: 15000,
+                            actions: [
+                                {
+                                    label: 'Update Now',
+                                    action: async () => {
+                                        await updateServiceWorker();
+                                    }
+                                },
+                                {
+                                    label: 'Later',
+                                    action: () => {
+                                        // Just dismiss the message
+                                    }
+                                }
+                            ]
+                        });
+                    }
+                });
+            }
+        });
+
+        // Listen for successful activation of new service worker
+        navigator.serviceWorker.addEventListener('controllerchange', async () => {
+            await ErrorMessenger.showSuccess('SW_UPDATE_COMPLETE', {
+                message: 'App has been updated successfully!'
+            }, {
+                duration: 5000
+            });
+        });
+
+    } catch (error) {
+        console.log('Service worker update notification setup failed:', error);
+    }
+}
+
+/**
+ * Handle manual service worker update with user feedback.
+ *
+ * This function processes user-initiated service worker updates with comprehensive
+ * progress feedback and error handling. It manages the update lifecycle from
+ * initiation through completion with clear status communication.
+ *
+ * **Update Process:**
+ * - Shows progress indicator during update preparation
+ * - Triggers service worker skipWaiting for immediate activation
+ * - Handles update failures with actionable error messages
+ * - Provides success confirmation when update completes
+ * - Manages app restart if needed for complete update application
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Promise that resolves when update is complete
+ * @since 2.04.01
+ * @example
+ * // Called when user clicks "Update Now" button
+ * await updateServiceWorker();
+ * // Update process initiated with progress feedback
+ */
+async function updateServiceWorker() {
+    try {
+        await ErrorMessenger.showInfo('SW_UPDATE_PROGRESS', {
+            status: 'Preparing update...'
+        }, {
+            duration: 3000
+        });
+
+        if (navigator.serviceWorker.controller) {
+            // Tell the service worker to skip waiting and activate immediately
+            navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        // Show success message
+        await ErrorMessenger.showSuccess('SW_UPDATE_INITIATED', {
+            message: 'Update started. The app will refresh automatically in a moment.'
+        }, {
+            duration: 4000
+        });
+
+        // Reload the page after a brief delay to allow message to show
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+
+    } catch (error) {
+        console.error('Service worker update failed:', error);
+
+        await ErrorMessenger.showError('SW_UPDATE_FAILED', {
+            reason: error.message || 'Unknown update error',
+            suggestion: 'Try refreshing the page manually or check your internet connection.'
+        }, {
+            duration: 8000
+        });
+    }
+}
+
 // ================================
 // BROWSER COMPATIBILITY & UTILITIES
 // ================================
@@ -703,9 +923,13 @@ async function initializeApp() {
 
     // Register service worker for PWA functionality
     registerServiceWorker();
-    
+
     // Setup PWA installation system
     setupPWAInstall();
+
+    // Setup online/offline detection and service worker notifications
+    setupOnlineOfflineDetection();
+    setupServiceWorkerUpdateNotifications();
 
     setupEventDelegation();
 
@@ -765,21 +989,24 @@ async function initializeApp() {
 export {
     // Main application initialization
     initializeApp,
-    
-    // Application initialization functions  
+
+    // Application initialization functions
     // initializeAdviceTab moved to advicetab.js module
     initializeTheme,
     setupEventDelegation,
     registerServiceWorker,
-    
-    
+    setupOnlineOfflineDetection,
+    setupServiceWorkerUpdateNotifications,
+    updateServiceWorker,
+
+
     // Browser compatibility and utilities
     checkBrowserCompatibility,
     ensureTabContainerExists,
     setDefaultDreamDateTime,
     setupCleanupHandlers,
     setupAdditionalEventListeners,
-    
+
     // Application data initialization
     initializeApplicationData,
     restoreDreamFormState

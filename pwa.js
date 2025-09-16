@@ -1,24 +1,30 @@
 /**
  * @fileoverview Progressive Web App (PWA) installation and management module.
- * 
+ *
  * This module handles PWA installation prompts, user interaction with installation UI,
  * and manages the deferred installation prompt lifecycle. It provides a clean interface
  * for PWA installation functionality that can be used across different modules without
  * creating circular dependencies.
- * 
+ *
  * @module PWA
- * @version 2.04.00
+ * @version 2.04.33
  * @author Dream Journal Development Team
  * @since 2.02.22
  * @example
  * import { installPWA, setupPWAInstall } from './pwa.js';
- * 
+ *
  * // Setup PWA installation system
  * setupPWAInstall();
- * 
+ *
  * // Install PWA when user clicks button
  * await installPWA();
  */
+
+// ================================
+// ES MODULE IMPORTS
+// ================================
+
+import { ErrorMessenger } from './error-messenger.js';
 
 // ================================
 // PWA INSTALLATION SYSTEM
@@ -53,6 +59,20 @@ let deferredPrompt;
 async function installPWA() {
     if (!deferredPrompt) {
         console.log('No install prompt available');
+
+        // Detect browser and show appropriate message
+        const userAgent = navigator.userAgent;
+        const browser = userAgent.includes('Chrome') ? 'Chrome' :
+                       userAgent.includes('Firefox') ? 'Firefox' :
+                       userAgent.includes('Safari') ? 'Safari' :
+                       userAgent.includes('Edge') ? 'Edge' : 'this browser';
+
+        await ErrorMessenger.showWarning('PWA_NOT_AVAILABLE', {
+            browser
+        }, {
+            duration: 6000
+        });
+
         return;
     }
 
@@ -64,9 +84,16 @@ async function installPWA() {
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`User response to the install prompt: ${outcome}`);
 
+        // Provide user feedback based on choice
+        if (outcome === 'accepted') {
+            await ErrorMessenger.showSuccess('PWA_INSTALL_SUCCESS', {}, {
+                duration: 5000
+            });
+        }
+
         // Clear the deferredPrompt
         deferredPrompt = null;
-        
+
         // Hide the install button regardless of user choice
         const installButton = document.querySelector('#installPwaButton');
         if (installButton) {
@@ -74,6 +101,13 @@ async function installPWA() {
         }
     } catch (error) {
         console.error('Error during PWA installation:', error);
+
+        await ErrorMessenger.showError('PWA_INSTALL_FAILED', {
+            reason: error.message || 'Unknown installation error'
+        }, {
+            duration: 8000
+        });
+
         // Clear the prompt on error
         deferredPrompt = null;
     }
