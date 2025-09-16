@@ -46,7 +46,7 @@
 // ================================
 
 // Foundation modules
-import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, commonEmotions, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
 import {
     getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
     deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
@@ -714,7 +714,11 @@ async function initializeApp() {
     
     // Setup additional event listeners and keyboard shortcuts
     setupAdditionalEventListeners();
-    
+
+    // Fix any corrupted emotions data before initializing autocomplete
+    const { fixCorruptedEmotionsData } = await import('./storage.js');
+    await fixCorruptedEmotionsData();
+
     // Initialize autocomplete system
     initializeAutocomplete();
 

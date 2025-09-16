@@ -735,11 +735,12 @@ async function exportAllData() {
         
         try {
             // Collect restorable data (voice notes excluded - audio cannot be exported/imported)
-            const [dreams, goals, userTags, userDreamSigns] = await Promise.all([
+            const [dreams, goals, userTags, userDreamSigns, userEmotions] = await Promise.all([
                 loadDreams(),
                 loadGoals(),
                 getAutocompleteSuggestions('tags'),
-                getAutocompleteSuggestions('dreamSigns')
+                getAutocompleteSuggestions('dreamSigns'),
+                getAutocompleteSuggestions('emotions')
             ]);
             
             // Collect settings from localStorage
@@ -759,7 +760,8 @@ async function exportAllData() {
                     settings: settings,
                     autocomplete: {
                         tags: userTags || [],
-                        dreamSigns: userDreamSigns || []
+                        dreamSigns: userDreamSigns || [],
+                        emotions: userEmotions || []
                     },
                     metadata: {
                         totalDreams: (dreams || []).length,
@@ -1106,15 +1108,15 @@ async function importAllData(event) {
                 if (importData.data.autocomplete.dreamSigns && Array.isArray(importData.data.autocomplete.dreamSigns)) {
                     const currentDreamSigns = await getAutocompleteSuggestions('dreamSigns');
                     const importDreamSigns = importData.data.autocomplete.dreamSigns;
-                    
+
                     // Merge dream signs, avoiding duplicates (case-insensitive)
                     const existingDreamSignsLower = currentDreamSigns.map(sign => sign.toLowerCase());
-                    const newDreamSigns = importDreamSigns.filter(sign => 
+                    const newDreamSigns = importDreamSigns.filter(sign =>
                         sign && !existingDreamSignsLower.includes(sign.toLowerCase())
                     );
-                    
+
                     if (newDreamSigns.length > 0) {
-                        const mergedDreamSigns = [...currentDreamSigns, ...newDreamSigns].sort((a, b) => 
+                        const mergedDreamSigns = [...currentDreamSigns, ...newDreamSigns].sort((a, b) =>
                             a.toLowerCase().localeCompare(b.toLowerCase())
                         );
                         const { saveAutocompleteSuggestions } = await import('./storage.js');
@@ -1122,7 +1124,28 @@ async function importAllData(event) {
                         importedAutocomplete += newDreamSigns.length;
                     }
                 }
-                
+
+                // Import emotions
+                if (importData.data.autocomplete.emotions && Array.isArray(importData.data.autocomplete.emotions)) {
+                    const currentEmotions = await getAutocompleteSuggestions('emotions');
+                    const importEmotions = importData.data.autocomplete.emotions;
+
+                    // Merge emotions, avoiding duplicates (case-insensitive)
+                    const existingEmotionsLower = currentEmotions.map(emotion => emotion.toLowerCase());
+                    const newEmotions = importEmotions.filter(emotion =>
+                        emotion && !existingEmotionsLower.includes(emotion.toLowerCase())
+                    );
+
+                    if (newEmotions.length > 0) {
+                        const mergedEmotions = [...currentEmotions, ...newEmotions].sort((a, b) =>
+                            a.toLowerCase().localeCompare(b.toLowerCase())
+                        );
+                        const { saveAutocompleteSuggestions } = await import('./storage.js');
+                        await saveAutocompleteSuggestions('emotions', mergedEmotions);
+                        importedAutocomplete += newEmotions.length;
+                    }
+                }
+
                 stats.importedAutocomplete = importedAutocomplete;
             }
             

@@ -3652,7 +3652,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
         }
 
         // Re-encrypt autocomplete (handle both tags and dreamSigns)
-        const autocompleteTypes = ['tags', 'dreamSigns'];
+        const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
         for (const type of autocompleteTypes) {
             try {
                 const autocomplete = await getAutocompleteSuggestionsRaw(type);

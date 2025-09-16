@@ -183,9 +183,11 @@ async function shouldEncryptDream() {
 
         const tags = parseTagsFromInput(tagsElement.value);
         const dreamSigns = parseTagsFromInput(dreamSignsElement.value);
+        const emotions = parseTagsFromInput(emotionsElement.value);
 
         await learnAutocompleteItems(tags, 'tags');
         await learnAutocompleteItems(dreamSigns, 'dreamSigns');
+        await learnAutocompleteItems(emotions, 'emotions');
 
         const dreamDate = dreamDateElement.value ? new Date(dreamDateElement.value) : new Date();
         const dreamTitle = titleElement.value.trim() || 'Untitled Dream';
@@ -664,9 +666,11 @@ async function shouldEncryptDream() {
 
         const newTags = parseTagsFromInput(document.getElementById(`edit-tags-${dreamId}`).value);
         const newDreamSigns = parseTagsFromInput(document.getElementById(`edit-dreamsigns-${dreamId}`).value);
+        const newEmotions = parseTagsFromInput(document.getElementById(`edit-emotions-${dreamId}`).value);
 
         await learnAutocompleteItems(newTags, 'tags');
         await learnAutocompleteItems(newDreamSigns, 'dreamSigns');
+        await learnAutocompleteItems(newEmotions, 'emotions');
 
         const newDateValue = document.getElementById(`edit-date-${dreamId}`).value;
         const newDate = newDateValue ? new Date(newDateValue) : new Date();

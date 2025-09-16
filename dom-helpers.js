@@ -22,7 +22,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
-import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY, getTipsCount } from './constants.js';
+import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY, getTipsCount, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
 import { 
     getActiveAppTab,
     setActiveAppTab,
@@ -1631,19 +1631,23 @@ async function initializeAutocomplete() {
             // Data will only be decrypted when user actually focuses on input fields
             setupLazySecureAutocomplete('dreamTags', 'tags');
             setupLazySecureAutocomplete('dreamSigns', 'dreamSigns');
+            setupLazySecureAutocomplete('dreamEmotions', 'emotions');
         } else {
             // For unencrypted data, use normal initialization
-            const [tags, signs] = await Promise.all([
+            const [tags, signs, emotions] = await Promise.all([
                 getAutocompleteSuggestions('tags'),
-                getAutocompleteSuggestions('dreamSigns')
+                getAutocompleteSuggestions('dreamSigns'),
+                getAutocompleteSuggestions('emotions')
             ]);
             setupTagAutocomplete('dreamTags', tags);
             setupTagAutocomplete('dreamSigns', signs);
+            setupTagAutocomplete('dreamEmotions', emotions);
         }
     } catch (error) {
         console.error("Failed to initialize autocomplete:", error);
         setupTagAutocomplete('dreamTags', commonTags);
         setupTagAutocomplete('dreamSigns', commonDreamSigns);
+        setupTagAutocomplete('dreamEmotions', commonEmotions);
     }
 }
 
@@ -1737,18 +1741,22 @@ async function setupLazySecureAutocomplete(elementId, dataType) {
  * are treated uniformly with delete capabilities.
  * 
  * @async
- * @param {('tags'|'dreamSigns')} type - Type of autocomplete items to render
+ * @param {('tags'|'dreamSigns'|'emotions')} type - Type of autocomplete items to render
  * @returns {Promise<void>}
- * @throws {TypeError} When type is not 'tags' or 'dreamSigns'
+ * @throws {TypeError} When type is not 'tags', 'dreamSigns', or 'emotions'
  * @throws {Error} When autocomplete suggestions cannot be loaded
  * @since 1.0.0
  * @example
  * // Render tags management interface
  * await renderAutocompleteManagementList('tags');
- * 
+ *
  * @example
  * // Render dream signs management interface
  * await renderAutocompleteManagementList('dreamSigns');
+ *
+ * @example
+ * // Render emotions management interface
+ * await renderAutocompleteManagementList('emotions');
  * 
  * @example
  * // Error handling
@@ -1759,7 +1767,7 @@ async function setupLazySecureAutocomplete(elementId, dataType) {
  * }
  */
 async function renderAutocompleteManagementList(type) {
-        const containerId = type === 'tags' ? 'tagsManagementList' : 'dreamSignsManagementList';
+        const containerId = type === 'tags' ? 'tagsManagementList' : type === 'dreamSigns' ? 'dreamSignsManagementList' : 'emotionsManagementList';
         const container = document.getElementById(containerId);
         if (!container) return;
 

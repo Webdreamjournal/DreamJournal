@@ -289,6 +289,24 @@ function renderSettingsTab(tabPanel) {
                     </div>
                 </div>
             </div>
+
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">💭 Emotions</div>
+                    <div class="settings-description">Add a new custom emotion.</div>
+                </div>
+                <div style="flex: 1; min-width: 300px; max-width: 400px;">
+                    <div id="emotionsManagementList" class="autocomplete-management-list">
+                        <div class="loading-state">Loading emotions...</div>
+                    </div>
+                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
+                            <input type="text" id="newEmotionInput" class="form-control" placeholder="e.g., contemplative">
+                            <button data-action="add-custom-emotion" class="btn btn-primary btn-small">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -320,7 +338,7 @@ function renderSettingsTab(tabPanel) {
  * - Falls back gracefully when encryption password is unavailable
  *
  * @async
- * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to add
+ * @param {('tags'|'dreamSigns'|'emotions')} type - Type of autocomplete item to add
  * @returns {Promise<void>} Resolves when add operation completes
  * @throws {Error} Database and encryption errors are handled with user feedback
  *
@@ -331,7 +349,7 @@ function renderSettingsTab(tabPanel) {
  * @since 2.03.04
  */
 async function addCustomAutocompleteItem(type) {
-        const inputId = type === 'tags' ? 'newTagInput' : 'newDreamSignInput';
+        const inputId = type === 'tags' ? 'newTagInput' : type === 'dreamSigns' ? 'newDreamSignInput' : 'newEmotionInput';
         const input = document.getElementById(inputId);
         if (!input) return;
 
@@ -345,7 +363,7 @@ async function addCustomAutocompleteItem(type) {
         }
 
         try {
-            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+            const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
             // Get existing suggestions with enhanced error handling
             const existingSuggestions = await getAutocompleteSuggestions(type);
@@ -413,7 +431,7 @@ async function addCustomAutocompleteItem(type) {
  * - Falls back gracefully when encryption password is unavailable
  *
  * @async
- * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to delete
+ * @param {('tags'|'dreamSigns'|'emotions')} type - Type of autocomplete item to delete
  * @param {string} itemValue - Value of the item to delete
  * @returns {Promise<void>} Resolves when delete operation completes
  * @throws {Error} Database and encryption errors are handled with user feedback
@@ -425,7 +443,7 @@ async function addCustomAutocompleteItem(type) {
  */
 async function deleteAutocompleteItem(type, itemValue) {
         try {
-            const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+            const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
             // Get existing suggestions with enhanced error handling
             const existingSuggestions = await getAutocompleteSuggestions(type);
@@ -675,7 +693,7 @@ async function setupEncryption(password) {
 
         // Encrypt existing autocomplete data (tags and dream signs)
         const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
-        const autocompleteTypes = ['tags', 'dreamSigns'];
+        const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
         let autocompleteEncryptedCount = 0;
 
         for (const type of autocompleteTypes) {
@@ -1294,6 +1312,7 @@ function initializeSettingsTab() {
             // Render autocomplete management lists
             renderAutocompleteManagementList('tags');
             renderAutocompleteManagementList('dreamSigns');
+            renderAutocompleteManagementList('emotions');
             
             // Add PWA section if installation is available
             managePWASettingsSection();

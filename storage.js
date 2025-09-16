@@ -18,7 +18,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
-import { CONSTANTS, commonTags, commonDreamSigns } from './constants.js';
+import { CONSTANTS, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
 import { 
     memoryStorage, 
     memoryVoiceNotes,
@@ -1643,7 +1643,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * const dreamSignSuggestions = await getAutocompleteSuggestionsRaw('dreamSigns');
      */
     async function getAutocompleteSuggestionsRaw(type) {
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
         // For new users or migrated users, use the new unified 'autocomplete' store
         if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
@@ -1656,8 +1656,16 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
 
         // Fallback for new users - return the predefined lists from constants.js
         console.warn(`No saved autocomplete data found for ${type}. Using default list.`);
-        const isTags = type === 'tags';
-        const defaultList = isTags ? commonTags : commonDreamSigns;
+        let defaultList;
+        if (type === 'tags') {
+            defaultList = commonTags;
+        } else if (type === 'dreamSigns') {
+            defaultList = commonDreamSigns;
+        } else if (type === 'emotions') {
+            defaultList = commonEmotions;
+        } else {
+            defaultList = [];
+        }
         return defaultList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
 
@@ -1679,7 +1687,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * const dreamSignSuggestions = await getAutocompleteSuggestions('dreamSigns');
      */
     async function getAutocompleteSuggestions(type) {
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
         // Import encryption state from state.js
         const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
@@ -1705,8 +1713,16 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
 
         // Fallback for new users - return the predefined lists from constants.js
         console.warn(`No saved autocomplete data found for ${type}. Using default list.`);
-        const isTags = type === 'tags';
-        const defaultList = isTags ? commonTags : commonDreamSigns;
+        let defaultList;
+        if (type === 'tags') {
+            defaultList = commonTags;
+        } else if (type === 'dreamSigns') {
+            defaultList = commonDreamSigns;
+        } else if (type === 'emotions') {
+            defaultList = commonEmotions;
+        } else {
+            defaultList = [];
+        }
         return defaultList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
 
@@ -1719,7 +1735,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * 
      * @async
      * @function
-     * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to add
+     * @param {('tags'|'dreamSigns'|'emotions')} type - Type of autocomplete item to add
      * @returns {Promise<void>} Resolves when add operation completes
      * @throws {Error} Validation and database errors are handled with user feedback
      * @since 1.0.0
@@ -1728,20 +1744,20 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * await addCustomAutocompleteItem('tags');
      */
     async function addCustomAutocompleteItem(type) {
-        const inputId = type === 'tags' ? 'newTagInput' : 'newDreamSignInput';
+        const inputId = type === 'tags' ? 'newTagInput' : type === 'dreamSigns' ? 'newDreamSignInput' : 'newEmotionInput';
         const input = document.getElementById(inputId);
         if (!input) return;
 
         const newItem = input.value.trim().toLowerCase();
         if (!newItem) {
-            createInlineMessage('warning', 'Please enter a value', { 
+            createInlineMessage('warning', 'Please enter a value', {
                 container: input.parentElement,
                 position: 'top'
             });
             return;
         }
 
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
         
         // Get existing suggestions
         const existingSuggestions = await getAutocompleteSuggestions(type);
@@ -1806,7 +1822,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * 
      * @async
      * @function
-     * @param {('tags'|'dreamSigns')} type - Type of autocomplete item to delete
+     * @param {('tags'|'dreamSigns'|'emotions')} type - Type of autocomplete item to delete
      * @param {string} itemValue - Value of the item to delete
      * @returns {Promise<void>} Resolves when delete operation completes
      * @throws {Error} Database errors are handled with user feedback
@@ -1815,7 +1831,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * await deleteAutocompleteItem('tags', 'nightmare');
      */
     async function deleteAutocompleteItem(type, itemValue) {
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
         
         // Get existing suggestions
         const existingSuggestions = await getAutocompleteSuggestions(type);
@@ -1878,7 +1894,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     async function learnAutocompleteItems(inputArray, type) {
         if (!inputArray || inputArray.length === 0) return;
 
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
         
         // Get existing suggestions
         const existingSuggestions = await getAutocompleteSuggestions(type);
@@ -1981,20 +1997,69 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      *
      * @async
      * @function
-     * @param {('tags'|'dreamSigns')} type - Type of suggestions to retrieve
+     * @param {('tags'|'dreamSigns'|'emotions')} type - Type of suggestions to retrieve
      * @returns {Promise<Object|null>} Raw autocomplete data object or null if not found
      * @since 2.03.04
      * @example
      * const rawData = await getAutocompleteSuggestionsRawData('tags');
      */
     async function getAutocompleteSuggestionsRawData(type) {
-        const storeId = type === 'tags' ? 'tags' : 'dreamSigns';
+        const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
         if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
             return await loadItemFromStoreRaw('autocomplete', storeId);
         }
 
         return null;
+    }
+
+    /**
+     * Fixes corrupted emotions autocomplete data that may contain dream signs.
+     *
+     * This function detects if the emotions autocomplete data was corrupted during
+     * initial implementation (where emotions might have been saved with dream signs data)
+     * and resets it to the correct default emotions list.
+     *
+     * @async
+     * @function
+     * @returns {Promise<boolean>} True if emotions data was fixed, false if no fix needed
+     * @since 2.04.21
+     * @example
+     * const wasFixed = await fixCorruptedEmotionsData();
+     * if (wasFixed) console.log('Emotions data was corrupted and has been fixed');
+     */
+    async function fixCorruptedEmotionsData() {
+        try {
+            // Check if emotions data exists and is corrupted
+            const emotionsData = await loadItemFromStoreRaw('autocomplete', 'emotions');
+
+            if (emotionsData && emotionsData.items && Array.isArray(emotionsData.items)) {
+                // Check if emotions contains dream signs (indicating corruption)
+                const corruptionSignals = ['flying', 'being-chased', 'teleportation', 'deceased-alive', 'impossible-architecture'];
+                const isCorrupted = corruptionSignals.some(signal =>
+                    emotionsData.items.includes(signal)
+                );
+
+                if (isCorrupted) {
+                    console.warn('Detected corrupted emotions data containing dream signs. Fixing...');
+
+                    // Reset to correct default emotions
+                    const correctedData = {
+                        id: 'emotions',
+                        items: [...commonEmotions] // Create a copy
+                    };
+
+                    await saveItemToStore('autocomplete', correctedData);
+                    console.log('Emotions data has been reset to correct default emotions');
+                    return true;
+                }
+            }
+
+            return false; // No fix needed
+        } catch (error) {
+            console.error('Error checking/fixing emotions data:', error);
+            return false;
+        }
     }
 
 
@@ -2612,6 +2677,7 @@ export {
     addCustomAutocompleteItem,
     deleteAutocompleteItem,
     learnAutocompleteItems,
+    fixCorruptedEmotionsData,
     
     // Legacy functions
     loadUserTags,

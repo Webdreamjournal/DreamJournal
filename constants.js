@@ -479,6 +479,48 @@ const commonDreamSigns = [
         'teeth-falling-out', 'being-chased', 'cant-run-fast', 'naked-in-public', 'late-for-exam', 'lost-vehicle'
     ];
 
+/**
+ * Common emotions for autocomplete suggestions.
+ *
+ * Comprehensive collection of emotional states commonly experienced in dreams
+ * to provide autocomplete suggestions for the emotions field. Organized by
+ * emotional categories to cover the full spectrum of human emotional experience
+ * in dream states, from basic emotions to complex mixed feelings.
+ *
+ * Based on emotion research, dream content analysis, and common emotional
+ * experiences reported in dream journals and psychological literature.
+ *
+ * @constant {string[]}
+ * @readonly
+ * @since 2.04.01
+ * @example
+ * // Used in autocomplete functionality for emotions field
+ * const matchingEmotions = commonEmotions.filter(emotion =>
+ *   emotion.toLowerCase().includes(userInput.toLowerCase())
+ * );
+ *
+ * @example
+ * // Check if dream contains specific emotional categories
+ * const positiveEmotions = commonEmotions.filter(emotion =>
+ *   ['happy', 'joyful', 'excited', 'peaceful', 'content'].includes(emotion)
+ * );
+ */
+const commonEmotions = [
+        // Positive Emotions
+        'happy', 'joyful', 'excited', 'peaceful', 'content', 'grateful', 'amazed', 'euphoric', 'blissful', 'serene',
+        'cheerful', 'delighted', 'elated', 'enthusiastic', 'optimistic', 'satisfied', 'proud', 'confident', 'hopeful', 'inspired',
+        // Negative Emotions
+        'sad', 'angry', 'scared', 'anxious', 'frustrated', 'disappointed', 'lonely', 'jealous', 'guilty', 'ashamed',
+        'depressed', 'irritated', 'worried', 'panicked', 'terrified', 'furious', 'enraged', 'heartbroken', 'devastated', 'overwhelmed',
+        // Complex/Mixed Emotions
+        'confused', 'conflicted', 'bittersweet', 'nostalgic', 'melancholic', 'ambivalent', 'surprised', 'shocked', 'stunned', 'bewildered',
+        'curious', 'intrigued', 'suspicious', 'doubtful', 'uncertain', 'hesitant', 'indifferent', 'numb', 'empty', 'restless',
+        // Social Emotions
+        'embarrassed', 'rejected', 'abandoned', 'loved', 'appreciated', 'accepted', 'included', 'misunderstood', 'betrayed', 'supported',
+        // Physical/Sensory Emotions
+        'energetic', 'tired', 'exhausted', 'refreshed', 'uncomfortable', 'relaxed', 'tense', 'calm', 'agitated', 'alert'
+    ];
+
 // ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
@@ -492,6 +534,7 @@ export {
     getTipsCount,
     loadTipByIndex,
     commonTags,
-    commonDreamSigns
+    commonDreamSigns,
+    commonEmotions
 };
 

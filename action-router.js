@@ -483,6 +483,7 @@ const ACTION_MAP = {
         // ================================
         'add-custom-tag': () => addCustomAutocompleteItem('tags'),          // Add custom tag to autocomplete
         'add-custom-dream-sign': () => addCustomAutocompleteItem('dreamSigns'), // Add custom dream sign to autocomplete
+        'add-custom-emotion': () => addCustomAutocompleteItem('emotions'),  // Add custom emotion to autocomplete
         'delete-autocomplete-item': (ctx) => deleteAutocompleteItem(ctx.element.dataset.itemType, ctx.element.dataset.itemId), // Delete autocomplete item
         // 'restore-default-item': (ctx) => restoreDefaultItem(ctx.element.dataset.itemType, ctx.element.dataset.itemId), // Restore default autocomplete item - FUNCTION MISSING
 
