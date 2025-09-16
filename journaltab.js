@@ -281,7 +281,7 @@ function renderJournalTab(tabPanel) {
                     </div>
                 </div>
 
-                                <!-- Dreams Management Controls -->
+                <!-- Dreams Management Controls -->
                 <div class="dreams-controls">
                     <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
                     <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">🤖 Export for AI Analysis</button>
