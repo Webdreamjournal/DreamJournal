@@ -67,7 +67,7 @@
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
             --info-l: 39%;             --info-hover-l: 33%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
-            --secondary-l: 46%;        --secondary-hover-l: 35%;    /* Secondary action colors */
+            --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
             
             /* Component-specific lightness values */
             --shadow-opacity: 0.1;     --modal-backdrop-opacity: 0.9;
