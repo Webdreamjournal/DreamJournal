@@ -65,6 +65,7 @@ import {
     generateUniqueId
 } from './storage.js';
 import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
+import { formatDatetimeLocal } from './dream-crud.js';
 
 /**
  * Represents a complete voice note with metadata and audio data.
@@ -2099,11 +2100,11 @@ async function createDreamFromTranscription(voiceNoteId) {
                 toggleDreamForm();
             }
             
-            // Set the current date/time as the dream date
+            // Set the current date/time as the dream date (preserving local time zone)
             const now = new Date();
             const dreamDateInput = document.getElementById('dreamDate');
             if (dreamDateInput) {
-                dreamDateInput.value = now.toISOString().slice(0, 16);
+                dreamDateInput.value = formatDatetimeLocal(now);
             }
             
             // Clear other form fields
