@@ -46,7 +46,7 @@
 // ================================
 
 // Foundation modules
-import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, commonEmotions, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, commonEmotions, DREAM_FORM_COLLAPSE_KEY, cacheDailyTip } from './constants.js';
 import {
     getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
     deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
@@ -478,7 +478,14 @@ function setupAdditionalEventListeners() {
  */
 async function initializeApplicationData(timerExpiredAndRemovedPin) {
     try {
+        const dreams = await loadDreams();
         await displayDreams();
+
+        // Cache daily tip for instant advice tab loading (background task)
+        cacheDailyTip(dreams).catch(error => {
+            console.warn('Daily tip caching failed (non-critical):', error);
+        });
+
         await updateRecordButtonState();
         // Only load voice notes if stored tab is active (removed unconditional displayVoiceNotes call)
         updateSecurityControls();

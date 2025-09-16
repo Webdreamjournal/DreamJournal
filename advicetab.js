@@ -41,7 +41,7 @@
 // ================================
 // ES MODULE IMPORTS
 // ================================
-import { getTipsCount, loadTipByIndex } from './constants.js';
+import { getTipsCount, loadTipByIndex, getCachedDailyTip } from './constants.js';
 import { setDailyTips, getDailyTips, getCurrentTipIndex, setCurrentTipIndex } from './state.js';
 import { escapeHtml, displayTip, handleTipNavigation } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
@@ -181,23 +181,34 @@ function renderAdviceTab(tabPanel) {
  * // Advice tab now displays deterministic tip based on user's dream history
  */
 /**
- * Initializes the advice tab with lazy loading for optimal performance.
+ * Initializes the advice tab with cached daily tip for instant loading.
  *
- * This optimized version only loads the tip count and current day's tip initially,
- * rather than loading all 400+ tips. Other tips are loaded on-demand when navigating.
+ * This optimized version uses a pre-cached daily tip that was loaded during
+ * app initialization, providing instant loading when users navigate to the
+ * advice tab. Falls back to lazy loading if cache is unavailable.
  *
  * @async
  * @function
  * @returns {Promise<void>} Resolves when advice tab initialization is complete
  * @throws {Error} When tip loading or dream data access fails
- * @since 2.03.04
+ * @since 2.04.01
  * @example
  * await initializeAdviceTab();
- * // Only today's tip is loaded, navigation loads others on-demand
+ * // Daily tip loads instantly from cache, navigation loads others on-demand
  */
 async function initializeAdviceTab() {
     try {
-        // Get tips count without loading all tip content
+        // Check for cached daily tip first for instant loading
+        const cachedTip = getCachedDailyTip();
+        if (cachedTip) {
+            console.log('Using cached daily tip for instant loading');
+            await displayCachedTip(cachedTip);
+            return;
+        }
+
+        console.log('No cached tip available, falling back to lazy loading');
+
+        // Fallback to original lazy loading if cache is not available
         const tipCount = await getTipsCount();
         if (tipCount === 0) {
             console.warn('No tips available');
@@ -238,8 +249,74 @@ async function initializeAdviceTab() {
         await displayTipLazy(tipOfTheDayIndex, tipCount);
 
     } catch (error) {
-        console.error('Error in lazy advice tab initialization:', error);
+        console.error('Error in cached advice tab initialization:', error);
         throw error; // Re-throw for error handling by caller
+    }
+}
+
+/**
+ * Displays the cached daily tip instantly without network requests.
+ *
+ * This function displays a pre-cached tip object directly from memory,
+ * providing instant loading when users navigate to the advice tab.
+ * Updates the UI and navigation state from cached data.
+ *
+ * @async
+ * @function
+ * @param {Object} cachedTip - Pre-cached tip object with index and totalTips
+ * @param {string} cachedTip.category - Tip category
+ * @param {string} cachedTip.text - Tip content text
+ * @param {number} cachedTip.index - Zero-based tip index
+ * @param {number} cachedTip.totalTips - Total number of available tips
+ * @returns {Promise<void>} Resolves when cached tip is displayed
+ * @since 2.04.01
+ * @example
+ * const cachedTip = getCachedDailyTip();
+ * await displayCachedTip(cachedTip);
+ * // Tip displays instantly from cache
+ */
+async function displayCachedTip(cachedTip) {
+    try {
+        // Update UI elements directly from cached data
+        const tipTextElement = document.getElementById('tipText');
+        const tipCounterElement = document.getElementById('tipCounter');
+
+        if (tipTextElement) {
+            tipTextElement.innerHTML = `
+                <div class="advice-content">
+                    <div class="advice-category">${escapeHtml(cachedTip.category)}</div>
+                    <div class="advice-text">${escapeHtml(cachedTip.text)}</div>
+                </div>
+            `;
+        }
+
+        if (tipCounterElement) {
+            tipCounterElement.textContent = `Tip ${cachedTip.index + 1} of ${cachedTip.totalTips}`;
+        }
+
+        // Store current state for navigation
+        setCurrentTipIndex(cachedTip.index);
+
+        // Store total tips count for navigation (reuse DailyTips array for compatibility)
+        const placeholderArray = new Array(cachedTip.totalTips).fill(null);
+        setDailyTips(placeholderArray);
+
+        console.log(`Displayed cached tip: ${cachedTip.index + 1} of ${cachedTip.totalTips}`);
+    } catch (error) {
+        console.error('Error displaying cached tip:', error);
+
+        // Show error message to user
+        const tipTextElement = document.getElementById('tipText');
+        if (tipTextElement) {
+            tipTextElement.innerHTML = `
+                <div class="text-center">
+                    <h4 class="text-primary mb-md">Cached Tip Error</h4>
+                    <p class="text-secondary">There was an error displaying the cached tip. Refresh the page to reload.</p>
+                </div>
+            `;
+        }
+
+        throw error;
     }
 }
 
@@ -387,7 +464,8 @@ async function initializeAdviceTabComplete() {
 export {
     renderAdviceTab,
     initializeAdviceTabComplete as initializeAdviceTab,
-    displayTipLazy
+    displayTipLazy,
+    displayCachedTip
 };
 
 // ================================

@@ -326,6 +326,120 @@ async function getTipsCount() {
 }
 
 /**
+ * Daily tip cache for instant loading.
+ *
+ * This cache stores the current day's tip to avoid loading the entire tips.json
+ * file when users navigate to the advice tab. The cache is populated during
+ * app initialization and includes the tip content and metadata.
+ *
+ * @type {Object|null}
+ * @private
+ * @since 2.04.01
+ */
+let _dailyTipCache = null;
+
+/**
+ * Caches the daily tip during app initialization for instant loading.
+ *
+ * This function calculates the tip-of-the-day index based on the user's
+ * dream history and pre-loads just that tip into memory. This eliminates
+ * the need to load the entire 400+ tip JSON file when users visit the
+ * advice tab, providing instant loading.
+ *
+ * @async
+ * @function
+ * @param {Array} dreams - User's dream entries for tip calculation
+ * @returns {Promise<Object|null>} Cached tip object or null if caching failed
+ * @throws {Error} When tip caching fails
+ * @since 2.04.01
+ * @example
+ * const dreams = await loadDreams();
+ * const cachedTip = await cacheDailyTip(dreams);
+ * // Daily tip is now cached for instant loading
+ */
+async function cacheDailyTip(dreams = []) {
+    try {
+        // Get tips count and calculate tip-of-the-day index
+        const tipCount = await getTipsCount();
+        if (tipCount === 0) {
+            console.warn('No tips available for caching');
+            return null;
+        }
+
+        let tipOfTheDayIndex = 0; // Default to tip 1 (index 0)
+
+        if (dreams && dreams.length > 0) {
+            // Find the earliest dream date
+            const dreamDates = dreams
+                .map(dream => new Date(dream.timestamp))
+                .filter(date => !isNaN(date.getTime()))
+                .sort((a, b) => a - b);
+
+            if (dreamDates.length > 0) {
+                const epoch = dreamDates[0];
+                const now = new Date();
+                const diffTime = now - epoch;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                tipOfTheDayIndex = diffDays % tipCount;
+            }
+        }
+
+        // Load just the specific tip needed
+        const tip = await loadTipByIndex(tipOfTheDayIndex);
+        if (tip) {
+            _dailyTipCache = {
+                ...tip,
+                index: tipOfTheDayIndex,
+                totalTips: tipCount,
+                cachedAt: Date.now()
+            };
+            console.log(`Daily tip cached: Tip ${tipOfTheDayIndex + 1} of ${tipCount}`);
+            return _dailyTipCache;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error caching daily tip:', error);
+        return null;
+    }
+}
+
+/**
+ * Retrieves the cached daily tip for instant loading.
+ *
+ * This function returns the pre-cached daily tip without any network requests,
+ * providing instant loading when users navigate to the advice tab. Falls back
+ * to loading the tip if cache is empty.
+ *
+ * @function
+ * @returns {Object|null} Cached tip object or null if not cached
+ * @since 2.04.01
+ * @example
+ * const cachedTip = getCachedDailyTip();
+ * if (cachedTip) {
+ *   displayTip(cachedTip);
+ * } else {
+ *   // Fallback to lazy loading
+ *   await loadTipByIndex(0);
+ * }
+ */
+function getCachedDailyTip() {
+    return _dailyTipCache;
+}
+
+/**
+ * Clears the daily tip cache.
+ *
+ * Used for testing or when tip cache needs to be refreshed.
+ *
+ * @function
+ * @since 2.04.01
+ */
+function clearDailyTipCache() {
+    _dailyTipCache = null;
+}
+
+/**
  * Loads a specific tip by its index, with caching for performance.
  *
  * This function provides efficient access to individual tips without loading
@@ -557,6 +671,9 @@ export {
     loadDailyTips,
     getTipsCount,
     loadTipByIndex,
+    cacheDailyTip,
+    getCachedDailyTip,
+    clearDailyTipCache,
     commonTags,
     commonDreamSigns,
     commonEmotions
