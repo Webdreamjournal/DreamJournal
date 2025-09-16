@@ -2711,11 +2711,16 @@
                 padding: 12px;
             }
 
-            .search-filter-group,
-            .display-sort-group {
+            .search-filter-group {
                 flex-direction: column;
                 min-width: auto;
                 gap: 10px;
+            }
+
+            .display-sort-group {
+                /* Keep horizontal layout longer - only stack on very small screens */
+                min-width: auto;
+                gap: 8px;
             }
 
             .search-box, .filter-select {
@@ -2814,7 +2819,15 @@
                 margin: 0 5px;
             }
         }
-        
+
+        /* Very Small Screen Responsive Design (480px and below) */
+        @media (max-width: 480px) {
+            .display-sort-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
         /* Footer Styles */
         footer {
             background: var(--bg-light);
