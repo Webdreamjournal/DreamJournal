@@ -2766,11 +2766,20 @@ function handlePinOverlayEscape(e) {
 async function setupPin() {
         const enteredPin = document.getElementById('pinInput').value;
         const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        
+
         if (!enteredPin || enteredPin.length < CONSTANTS.PIN_MIN_LENGTH || enteredPin.length > CONSTANTS.PIN_MAX_LENGTH || !/^\d+$/.test(enteredPin)) {
             showMessage('error', `PIN must be ${CONSTANTS.PIN_MIN_LENGTH}-${CONSTANTS.PIN_MAX_LENGTH} digits.`);
             document.getElementById('pinInput').value = '';
             return;
+        }
+
+        // Proactive PIN security validation
+        const pinAnalysis = analyzePinSecurity(enteredPin);
+        if (pinAnalysis.isWeak && !isPinSetup()) {
+            await ErrorMessenger.showWarning('PASSWORD_WEAK_WARNING', {
+                issue: pinAnalysis.issue,
+                suggestion: pinAnalysis.suggestion
+            });
         }
         
         if (isPinSetup()) {
@@ -3961,7 +3970,222 @@ export {
 
     // Application control
     toggleLock,
-    completePinSetup
+    completePinSetup,
+
+    // PIN security analysis
+    analyzePinSecurity
 };
+
+// ================================
+// PIN SECURITY ANALYSIS
+// ================================
+
+/**
+ * Analyzes PIN security to detect weak patterns and provide improvement suggestions.
+ *
+ * This function performs comprehensive analysis of PIN security patterns to identify
+ * common weaknesses and provide proactive guidance for improving PIN security.
+ * Used by the proactive monitoring system to warn users about weak PINs before
+ * they become security vulnerabilities.
+ *
+ * **Analysis Patterns:**
+ * - Sequential digits (123456, 654321)
+ * - Repeated digits (111111, 222222)
+ * - Common patterns (111222, 112233)
+ * - Predictable sequences (147258, 963852)
+ * - Birth year patterns (19xx, 20xx)
+ * - Simple keyboard patterns
+ *
+ * @function analyzePinSecurity
+ * @param {string} pin - PIN to analyze
+ * @returns {Object} Security analysis result
+ * @returns {boolean} returns.isWeak - Whether PIN is considered weak
+ * @returns {string} returns.issue - Description of security issue
+ * @returns {string} returns.suggestion - Improvement suggestion
+ * @returns {number} returns.strength - Security strength score (0-100)
+ * @since 2.04.35
+ * @example
+ * const analysis = analyzePinSecurity('123456');
+ * if (analysis.isWeak) {
+ *   console.log(`Issue: ${analysis.issue}`);
+ *   console.log(`Suggestion: ${analysis.suggestion}`);
+ * }
+ */
+function analyzePinSecurity(pin) {
+    const analysis = {
+        isWeak: false,
+        issue: '',
+        suggestion: 'Consider using a more random combination of digits.',
+        strength: 50 // Default score
+    };
+
+    // Check for sequential patterns
+    if (isSequential(pin)) {
+        analysis.isWeak = true;
+        analysis.issue = 'contains sequential digits';
+        analysis.suggestion = 'Avoid sequences like 123456 or 654321. Use a random combination of digits.';
+        analysis.strength = 10;
+        return analysis;
+    }
+
+    // Check for repeated digits
+    if (isRepeating(pin)) {
+        analysis.isWeak = true;
+        analysis.issue = 'uses repeated digits';
+        analysis.suggestion = 'Avoid repeated digits like 111111 or 222222. Mix different digits for better security.';
+        analysis.strength = 5;
+        return analysis;
+    }
+
+    // Check for common patterns
+    if (hasCommonPattern(pin)) {
+        analysis.isWeak = true;
+        analysis.issue = 'follows a common pattern';
+        analysis.suggestion = 'Avoid predictable patterns. Use a truly random combination of digits.';
+        analysis.strength = 15;
+        return analysis;
+    }
+
+    // Check for birth year patterns
+    if (isBirthYear(pin)) {
+        analysis.isWeak = true;
+        analysis.issue = 'appears to be a birth year';
+        analysis.suggestion = 'Avoid using birth years or dates. Use a random combination that\'s not personally identifiable.';
+        analysis.strength = 20;
+        return analysis;
+    }
+
+    // Calculate strength for non-weak PINs
+    analysis.strength = calculatePinStrength(pin);
+
+    if (analysis.strength < 40) {
+        analysis.isWeak = true;
+        analysis.issue = 'has low complexity';
+        analysis.suggestion = 'Consider using a more varied combination of digits to improve security.';
+    }
+
+    return analysis;
+}
+
+/**
+ * Checks if PIN contains sequential digits.
+ * @private
+ * @param {string} pin - PIN to check
+ * @returns {boolean} Whether PIN is sequential
+ */
+function isSequential(pin) {
+    // Check ascending sequence
+    for (let i = 0; i < pin.length - 1; i++) {
+        const current = parseInt(pin[i]);
+        const next = parseInt(pin[i + 1]);
+        if (next !== (current + 1) % 10) {
+            break;
+        }
+        if (i === pin.length - 2) return true; // Reached end, it's sequential
+    }
+
+    // Check descending sequence
+    for (let i = 0; i < pin.length - 1; i++) {
+        const current = parseInt(pin[i]);
+        const next = parseInt(pin[i + 1]);
+        if (next !== (current - 1 + 10) % 10) {
+            break;
+        }
+        if (i === pin.length - 2) return true; // Reached end, it's sequential
+    }
+
+    return false;
+}
+
+/**
+ * Checks if PIN uses too many repeated digits.
+ * @private
+ * @param {string} pin - PIN to check
+ * @returns {boolean} Whether PIN has excessive repetition
+ */
+function isRepeating(pin) {
+    // Check for all same digits
+    if (pin.split('').every(digit => digit === pin[0])) {
+        return true;
+    }
+
+    // Check for patterns like AABBCC
+    const digitCounts = {};
+    for (const digit of pin) {
+        digitCounts[digit] = (digitCounts[digit] || 0) + 1;
+    }
+
+    // If any digit appears more than half the PIN length, it's too repetitive
+    const maxCount = Math.max(...Object.values(digitCounts));
+    return maxCount > pin.length / 2;
+}
+
+/**
+ * Checks for common PIN patterns.
+ * @private
+ * @param {string} pin - PIN to check
+ * @returns {boolean} Whether PIN follows common patterns
+ */
+function hasCommonPattern(pin) {
+    const commonPatterns = [
+        '147258', '258147', '369258', '147852',
+        '963852', '852741', '741852', '159357',
+        '246810', '135790', '102030', '112233',
+        '223344', '334455', '445566', '556677',
+        '667788', '778899', '123321', '121212',
+        '131313', '141414', '151515', '161616',
+        '171717', '181818', '191919', '202020'
+    ];
+
+    return commonPatterns.includes(pin);
+}
+
+/**
+ * Checks if PIN appears to be a birth year.
+ * @private
+ * @param {string} pin - PIN to check
+ * @returns {boolean} Whether PIN looks like a birth year
+ */
+function isBirthYear(pin) {
+    if (pin.length !== 4) return false;
+
+    const year = parseInt(pin);
+    const currentYear = new Date().getFullYear();
+
+    // Check for reasonable birth year range (1900-current year)
+    return year >= 1900 && year <= currentYear;
+}
+
+/**
+ * Calculates PIN strength score.
+ * @private
+ * @param {string} pin - PIN to analyze
+ * @returns {number} Strength score (0-100)
+ */
+function calculatePinStrength(pin) {
+    let score = 0;
+
+    // Base score for length
+    score += pin.length * 10;
+
+    // Bonus for digit variety
+    const uniqueDigits = new Set(pin).size;
+    score += uniqueDigits * 5;
+
+    // Penalty for patterns
+    if (pin.length >= 4) {
+        // Check for adjacent repeated pairs
+        let repeatedPairs = 0;
+        for (let i = 0; i < pin.length - 1; i++) {
+            if (pin[i] === pin[i + 1]) {
+                repeatedPairs++;
+            }
+        }
+        score -= repeatedPairs * 10;
+    }
+
+    // Ensure score is within bounds
+    return Math.max(0, Math.min(100, score));
+}
 
     

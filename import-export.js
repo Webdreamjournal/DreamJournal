@@ -853,6 +853,9 @@ async function exportAllData() {
                 position: 'top',
                 duration: 4000
             });
+
+            // Track backup date for proactive monitoring
+            localStorage.setItem('lastBackupDate', new Date().toISOString());
             
         } catch (error) {
             console.error('Complete export error:', error);

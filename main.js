@@ -931,6 +931,12 @@ async function initializeApp() {
     setupOnlineOfflineDetection();
     setupServiceWorkerUpdateNotifications();
 
+    // Initialize proactive monitoring for error prevention
+    await ErrorMessenger.initializeProactiveMonitoring();
+
+    // Initialize error analytics and learning systems
+    await ErrorMessenger.initializeErrorAnalytics();
+
     setupEventDelegation();
 
     await initDB();
