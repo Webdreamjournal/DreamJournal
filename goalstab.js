@@ -1395,115 +1395,32 @@ async function reactivateGoal(goalId) {
  * // Initiate goal deletion with timeout confirmation (called from UI button)
  * deleteGoal('goal-123');
  */
-async function deleteGoal(goalId) {
+function deleteGoal(goalId) {
     // Clear any existing timeout for this goal
     if (goalDeleteTimeouts[goalId]) {
         clearTimeout(goalDeleteTimeouts[goalId]);
         delete goalDeleteTimeouts[goalId];
     }
 
-    try {
-        // Get goal information for the countdown message
-        const goal = getAllGoals().find(g => g.id === goalId);
-        const goalTitle = goal ? goal.title : 'Unknown Goal';
+    const goalElement = document.getElementById(`goal-${goalId}`);
+    if (!goalElement) return; // Safety check
 
-        // Start countdown timer with visual feedback
-        const countdownDuration = CONSTANTS.MESSAGE_DURATION_EXTENDED; // 10 seconds
-        const countdownInterval = 1000; // Update every second
-        let remainingSeconds = Math.ceil(countdownDuration / 1000);
+    const actionsElement = goalElement.querySelector('.goal-actions');
+    if (!actionsElement) return; // Safety check
 
-        const goalElement = document.getElementById(`goal-${goalId}`);
-        if (!goalElement) return;
+    // Add pending delete styling
+    goalElement.classList.add('delete-pending');
 
-        const actionsElement = goalElement.querySelector('.goal-actions');
-        if (!actionsElement) return;
-
-        // Add visual feedback for pending delete
-        goalElement.classList.add('delete-pending');
-
-        // Replace delete button with countdown display and cancel button
-        const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="delete-goal"]`);
-        if (deleteBtn) {
-            deleteBtn.outerHTML = `
-                <div class="goal-delete-countdown" data-goal-id="${goalId}">
-                    <span class="countdown-timer">${remainingSeconds}s</span>
-                    <button data-action="cancel-goal-delete" data-goal-id="${goalId}" class="btn btn-cancel btn-small">Cancel</button>
-                    <button data-action="confirm-delete-goal" data-goal-id="${goalId}" class="btn btn-confirm-delete btn-small">Delete Now</button>
-                </div>
-            `;
-        }
-
-        // Show countdown message using ErrorMessenger
-        const { ErrorMessenger } = await import('./error-messenger.js');
-
-        // Create countdown interval for updating the display
-        const countdownIntervalId = setInterval(async () => {
-            remainingSeconds--;
-
-            // Update countdown display in the goal element
-            const countdownElement = goalElement.querySelector(`.goal-delete-countdown[data-goal-id="${goalId}"] .countdown-timer`);
-            if (countdownElement) {
-                countdownElement.textContent = `${remainingSeconds}s`;
-            }
-
-            // Update ErrorMessenger countdown
-            await ErrorMessenger.showWarning('GOAL_DELETE_COUNTDOWN', {
-                goalTitle,
-                seconds: remainingSeconds
-            }, {
-                duration: 1200, // Slightly longer than interval to prevent flicker
-                forceContext: 'goals'
-            });
-
-            if (remainingSeconds <= 0) {
-                clearInterval(countdownIntervalId);
-            }
-        }, countdownInterval);
-
-        // Set main timeout to execute deletion
-        goalDeleteTimeouts[goalId] = setTimeout(async () => {
-            clearInterval(countdownIntervalId);
-
-            // Auto-confirm deletion after countdown
-            await confirmDeleteGoal(goalId);
-
-            // Show deletion confirmation
-            await ErrorMessenger.showSuccess('GOAL_DELETED', {
-                goalTitle
-            }, {
-                duration: 5000,
-                forceContext: 'goals'
-            });
-        }, countdownDuration);
-
-        // Store interval ID for cleanup
-        goalDeleteTimeouts[`${goalId}_interval`] = countdownIntervalId;
-
-        // Initial countdown message
-        await ErrorMessenger.showWarning('GOAL_DELETE_COUNTDOWN', {
-            goalTitle,
-            seconds: remainingSeconds
-        }, {
-            duration: 1200,
-            forceContext: 'goals'
-        });
-
-    } catch (error) {
-        console.error('Error starting goal deletion countdown:', error);
-
-        // Fallback to immediate confirmation prompt
-        const goalElement = document.getElementById(`goal-${goalId}`);
-        if (goalElement) {
-            const actionsElement = goalElement.querySelector('.goal-actions');
-            if (actionsElement) {
-                goalElement.classList.add('delete-pending');
-                const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="delete-goal"]`);
-                if (deleteBtn) {
-                    deleteBtn.outerHTML = `<button data-action="confirm-delete-goal" data-goal-id="${goalId}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
-                }
-            }
-        }
+    // Replace delete button with confirm button
+    const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="delete-goal"]`);
+    if (deleteBtn) {
+        deleteBtn.outerHTML = `<button data-action="confirm-delete-goal" data-goal-id="${goalId}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
     }
+
+    // Set timeout to revert after specified time (DOES NOT auto-delete)
+    goalDeleteTimeouts[goalId] = setTimeout(() => {
+        cancelGoalDelete(goalId);
+    }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
 }
 
 /**
@@ -1522,16 +1439,10 @@ async function deleteGoal(goalId) {
  * cancelGoalDelete('goal-123');
  */
 function cancelGoalDelete(goalId) {
-    // Clear the main timeout
+    // Clear the timeout
     if (goalDeleteTimeouts[goalId]) {
         clearTimeout(goalDeleteTimeouts[goalId]);
         delete goalDeleteTimeouts[goalId];
-    }
-
-    // Clear the countdown interval
-    if (goalDeleteTimeouts[`${goalId}_interval`]) {
-        clearInterval(goalDeleteTimeouts[`${goalId}_interval`]);
-        delete goalDeleteTimeouts[`${goalId}_interval`];
     }
 
     const goalElement = document.getElementById(`goal-${goalId}`);
@@ -1541,15 +1452,10 @@ function cancelGoalDelete(goalId) {
 
         const actionsElement = goalElement.querySelector('.goal-actions');
         if (actionsElement) {
-            // Replace countdown display or confirm button with original delete button
-            const countdownContainer = actionsElement.querySelector(`.goal-delete-countdown[data-goal-id="${goalId}"]`);
+            // Replace confirm button with original delete button
             const confirmBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="confirm-delete-goal"]`);
 
-            if (countdownContainer) {
-                // Replace entire countdown container
-                countdownContainer.outerHTML = `<button data-action="delete-goal" data-goal-id="${goalId}" class="btn btn-error btn-small">Delete</button>`;
-            } else if (confirmBtn) {
-                // Replace just the confirm button (fallback)
+            if (confirmBtn) {
                 confirmBtn.outerHTML = `<button data-action="delete-goal" data-goal-id="${goalId}" class="btn btn-error btn-small">Delete</button>`;
             }
         }
