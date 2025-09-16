@@ -735,6 +735,13 @@ async function exportAllData() {
         }
         
         try {
+            // Show processing indicator for large exports
+            await ErrorMessenger.showInfo('EXPORT_PROCESSING', {
+                exportType: 'complete data'
+            }, {
+                duration: 1500
+            });
+
             // Collect restorable data (voice notes excluded - audio cannot be exported/imported)
             const [dreams, goals, userTags, userDreamSigns, userEmotions] = await Promise.all([
                 loadDreams(),
@@ -885,7 +892,26 @@ async function exportAllData() {
 async function importAllData(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
+
+        // Check file size and warn for large files
+        const fileSizeMB = file.size / (1024 * 1024);
+        if (fileSizeMB > 5) {
+            await ErrorMessenger.showWarning('IMPORT_FILE_TOO_LARGE', {
+                size: `${fileSizeMB.toFixed(1)} MB`
+            }, {
+                duration: 5000
+            });
+        }
+
+        // Show processing indicator for large files
+        if (fileSizeMB > 1) {
+            await ErrorMessenger.showInfo('IMPORT_PROCESSING', {
+                fileName: file.name
+            }, {
+                duration: 2000
+            });
+        }
+
         try {
             // Check if encryption is enabled
             const encryptionEnabled = document.getElementById('fullDataEncryption').checked;

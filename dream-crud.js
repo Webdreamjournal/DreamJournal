@@ -783,7 +783,57 @@ async function shouldEncryptDream() {
      * await cancelDreamEdit(dreamId);
      */
     async function cancelDreamEdit(dreamId) {
-        await displayDreams();
+        try {
+            // Check if there are unsaved changes
+            const titleInput = document.getElementById(`edit-title-${dreamId}`);
+            const contentInput = document.getElementById(`edit-content-${dreamId}`);
+
+            if (titleInput && contentInput) {
+                // Get current form values
+                const currentTitle = titleInput.value.trim();
+                const currentContent = contentInput.value.trim();
+
+                // Get original dream data
+                const dreams = await loadDreams();
+                const originalDream = dreams.find(d => d.id.toString() === dreamId.toString());
+
+                if (originalDream) {
+                    const originalTitle = (originalDream.title || '').trim();
+                    const originalContent = (originalDream.content || '').trim();
+
+                    // Check if changes were made
+                    const hasChanges = (currentTitle !== originalTitle) || (currentContent !== originalContent);
+
+                    if (hasChanges) {
+                        // Show confirmation for unsaved changes
+                        await ErrorMessenger.showWarning('DREAM_EDIT_CANCEL_CONFIRM', {}, {
+                            duration: 6000
+                        });
+
+                        // For now, we'll still cancel (in future could add modal confirmation)
+                        // But we've at least warned the user
+                        setTimeout(async () => {
+                            await ErrorMessenger.showInfo('DREAM_EDIT_CANCELLED', {}, {
+                                duration: 4000
+                            });
+                        }, 1000);
+                    } else {
+                        // No changes made, just show simple cancellation
+                        await ErrorMessenger.showInfo('DREAM_EDIT_CANCELLED', {}, {
+                            duration: 3000
+                        });
+                    }
+                }
+            }
+
+            // Refresh display to cancel edit
+            await displayDreams();
+
+        } catch (error) {
+            console.error('Error in cancelDreamEdit:', error);
+            // Fallback: just refresh display
+            await displayDreams();
+        }
     }
 
 // ================================
@@ -884,12 +934,18 @@ async function shouldEncryptDream() {
                 setCurrentPage(1);
                 await displayDreams();
 
+                // Show success message
+                await ErrorMessenger.showInfo('DREAM_DELETED', {}, {
+                    duration: 4000
+                });
+
             } catch (error) {
                 console.error(`Error in confirmDelete for dreamId ${dreamId}:`, error);
-                createInlineMessage('error', 'Error deleting dream. Please refresh and try again.', {
-                    container: document.querySelector('.main-content'),
-                    position: 'top',
-                    duration: 5000
+                await ErrorMessenger.showError('STORAGE_SAVE_FAILED', {
+                    dataType: 'dream deletion',
+                    error: error.message || 'Deletion failed'
+                }, {
+                    duration: 8000
                 });
             }
         });

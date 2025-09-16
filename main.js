@@ -56,9 +56,10 @@ import {
 } from './state.js';
 
 // Core utilities
-import { 
+import {
     initDB, loadDreams, getIndexedDBCount, migrateFromLocalStorage,
-    isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions
+    isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions,
+    checkForRecoveryData
 } from './storage.js';
 import {
     getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons,
@@ -481,6 +482,15 @@ function setupAdditionalEventListeners() {
  */
 async function initializeApplicationData(timerExpiredAndRemovedPin) {
     try {
+        // Check for any available recovery data from previous crashes/failures
+        setTimeout(async () => {
+            try {
+                await checkForRecoveryData();
+            } catch (error) {
+                console.error('Recovery data check failed (non-critical):', error);
+            }
+        }, 2000); // Delay to avoid overwhelming user on startup
+
         const dreams = await loadDreams();
         await displayDreams();
 
