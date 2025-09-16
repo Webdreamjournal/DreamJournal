@@ -54,6 +54,7 @@ import {
     clearDecryptedDataCache
 } from './state.js';
 import { createInlineMessage, switchAppTab, showAllTabButtons, hideAllTabButtons, renderPinScreen } from './dom-helpers.js';
+import { ErrorMessenger } from './error-messenger.js';
 import {
     isLocalStorageAvailable, loadDreams, saveItemToStore,
     loadDreamsRaw, loadGoalsRaw, getAutocompleteSuggestionsRaw,
@@ -1297,7 +1298,10 @@ async function verifyLockScreenPin() {
         
         const enteredPin = pinInput.value;
         if (!enteredPin) {
-            showLockScreenMessage('error', 'Please enter a PIN');
+            await ErrorMessenger.showError('AUTH_PIN_INVALID', {}, {
+                forceContext: 'lock',
+                duration: 5000
+            });
             return;
         }
         
@@ -1306,12 +1310,15 @@ async function verifyLockScreenPin() {
             const isValid = await verifyPinHash(enteredPin, storedData);
             
             if (isValid) {
-                showLockScreenMessage('success', 'PIN verified! Unlocking journal...');
-                
+                await ErrorMessenger.showSuccess('AUTH_PIN_SETUP', {}, {
+                    forceContext: 'lock',
+                    duration: 2000
+                });
+
                 setFailedPinAttempts(0);
                 setUnlocked(true);
                 setAppLocked(false);
-                
+
                 console.log('Lock screen unlock successful - showing all tabs');
                 
                 pinInput.value = '';
@@ -1328,17 +1335,34 @@ async function verifyLockScreenPin() {
                 }, 200);
                 
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                const currentAttempts = getFailedPinAttempts() + 1;
+                setFailedPinAttempts(currentAttempts);
                 pinInput.value = '';
-                if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
-                    showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
+
+                const attemptsRemaining = CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT - currentAttempts;
+
+                if (currentAttempts >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
+                    await ErrorMessenger.showError('AUTH_PIN_LOCKED', {}, {
+                        forceContext: 'lock',
+                        duration: 8000
+                    });
                 } else {
-                    showLockScreenMessage('error', 'Incorrect PIN. Please try again.');
+                    await ErrorMessenger.showError('AUTH_PIN_INVALID', {
+                        attemptsRemaining
+                    }, {
+                        forceContext: 'lock',
+                        duration: 6000
+                    });
                 }
             }
         } catch (error) {
             console.error('Lock screen PIN verification error:', error);
-            showLockScreenMessage('error', 'PIN verification failed. Please try again.');
+            await ErrorMessenger.showError('AUTH_PIN_INVALID', {
+                error: 'Verification system error'
+            }, {
+                forceContext: 'lock',
+                duration: 6000
+            });
             pinInput.value = '';
         }
     }
@@ -1399,17 +1423,34 @@ async function verifyLockScreenPin() {
                     });
                 }, 100);
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
-                feedback.innerHTML = '<span style="color: var(--error-color);">Incorrect PIN. Please try again.</span>';
+                const currentAttempts = getFailedPinAttempts() + 1;
+                setFailedPinAttempts(currentAttempts);
                 document.getElementById('pinInput').value = '';
 
-                if (getFailedPinAttempts() >= CONSTANTS.PIN_MAX_ATTEMPTS) {
-                    setTimeout(() => showForgotPin(), 100);
+                const attemptsRemaining = CONSTANTS.PIN_MAX_ATTEMPTS - currentAttempts;
+
+                if (currentAttempts >= CONSTANTS.PIN_MAX_ATTEMPTS) {
+                    await ErrorMessenger.showError('AUTH_PIN_LOCKED', {}, {
+                        persistent: true
+                    });
+                    setTimeout(() => showForgotPin(), 1000);
+                } else {
+                    await ErrorMessenger.showError('AUTH_PIN_INVALID', {
+                        attemptsRemaining
+                    }, {
+                        duration: 6000
+                    });
+                    feedback.innerHTML = '<span style="color: var(--error-color);">See error message above for details.</span>';
                 }
             }
         } catch (error) {
             console.error('PIN verification error:', error);
-            feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification failed. Please try again.</span>';
+            await ErrorMessenger.showError('AUTH_PIN_INVALID', {
+                error: 'System verification error'
+            }, {
+                duration: 6000
+            });
+            feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification system error. See message above.</span>';
             document.getElementById('pinInput').value = '';
         }
     }

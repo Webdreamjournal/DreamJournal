@@ -65,6 +65,7 @@ import {
     generateUniqueId
 } from './storage.js';
 import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
+import { ErrorMessenger } from './error-messenger.js';
 import { formatDatetimeLocal } from './dream-crud.js';
 
 /**
@@ -164,14 +165,30 @@ import { formatDatetimeLocal } from './dream-crud.js';
     async function startRecording() {
         try {
             if (!isVoiceRecordingSupported()) {
-                updateVoiceStatus('Voice recording not supported in this browser', 'error');
+                const browser = navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                               navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                               navigator.userAgent.includes('Safari') ? 'Safari' :
+                               navigator.userAgent.includes('Edge') ? 'Edge' : 'this browser';
+
+                await ErrorMessenger.showError('VOICE_NOT_SUPPORTED', {
+                    browser
+                }, {
+                    forceContext: 'journal'
+                });
+                updateVoiceStatus('Voice recording not supported - see error message', 'error');
                 return;
             }
             
             // Check storage limit
             const voiceNotes = await loadVoiceNotes();
             if (voiceNotes.length >= CONSTANTS.VOICE_STORAGE_LIMIT) {
-                updateVoiceStatus(`Cannot record: Storage full (${CONSTANTS.VOICE_STORAGE_LIMIT}/${CONSTANTS.VOICE_STORAGE_LIMIT}). Delete a recording first.`, 'error');
+                await ErrorMessenger.showError('VOICE_STORAGE_FULL', {
+                    current: CONSTANTS.VOICE_STORAGE_LIMIT,
+                    limit: CONSTANTS.VOICE_STORAGE_LIMIT
+                }, {
+                    forceContext: 'journal'
+                });
+                updateVoiceStatus('Voice storage full - see error message for guidance', 'error');
                 return;
             }
             
@@ -202,7 +219,11 @@ import { formatDatetimeLocal } from './dream-crud.js';
                         setIsTranscribing(false);
                         const capabilities = getVoiceCapabilities();
                         if (capabilities.canTranscribeMobile) {
-                            updateVoiceStatus('Recording... (mobile transcription failed as expected - this is normal)', 'warning');
+                            await ErrorMessenger.showWarning('VOICE_TRANSCRIPTION_MOBILE', {}, {
+                                forceContext: 'journal',
+                                duration: 4000
+                            });
+                            updateVoiceStatus('Recording... (mobile transcription unreliable - see above)', 'warning');
                         } else {
                             updateVoiceStatus('Recording... (transcription start failed)', 'warning');
                         }
@@ -282,14 +303,28 @@ import { formatDatetimeLocal } from './dream-crud.js';
             
         } catch (error) {
             console.error('Error starting recording:', error);
-            
-            // Handle specific permission errors
+
+            // Handle specific permission errors with contextual guidance
             if (error.name === 'NotAllowedError') {
-                updateVoiceStatus('Microphone access denied. Please allow microphone access and try again.', 'error');
+                await ErrorMessenger.showError('VOICE_PERMISSION_DENIED', {}, {
+                    forceContext: 'journal',
+                    duration: 8000
+                });
+                updateVoiceStatus('Microphone access denied - see error message for help', 'error');
             } else if (error.name === 'NotFoundError') {
                 updateVoiceStatus('No microphone found. Please check your audio devices.', 'error');
             } else if (error.name === 'NotSupportedError') {
-                updateVoiceStatus('Audio recording not supported in this browser.', 'error');
+                const browser = navigator.userAgent.includes('Chrome') ? 'Chrome' :
+                               navigator.userAgent.includes('Firefox') ? 'Firefox' :
+                               navigator.userAgent.includes('Edge') ? 'Edge' : 'this browser';
+
+                await ErrorMessenger.showError('VOICE_NOT_SUPPORTED', {
+                    browser
+                }, {
+                    forceContext: 'journal',
+                    duration: 6000
+                });
+                updateVoiceStatus('Audio recording not supported - see error message', 'error');
             } else {
                 updateVoiceStatus('Failed to start recording. Check microphone permissions.', 'error');
             }
@@ -464,6 +499,12 @@ import { formatDatetimeLocal } from './dream-crud.js';
             
             // Show different success messages based on transcription
             if (getRecognitionResults() && getRecognitionResults().trim()) {
+                await ErrorMessenger.showSuccess('VOICE_RECORDING_SAVED', {
+                    duration: formatDuration(duration)
+                }, {
+                    forceContext: 'journal',
+                    duration: 4000
+                });
                 updateVoiceStatus(`Recording saved with transcription! Duration: ${formatDuration(duration)}`, 'info');
                 
                 // Show option to create dream entry
@@ -486,6 +527,12 @@ import { formatDatetimeLocal } from './dream-crud.js';
                     }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
                 }
             } else {
+                await ErrorMessenger.showSuccess('VOICE_RECORDING_SAVED', {
+                    duration: formatDuration(duration)
+                }, {
+                    forceContext: 'journal',
+                    duration: 3000
+                });
                 updateVoiceStatus(`Recording saved! Duration: ${formatDuration(duration)}`, 'success');
             }
             

@@ -66,6 +66,9 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
+// Centralized error messaging system
+import { ErrorMessenger } from './error-messenger.js';
+
 // Security system
 import {
     isPinSetup, getResetTime, removeResetTime, removePinHash, updateTimerWarning,
@@ -493,12 +496,9 @@ async function initializeApplicationData(timerExpiredAndRemovedPin) {
         setTimeout(() => updateRecordButtonState(), 100);
 
         if (timerExpiredAndRemovedPin) {
-            const container = document.querySelector('.main-content');
-            if (container) {
-                createInlineMessage('info', 'PIN reset timer has expired. Your PIN has been removed. You can set a new one if desired.', {
-                    container: container, position: 'top', duration: 8000
-                });
-            }
+            await ErrorMessenger.showInfo('AUTH_PIN_RESET', {}, {
+                duration: 8000
+            });
         }
     } catch (error) {
         console.error('Error displaying dreams on page load:', error);

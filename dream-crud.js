@@ -46,6 +46,7 @@ import {
     isIndexedDBAvailable
 } from './storage.js';
 import { announceLiveMessage, createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
+import { ErrorMessenger } from './error-messenger.js';
 
 /**
  * Filter values extracted from UI controls for dream processing.
@@ -169,9 +170,14 @@ async function shouldEncryptDream() {
         
         if (!contentElement?.value.trim()) {
             contentElement.style.borderColor = 'var(--error-color)';
+            await ErrorMessenger.showError('DREAM_VALIDATION_EMPTY', {}, {
+                forceContext: 'journal',
+                duration: 5000
+            });
+
             const errorMsg = document.createElement('div');
             errorMsg.className = 'message-error text-sm mt-sm';
-            errorMsg.textContent = 'Please enter a dream description before saving.';
+            errorMsg.textContent = 'See error message above for requirements.';
             contentElement.parentElement.appendChild(errorMsg);
             
             setTimeout(() => {
@@ -232,9 +238,11 @@ async function shouldEncryptDream() {
 
             } catch (error) {
                 console.error('Error encrypting and saving dream:', error);
-                createInlineMessage('error', 'Failed to save encrypted dream. Please try again.', {
-                    container: document.querySelector('.entry-form'),
-                    position: 'bottom'
+                await ErrorMessenger.showError('DREAM_ENCRYPTION_FAILED', {
+                    error: error.message || 'Encryption system error'
+                }, {
+                    forceContext: 'journal',
+                    duration: 8000
                 });
                 return;
             }
@@ -262,9 +270,11 @@ async function shouldEncryptDream() {
         clearDreamForm(titleElement, contentElement, dreamDateElement, isLucidElement, emotionsElement, tagsElement, dreamSignsElement);
         resetPaginationToFirst();
         
-        createInlineMessage('success', 'Dream saved successfully!', {
-            container: document.querySelector('.entry-form'),
-            position: 'bottom'
+        await ErrorMessenger.showSuccess('DREAM_SAVED', {
+            dreamTitle: title || 'Untitled Dream'
+        }, {
+            forceContext: 'journal',
+            duration: 3000
         });
         
         await displayDreams();
@@ -715,9 +725,11 @@ async function shouldEncryptDream() {
 
             } catch (error) {
                 console.error('Error encrypting and saving dream edit:', error);
-                createInlineMessage('error', 'Failed to save encrypted dream changes. Please try again.', {
-                    container: document.querySelector(`#dream-${dreamId}`),
-                    position: 'bottom'
+                await ErrorMessenger.showError('DREAM_ENCRYPTION_FAILED', {
+                    error: error.message || 'Encryption system error during edit'
+                }, {
+                    forceContext: 'journal',
+                    duration: 8000
                 });
                 return;
             }

@@ -43,6 +43,7 @@ import {
     saveItemToStore
 } from './storage.js';
 import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
+import { ErrorMessenger } from './error-messenger.js';
 import {
     encryptData,
     decryptData,
@@ -1515,19 +1516,27 @@ function showExportPasswordDialog() {
  * // data-action="confirm-export-password"
  * confirmExportPassword();
  */
-function confirmExportPassword() {
+async function confirmExportPassword() {
     const password = document.getElementById('exportPassword').value;
     const confirm = document.getElementById('exportPasswordConfirm').value;
     const errorDiv = document.getElementById('exportPasswordError');
-    
+
     if (!password || password.length < 4) {
-        errorDiv.textContent = 'Password must be at least 4 characters long';
+        await ErrorMessenger.showError('AUTH_PASSWORD_WEAK', {
+            minLength: 4
+        }, {
+            duration: 5000
+        });
+        errorDiv.textContent = 'See error message above for requirements';
         errorDiv.style.display = 'block';
         return;
     }
-    
+
     if (password !== confirm) {
-        errorDiv.textContent = 'Passwords do not match';
+        await ErrorMessenger.showError('AUTH_PASSWORD_MISMATCH', {}, {
+            duration: 5000
+        });
+        errorDiv.textContent = 'Passwords do not match - see above';
         errorDiv.style.display = 'block';
         return;
     }
