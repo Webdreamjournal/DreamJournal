@@ -271,7 +271,7 @@ async function shouldEncryptDream() {
         resetPaginationToFirst();
         
         await ErrorMessenger.showSuccess('DREAM_SAVED', {
-            dreamTitle: title || 'Untitled Dream'
+            dreamTitle: dreamTitle
         }, {
             forceContext: 'journal',
             duration: 3000
