@@ -30,7 +30,7 @@
 // ES MODULE IMPORTS
 // ================================
 
-import { CONSTANTS } from './constants.js';
+import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY } from './constants.js';
 import { getAppLocked, getUnlocked } from './state.js';
 import { 
     loadDreams, 
@@ -42,11 +42,11 @@ import {
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
-import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate } from './dom-helpers.js';
-import { 
-    encryptData, 
+import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
+import {
+    encryptData,
     decryptData,
-    isPinSetup 
+    isPinSetup
 } from './security.js';
 import { 
     displayDreams, 
@@ -723,7 +723,7 @@ async function importEntries(event) {
  * //   data: {
  * //     dreams: [...],
  * //     goals: [...],
- * //     settings: { theme, storageType },
+ * //     settings: { theme, storageType, paginationLimit, dreamFormCollapsed },
  * //     metadata: { totalDreams, totalGoals, lucidDreams, note }
  * //   }
  * // }
@@ -747,7 +747,10 @@ async function exportAllData() {
             const settings = {
                 theme: getCurrentTheme(),
                 storageType: storageType,
-                // Note: PIN data is intentionally NOT exported for security
+                paginationLimit: getCurrentPaginationPreference(),
+                dreamFormCollapsed: localStorage.getItem(DREAM_FORM_COLLAPSE_KEY) === 'true',
+                // Note: PIN data and encryption settings are intentionally NOT exported for security
+                // Encryption settings are device/setup specific and shouldn't be portable
             };
             
             // Create comprehensive export object
@@ -1149,10 +1152,10 @@ async function importAllData(event) {
                 stats.importedAutocomplete = importedAutocomplete;
             }
             
-            // Import settings (theme preference only - storage type changes require manual selection)
+            // Import settings (theme, pagination, form state - storage type changes require manual selection)
             if (importData.data.settings) {
                 let importedSettings = 0;
-                
+
                 // Import theme preference if it's different from current
                 if (importData.data.settings.theme) {
                     const currentTheme = getCurrentTheme();
@@ -1163,7 +1166,25 @@ async function importAllData(event) {
                         importedSettings++;
                     }
                 }
-                
+
+                // Import pagination preference if it's different from current
+                if (importData.data.settings.paginationLimit) {
+                    const currentPagination = getCurrentPaginationPreference();
+                    if (importData.data.settings.paginationLimit !== currentPagination) {
+                        storePaginationPreference(importData.data.settings.paginationLimit);
+                        importedSettings++;
+                    }
+                }
+
+                // Import dream form collapsed state if present
+                if (typeof importData.data.settings.dreamFormCollapsed === 'boolean') {
+                    const currentState = localStorage.getItem(DREAM_FORM_COLLAPSE_KEY) === 'true';
+                    if (importData.data.settings.dreamFormCollapsed !== currentState) {
+                        localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, importData.data.settings.dreamFormCollapsed.toString());
+                        importedSettings++;
+                    }
+                }
+
                 stats.importedSettings = importedSettings;
             }
             
@@ -1182,7 +1203,7 @@ async function importAllData(event) {
             let message = '';
             const extraItems = [];
             if (autocompleteImported > 0) extraItems.push(`${autocompleteImported} autocomplete items`);
-            if (settingsImported > 0) extraItems.push(`theme setting`);
+            if (settingsImported > 0) extraItems.push(`${settingsImported} ${settingsImported === 1 ? 'setting' : 'settings'}`);
             const extraText = extraItems.length > 0 ? `, ${extraItems.join(', ')}` : '';
             
             if (totalImported > 0 && totalSkipped > 0) {

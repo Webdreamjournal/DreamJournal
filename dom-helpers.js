@@ -701,6 +701,62 @@ function switchTheme(newTheme) {
     }
 
 // ===================================================================================
+// PAGINATION PREFERENCE MANAGEMENT
+// ===================================================================================
+// Complete pagination preference system with localStorage persistence
+// Supports saving and loading user's pagination limit preference
+
+/**
+ * Retrieves the current pagination preference from localStorage.
+ *
+ * Attempts to read the user's pagination preference from localStorage with a fallback
+ * to the default pagination limit if no preference is stored or localStorage is unavailable.
+ *
+ * @returns {string} Current pagination preference ('5', '10', '20', '50', 'endless', 'all'), defaults to 'endless'
+ * @since 2.04.01
+ * @example
+ * const paginationLimit = getCurrentPaginationPreference();
+ * console.log('Current pagination:', paginationLimit); // 'endless', '10', etc.
+ *
+ * @example
+ * // Fallback behavior when localStorage unavailable
+ * // Always returns 'endless' as safe default
+ */
+function getCurrentPaginationPreference() {
+    if (isLocalStorageAvailable()) {
+        return localStorage.getItem('dreamJournalPaginationLimit') || 'endless';
+    }
+    return 'endless';
+}
+
+/**
+ * Stores pagination preference to localStorage with error handling.
+ *
+ * Safely persists the user's pagination preference to localStorage, with graceful error
+ * handling for cases where localStorage is unavailable or storage quota is exceeded.
+ *
+ * @param {string} preference - Pagination preference to store ('5', '10', '20', '50', 'endless', 'all')
+ * @returns {void}
+ * @since 2.04.01
+ * @example
+ * storePaginationPreference('10');
+ * storePaginationPreference('endless');
+ *
+ * @example
+ * // Graceful handling of storage errors
+ * storePaginationPreference('20'); // Warns in console if storage fails, doesn't throw
+ */
+function storePaginationPreference(preference) {
+    if (isLocalStorageAvailable()) {
+        try {
+            localStorage.setItem('dreamJournalPaginationLimit', preference);
+        } catch (error) {
+            console.warn('Failed to store pagination preference:', error);
+        }
+    }
+}
+
+// ===================================================================================
 // TAB MANAGEMENT SYSTEM
 // ===================================================================================
 // Complete tab switching system with dynamic content generation
@@ -2688,6 +2744,10 @@ export {
     storeTheme,
     applyTheme,
     switchTheme,
+
+    // Pagination Preference Management
+    getCurrentPaginationPreference,
+    storePaginationPreference,
     
     // Tab Management
     switchAppTab,

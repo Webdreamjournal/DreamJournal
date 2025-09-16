@@ -24,7 +24,29 @@
  * @since 2.0.0
  */
 const DREAM_FORM_COLLAPSE_KEY = 'dreamFormCollapsed';
-    
+
+/**
+ * Storage key for pagination preference setting.
+ *
+ * Used to persist user's pagination preference (5, 10, 20, 50, endless, all)
+ * across browser sessions for consistent user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const PAGINATION_STORAGE_KEY = 'dreamJournalPaginationLimit';
+
+/**
+ * Default pagination limit when no user preference is saved.
+ *
+ * Fallback value used when localStorage is unavailable or no preference
+ * has been set by the user. Matches the original default behavior.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DEFAULT_PAGINATION_LIMIT = 'endless';
+
 /**
  * Core application constants and configuration values.
  * 
@@ -528,6 +550,8 @@ const commonEmotions = [
 // Export all constants, templates, and functions for ES module compatibility
 export {
     DREAM_FORM_COLLAPSE_KEY,
+    PAGINATION_STORAGE_KEY,
+    DEFAULT_PAGINATION_LIMIT,
     CONSTANTS,
     GOAL_TEMPLATES,
     loadDailyTips,

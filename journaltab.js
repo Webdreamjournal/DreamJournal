@@ -17,6 +17,38 @@
 // Import state management function and constants for form state synchronization
 import { setIsDreamFormCollapsed } from './state.js';
 import { DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { getCurrentPaginationPreference } from './dom-helpers.js';
+
+/**
+ * Generates the pagination limit dropdown options with the correct selection.
+ *
+ * This helper function creates the HTML for pagination limit dropdown options,
+ * applying the 'selected' attribute to the user's saved preference. This ensures
+ * the dropdown reflects the user's previously selected pagination setting.
+ *
+ * @function
+ * @returns {string} HTML string with option elements for pagination limits
+ * @since 2.04.01
+ * @example
+ * const dropdownOptions = generatePaginationDropdownOptions();
+ * // Returns HTML with correct option selected based on user preference
+ */
+function generatePaginationDropdownOptions() {
+    const currentPreference = getCurrentPaginationPreference();
+    const options = [
+        { value: '5', label: 'Show 5' },
+        { value: '10', label: 'Show 10' },
+        { value: '20', label: 'Show 20' },
+        { value: '50', label: 'Show 50' },
+        { value: 'endless', label: 'Endless' },
+        { value: 'all', label: 'Show All' }
+    ];
+
+    return options.map(option => {
+        const selected = option.value === currentPreference ? ' selected' : '';
+        return `<option value="${option.value}"${selected}>${option.label}</option>`;
+    }).join('');
+}
 
 /**
  * Render the complete Journal tab HTML structure.
@@ -271,12 +303,7 @@ function renderJournalTab(tabPanel) {
 
                         <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
                         <select id="limitSelect" class="filter-select">
-                            <option value="5">Show 5</option>
-                            <option value="10">Show 10</option>
-                            <option value="20">Show 20</option>
-                            <option value="50">Show 50</option>
-                            <option value="endless" selected>Endless</option>
-                            <option value="all">Show All</option>
+                            ${generatePaginationDropdownOptions()}
                         </select>
                     </div>
                 </div>

@@ -60,9 +60,10 @@ import {
     initDB, loadDreams, getIndexedDBCount, migrateFromLocalStorage,
     isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions
 } from './storage.js';
-import { 
-    getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons, 
-    showAllTabButtons, createInlineMessage, setupTagAutocomplete, initializeAutocomplete, toggleDreamForm
+import {
+    getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons,
+    showAllTabButtons, createInlineMessage, setupTagAutocomplete, initializeAutocomplete, toggleDreamForm,
+    storePaginationPreference
 } from './dom-helpers.js';
 
 // Security system
@@ -428,7 +429,10 @@ function setupAdditionalEventListeners() {
     if (searchBox) searchBox.addEventListener('input', () => debouncedSearch(CONSTANTS.DEBOUNCE_SEARCH_MS));
     if (filterSelect) filterSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
     if (sortSelect) sortSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
-    if (limitSelect) limitSelect.addEventListener('change', () => debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS));
+    if (limitSelect) limitSelect.addEventListener('change', () => {
+        storePaginationPreference(limitSelect.value);
+        debouncedFilter(CONSTANTS.DEBOUNCE_FILTER_MS);
+    });
 
     const startDateInput = document.getElementById('startDateFilter');
     const endDateInput = document.getElementById('endDateFilter');
