@@ -743,19 +743,56 @@
             border: 2px solid var(--border-color);
             border-radius: var(--border-radius);
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
+            flex-direction: column;
+            gap: 15px;
         }
         .control-row-break {
             flex-basis: 100%;
             height: 0;
         }
+
+        /* Search and Filter Section */
+        .search-filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 15px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+
+        .section-header {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            opacity: 0.8;
+        }
+
         .search-filter-group {
             display: flex;
             gap: 10px;
             flex: 1;
             min-width: 500px;
+        }
+
+        /* Display and Sort Section */
+        .display-sort-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 15px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+
+        .display-sort-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-start;
         }
         .export-import-controls {
             display: flex;
@@ -2651,18 +2688,25 @@
             .controls {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 10px;
             }
-            
+
             .control-row-break {
                 display: none;
             }
-            
-            .search-filter-group {
+
+            .search-filter-section,
+            .display-sort-section {
+                padding: 12px;
+            }
+
+            .search-filter-group,
+            .display-sort-group {
                 flex-direction: column;
                 min-width: auto;
                 gap: 10px;
             }
-            
+
             .search-box, .filter-select {
                 min-width: auto;
                 flex: none;

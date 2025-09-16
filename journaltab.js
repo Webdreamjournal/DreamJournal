@@ -224,56 +224,65 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <!-- SEARCH & FILTER CONTROLS         -->
             <!-- ================================ -->
-            <div class="controls" role="search" aria-label="Search dreams">
-                
-                <!-- Primary Search and Filter Controls -->
-                <div class="search-filter-group">
-                    <!-- Search Box - Full-text search across all dream fields -->
-                    <input type="text" 
-                           id="searchBox" 
-                           class="search-box" 
-                           placeholder="Search dreams by title, content, emotions, tags, or dream signs..."
-                           aria-label="Search dreams by content, title, or emotions"
-                           role="searchbox">
-                    
-                    <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
-                    <select id="filterSelect" class="filter-select">
-                        <option value="all">All Dreams</option>
-                        <option value="lucid">Lucid Dreams</option>
-                        <option value="non-lucid">Non-Lucid Dreams</option>
-                    </select>
-                    
-                    <!-- Sort Order Dropdown - Controls dream display order -->
-                    <select id="sortSelect" class="filter-select">
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="lucid-first">Lucid First</option>
-                        <option value="longest">Longest First</option>
-                    </select>
-                    
-                    <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
-                    <select id="limitSelect" class="filter-select">
-                        <option value="5">Show 5</option>
-                        <option value="10">Show 10</option>
-                        <option value="20">Show 20</option>
-                        <option value="50">Show 50</option>
-                        <option value="endless" selected>Endless</option>
-                        <option value="all">Show All</option>
-                    </select>
+            <div class="controls" role="search" aria-label="Search and filter dreams">
+
+                <!-- Search and Filter Controls Group -->
+                <div class="search-filter-section">
+                    <h4 class="section-header">🔍 Search & Filter</h4>
+                    <div class="search-filter-group">
+                        <!-- Search Box - Full-text search across all dream fields -->
+                        <input type="text"
+                               id="searchBox"
+                               class="search-box"
+                               placeholder="Search dreams by title, content, emotions, tags, or dream signs..."
+                               aria-label="Search dreams by content, title, or emotions"
+                               role="searchbox">
+
+                        <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
+                        <select id="filterSelect" class="filter-select">
+                            <option value="all">All Dreams</option>
+                            <option value="lucid">Lucid Dreams</option>
+                            <option value="non-lucid">Non-Lucid Dreams</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range Filter Controls -->
+                    <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
+                        <!-- Start Date Filter -->
+                        <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
+                        <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+
+                        <!-- End Date Filter -->
+                        <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
+                        <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                    </div>
                 </div>
-                
-                <!-- Date Range Filter Controls -->
-                <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
-                    <!-- Start Date Filter -->
-                    <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
-                    <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
-                    
-                    <!-- End Date Filter -->
-                    <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
-                    <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+
+                <!-- Display and Sorting Controls Group -->
+                <div class="display-sort-section">
+                    <h4 class="section-header">📊 Display & Sort</h4>
+                    <div class="display-sort-group">
+                        <!-- Sort Order Dropdown - Controls dream display order -->
+                        <select id="sortSelect" class="filter-select">
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="lucid-first">Lucid First</option>
+                            <option value="longest">Longest First</option>
+                        </select>
+
+                        <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
+                        <select id="limitSelect" class="filter-select">
+                            <option value="5">Show 5</option>
+                            <option value="10">Show 10</option>
+                            <option value="20">Show 20</option>
+                            <option value="50">Show 50</option>
+                            <option value="endless" selected>Endless</option>
+                            <option value="all">Show All</option>
+                        </select>
+                    </div>
                 </div>
-                
-                <!-- Visual Break Between Filter Controls and Dream List -->
+
+                <!-- Visual Break Between Controls and Dream List -->
                 <div class="control-row-break"></div>
             </div>
             
