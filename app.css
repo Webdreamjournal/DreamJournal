@@ -1155,11 +1155,14 @@
             font-weight: 600;
         }
 
+        .tooltip-body {
+            margin-bottom: 16px;
+        }
+
         .format-explanation {
             display: flex;
             flex-direction: column;
             gap: 12px;
-            margin-bottom: 16px;
         }
 
         .format-option {
