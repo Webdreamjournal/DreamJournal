@@ -57,7 +57,7 @@
  * @since 2.0.0
  */
 
-const CACHE_NAME = 'dream-journal-v2-04-30';
+const CACHE_NAME = 'dream-journal-v2-04-31';
 
 /**
  * List of essential files to cache for complete offline functionality.
@@ -79,21 +79,26 @@ const CACHE_NAME = 'dream-journal-v2-04-30';
 const urlsToCache = [
   './',                    // Root directory
   './index.html',          // Main HTML file
-  './app.css',   // Application styles
+  './src/app.js',          // ES Module entry point
+  './app.css',             // Application styles
   './icons/logo.png',      // App logo
   './tips.json',           // Dream tips data
   './constants.js',        // App constants
-  './state.js',           // Global state management
-  './storage.js',         // IndexedDB operations
-  './dom-helpers.js',     // DOM utilities
-  './security.js',        // PIN protection and encryption
-  './dream-crud.js',      // Dream management
-  './voice-notes.js',     // Voice recording
-  './goalstab.js',        // Goals system
-  './statstab.js',        // Statistics and analytics
-  './import-export.js',   // Data import/export
-  './action-router.js',   // Event delegation
-  './main.js'             // App initialization
+  './state.js',            // Global state management
+  './storage.js',          // IndexedDB operations
+  './dom-helpers.js',      // DOM utilities
+  './security.js',         // PIN protection and encryption
+  './dream-crud.js',       // Dream management
+  './voice-notes.js',      // Voice recording
+  './pwa.js',              // PWA installation system
+  './journaltab.js',       // Journal tab rendering
+  './goalstab.js',         // Goals system
+  './statstab.js',         // Statistics and analytics
+  './advicetab.js',        // Advice tab rendering
+  './settingstab.js',      // Settings tab rendering
+  './import-export.js',    // Data import/export
+  './action-router.js',    // Event delegation
+  './main.js'              // App initialization
 ];
 
 // ================================
