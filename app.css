@@ -1132,7 +1132,7 @@
             font-size: 0.9em;
             opacity: 1;
             background-color: var(--background-primary);
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(100px);
         }
 
         @media (max-width: 480px) {
