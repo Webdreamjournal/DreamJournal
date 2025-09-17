@@ -46,7 +46,6 @@ import {
     isIndexedDBAvailable
 } from './storage.js';
 import { announceLiveMessage, createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
-import { ErrorMessenger } from './error-messenger.js';
 
 /**
  * Filter values extracted from UI controls for dream processing.
@@ -170,14 +169,9 @@ async function shouldEncryptDream() {
         
         if (!contentElement?.value.trim()) {
             contentElement.style.borderColor = 'var(--error-color)';
-            await ErrorMessenger.showError('DREAM_VALIDATION_EMPTY', {}, {
-                forceContext: 'journal',
-                duration: 5000
-            });
-
             const errorMsg = document.createElement('div');
             errorMsg.className = 'message-error text-sm mt-sm';
-            errorMsg.textContent = 'See error message above for requirements.';
+            errorMsg.textContent = 'Please enter a dream description before saving.';
             contentElement.parentElement.appendChild(errorMsg);
             
             setTimeout(() => {
@@ -238,11 +232,9 @@ async function shouldEncryptDream() {
 
             } catch (error) {
                 console.error('Error encrypting and saving dream:', error);
-                await ErrorMessenger.showError('DREAM_ENCRYPTION_FAILED', {
-                    error: error.message || 'Encryption system error'
-                }, {
-                    forceContext: 'journal',
-                    duration: 8000
+                createInlineMessage('error', 'Failed to save encrypted dream. Please try again.', {
+                    container: document.querySelector('.entry-form'),
+                    position: 'bottom'
                 });
                 return;
             }
@@ -270,11 +262,9 @@ async function shouldEncryptDream() {
         clearDreamForm(titleElement, contentElement, dreamDateElement, isLucidElement, emotionsElement, tagsElement, dreamSignsElement);
         resetPaginationToFirst();
         
-        await ErrorMessenger.showSuccess('DREAM_SAVED', {
-            dreamTitle: dreamTitle
-        }, {
-            forceContext: 'journal',
-            duration: 3000
+        createInlineMessage('success', 'Dream saved successfully!', {
+            container: document.querySelector('.entry-form'),
+            position: 'bottom'
         });
         
         await displayDreams();
@@ -346,23 +336,13 @@ async function shouldEncryptDream() {
                 await new Promise(resolve => setTimeout(resolve, 0)); // Give UI a chance to update
             }
             
-            // Show search processing for large datasets
-            if (dreams.length > 100) {
-                await ErrorMessenger.showInfo('SEARCH_PROCESSING', {
-                    totalDreams: dreams.length
-                }, {
-                    forceContext: 'journal',
-                    duration: 1000
-                });
-            }
-
             // Filter and sort dreams
             let filteredDreams = filterDreams(dreams, searchTerm, filterType, startDate, endDate);
             filteredDreams = sortDreams(filteredDreams, sortType);
             
             // Handle no results
             if (filteredDreams.length === 0) {
-                await showNoResultsMessage(container, filterType, searchTerm);
+                showNoResultsMessage(container, filterType, searchTerm);
                 clearPagination();
 
                 // Announce no results for screen readers
@@ -382,18 +362,8 @@ async function shouldEncryptDream() {
             // Render dreams
             container.innerHTML = paginatedDreams.map(renderDreamHTML).filter(html => html).join('');
 
-            // Show search results summary
+            // Announce search results for screen readers
             if (searchTerm || filterType !== 'all') {
-                const hasFilters = searchTerm || filterType !== 'all';
-                await ErrorMessenger.showSuccess('SEARCH_RESULTS_SUMMARY', {
-                    resultsCount: totalDreams,
-                    hasFilters
-                }, {
-                    forceContext: 'journal',
-                    duration: 3000
-                });
-
-                // Announce search results for screen readers
                 const filterText = filterType !== 'all' ? ` ${filterType}` : '';
                 announceLiveMessage('search', `Found ${totalDreams}${filterText} dreams matching your search.`);
             } else {
@@ -745,11 +715,9 @@ async function shouldEncryptDream() {
 
             } catch (error) {
                 console.error('Error encrypting and saving dream edit:', error);
-                await ErrorMessenger.showError('DREAM_ENCRYPTION_FAILED', {
-                    error: error.message || 'Encryption system error during edit'
-                }, {
-                    forceContext: 'journal',
-                    duration: 8000
+                createInlineMessage('error', 'Failed to save encrypted dream changes. Please try again.', {
+                    container: document.querySelector(`#dream-${dreamId}`),
+                    position: 'bottom'
                 });
                 return;
             }
@@ -803,57 +771,7 @@ async function shouldEncryptDream() {
      * await cancelDreamEdit(dreamId);
      */
     async function cancelDreamEdit(dreamId) {
-        try {
-            // Check if there are unsaved changes
-            const titleInput = document.getElementById(`edit-title-${dreamId}`);
-            const contentInput = document.getElementById(`edit-content-${dreamId}`);
-
-            if (titleInput && contentInput) {
-                // Get current form values
-                const currentTitle = titleInput.value.trim();
-                const currentContent = contentInput.value.trim();
-
-                // Get original dream data
-                const dreams = await loadDreams();
-                const originalDream = dreams.find(d => d.id.toString() === dreamId.toString());
-
-                if (originalDream) {
-                    const originalTitle = (originalDream.title || '').trim();
-                    const originalContent = (originalDream.content || '').trim();
-
-                    // Check if changes were made
-                    const hasChanges = (currentTitle !== originalTitle) || (currentContent !== originalContent);
-
-                    if (hasChanges) {
-                        // Show confirmation for unsaved changes
-                        await ErrorMessenger.showWarning('DREAM_EDIT_CANCEL_CONFIRM', {}, {
-                            duration: 6000
-                        });
-
-                        // For now, we'll still cancel (in future could add modal confirmation)
-                        // But we've at least warned the user
-                        setTimeout(async () => {
-                            await ErrorMessenger.showInfo('DREAM_EDIT_CANCELLED', {}, {
-                                duration: 4000
-                            });
-                        }, 1000);
-                    } else {
-                        // No changes made, just show simple cancellation
-                        await ErrorMessenger.showInfo('DREAM_EDIT_CANCELLED', {}, {
-                            duration: 3000
-                        });
-                    }
-                }
-            }
-
-            // Refresh display to cancel edit
-            await displayDreams();
-
-        } catch (error) {
-            console.error('Error in cancelDreamEdit:', error);
-            // Fallback: just refresh display
-            await displayDreams();
-        }
+        await displayDreams();
     }
 
 // ================================
@@ -954,18 +872,12 @@ async function shouldEncryptDream() {
                 setCurrentPage(1);
                 await displayDreams();
 
-                // Show success message
-                await ErrorMessenger.showInfo('DREAM_DELETED', {}, {
-                    duration: 4000
-                });
-
             } catch (error) {
                 console.error(`Error in confirmDelete for dreamId ${dreamId}:`, error);
-                await ErrorMessenger.showError('STORAGE_SAVE_FAILED', {
-                    dataType: 'dream deletion',
-                    error: error.message || 'Deletion failed'
-                }, {
-                    duration: 8000
+                createInlineMessage('error', 'Error deleting dream. Please refresh and try again.', {
+                    container: document.querySelector('.main-content'),
+                    position: 'top',
+                    duration: 5000
                 });
             }
         });
@@ -1018,209 +930,13 @@ async function shouldEncryptDream() {
 // ================================
     
     /**
-     * Validates filter parameters and provides helpful error corrections.
-     *
-     * This function performs comprehensive validation of all filter inputs including
-     * date ranges, search terms, and selection values. It detects common user errors
-     * and provides specific correction suggestions to help users fix their queries.
-     *
-     * **Validation Features:**
-     * - Date range validation with logical order checking
-     * - Future date detection and warnings
-     * - Search term length and character validation
-     * - Invalid date format detection with format examples
-     * - Impossible date range detection (end before start)
-     * - Empty search with restrictive filters detection
-     *
-     * **Error Correction:**
-     * - Suggests swapping start/end dates when reversed
-     * - Provides valid date format examples
-     * - Recommends search refinements for no results
-     * - Offers alternative filter combinations
-     * - Suggests date range adjustments for better results
-     *
-     * @async
-     * @function validateFilterInputs
-     * @param {Object} filterValues - Filter values from getFilterValues()
-     * @returns {Promise<Object>} Validation result with errors and suggestions
-     * @returns {boolean} returns.isValid - Whether all inputs are valid
-     * @returns {Object[]} returns.errors - Array of validation errors with corrections
-     * @returns {Object[]} returns.warnings - Array of warnings with suggestions
-     * @returns {Object} returns.corrections - Suggested corrections for each invalid field
-     * @since 2.04.01
-     * @example
-     * const filterValues = getFilterValues();
-     * const validation = await validateFilterInputs(filterValues);
-     * if (!validation.isValid) {
-     *   // Show validation errors to user
-     *   await ErrorMessenger.showError('FILTER_VALIDATION_ERROR', validation);
-     * }
-     */
-    async function validateFilterInputs(filterValues) {
-        const errors = [];
-        const warnings = [];
-        const corrections = {};
-
-        try {
-            const { searchTerm, filterType, sortType, startDate, endDate } = filterValues;
-
-            // Validate date inputs
-            let startDateObj = null;
-            let endDateObj = null;
-
-            if (startDate) {
-                startDateObj = new Date(startDate);
-                if (isNaN(startDateObj.getTime())) {
-                    errors.push({
-                        field: 'startDate',
-                        message: 'Invalid start date format',
-                        suggestion: 'Use YYYY-MM-DD format (e.g., 2024-01-15)'
-                    });
-                    corrections.startDate = new Date().toISOString().split('T')[0];
-                } else if (startDateObj > new Date()) {
-                    warnings.push({
-                        field: 'startDate',
-                        message: 'Start date is in the future',
-                        suggestion: 'Dreams are typically recorded for past dates. Consider using today\'s date or earlier.'
-                    });
-                }
-            }
-
-            if (endDate) {
-                endDateObj = new Date(endDate);
-                if (isNaN(endDateObj.getTime())) {
-                    errors.push({
-                        field: 'endDate',
-                        message: 'Invalid end date format',
-                        suggestion: 'Use YYYY-MM-DD format (e.g., 2024-12-31)'
-                    });
-                    corrections.endDate = new Date().toISOString().split('T')[0];
-                } else if (endDateObj > new Date()) {
-                    warnings.push({
-                        field: 'endDate',
-                        message: 'End date is in the future',
-                        suggestion: 'Consider using today\'s date as the end date to include all current dreams.'
-                    });
-                }
-            }
-
-            // Validate date range logic
-            if (startDateObj && endDateObj && !isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
-                if (startDateObj > endDateObj) {
-                    errors.push({
-                        field: 'dateRange',
-                        message: 'Start date is after end date',
-                        suggestion: 'Swap the dates or adjust the range to be logically consistent.'
-                    });
-                    corrections.startDate = endDate;
-                    corrections.endDate = startDate;
-                }
-
-                // Check for extremely narrow date ranges
-                const daysDiff = Math.abs(endDateObj - startDateObj) / (1000 * 60 * 60 * 24);
-                if (daysDiff === 0 && searchTerm.length > 0) {
-                    warnings.push({
-                        field: 'dateRange',
-                        message: 'Very narrow date range with search term',
-                        suggestion: 'Consider expanding the date range if no dreams are found.'
-                    });
-                }
-            }
-
-            // Validate search term
-            if (searchTerm) {
-                if (searchTerm.length > 100) {
-                    warnings.push({
-                        field: 'searchTerm',
-                        message: 'Very long search term',
-                        suggestion: 'Consider using shorter, more specific keywords for better results.'
-                    });
-                }
-
-                if (searchTerm.includes('  ')) {
-                    warnings.push({
-                        field: 'searchTerm',
-                        message: 'Multiple spaces in search term',
-                        suggestion: 'Remove extra spaces for cleaner search results.'
-                    });
-                    corrections.searchTerm = searchTerm.replace(/\s+/g, ' ').trim();
-                }
-
-                // Check for potentially problematic search patterns
-                if (/^[^a-zA-Z0-9\s]+$/.test(searchTerm)) {
-                    warnings.push({
-                        field: 'searchTerm',
-                        message: 'Search contains only special characters',
-                        suggestion: 'Include letters or numbers in your search for better matching.'
-                    });
-                }
-            }
-
-            // Validate filter combinations
-            const dreamCount = await getFilteredDreamsCount();
-            if (dreamCount === 0 && (searchTerm || filterType !== 'all' || startDate || endDate)) {
-                warnings.push({
-                    field: 'combination',
-                    message: 'No dreams found with current filters',
-                    suggestion: 'Try removing some filters, expanding the date range, or using different search terms.'
-                });
-            }
-
-            // Check for valid enum values
-            const validFilterTypes = ['all', 'lucid', 'non-lucid'];
-            if (!validFilterTypes.includes(filterType)) {
-                errors.push({
-                    field: 'filterType',
-                    message: 'Invalid filter type',
-                    suggestion: 'Choose from: All Dreams, Lucid Dreams, or Non-Lucid Dreams'
-                });
-                corrections.filterType = 'all';
-            }
-
-            const validSortTypes = ['newest', 'oldest', 'lucid-first', 'longest'];
-            if (!validSortTypes.includes(sortType)) {
-                errors.push({
-                    field: 'sortType',
-                    message: 'Invalid sort option',
-                    suggestion: 'Choose from: Newest First, Oldest First, Lucid First, or Longest First'
-                });
-                corrections.sortType = 'newest';
-            }
-
-            return {
-                isValid: errors.length === 0,
-                errors,
-                warnings,
-                corrections,
-                summary: errors.length === 0
-                    ? 'Filter settings are valid'
-                    : `${errors.length} error${errors.length > 1 ? 's' : ''} found in filter settings`
-            };
-
-        } catch (error) {
-            console.error('Filter validation error:', error);
-            return {
-                isValid: false,
-                errors: [{
-                    field: 'system',
-                    message: 'Filter validation system error',
-                    suggestion: 'Please try refreshing the page or contact support if the problem persists.'
-                }],
-                warnings: [],
-                corrections: {},
-                summary: 'Unable to validate filter settings due to system error'
-            };
-        }
-    }
-
-    /**
      * Extracts current search and filter settings from UI controls.
-     *
+     * 
      * This function reads values from all filter-related DOM elements including
      * search box, filter dropdowns, sort selection, pagination limits, and date
      * range inputs. It provides default values for missing elements and formats
      * the search term to lowercase for case-insensitive searching.
-     *
+     * 
      * @function getFilterValues
      * @returns {FilterValues} Object containing all current filter parameters
      * @since 1.0.0
@@ -1228,7 +944,7 @@ async function shouldEncryptDream() {
      * const filters = getFilterValues();
      * console.log(filters.searchTerm); // 'flying'
      * console.log(filters.filterType); // 'lucid'
-     *
+     * 
      * @example
      * // Use extracted values for filtering
      * const { searchTerm, filterType, sortType } = getFilterValues();
@@ -1305,33 +1021,21 @@ async function shouldEncryptDream() {
      * showNoResultsMessage(container, 'all', 'flying');
      * // Shows: "No dreams found matching your search."
      */
-    async function showNoResultsMessage(container, filterType, searchTerm) {
-        const filterText = filterType === 'all' ? '' :
+    function showNoResultsMessage(container, filterType, searchTerm) {
+        const filterText = filterType === 'all' ? '' : 
             filterType === 'lucid' ? ' lucid' : ' non-lucid';
-
+        
         let message;
         if (searchTerm) {
-            // Show search results message using ErrorMessenger
-            await ErrorMessenger.showInfo('SEARCH_NO_RESULTS', {
-                searchTerm: searchTerm
-            }, {
-                forceContext: 'journal',
-                duration: 5000
-            });
             message = `No${filterText} dreams found matching your search.`;
         } else if (filterType === 'lucid') {
             message = 'No lucid dreams recorded yet. Mark dreams as lucid when you achieve lucidity!';
         } else if (filterType === 'non-lucid') {
             message = 'No non-lucid dreams found.';
         } else {
-            // Show empty journal message using ErrorMessenger
-            await ErrorMessenger.showInfo('SEARCH_NO_DATA', {}, {
-                forceContext: 'journal',
-                duration: 6000
-            });
             message = 'No dreams recorded yet. Start by adding your first dream above!';
         }
-
+        
         container.innerHTML = `<div class="no-entries">${message}</div>`;
     }
     
@@ -2508,39 +2212,12 @@ async function shouldEncryptDream() {
         if (getFilterDebounceTimer()) {
             clearTimeout(getFilterDebounceTimer());
         }
-
+        
         showSearchLoading();
-
+        
         setFilterDebounceTimer(setTimeout(async () => {
-            try {
-                // Validate filter inputs before applying
-                const filterValues = getFilterValues();
-                const validation = await validateFilterInputs(filterValues);
-
-                // Show validation errors or warnings if any
-                if (!validation.isValid) {
-                    const { ErrorMessenger } = await import('./error-messenger.js');
-                    await ErrorMessenger.showError('DREAM_FILTER_VALIDATION_ERROR', validation, {
-                        duration: 8000
-                    });
-                } else if (validation.warnings && validation.warnings.length > 0) {
-                    const { ErrorMessenger } = await import('./error-messenger.js');
-                    await ErrorMessenger.showWarning('DREAM_FILTER_WARNING', validation, {
-                        duration: 6000
-                    });
-                }
-
-                // Apply filters even if there are warnings (but not errors)
-                if (validation.isValid) {
-                    await resetToPageOne();
-                }
-            } catch (error) {
-                console.error('Filter validation error:', error);
-                // Continue with filtering even if validation fails
-                await resetToPageOne();
-            } finally {
-                hideSearchLoading();
-            }
+            await resetToPageOne();
+            hideSearchLoading();
         }, delay));
     }
 
@@ -2629,7 +2306,6 @@ export {
     filterDreams,
     sortDreams,
     getFilterValues,
-    validateFilterInputs,
     getFilteredDreamsCount,
     
     // Pagination functions

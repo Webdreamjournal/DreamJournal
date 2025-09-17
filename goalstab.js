@@ -1401,23 +1401,23 @@ function deleteGoal(goalId) {
         clearTimeout(goalDeleteTimeouts[goalId]);
         delete goalDeleteTimeouts[goalId];
     }
-
+    
     const goalElement = document.getElementById(`goal-${goalId}`);
-    if (!goalElement) return; // Safety check
-
+    if (!goalElement) return;
+    
     const actionsElement = goalElement.querySelector('.goal-actions');
-    if (!actionsElement) return; // Safety check
-
-    // Add pending delete styling
+    if (!actionsElement) return;
+    
+    // Add visual feedback for pending delete
     goalElement.classList.add('delete-pending');
-
+    
     // Replace delete button with confirm button
     const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="delete-goal"]`);
     if (deleteBtn) {
         deleteBtn.outerHTML = `<button data-action="confirm-delete-goal" data-goal-id="${goalId}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
     }
-
-    // Set timeout to revert after specified time (DOES NOT auto-delete)
+    
+    // Set timeout to revert after specified time
     goalDeleteTimeouts[goalId] = setTimeout(() => {
         cancelGoalDelete(goalId);
     }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
@@ -1444,17 +1444,16 @@ function cancelGoalDelete(goalId) {
         clearTimeout(goalDeleteTimeouts[goalId]);
         delete goalDeleteTimeouts[goalId];
     }
-
+    
     const goalElement = document.getElementById(`goal-${goalId}`);
     if (goalElement) {
         // Remove visual feedback
         goalElement.classList.remove('delete-pending');
-
+        
         const actionsElement = goalElement.querySelector('.goal-actions');
         if (actionsElement) {
             // Replace confirm button with original delete button
             const confirmBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="confirm-delete-goal"]`);
-
             if (confirmBtn) {
                 confirmBtn.outerHTML = `<button data-action="delete-goal" data-goal-id="${goalId}" class="btn btn-error btn-small">Delete</button>`;
             }

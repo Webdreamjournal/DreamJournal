@@ -85,7 +85,7 @@ import {
 // Goals system - import business logic functions
 import {
     showCreateGoalDialog, createTemplateGoal, editGoal, completeGoal,
-    reactivateGoal, deleteGoal, cancelGoalDelete, confirmDeleteGoal, saveGoal, cancelGoalDialog,
+    reactivateGoal, deleteGoal, confirmDeleteGoal, saveGoal, cancelGoalDialog,
     displayGoals
 } from './goalstab.js';
 
@@ -355,7 +355,6 @@ const ACTION_MAP = {
         'complete-goal': (ctx) => completeGoal(ctx.goalId),                 // Mark goal as completed
         'reactivate-goal': (ctx) => reactivateGoal(ctx.goalId),             // Reactivate completed goal
         'delete-goal': (ctx) => deleteGoal(ctx.goalId),                     // Delete goal with confirmation
-        'cancel-goal-delete': (ctx) => cancelGoalDelete(ctx.goalId),        // Cancel goal deletion countdown
         'confirm-delete-goal': (ctx) => confirmDeleteGoal(ctx.goalId),      // Confirm goal deletion
         'save-goal': () => saveGoal(),                                       // Save goal form data
         'cancel-goal-dialog': () => cancelGoalDialog(),                     // Cancel goal dialog and cleanup
@@ -428,10 +427,7 @@ const ACTION_MAP = {
         // ================================
         // PIN SECURITY & AUTHENTICATION SYSTEM
         // ================================
-        'verify-pin': () => {
-            console.log('verify-pin action triggered');
-            return verifyPin();
-        },                                     // Verify PIN entry for authentication
+        'verify-pin': () => verifyPin(),                                     // Verify PIN entry for authentication
         'verify-encryption-password': () => verifyEncryptionPassword(),     // Verify encryption password for authentication
         'switch-to-pin-entry': () => showPinOverlay(),                      // Switch from password to PIN authentication
         'hide-pin-overlay': () => hidePinOverlay(),                         // Hide PIN entry overlay
@@ -471,10 +467,7 @@ const ACTION_MAP = {
         // ================================
         // LOCK SCREEN INTERFACE SYSTEM
         // ================================
-        'verify-lock-screen-pin': () => {
-            console.log('verify-lock-screen-pin action triggered');
-            return verifyLockScreenPin();
-        },               // Verify PIN on lock screen
+        'verify-lock-screen-pin': () => verifyLockScreenPin(),               // Verify PIN on lock screen
         'show-lock-screen-forgot-pin': () => showLockScreenForgotPin(),     // Show forgot PIN on lock screen
         'start-lock-screen-title-recovery': () => startLockScreenTitleRecovery(), // Start title recovery on lock screen
         'start-lock-screen-timer-recovery': () => startLockScreenTimerRecovery(), // Start timer recovery on lock screen
@@ -611,20 +604,14 @@ function routeAction(context, event = null) {
  * </select>
  */
 function handleUnifiedClick(event) {
-        console.log('handleUnifiedClick called on:', event.target.tagName, event.target);
-
         // Skip click handling for select elements - they should only use change events
         if (event.target.tagName === 'SELECT') {
             return;
         }
-
+        
         const context = extractActionContext(event.target);
-        console.log('Extracted context:', context);
         if (context) {
-            console.log('Routing action:', context.action);
             routeAction(context, event);
-        } else {
-            console.log('No action context found for element');
         }
     }
 
@@ -862,39 +849,25 @@ async function increaseGoalProgress(goalId) {
     try {
         await saveGoals(getAllGoals());
         await displayGoals();
-
-        // Show progress update confirmation
-        const percentage = Math.round((newProgress / goal.target) * 100);
-        const { ErrorMessenger } = await import('./error-messenger.js');
-        await ErrorMessenger.showSuccess('GOAL_PROGRESS_UPDATED', {
-            current: newProgress,
-            target: goal.target,
-            percentage: percentage,
-            isComplete: newProgress >= goal.target
-        }, {
-            forceContext: 'goals',
-            duration: 4000
-        });
-
+        
         // Auto-complete the goal if target reached
         if (newProgress >= goal.target && goal.status !== 'completed') {
-            setTimeout(async () => {
-                await ErrorMessenger.showSuccess('GOAL_COMPLETED', {
-                    goalTitle: goal.title
-                }, {
-                    forceContext: 'goals',
-                    duration: 6000
+            const { createInlineMessage } = await import('./dom-helpers.js');
+            setTimeout(() => {
+                createInlineMessage('success', `🎉 Goal "${goal.title}" completed! Great job!`, {
+                    container: document.body,
+                    position: 'top',
+                    duration: 3000
                 });
-            }, 1000);
+            }, 100);
         }
     } catch (error) {
         console.error('Error updating goal progress:', error);
-        const { ErrorMessenger } = await import('./error-messenger.js');
-        await ErrorMessenger.showError('GOAL_UPDATE_FAILED', {
-            error: error.message || 'Unknown error'
-        }, {
-            forceContext: 'goals',
-            duration: 8000
+        const { createInlineMessage } = await import('./dom-helpers.js');
+        createInlineMessage('error', 'Failed to update goal progress', {
+            container: document.body,
+            position: 'top',
+            duration: CONSTANTS.MESSAGE_DURATION_SHORT
         });
     }
 }
@@ -928,27 +901,13 @@ async function decreaseGoalProgress(goalId) {
     try {
         await saveGoals(getAllGoals());
         await displayGoals();
-
-        // Show progress update confirmation
-        const percentage = Math.round((newProgress / goal.target) * 100);
-        const { ErrorMessenger } = await import('./error-messenger.js');
-        await ErrorMessenger.showSuccess('GOAL_PROGRESS_UPDATED', {
-            current: newProgress,
-            target: goal.target,
-            percentage: percentage,
-            isComplete: newProgress >= goal.target
-        }, {
-            forceContext: 'goals',
-            duration: 3000
-        });
     } catch (error) {
         console.error('Error updating goal progress:', error);
-        const { ErrorMessenger } = await import('./error-messenger.js');
-        await ErrorMessenger.showError('GOAL_UPDATE_FAILED', {
-            error: error.message || 'Unknown error'
-        }, {
-            forceContext: 'goals',
-            duration: 8000
+        const { createInlineMessage } = await import('./dom-helpers.js');
+        createInlineMessage('error', 'Failed to update goal progress', {
+            container: document.body,
+            position: 'top',
+            duration: CONSTANTS.MESSAGE_DURATION_SHORT
         });
     }
 }

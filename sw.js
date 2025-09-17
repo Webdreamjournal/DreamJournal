@@ -57,7 +57,7 @@
  * @since 2.0.0
  */
 
-const CACHE_NAME = 'dream-journal-v2-04-45';
+const CACHE_NAME = 'dream-journal-v2-04-30';
 
 /**
  * List of essential files to cache for complete offline functionality.
@@ -89,14 +89,9 @@ const urlsToCache = [
   './security.js',        // PIN protection and encryption
   './dream-crud.js',      // Dream management
   './voice-notes.js',     // Voice recording
-  './journaltab.js',      // Journal tab UI rendering
-  './goalstab.js',        // Goals tab UI rendering
-  './statstab.js',        // Statistics tab UI rendering
-  './advicetab.js',       // Advice tab UI rendering
-  './settingstab.js',     // Settings tab UI rendering
-  './pwa.js',             // Progressive Web App installation system
+  './goalstab.js',        // Goals system
+  './statstab.js',        // Statistics and analytics
   './import-export.js',   // Data import/export
-  './error-messenger.js', // Error handling and messaging system
   './action-router.js',   // Event delegation
   './main.js'             // App initialization
 ];

@@ -25,7 +25,6 @@ import {
     withMutex
 } from './state.js';
 import { createInlineMessage, renderAutocompleteManagementList } from './dom-helpers.js';
-import { ErrorMessenger } from './error-messenger.js';
 
     /**
      * Represents a dream journal entry with all associated metadata.
@@ -70,253 +69,6 @@ import { ErrorMessenger } from './error-messenger.js';
     // ===================================================================================
     // SECTION 4: DATABASE & STORAGE
     // ===================================================================================
-
-    // ===================================================================================
-    // STORAGE QUOTA MONITORING
-    // ===================================================================================
-
-/**
- * Checks browser storage quota and usage, providing warnings when storage is getting full.
- *
- * Uses the Storage API when available to get accurate quota information, with
- * fallback estimation based on stored data size. Provides early warnings to users
- * before storage becomes completely full.
- *
- * @async
- * @function
- * @returns {Promise<Object>} Storage quota information
- * @returns {number} returns.used - Bytes currently used
- * @returns {number} returns.quota - Total bytes available
- * @returns {number} returns.percentage - Percentage of quota used
- * @returns {boolean} returns.nearFull - True if over 80% full
- * @returns {boolean} returns.almostFull - True if over 90% full
- * @since 2.04.31
- * @example
- * const quota = await checkStorageQuota();
- * if (quota.nearFull) {
- *   console.log('Storage is getting full:', quota.percentage + '%');
- * }
- */
-async function checkStorageQuota() {
-    try {
-        if ('storage' in navigator && 'estimate' in navigator.storage) {
-            const estimate = await navigator.storage.estimate();
-            const used = estimate.usage || 0;
-            const quota = estimate.quota || 0;
-            const percentage = quota > 0 ? Math.round((used / quota) * 100) : 0;
-
-            return {
-                used,
-                quota,
-                percentage,
-                nearFull: percentage > 80,
-                almostFull: percentage > 90,
-                available: quota - used
-            };
-        } else {
-            // Fallback: estimate based on data size
-            const dreams = await loadDreams();
-            const goals = await loadGoals();
-            const voiceNotes = await loadVoiceNotes();
-
-            // Rough estimation: each dream ~2KB, goal ~1KB, voice note ~500KB
-            const estimatedUsed = (dreams.length * 2000) + (goals.length * 1000) + (voiceNotes.length * 500000);
-            const estimatedQuota = 50 * 1024 * 1024; // 50MB typical default
-            const percentage = Math.round((estimatedUsed / estimatedQuota) * 100);
-
-            return {
-                used: estimatedUsed,
-                quota: estimatedQuota,
-                percentage: Math.min(percentage, 100),
-                nearFull: percentage > 80,
-                almostFull: percentage > 90,
-                available: Math.max(estimatedQuota - estimatedUsed, 0),
-                estimated: true
-            };
-        }
-    } catch (error) {
-        console.error('Storage quota check failed:', error);
-        return {
-            used: 0,
-            quota: 0,
-            percentage: 0,
-            nearFull: false,
-            almostFull: false,
-            available: 0,
-            error: true
-        };
-    }
-}
-
-/**
- * Formats storage size in human-readable format.
- *
- * @function
- * @param {number} bytes - Size in bytes
- * @returns {string} Formatted size string
- * @since 2.04.31
- * @example
- * formatStorageSize(1024); // "1.0 KB"
- * formatStorageSize(1536000); // "1.5 MB"
- */
-function formatStorageSize(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-/**
- * Creates an emergency backup of data before attempting risky operations.
- *
- * Stores a timestamped backup in localStorage that can be recovered if the
- * main save operation fails. This provides a safety net for users' data.
- *
- * @async
- * @function
- * @param {Array} data - Data array to backup
- * @param {string} dataType - Type of data (dreams, goals, etc.)
- * @returns {Promise<string>} Backup key name for recovery
- * @since 2.04.32
- * @example
- * const backupKey = await createEmergencyBackup(dreams, 'dreams');
- */
-async function createEmergencyBackup(data, dataType) {
-    try {
-        const timestamp = new Date().toISOString();
-        const backupKey = `dreamJournalBackup_${dataType}_${Date.now()}`;
-        const backupData = {
-            data,
-            dataType,
-            timestamp,
-            version: '2.04.32'
-        };
-
-        if (isLocalStorageAvailable()) {
-            localStorage.setItem(backupKey, JSON.stringify(backupData));
-            console.log(`Emergency backup created: ${backupKey}`);
-
-            await ErrorMessenger.showSuccess('STORAGE_BACKUP_CREATED', {
-                backupName: `${dataType}_${new Date().toLocaleString()}`
-            }, {
-                duration: 4000
-            });
-
-            return backupKey;
-        }
-    } catch (error) {
-        console.error('Failed to create emergency backup:', error);
-    }
-    return null;
-}
-
-/**
- * Checks for and offers to recover any available emergency backups.
- *
- * Scans localStorage for emergency backup data and notifies users if
- * recoverable data is found, typically after save failures or crashes.
- *
- * @async
- * @function
- * @returns {Promise<Array>} Array of available backup keys
- * @since 2.04.32
- * @example
- * const backups = await checkForRecoveryData();
- * if (backups.length > 0) console.log('Recovery data available');
- */
-async function checkForRecoveryData() {
-    if (!isLocalStorageAvailable()) return [];
-
-    const backupKeys = [];
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('dreamJournalBackup_')) {
-                const backupData = JSON.parse(localStorage.getItem(key) || '{}');
-                if (backupData.data && backupData.timestamp) {
-                    backupKeys.push(key);
-
-                    // Notify about available recovery data
-                    const timeAgo = new Date(backupData.timestamp).toLocaleString();
-                    await ErrorMessenger.showInfo('STORAGE_RECOVERY_AVAILABLE', {
-                        dataType: backupData.dataType || 'data',
-                        timeAgo: timeAgo
-                    }, {
-                        duration: 8000
-                    });
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Error checking for recovery data:', error);
-    }
-
-    return backupKeys;
-}
-
-/**
- * Monitors storage usage and displays warnings when approaching limits.
- *
- * Called periodically and after large save operations to keep users informed
- * about their storage usage and provide cleanup suggestions when needed.
- *
- * @async
- * @function
- * @param {boolean} [force=false] - Force check even if recently checked
- * @returns {Promise<void>}
- * @since 2.04.31
- * @example
- * await monitorStorageUsage(); // Check if needed
- * await monitorStorageUsage(true); // Force check
- */
-async function monitorStorageUsage(force = false) {
-    try {
-        // Only check every 10 minutes unless forced
-        const lastCheck = localStorage.getItem('dreamJournalLastStorageCheck');
-        const now = Date.now();
-        if (!force && lastCheck && (now - parseInt(lastCheck)) < 600000) {
-            return;
-        }
-
-        const quota = await checkStorageQuota();
-        localStorage.setItem('dreamJournalLastStorageCheck', now.toString());
-
-        if (quota.error) {
-            return; // Silently fail quota monitoring if not supported
-        }
-
-        if (quota.almostFull) {
-            const usedFormatted = formatStorageSize(quota.used);
-            const quotaFormatted = formatStorageSize(quota.quota);
-
-            await ErrorMessenger.showError('STORAGE_QUOTA_EXCEEDED', {
-                used: usedFormatted,
-                total: quotaFormatted,
-                percentage: quota.percentage
-            }, {
-                duration: 10000,
-                persistent: true
-            });
-        } else if (quota.nearFull) {
-            const usedFormatted = formatStorageSize(quota.used);
-            const quotaFormatted = formatStorageSize(quota.quota);
-            const availableFormatted = formatStorageSize(quota.available);
-
-            await ErrorMessenger.showWarning('STORAGE_QUOTA_EXCEEDED', {
-                used: usedFormatted,
-                total: quotaFormatted,
-                available: availableFormatted,
-                percentage: quota.percentage
-            }, {
-                duration: 8000
-            });
-        }
-    } catch (error) {
-        console.error('Storage monitoring error:', error);
-        // Fail silently - storage monitoring is non-critical
-    }
-}
 
     /**
      * Name of the IndexedDB database.
@@ -676,12 +428,6 @@ async function monitorStorageUsage(force = false) {
         if (!isIndexedDBAvailable()) {
             console.warn('IndexedDB not available, using memory storage');
             storageType = 'memory';
-
-            // Notify user about fallback storage
-            await ErrorMessenger.showWarning('STORAGE_INDEXEDDB_FALLBACK', {}, {
-                duration: 6000
-            });
-
             return;
         }
 
@@ -1045,51 +791,21 @@ async function monitorStorageUsage(force = false) {
      */
     async function saveDreams(dreams) {
         return withMutex('saveDreams', async () => {
-            let backupKey = null;
-            try {
-                // Create emergency backup before attempting save (for important data)
-                if (dreams && dreams.length > 10) { // Only for substantial data
-                    backupKey = await createEmergencyBackup(dreams, 'dreams');
+            // Try IndexedDB first
+            if (isIndexedDBAvailable()) {
+                const saved = await saveToIndexedDB(dreams);
+                if (saved) {
+                    console.log('Dreams saved to IndexedDB');
+                    return;
                 }
-
-                // Try IndexedDB first
-                if (isIndexedDBAvailable()) {
-                    const saved = await saveToIndexedDB(dreams);
-                    if (saved) {
-                        console.log('Dreams saved to IndexedDB');
-
-                        // Clean up backup on successful save
-                        if (backupKey && isLocalStorageAvailable()) {
-                            localStorage.removeItem(backupKey);
-                        }
-
-                        // Monitor storage usage after save
-                        setTimeout(() => monitorStorageUsage(), 1000);
-                        return;
-                    }
-                }
-
-                // Fallback to memory only if IndexedDB fails
-                memoryStorage = [...dreams];
-                console.log('IndexedDB unavailable, dreams saved to memory fallback');
-
-                if (storageType !== 'memory') {
-                    showStorageWarning();
-
-                    // Notify user about fallback
-                    await ErrorMessenger.showWarning('STORAGE_INDEXEDDB_FALLBACK', {}, {
-                        duration: 6000
-                    });
-                }
-            } catch (error) {
-                console.error('Error saving dreams:', error);
-                await ErrorMessenger.showError('STORAGE_SAVE_FAILED', {
-                    dataType: 'dreams',
-                    error: error.message || 'Unknown storage error'
-                }, {
-                    duration: 8000
-                });
-                throw error;
+            }
+            
+            // Fallback to memory only if IndexedDB fails
+            memoryStorage = [...dreams];
+            console.log('IndexedDB unavailable, dreams saved to memory fallback');
+            
+            if (storageType !== 'memory') {
+                showStorageWarning();
             }
         });
     }
@@ -2962,15 +2678,6 @@ export {
     deleteAutocompleteItem,
     learnAutocompleteItems,
     fixCorruptedEmotionsData,
-
-    // Storage monitoring
-    checkStorageQuota,
-    formatStorageSize,
-    monitorStorageUsage,
-
-    // Data recovery
-    createEmergencyBackup,
-    checkForRecoveryData,
     
     // Legacy functions
     loadUserTags,

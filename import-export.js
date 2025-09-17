@@ -43,7 +43,6 @@ import {
     saveItemToStore
 } from './storage.js';
 import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
-import { ErrorMessenger } from './error-messenger.js';
 import {
     encryptData,
     decryptData,
@@ -735,13 +734,6 @@ async function exportAllData() {
         }
         
         try {
-            // Show processing indicator for large exports
-            await ErrorMessenger.showInfo('EXPORT_PROCESSING', {
-                exportType: 'complete data'
-            }, {
-                duration: 1500
-            });
-
             // Collect restorable data (voice notes excluded - audio cannot be exported/imported)
             const [dreams, goals, userTags, userDreamSigns, userEmotions] = await Promise.all([
                 loadDreams(),
@@ -853,9 +845,6 @@ async function exportAllData() {
                 position: 'top',
                 duration: 4000
             });
-
-            // Track backup date for proactive monitoring
-            localStorage.setItem('lastBackupDate', new Date().toISOString());
             
         } catch (error) {
             console.error('Complete export error:', error);
@@ -895,26 +884,7 @@ async function exportAllData() {
 async function importAllData(event) {
         const file = event.target.files[0];
         if (!file) return;
-
-        // Check file size and warn for large files
-        const fileSizeMB = file.size / (1024 * 1024);
-        if (fileSizeMB > 5) {
-            await ErrorMessenger.showWarning('IMPORT_FILE_TOO_LARGE', {
-                size: `${fileSizeMB.toFixed(1)} MB`
-            }, {
-                duration: 5000
-            });
-        }
-
-        // Show processing indicator for large files
-        if (fileSizeMB > 1) {
-            await ErrorMessenger.showInfo('IMPORT_PROCESSING', {
-                fileName: file.name
-            }, {
-                duration: 2000
-            });
-        }
-
+        
         try {
             // Check if encryption is enabled
             const encryptionEnabled = document.getElementById('fullDataEncryption').checked;
@@ -1545,27 +1515,19 @@ function showExportPasswordDialog() {
  * // data-action="confirm-export-password"
  * confirmExportPassword();
  */
-async function confirmExportPassword() {
+function confirmExportPassword() {
     const password = document.getElementById('exportPassword').value;
     const confirm = document.getElementById('exportPasswordConfirm').value;
     const errorDiv = document.getElementById('exportPasswordError');
-
+    
     if (!password || password.length < 4) {
-        await ErrorMessenger.showError('AUTH_PASSWORD_WEAK', {
-            minLength: 4
-        }, {
-            duration: 5000
-        });
-        errorDiv.textContent = 'See error message above for requirements';
+        errorDiv.textContent = 'Password must be at least 4 characters long';
         errorDiv.style.display = 'block';
         return;
     }
-
+    
     if (password !== confirm) {
-        await ErrorMessenger.showError('AUTH_PASSWORD_MISMATCH', {}, {
-            duration: 5000
-        });
-        errorDiv.textContent = 'Passwords do not match - see above';
+        errorDiv.textContent = 'Passwords do not match';
         errorDiv.style.display = 'block';
         return;
     }

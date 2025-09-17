@@ -67,7 +67,7 @@
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
             --info-l: 39%;             --info-hover-l: 33%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
-            --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
+            --secondary-l: 46%;        --secondary-hover-l: 35%;    /* Secondary action colors */
             
             /* Component-specific lightness values */
             --shadow-opacity: 0.1;     --modal-backdrop-opacity: 0.9;
@@ -2852,68 +2852,6 @@
             margin: 0;
             font-size: 12px;
             opacity: 0.8;
-        }
-
-        /* ================================
-           MODAL-AWARE ERROR MESSAGING
-           ================================ */
-
-        /* Enhanced positioning for modal-aware messages */
-        .modal-aware-message {
-            position: relative;
-            z-index: 2000; /* Above modals */
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 2px solid var(--border-color);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-        }
-
-        /* Overlay messages for critical errors in modal contexts */
-        .error-message-overlay {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 3000; /* Above everything */
-            min-width: 300px;
-            max-width: 500px;
-            background: var(--bg-elevated);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.4);
-            border: 2px solid var(--error-color);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
-
-        /* Enhanced visibility for modal context messages */
-        .modal-context-message {
-            background: var(--bg-elevated);
-            border-left: 4px solid;
-            padding: 16px;
-            margin: 12px 0;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-context-message.error {
-            border-left-color: var(--error-color);
-            background: color-mix(in srgb, var(--error-color) 10%, var(--bg-elevated));
-        }
-
-        .modal-context-message.warning {
-            border-left-color: var(--warning-color);
-            background: color-mix(in srgb, var(--warning-color) 10%, var(--bg-elevated));
-        }
-
-        .modal-context-message.success {
-            border-left-color: var(--success-color);
-            background: color-mix(in srgb, var(--success-color) 10%, var(--bg-elevated));
-        }
-
-        .modal-context-message.info {
-            border-left-color: var(--info-color);
-            background: color-mix(in srgb, var(--info-color) 10%, var(--bg-elevated));
         }
 
 
