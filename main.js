@@ -742,6 +742,11 @@ async function initializeApp() {
         if (getActiveAppTab() === 'journal') {
             await initializeJournalTab();
         }
+
+        // Initialize form validation system
+        if (typeof initializeFormValidation === 'function') {
+            initializeFormValidation();
+        }
     }
 
     // Restore dream form collapse state preference

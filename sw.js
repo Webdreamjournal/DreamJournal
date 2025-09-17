@@ -57,7 +57,7 @@
  * @since 2.0.0
  */
 
-const CACHE_NAME = 'dream-journal-v2-04-31';
+const CACHE_NAME = 'dream-journal-v2-04-32';
 
 /**
  * List of essential files to cache for complete offline functionality.
@@ -87,6 +87,7 @@ const urlsToCache = [
   './state.js',            // Global state management
   './storage.js',          // IndexedDB operations
   './dom-helpers.js',      // DOM utilities
+  './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
