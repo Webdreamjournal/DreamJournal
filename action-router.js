@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo } from './dom-helpers.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, closeInfoTooltip } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -317,6 +317,12 @@ const ACTION_MAP = {
         'export-range': () => exportRange(),                               // Export currently displayed dreams with optional AI formatting
         'show-export-info': () => showExportFormatInfo(),                   // Show export format information tooltip
         'close-export-info': () => closeExportFormatInfo(),                 // Close export format information tooltip
+        'show-emotions-help': () => showEmotionsHelp(),                     // Show emotions field help tooltip
+        'close-emotions-help': () => closeInfoTooltip('emotions-help-tooltip'), // Close emotions help tooltip
+        'show-tags-help': () => showTagsHelp(),                             // Show tags field help tooltip
+        'close-tags-help': () => closeInfoTooltip('tags-help-tooltip'),     // Close tags help tooltip
+        'show-dream-signs-help': () => showDreamSignsHelp(),                // Show dream signs field help tooltip
+        'close-dream-signs-help': () => closeInfoTooltip('dream-signs-help-tooltip'), // Close dream signs help tooltip
         'clear-search-filters': () => clearSearchFilters(),                 // Clear all search and filter criteria to defaults
 
         // ================================

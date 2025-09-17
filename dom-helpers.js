@@ -2804,40 +2804,74 @@ function showInfoTooltip(config) {
     tooltip.setAttribute('aria-labelledby', `${tooltipId}-title`);
     tooltip.setAttribute('aria-describedby', `${tooltipId}-content`);
 
-    // Position tooltip with smart viewport-aware positioning
+    // Position tooltip like a context menu - anchored to the trigger element
     const triggerElement = document.getElementById(triggerId) || document.querySelector(`[data-action="${triggerId}"]`);
+
+    // Add tooltip to DOM first (invisible) so we can measure its actual dimensions
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.position = 'fixed';
+    tooltip.style.top = '0px';
+    tooltip.style.left = '0px';
+    document.body.appendChild(tooltip);
+
     if (triggerElement) {
         const rect = triggerElement.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
-        const tooltipHeight = 300; // Estimated tooltip height
-        const tooltipWidth = Math.min(400, viewportWidth - 20);
+        const actualTooltipRect = tooltip.getBoundingClientRect();
+        const actualHeight = actualTooltipRect.height;
+        const actualWidth = actualTooltipRect.width;
+        const tooltipWidth = Math.min(actualWidth, Math.min(400, viewportWidth - 20));
 
-        tooltip.style.position = 'fixed';
+        // Context menu style positioning: decide above or below based on available space and actual height
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const showAbove = spaceBelow < actualHeight + 20 && spaceAbove >= actualHeight + 20;
 
-        // Smart vertical positioning - above icon if not enough space below
-        if (rect.bottom + tooltipHeight + 20 > viewportHeight) {
-            // Position above the trigger element
-            tooltip.style.top = Math.max(10, rect.top - tooltipHeight - 10) + 'px';
+        let topPosition;
+        if (showAbove) {
+            // Position above: bottom of tooltip near the icon
+            topPosition = Math.max(10, rect.top - actualHeight - 5);
         } else {
-            // Position below the trigger element
-            tooltip.style.top = (rect.bottom + 10) + 'px';
+            // Position below: top of tooltip near the icon
+            topPosition = rect.bottom + 5;
+            // If it would go off bottom, move up as much as needed
+            if (topPosition + actualHeight > viewportHeight - 10) {
+                topPosition = Math.max(10, viewportHeight - actualHeight - 10);
+            }
         }
 
-        // Smart horizontal positioning for mobile and desktop
+        // Horizontal positioning: anchor to icon like a context menu
+        let leftPosition;
         if (viewportWidth <= 480) {
             // Mobile: Full width with margins
-            tooltip.style.left = '10px';
+            leftPosition = 10;
             tooltip.style.right = '10px';
+            tooltip.style.width = 'auto';
         } else {
-            // Desktop: Position relative to trigger but keep in viewport
-            const preferredLeft = rect.left - 150;
-            const maxLeft = viewportWidth - tooltipWidth - 10;
-            tooltip.style.left = Math.max(10, Math.min(preferredLeft, maxLeft)) + 'px';
-        }
-    }
+            // Desktop: Context menu style - right edge of tooltip near icon
+            // Try to position so the tooltip's right edge is near the icon
+            leftPosition = rect.left - tooltipWidth + rect.width + 5;
 
-    document.body.appendChild(tooltip);
+            // If that puts it off the left edge, position it to the right of the icon instead
+            if (leftPosition < 10) {
+                leftPosition = rect.right + 5;
+                // If that puts it off the right edge, use maximum left position
+                if (leftPosition + tooltipWidth > viewportWidth - 10) {
+                    leftPosition = viewportWidth - tooltipWidth - 10;
+                }
+            }
+
+            // Final bounds check
+            leftPosition = Math.max(10, Math.min(leftPosition, viewportWidth - tooltipWidth - 10));
+            tooltip.style.width = tooltipWidth + 'px';
+        }
+
+        // Apply final positioning and make visible
+        tooltip.style.top = topPosition + 'px';
+        tooltip.style.left = leftPosition + 'px';
+        tooltip.style.visibility = 'visible';
+    }
 
     // Focus on the close button for keyboard navigation
     const closeButton = tooltip.querySelector(`[data-action="${closeAction}"]`);
@@ -2963,6 +2997,142 @@ function closeExportFormatInfo() {
     closeInfoTooltip('export-info-tooltip');
 }
 
+/**
+ * Shows emotions field help tooltip with common emotion examples.
+ *
+ * Displays a helpful tooltip with common emotions that users can experience
+ * in dreams, providing examples to help with dream journaling.
+ *
+ * @function showEmotionsHelp
+ * @returns {void}
+ * @since 2.04.39
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="show-emotions-help"
+ * showEmotionsHelp();
+ */
+function showEmotionsHelp() {
+    showInfoTooltip({
+        triggerId: 'show-emotions-help',
+        tooltipId: 'emotions-help-tooltip',
+        title: 'Common Dream Emotions',
+        content: `
+            <div class="help-content">
+                <p>Dreams often contain intense emotions. Here are common ones to help you identify and track emotional patterns:</p>
+                <div class="emotion-categories">
+                    <div class="emotion-group">
+                        <strong>Positive:</strong> happy, joyful, excited, peaceful, curious, amazed, loved, confident
+                    </div>
+                    <div class="emotion-group">
+                        <strong>Negative:</strong> anxious, scared, angry, sad, confused, frustrated, guilty, embarrassed
+                    </div>
+                    <div class="emotion-group">
+                        <strong>Neutral:</strong> calm, surprised, nostalgic, focused, detached, observant
+                    </div>
+                </div>
+                <p><small><em>Tip: You can enter multiple emotions separated by commas</em></small></p>
+            </div>
+        `,
+        closeAction: 'close-emotions-help',
+        closeText: 'Got it!',
+        autoCloseMs: 12000,
+        className: 'form-help-tooltip'
+    });
+}
+
+/**
+ * Shows tags field help tooltip with tagging guidance.
+ *
+ * Displays helpful information about how to tag dreams effectively
+ * for better organization and searchability.
+ *
+ * @function showTagsHelp
+ * @returns {void}
+ * @since 2.04.39
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="show-tags-help"
+ * showTagsHelp();
+ */
+function showTagsHelp() {
+    showInfoTooltip({
+        triggerId: 'show-tags-help',
+        tooltipId: 'tags-help-tooltip',
+        title: 'Dream Tagging Guide',
+        content: `
+            <div class="help-content">
+                <p>Tags help you organize and search your dreams. Consider including:</p>
+                <div class="tag-categories">
+                    <div class="tag-group">
+                        <strong>🏠 Places:</strong> home, school, work, beach, forest, city, unknown-place
+                    </div>
+                    <div class="tag-group">
+                        <strong>👥 People:</strong> family, friends, strangers, celebrities, childhood-friends
+                    </div>
+                    <div class="tag-group">
+                        <strong>🎭 Themes:</strong> flying, falling, chasing, lost, exam, travel, adventure
+                    </div>
+                    <div class="tag-group">
+                        <strong>🐕 Objects/Animals:</strong> car, phone, animals, water, fire, technology
+                    </div>
+                </div>
+                <p><small><em>Tip: Use simple, consistent tags separated by commas for easy searching</em></small></p>
+            </div>
+        `,
+        closeAction: 'close-tags-help',
+        closeText: 'Got it!',
+        autoCloseMs: 15000,
+        className: 'form-help-tooltip'
+    });
+}
+
+/**
+ * Shows dream signs field help tooltip with lucidity trigger explanation.
+ *
+ * Explains what dream signs are and how to use them to improve
+ * lucid dreaming practice and dream awareness.
+ *
+ * @function showDreamSignsHelp
+ * @returns {void}
+ * @since 2.04.39
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="show-dream-signs-help"
+ * showDreamSignsHelp();
+ */
+function showDreamSignsHelp() {
+    showInfoTooltip({
+        triggerId: 'show-dream-signs-help',
+        tooltipId: 'dream-signs-help-tooltip',
+        title: '⚡ Dream Signs Explained',
+        content: `
+            <div class="help-content">
+                <p><strong>Dream signs are recurring elements that can trigger lucidity!</strong></p>
+                <p>Track these patterns to improve dream awareness and increase your chances of becoming lucid:</p>
+                <div class="dream-signs-categories">
+                    <div class="signs-group">
+                        <strong>🔄 Common Signs:</strong> flying, impossible architecture, dead people alive, broken technology, weird text/numbers
+                    </div>
+                    <div class="signs-group">
+                        <strong>🎯 Personal Signs:</strong> specific locations from your past, recurring dream characters, familiar impossible scenarios
+                    </div>
+                    <div class="signs-group">
+                        <strong>💡 Reality Check Triggers:</strong> mirrors, clocks, light switches, hands, reading text
+                    </div>
+                </div>
+                <p><small><em>Tip: Review your dream signs regularly to recognize patterns and improve lucid dreaming!</em></small></p>
+            </div>
+        `,
+        closeAction: 'close-dream-signs-help',
+        closeText: 'Got it!',
+        autoCloseMs: 15000,
+        className: 'form-help-tooltip'
+    });
+}
+
 // ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
@@ -3043,7 +3213,12 @@ export {
 
     // Export Info System (Specific)
     showExportFormatInfo,
-    closeExportFormatInfo
+    closeExportFormatInfo,
+
+    // Dream Form Help System
+    showEmotionsHelp,
+    showTagsHelp,
+    showDreamSignsHelp
 };
 
 // Functions are now properly exported as ES modules for clean dependency management

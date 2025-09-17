@@ -129,45 +129,60 @@ function renderJournalTab(tabPanel) {
                 
                 <!-- Emotions Field - Comma-separated emotional states with autocomplete -->
                 <div class="form-group">
-                    <label for="dreamEmotions">Emotions Experienced (optional)</label>
-                    <input type="text" 
-                           id="dreamEmotions" 
-                           class="form-control" 
-                           placeholder="e.g., happy, anxious, excited, confused (separate with commas)"
-                           aria-describedby="emotions-help">
-                    <small id="emotions-help" class="small-helper">
-                        Common emotions: happy, sad, anxious, excited, confused, peaceful, scared, angry, joyful, curious
-                    </small>
+                    <div class="form-label-with-info">
+                        <label for="dreamEmotions">Emotions Experienced (optional)</label>
+                        <button class="info-icon"
+                                data-action="show-emotions-help"
+                                type="button"
+                                title="Click for common emotions examples"
+                                aria-label="Show emotions help">
+                            ℹ️
+                        </button>
+                    </div>
+                    <input type="text"
+                           id="dreamEmotions"
+                           class="form-control"
+                           placeholder="e.g., happy, anxious, excited, confused (separate with commas)">
                 </div>
                 
                 <!-- Tags Field - Thematic categorization with autocomplete support -->
                 <div class="form-group">
-                    <label for="dreamTags">Tags & Themes (optional)</label>
-                    <div class="tag-input-group">
-                        <input type="text" 
-                               id="dreamTags" 
-                               class="form-control" 
-                               placeholder="e.g., family, flying, school, animals (separate with commas)"
-                               aria-describedby="tags-help">
+                    <div class="form-label-with-info">
+                        <label for="dreamTags">Tags & Themes (optional)</label>
+                        <button class="info-icon"
+                                data-action="show-tags-help"
+                                type="button"
+                                title="Click for tagging guidance"
+                                aria-label="Show tags help">
+                            ℹ️
+                        </button>
                     </div>
-                    <small id="tags-help" class="small-helper">
-                        Tag your dream with themes, people, places, objects, or activities for easy searching
-                    </small>
+                    <div class="tag-input-group">
+                        <input type="text"
+                               id="dreamTags"
+                               class="form-control"
+                               placeholder="e.g., family, flying, school, animals (separate with commas)">
+                    </div>
                 </div>
                 
                 <!-- Dream Signs Field - Lucidity trigger tracking with autocomplete -->
                 <div class="form-group">
-                    <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
-                    <div class="tag-input-group">
-                        <input type="text" 
-                               id="dreamSigns" 
-                               class="form-control" 
-                               placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)"
-                               aria-describedby="signs-help">
+                    <div class="form-label-with-info">
+                        <label for="dreamSigns">⚡ Dream Signs (Lucidity Triggers) (optional)</label>
+                        <button class="info-icon"
+                                data-action="show-dream-signs-help"
+                                type="button"
+                                title="Click for dream signs explanation"
+                                aria-label="Show dream signs help">
+                            ℹ️
+                        </button>
                     </div>
-                    <small id="signs-help" class="small-helper-warning">
-                        Elements that could trigger lucidity - track these to improve dream awareness!
-                    </small>
+                    <div class="tag-input-group">
+                        <input type="text"
+                               id="dreamSigns"
+                               class="form-control"
+                               placeholder="e.g., flying, text-changing, deceased-alive (separate with commas)">
+                    </div>
                 </div>
                 
                 <!-- Save Button - Submits dream form via data-action event delegation -->
