@@ -68,7 +68,7 @@ You need a modern web browser and a way to run a local web server. Python is an 
 
 ## Key Features
 
-*   **🌙 Complete Dream Journaling:** Record your dreams with titles, descriptions, dates, emotions, tags, and dream signs.
+*   **📝  Complete Dream Journaling:** Record your dreams with titles, descriptions, dates, emotions, tags, and dream signs.
 *   **🔒 Privacy First:** All data is stored locally on your device. Nothing is ever sent to a server.
 *   **🔐 Robust Security:**
     *   **PIN Protection:** Secure your journal with a 4-6 digit PIN.

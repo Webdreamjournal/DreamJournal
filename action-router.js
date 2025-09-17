@@ -854,7 +854,7 @@ async function increaseGoalProgress(goalId) {
         if (newProgress >= goal.target && goal.status !== 'completed') {
             const { createInlineMessage } = await import('./dom-helpers.js');
             setTimeout(() => {
-                createInlineMessage('success', `🎉 Goal "${goal.title}" completed! Great job!`, {
+                createInlineMessage('success', `Goal "${goal.title}" completed! Great job!`, {
                     container: document.body,
                     position: 'top',
                     duration: 3000

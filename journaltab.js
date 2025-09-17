@@ -99,7 +99,7 @@ function renderJournalTab(tabPanel) {
                     aria-expanded="true"
                     aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
                     style="cursor: pointer; user-select: none;">
-                    🌙 Record Your Dream 
+                    📝 Record Your Dream 
                     <span class="text-xs text-secondary font-normal">(Press Enter to collapse)</span>
                 </h3>
                 

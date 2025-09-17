@@ -94,7 +94,7 @@ console.log('Loading Advice Tab Module v2.04.00');
 function renderAdviceTab(tabPanel) {
     tabPanel.innerHTML = `
         <div class="settings-section">
-            <h3 id="advice-main-heading" tabindex="-1">💡 Daily Lucid Dreaming Tip</h3>
+            <h3 id="advice-main-heading" tabindex="-1">💡Daily Lucid Dreaming Tip</h3>
             <div id="dailyTipContainer" class="card-elevated card-lg text-center">
                 <p id="tipText" class="text-lg line-height-loose mb-lg" style="height: 180px; overflow-y: auto;">Loading tip...</p>
                 <div class="tip-navigation flex-between">
