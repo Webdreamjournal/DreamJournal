@@ -933,27 +933,54 @@ async function displayGoals() {
 
 /**
  * Calculates current progress for a goal based on its type and dream data analysis.
- * 
+ *
  * This function analyzes stored dreams and calculates progress according to the goal type.
  * It supports lucid dream counting, streak calculations, dream signs collection,
- * and manual progress tracking for custom goals.
- * 
+ * and manual progress tracking for custom goals. For monthly goals, progress is calculated
+ * based on the specific month the goal was created in, not the current month, ensuring
+ * completed goals retain their accuracy even after month transitions.
+ *
+ * **Monthly Goal Behavior:**
+ * - Monthly goals are tied to the month they were created in (from goal.createdAt)
+ * - Progress counts dreams within that specific month only
+ * - Completed monthly goals remain accurate even in subsequent months
+ * - Progress message shows the specific month name and year for clarity
+ *
  * @async
  * @function calculateGoalProgress
  * @param {Goal} goal - Goal object to calculate progress for
+ * @param {string} goal.type - Goal type (lucid_count, recall_streak, journal_streak, dream_signs_count, custom)
+ * @param {string} goal.period - Time period (monthly, streak, total)
+ * @param {string} goal.createdAt - ISO timestamp of when goal was created (used for monthly calculations)
+ * @param {number} [goal.currentProgress] - Manual progress for custom goals
  * @returns {Promise<GoalProgress>} Progress calculation result with current value and message
  * @throws {Error} When dream data loading fails
  * @since 1.0.0
+ * @updated 2.04.43 - Fixed monthly goals to use creation month instead of current month
+ *
  * @example
- * const goal = { type: 'lucid_count', period: 'monthly', target: 5 };
+ * // Monthly goal created in January 2024
+ * const goal = {
+ *   type: 'lucid_count',
+ *   period: 'monthly',
+ *   target: 5,
+ *   createdAt: '2024-01-15T10:00:00Z'
+ * };
  * const progress = await calculateGoalProgress(goal);
  * console.log(progress.current); // 3
- * console.log(progress.message); // "3 lucid dreams this month"
- * 
+ * console.log(progress.message); // "3 lucid dreams in January 2024"
+ *
  * @example
- * // Calculate streak goal progress
+ * // Streak goal progress
  * const streakGoal = { type: 'recall_streak', target: 7 };
  * const streakProgress = await calculateGoalProgress(streakGoal);
+ * console.log(streakProgress.message); // "5 days streak"
+ *
+ * @example
+ * // Custom goal with manual progress
+ * const customGoal = { type: 'custom', currentProgress: 8, target: 10 };
+ * const customProgress = await calculateGoalProgress(customGoal);
+ * console.log(customProgress.message); // "8 completed"
  */
 async function calculateGoalProgress(goal) {
     const dreams = await loadDreams();
@@ -965,12 +992,19 @@ async function calculateGoalProgress(goal) {
     switch (goal.type) {
         case 'lucid_count':
             if (goal.period === 'monthly') {
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const lucidDreams = dreams.filter(dream => 
-                    dream.isLucid && new Date(dream.timestamp) >= startOfMonth
-                );
+                // Use the month the goal was created in, not the current month
+                const goalCreatedDate = new Date(goal.createdAt);
+                const startOfGoalMonth = new Date(goalCreatedDate.getFullYear(), goalCreatedDate.getMonth(), 1);
+                const endOfGoalMonth = new Date(goalCreatedDate.getFullYear(), goalCreatedDate.getMonth() + 1, 1);
+
+                const lucidDreams = dreams.filter(dream => {
+                    const dreamDate = new Date(dream.timestamp);
+                    return dream.isLucid && dreamDate >= startOfGoalMonth && dreamDate < endOfGoalMonth;
+                });
+
                 current = lucidDreams.length;
-                message = `${current} lucid dreams this month`;
+                const monthName = goalCreatedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                message = `${current} lucid dreams in ${monthName}`;
             }
             break;
             
