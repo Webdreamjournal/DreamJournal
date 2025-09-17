@@ -1590,7 +1590,7 @@ function renderGoalsTab(tabPanel) {
     tabPanel.innerHTML = `
         <div class="settings-section">
             <div class="flex-between mb-lg">
-                <h3 id="goals-main-heading" tabindex="-1">🎯 Your Dream Goals</h3>
+                <h3 id="goals-main-heading" tabindex="-1">Your Dream Goals</h3>
                 <button data-action="create-goal" class="btn btn-primary btn-small">➕ New Goal</button>
             </div>
             <div id="activeGoalsContainer">
@@ -1602,8 +1602,7 @@ function renderGoalsTab(tabPanel) {
             <div id="noGoalsMessage" class="card-md text-center" style="display: none;">
                 <div class="icon-lg mb-md">🎯</div>
                 <h4 class="mb-sm">No Active Goals</h4>
-                <p class="text-secondary mb-md">Create your first goal to start tracking your lucid dreaming progress!</p>
-                <button data-action="create-goal" class="btn btn-primary">Create Your First Goal</button>
+                <p class="text-secondary mb-md">Create a new goal to start tracking your lucid dreaming progress!</p>
             </div>
         </div>
         
@@ -1620,12 +1619,6 @@ function renderGoalsTab(tabPanel) {
                     <div class="icon-lg">🧠</div>
                     <div class="stats-label">Dream Recall Streak</div>
                     <div class="stats-detail">Remember dreams daily</div>
-                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
-                </div>
-                <div class="stats-card hover-card" data-action="create-template-goal" data-template="journal-habit">
-                    <div class="icon-lg">📝</div>
-                    <div class="stats-label">Journaling Habit</div>
-                    <div class="stats-detail">Write consistently</div>
                     <button class="btn btn-outline btn-small mt-sm">Use Template</button>
                 </div>
                 <div class="stats-card hover-card" data-action="create-template-goal" data-template="dream-signs">
