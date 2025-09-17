@@ -2917,11 +2917,11 @@ async function setupPin() {
     async function confirmNewPin() {
         const enteredPin = document.getElementById('pinInput').value;
         if (enteredPin !== window.tempNewPin) {
-            showMessage('error', 'PINs do not match. Please start over.');
             setTimeout(() => {
                 resetPinOverlay();
                 showPinSetup();
-            }, 2000);
+                showMessage('error', 'PINs do not match. Please try again.');
+            }, 1);
             return;
         }
         
