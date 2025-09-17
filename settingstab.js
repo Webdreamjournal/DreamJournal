@@ -240,16 +240,6 @@ function renderSettingsTab(tabPanel) {
                 </div>
             </div>
             
-            <!-- AI Analysis Export -->
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">AI Analysis Export</div>
-                    <div class="settings-description">Export a prompt for analysis by an AI model</div>
-                </div>
-                <div class="settings-controls">
-                    <button data-action="export-ai" class="btn btn-success">Export for AI Analysis</button>
-                </div>
-            </div>
         </div>
         <div class="settings-section">
             <h3>🏷️ Autocomplete Management</h3>
