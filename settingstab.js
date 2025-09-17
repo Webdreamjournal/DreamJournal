@@ -125,7 +125,7 @@ function renderSettingsTab(tabPanel) {
     const darkSelected = currentTheme === 'dark' ? 'selected' : '';
     
     tabPanel.innerHTML = `
-        <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3>
+        <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3><br>
         <div class="settings-section">
             <h3>🎨 Appearance</h3>
             <div class="settings-row">
