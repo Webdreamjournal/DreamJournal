@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, closeInfoTooltip } from './dom-helpers.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -323,6 +323,8 @@ const ACTION_MAP = {
         'close-tags-help': () => closeInfoTooltip('tags-help-tooltip'),     // Close tags help tooltip
         'show-dream-signs-help': () => showDreamSignsHelp(),                // Show dream signs field help tooltip
         'close-dream-signs-help': () => closeInfoTooltip('dream-signs-help-tooltip'), // Close dream signs help tooltip
+        'show-smart-search-help': () => showSmartSearchHelp(),              // Show smart search syntax help tooltip
+        'close-smart-search-help': () => closeInfoTooltip('smart-search-help-tooltip'), // Close smart search help tooltip
         'clear-search-filters': () => clearSearchFilters(),                 // Clear all search and filter criteria to defaults
 
         // ================================

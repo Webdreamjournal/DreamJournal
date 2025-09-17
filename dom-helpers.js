@@ -2773,7 +2773,7 @@ function showInfoTooltip(config) {
         content,
         closeAction = 'close-tooltip',
         closeText = 'Got it!',
-        autoCloseMs = 10000,
+        autoCloseMs = 30000,
         className = 'info-tooltip'
     } = config;
 
@@ -3133,6 +3133,70 @@ function showDreamSignsHelp() {
     });
 }
 
+/**
+ * Shows smart search help tooltip with advanced search syntax explanation.
+ *
+ * Displays comprehensive help for the smart search feature, explaining field-specific
+ * search prefixes and providing examples of advanced search queries. This helps users
+ * discover and effectively use the smart search functionality for precise dream filtering.
+ *
+ * @function showSmartSearchHelp
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="show-smart-search-help"
+ * showSmartSearchHelp();
+ */
+function showSmartSearchHelp() {
+    showInfoTooltip({
+        triggerId: 'show-smart-search-help',
+        tooltipId: 'smart-search-help-tooltip',
+        title: '🔍 Smart Search Guide',
+        content: `
+            <div class="help-content">
+                <p><strong>Use field-specific prefixes to search precisely!</strong></p>
+                <div class="smart-search-examples">
+                    <div class="search-group">
+                        <strong>📝 Field Prefixes:</strong>
+                        <ul>
+                            <li><code>title:</code> - Search only in dream titles</li>
+                            <li><code>content:</code> - Search only in dream descriptions</li>
+                            <li><code>emotion:</code> - Search only in emotions field</li>
+                            <li><code>tag:</code> - Search only in tags</li>
+                            <li><code>sign:</code> - Search only in dream signs</li>
+                        </ul>
+                    </div>
+                    <div class="search-group">
+                        <strong>💡 Examples:</strong>
+                        <ul>
+                            <li><code>title:flying</code> - Dreams with "flying" in title</li>
+                            <li><code>tag:lucid emotion:happy</code> - Lucid dreams with happy emotions</li>
+                            <li><code>content:nightmare family</code> - Dreams with "nightmare" in content OR "family" anywhere</li>
+                            <li><code>title:"vacation dream"</code> - Use quotes for phrases with spaces</li>
+                        </ul>
+                    </div>
+                    <div class="search-group">
+                        <strong>🚀 Pro Tips:</strong>
+                        <ul>
+                            <li>Mix field searches with general terms</li>
+                            <li>Multiple field searches work together (AND logic)</li>
+                            <li>No prefix = search all fields (backward compatible)</li>
+                            <li>Case-insensitive matching for all searches</li>
+                        </ul>
+                    </div>
+                </div>
+                <p><small><em>Smart search makes finding specific dreams fast and precise!</em></small></p>
+            </div>
+        `,
+        closeAction: 'close-smart-search-help',
+        closeText: 'Got it!',
+        autoCloseMs: 20000,
+        className: 'form-help-tooltip smart-search-tooltip'
+    });
+}
+
 // ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
@@ -3218,7 +3282,8 @@ export {
     // Dream Form Help System
     showEmotionsHelp,
     showTagsHelp,
-    showDreamSignsHelp
+    showDreamSignsHelp,
+    showSmartSearchHelp
 };
 
 // Functions are now properly exported as ES modules for clean dependency management

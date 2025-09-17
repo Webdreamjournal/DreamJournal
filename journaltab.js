@@ -272,17 +272,27 @@ function renderJournalTab(tabPanel) {
                 <!-- Search and Filter Controls Group -->
                 <div class="search-filter-section">
                     <div class="section-header-with-action">
-                        <h4 class="section-header">🔍 Search & Filter</h4>
+                        <h4 class="section-header">🔍 Search & Filter
+                            <button class="info-icon search-info-btn"
+                                    data-action="show-smart-search-help"
+                                    type="button"
+                                    title="Click for smart search syntax help"
+                                    aria-label="Show smart search help">
+                                ℹ️
+                            </button></h4>
                         <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
                     </div>
                     <div class="search-filter-group">
-                        <!-- Search Box - Full-text search across all dream fields -->
-                        <input type="text"
-                               id="searchBox"
-                               class="search-box"
-                               placeholder="Search dreams by title, content, emotions, tags, or dream signs..."
-                               aria-label="Search dreams by content, title, or emotions"
-                               role="searchbox">
+                        <!-- Smart Search Box with Info Button -->
+                        <div class="search-input-group">
+                            <input type="text"
+                                   id="searchBox"
+                                   class="search-box"
+                                   placeholder="Smart search: title:flying tag:lucid or just search text..."
+                                   aria-label="Smart search with field-specific queries or general text search"
+                                   role="searchbox">
+
+                        </div>
 
                         <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
                         <select id="filterSelect" class="filter-select">

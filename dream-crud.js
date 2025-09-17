@@ -381,29 +381,220 @@ async function shouldEncryptDream() {
 // ================================
 // 3. DREAM FILTERING & SORTING SYSTEM
 // ================================
+
+/**
+ * Smart search query structure containing parsed field-specific and general search terms.
+ *
+ * @typedef {Object} SmartSearchQuery
+ * @property {string} title - Text to search in dream titles only
+ * @property {string} content - Text to search in dream content only
+ * @property {string} emotion - Text to search in emotions field only
+ * @property {string} tag - Text to search in tags field only
+ * @property {string} sign - Text to search in dream signs field only
+ * @property {string} general - General text to search across all fields
+ * @since 2.04.01
+ */
+
+/**
+ * Parses smart search queries with field-specific prefixes and general search terms.
+ *
+ * This function processes advanced search queries that allow users to search specific
+ * fields using prefixes like "title:flying", "tag:lucid", "emotion:happy", etc. It also
+ * preserves general search terms that should be searched across all fields.
+ *
+ * **Supported field prefixes:**
+ * - `title:` - Search only in dream titles
+ * - `content:` - Search only in dream content/description
+ * - `emotion:` - Search only in emotions field
+ * - `tag:` - Search only in tags field
+ * - `sign:` - Search only in dream signs field
+ *
+ * **Search behavior:**
+ * - Field-specific terms are searched only in their designated fields
+ * - General terms (without prefixes) are searched across all fields
+ * - Multiple field-specific searches can be combined
+ * - Quoted strings preserve spaces: `title:"flying over city"`
+ * - Case-insensitive matching for all search terms
+ *
+ * @function parseSmartSearchQuery
+ * @param {string} searchInput - Raw search input from user
+ * @returns {SmartSearchQuery} Parsed search object with field-specific and general terms
+ * @since 2.04.01
+ * @example
+ * // Field-specific search with general terms
+ * parseSmartSearchQuery('title:flying tag:lucid nightmare')
+ * // Returns: { title: 'flying', tag: 'lucid', general: 'nightmare', ... }
+ *
+ * @example
+ * // Multiple field searches
+ * parseSmartSearchQuery('emotion:happy tag:family title:vacation')
+ * // Returns: { emotion: 'happy', tag: 'family', title: 'vacation', general: '', ... }
+ *
+ * @example
+ * // Quoted strings with spaces
+ * parseSmartSearchQuery('title:"flying over city" content:"red car"')
+ * // Returns: { title: 'flying over city', content: 'red car', general: '', ... }
+ *
+ * @example
+ * // General search (no prefixes)
+ * parseSmartSearchQuery('flying nightmare school')
+ * // Returns: { general: 'flying nightmare school', title: '', content: '', ... }
+ */
+function parseSmartSearchQuery(searchInput) {
+    if (!searchInput || typeof searchInput !== 'string') {
+        return {
+            title: '',
+            content: '',
+            emotion: '',
+            tag: '',
+            sign: '',
+            general: ''
+        };
+    }
+
+    // Initialize result object
+    const result = {
+        title: '',
+        content: '',
+        emotion: '',
+        tag: '',
+        sign: '',
+        general: ''
+    };
+
+    // Field prefix mapping
+    const fieldPrefixes = {
+        'title:': 'title',
+        'content:': 'content',
+        'emotion:': 'emotion',
+        'emotions:': 'emotion', // Alternative plural form
+        'tag:': 'tag',
+        'tags:': 'tag', // Alternative plural form
+        'sign:': 'sign',
+        'signs:': 'sign', // Alternative plural form
+        'dreamsign:': 'sign', // Alternative form
+        'dreamsigns:': 'sign' // Alternative plural form
+    };
+
+    try {
+        // Split the search input into tokens, handling quoted strings
+        const tokens = [];
+        let currentToken = '';
+        let inQuotes = false;
+        let quoteChar = '';
+
+        for (let i = 0; i < searchInput.length; i++) {
+            const char = searchInput[i];
+
+            if ((char === '"' || char === "'") && !inQuotes) {
+                // Start of quoted string
+                inQuotes = true;
+                quoteChar = char;
+            } else if (char === quoteChar && inQuotes) {
+                // End of quoted string
+                inQuotes = false;
+                quoteChar = '';
+            } else if (char === ' ' && !inQuotes) {
+                // Space outside quotes - end current token
+                if (currentToken.trim()) {
+                    tokens.push(currentToken.trim());
+                    currentToken = '';
+                }
+            } else {
+                // Regular character - add to current token
+                currentToken += char;
+            }
+        }
+
+        // Add final token if exists
+        if (currentToken.trim()) {
+            tokens.push(currentToken.trim());
+        }
+
+        // Process tokens to extract field-specific and general terms
+        const generalTerms = [];
+
+        for (const token of tokens) {
+            let matched = false;
+
+            // Check for field prefixes
+            for (const [prefix, field] of Object.entries(fieldPrefixes)) {
+                if (token.toLowerCase().startsWith(prefix)) {
+                    // Extract the search term after the prefix
+                    const searchTerm = token.substring(prefix.length).trim();
+
+                    if (searchTerm) {
+                        // Combine multiple field-specific terms with space
+                        if (result[field]) {
+                            result[field] += ' ' + searchTerm;
+                        } else {
+                            result[field] = searchTerm;
+                        }
+                    }
+                    matched = true;
+                    break;
+                }
+            }
+
+            // If no field prefix matched, add to general terms
+            if (!matched) {
+                generalTerms.push(token);
+            }
+        }
+
+        // Combine general terms
+        result.general = generalTerms.join(' ').toLowerCase();
+
+        // Convert all field-specific terms to lowercase for case-insensitive search
+        result.title = result.title.toLowerCase();
+        result.content = result.content.toLowerCase();
+        result.emotion = result.emotion.toLowerCase();
+        result.tag = result.tag.toLowerCase();
+        result.sign = result.sign.toLowerCase();
+
+    } catch (error) {
+        console.error('Error parsing smart search query:', error);
+        // Fallback to treating entire input as general search
+        result.general = searchInput.toLowerCase();
+    }
+
+    return result;
+}
     
     /**
-     * Applies search terms and filter criteria to filter the dream collection.
-     * 
-     * This function performs comprehensive filtering including text search across
-     * multiple dream fields (title, content, emotions, tags, dream signs), lucidity
-     * filtering, and date range filtering. It handles invalid data gracefully and
-     * provides detailed error logging for debugging.
-     * 
+     * Applies search terms and filter criteria to filter the dream collection with smart search support.
+     *
+     * This function performs comprehensive filtering including smart field-specific search,
+     * general text search across multiple dream fields, lucidity filtering, and date range
+     * filtering. It supports advanced search queries with field prefixes like "title:flying"
+     * or "tag:lucid" while maintaining backward compatibility with simple text searches.
+     *
+     * **Smart Search Features:**
+     * - Field-specific search: `title:flying`, `tag:lucid`, `emotion:happy`
+     * - Multiple field searches: `title:flying tag:lucid content:nightmare`
+     * - Quoted strings: `title:"flying over city"`
+     * - General search mixed with field-specific: `title:flying nightmare`
+     * - Backward compatible with simple text searches
+     *
      * @function filterDreams
      * @param {Object[]} dreams - Array of dream objects to filter
-     * @param {string} searchTerm - Lowercase search term to match against dream fields
+     * @param {string} searchTerm - Search query (supports smart search syntax or simple text)
      * @param {string} filterType - Filter type: 'all', 'lucid', or 'non-lucid'
      * @param {string} startDate - Start date for date range filter (ISO format)
      * @param {string} endDate - End date for date range filter (ISO format)
      * @returns {Object[]} Filtered array of dream objects matching all criteria
      * @since 1.0.0
      * @example
-     * const filtered = filterDreams(dreams, 'flying', 'lucid', '2024-01-01', '2024-12-31');
-     * 
+     * // Smart search with field-specific queries
+     * const filtered = filterDreams(dreams, 'title:flying tag:lucid', 'all', '', '');
+     *
      * @example
-     * // Search all dreams for 'nightmare' keyword
-     * const nightmares = filterDreams(dreams, 'nightmare', 'all', '', '');
+     * // Mixed smart search with general terms
+     * const mixed = filterDreams(dreams, 'title:vacation nightmare family', 'all', '', '');
+     *
+     * @example
+     * // Backward compatible simple text search
+     * const simple = filterDreams(dreams, 'flying', 'lucid', '2024-01-01', '2024-12-31');
      */
     function filterDreams(dreams, searchTerm, filterType, startDate, endDate) {
         if (!Array.isArray(dreams)) return [];
@@ -412,28 +603,76 @@ async function shouldEncryptDream() {
         if(start) start.setHours(0,0,0,0); // Start of the day
         const end = endDate ? new Date(endDate) : null;
         if(end) end.setHours(23,59,59,999); // End of the day
-        
+
+        // Parse smart search query if search term exists
+        let smartQuery = null;
+        if (searchTerm && searchTerm.trim()) {
+            smartQuery = parseSmartSearchQuery(searchTerm);
+        }
+
         return dreams.filter(dream => {
             if (!dream || typeof dream !== 'object' || !dream.timestamp) return false;
-            
+
             try {
+                // Prepare dream field data for searching
                 const title = (dream.title || '').toString().toLowerCase();
                 const content = (dream.content || '').toString().toLowerCase();
                 const emotions = (dream.emotions || '').toString().toLowerCase();
                 const tags = Array.isArray(dream.tags) ? dream.tags.join(' ').toLowerCase() : '';
                 const dreamSigns = Array.isArray(dream.dreamSigns) ? dream.dreamSigns.join(' ').toLowerCase() : '';
-                
-                const matchesSearch = !searchTerm || 
-                    title.includes(searchTerm) ||
-                    content.includes(searchTerm) ||
-                    emotions.includes(searchTerm) ||
-                    tags.includes(searchTerm) ||
-                    dreamSigns.includes(searchTerm);
-                
-                const matchesFilter = filterType === 'all' || 
+
+                let matchesSearch = true;
+
+                // Apply smart search if query exists
+                if (smartQuery) {
+                    let smartMatches = true;
+
+                    // Check field-specific searches
+                    if (smartQuery.title && !title.includes(smartQuery.title)) {
+                        smartMatches = false;
+                    }
+                    if (smartQuery.content && !content.includes(smartQuery.content)) {
+                        smartMatches = false;
+                    }
+                    if (smartQuery.emotion && !emotions.includes(smartQuery.emotion)) {
+                        smartMatches = false;
+                    }
+                    if (smartQuery.tag && !tags.includes(smartQuery.tag)) {
+                        smartMatches = false;
+                    }
+                    if (smartQuery.sign && !dreamSigns.includes(smartQuery.sign)) {
+                        smartMatches = false;
+                    }
+
+                    // Check general search terms across all fields (if any general terms exist)
+                    if (smartQuery.general && smartMatches) {
+                        const generalMatches = title.includes(smartQuery.general) ||
+                                              content.includes(smartQuery.general) ||
+                                              emotions.includes(smartQuery.general) ||
+                                              tags.includes(smartQuery.general) ||
+                                              dreamSigns.includes(smartQuery.general);
+                        if (!generalMatches) {
+                            smartMatches = false;
+                        }
+                    }
+
+                    matchesSearch = smartMatches;
+                } else if (searchTerm && searchTerm.trim()) {
+                    // Fallback to original simple search for non-smart queries
+                    const lowerSearchTerm = searchTerm.toLowerCase();
+                    matchesSearch = title.includes(lowerSearchTerm) ||
+                                   content.includes(lowerSearchTerm) ||
+                                   emotions.includes(lowerSearchTerm) ||
+                                   tags.includes(lowerSearchTerm) ||
+                                   dreamSigns.includes(lowerSearchTerm);
+                }
+
+                // Apply lucidity filter
+                const matchesFilter = filterType === 'all' ||
                     (filterType === 'lucid' && Boolean(dream.isLucid)) ||
                     (filterType === 'non-lucid' && !Boolean(dream.isLucid));
 
+                // Apply date range filter
                 const dreamDate = new Date(dream.timestamp);
                 if(isNaN(dreamDate.getTime())) return false; // Invalid dream date
 
@@ -445,7 +684,7 @@ async function shouldEncryptDream() {
                 } else if (end) {
                     matchesDate = dreamDate <= end;
                 }
-                
+
                 return matchesSearch && matchesFilter && matchesDate;
             } catch (error) {
                 console.error('Error filtering dream:', error, dream);
@@ -2303,6 +2542,7 @@ export {
     renderDreamHTML,
     
     // Filtering and sorting
+    parseSmartSearchQuery,
     filterDreams,
     sortDreams,
     getFilterValues,
