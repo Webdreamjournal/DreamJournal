@@ -428,7 +428,10 @@ const ACTION_MAP = {
         // ================================
         // PIN SECURITY & AUTHENTICATION SYSTEM
         // ================================
-        'verify-pin': () => verifyPin(),                                     // Verify PIN entry for authentication
+        'verify-pin': () => {
+            console.log('verify-pin action triggered');
+            return verifyPin();
+        },                                     // Verify PIN entry for authentication
         'verify-encryption-password': () => verifyEncryptionPassword(),     // Verify encryption password for authentication
         'switch-to-pin-entry': () => showPinOverlay(),                      // Switch from password to PIN authentication
         'hide-pin-overlay': () => hidePinOverlay(),                         // Hide PIN entry overlay
@@ -468,7 +471,10 @@ const ACTION_MAP = {
         // ================================
         // LOCK SCREEN INTERFACE SYSTEM
         // ================================
-        'verify-lock-screen-pin': () => verifyLockScreenPin(),               // Verify PIN on lock screen
+        'verify-lock-screen-pin': () => {
+            console.log('verify-lock-screen-pin action triggered');
+            return verifyLockScreenPin();
+        },               // Verify PIN on lock screen
         'show-lock-screen-forgot-pin': () => showLockScreenForgotPin(),     // Show forgot PIN on lock screen
         'start-lock-screen-title-recovery': () => startLockScreenTitleRecovery(), // Start title recovery on lock screen
         'start-lock-screen-timer-recovery': () => startLockScreenTimerRecovery(), // Start timer recovery on lock screen
@@ -605,14 +611,20 @@ function routeAction(context, event = null) {
  * </select>
  */
 function handleUnifiedClick(event) {
+        console.log('handleUnifiedClick called on:', event.target.tagName, event.target);
+
         // Skip click handling for select elements - they should only use change events
         if (event.target.tagName === 'SELECT') {
             return;
         }
-        
+
         const context = extractActionContext(event.target);
+        console.log('Extracted context:', context);
         if (context) {
+            console.log('Routing action:', context.action);
             routeAction(context, event);
+        } else {
+            console.log('No action context found for element');
         }
     }
 

@@ -1244,34 +1244,68 @@ function updateSecurityControls() {
      */
     function showMessage(type, message, elementId = null) {
         // Clear all messages first
-        document.getElementById('pinFeedback').style.display = 'none';
-        document.getElementById('pinSuccess').style.display = 'none';
-        document.getElementById('pinInfo').style.display = 'none';
-        
+        const pinFeedback = document.getElementById('pinFeedback');
+        const pinSuccess = document.getElementById('pinSuccess');
+        const pinInfo = document.getElementById('pinInfo');
+        const lockScreenFeedback = document.getElementById('lockScreenFeedback');
+
+        if (pinFeedback) pinFeedback.style.display = 'none';
+        if (pinSuccess) pinSuccess.style.display = 'none';
+        if (pinInfo) pinInfo.style.display = 'none';
+        if (lockScreenFeedback) lockScreenFeedback.innerHTML = '';
+
         let element;
         if (elementId) {
             element = document.getElementById(elementId);
         } else {
-            switch(type) {
-                case 'error': element = document.getElementById('pinFeedback'); break;
-                case 'success': element = document.getElementById('pinSuccess'); break;
-                case 'info': element = document.getElementById('pinInfo'); break;
+            // Check if we're on lock screen by checking if PIN overlay is visible
+            const pinOverlay = document.getElementById('pinOverlay');
+            const isLockScreen = !pinOverlay || pinOverlay.style.display === 'none';
+
+            console.log('showMessage: lockScreenFeedback exists:', !!lockScreenFeedback, 'pinFeedback exists:', !!pinFeedback);
+            console.log('showMessage: PIN overlay visible:', pinOverlay && pinOverlay.style.display !== 'none', 'isLockScreen:', isLockScreen);
+
+            if (lockScreenFeedback && isLockScreen) {
+                console.log('showMessage: Using lockScreenFeedback (lock screen context)');
+                element = lockScreenFeedback;
+            } else {
+                console.log('showMessage: Using PIN overlay elements (overlay context)');
+                switch(type) {
+                    case 'error': element = pinFeedback; break;
+                    case 'success': element = pinSuccess; break;
+                    case 'info': element = pinInfo; break;
+                }
             }
         }
-        
+
         if (element) {
-            element.textContent = message;
-            element.className = `notification-message ${type}`;
-            element.style.display = 'block';
-            
+            if (element.id === 'lockScreenFeedback') {
+                // For lock screen, use innerHTML with styled content
+                element.innerHTML = `<div class="notification-message ${type}" style="display: block;">${message}</div>`;
+            } else {
+                // For PIN overlay, use textContent and className
+                element.textContent = message;
+                element.className = `notification-message ${type}`;
+                element.style.display = 'block';
+            }
+
+            console.log('showMessage: Displaying', type, 'message in', element.id);
+
             // Auto-hide success messages after duration
             if (type === 'success') {
                 setTimeout(() => {
-                    element.style.display = 'none';
+                    if (element.id === 'lockScreenFeedback') {
+                        element.innerHTML = '';
+                    } else {
+                        element.style.display = 'none';
+                    }
                 }, CONSTANTS.MESSAGE_DURATION_MEDIUM);
             }
+        } else {
+            console.error('showMessage: No feedback element found for type:', type);
         }
     }
+
 
 // ================================
 // 9. LOCK SCREEN INTERFACE SYSTEM
@@ -1295,13 +1329,10 @@ function updateSecurityControls() {
 async function verifyLockScreenPin() {
         const pinInput = document.getElementById('lockScreenPinInput');
         if (!pinInput) return;
-        
+
         const enteredPin = pinInput.value;
         if (!enteredPin) {
-            await ErrorMessenger.showError('AUTH_PIN_INVALID', {}, {
-                forceContext: 'lock',
-                duration: 5000
-            });
+            showLockScreenMessage('error', 'Please enter a PIN');
             return;
         }
         
@@ -1310,10 +1341,7 @@ async function verifyLockScreenPin() {
             const isValid = await verifyPinHash(enteredPin, storedData);
             
             if (isValid) {
-                await ErrorMessenger.showSuccess('AUTH_PIN_SETUP', {}, {
-                    forceContext: 'lock',
-                    duration: 2000
-                });
+                showLockScreenMessage('success', 'PIN verified! Unlocking journal...');
 
                 setFailedPinAttempts(0);
                 setUnlocked(true);
@@ -1335,34 +1363,17 @@ async function verifyLockScreenPin() {
                 }, 200);
                 
             } else {
-                const currentAttempts = getFailedPinAttempts() + 1;
-                setFailedPinAttempts(currentAttempts);
+                setFailedPinAttempts(getFailedPinAttempts() + 1);
                 pinInput.value = '';
-
-                const attemptsRemaining = CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT - currentAttempts;
-
-                if (currentAttempts >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
-                    await ErrorMessenger.showError('AUTH_PIN_LOCKED', {}, {
-                        forceContext: 'lock',
-                        duration: 8000
-                    });
+                if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
+                    showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
                 } else {
-                    await ErrorMessenger.showError('AUTH_PIN_INVALID', {
-                        attemptsRemaining
-                    }, {
-                        forceContext: 'lock',
-                        duration: 6000
-                    });
+                    showLockScreenMessage('error', 'Incorrect PIN. Please try again.');
                 }
             }
         } catch (error) {
             console.error('Lock screen PIN verification error:', error);
-            await ErrorMessenger.showError('AUTH_PIN_INVALID', {
-                error: 'Verification system error'
-            }, {
-                forceContext: 'lock',
-                duration: 6000
-            });
+            showLockScreenMessage('error', 'PIN verification failed. Please try again.');
             pinInput.value = '';
         }
     }
@@ -1385,15 +1396,35 @@ async function verifyLockScreenPin() {
         const enteredPin = document.getElementById('pinInput').value;
         const feedback = document.getElementById('pinFeedback');
 
+        // Clear any previous feedback
+        if (feedback) {
+            feedback.innerHTML = '';
+            feedback.style.display = 'none';
+        }
+
+        console.log('verifyPin called - enteredPin:', enteredPin ? 'has value' : 'empty', 'feedback element:', feedback);
+
         if (!enteredPin) {
-            feedback.innerHTML = '<span style="color: var(--error-color);">Please enter your PIN</span>';
+            if (feedback) {
+                feedback.innerHTML = '<span style="color: var(--error-color);">Please enter your PIN</span>';
+                feedback.className = 'notification-message error';
+                feedback.style.display = 'block';
+                feedback.style.visibility = 'visible';
+                console.log('Showing empty PIN error');
+            }
             return;
         }
 
         try {
             const storedData = getStoredPinData();
             if (!storedData) {
-                feedback.innerHTML = '<span style="color: var(--error-color);">No PIN found. Please set up a new PIN.</span>';
+                if (feedback) {
+                    feedback.innerHTML = '<span style="color: var(--error-color);">No PIN found. Please set up a new PIN.</span>';
+                    feedback.className = 'notification-message error';
+                    feedback.style.display = 'block';
+                    feedback.style.visibility = 'visible';
+                    console.log('Showing no PIN found error');
+                }
                 return;
             }
 
@@ -1430,27 +1461,33 @@ async function verifyLockScreenPin() {
                 const attemptsRemaining = CONSTANTS.PIN_MAX_ATTEMPTS - currentAttempts;
 
                 if (currentAttempts >= CONSTANTS.PIN_MAX_ATTEMPTS) {
-                    await ErrorMessenger.showError('AUTH_PIN_LOCKED', {}, {
-                        persistent: true
-                    });
+                    if (feedback) {
+                        feedback.innerHTML = '<span style="color: var(--error-color);">Too many failed attempts. Account locked.</span>';
+                        feedback.className = 'notification-message error';
+                        feedback.style.display = 'block';
+                        feedback.style.visibility = 'visible';
+                        console.log('Showing too many attempts error');
+                    }
                     setTimeout(() => showForgotPin(), 1000);
                 } else {
-                    await ErrorMessenger.showError('AUTH_PIN_INVALID', {
-                        attemptsRemaining
-                    }, {
-                        duration: 6000
-                    });
-                    feedback.innerHTML = '<span style="color: var(--error-color);">See error message above for details.</span>';
+                    if (feedback) {
+                        feedback.innerHTML = `<span style="color: var(--error-color);">Incorrect PIN. ${attemptsRemaining} attempt${attemptsRemaining !== 1 ? 's' : ''} remaining.</span>`;
+                        feedback.className = 'notification-message error';
+                        feedback.style.display = 'block';
+                        feedback.style.visibility = 'visible';
+                        console.log('Showing incorrect PIN error, attempts remaining:', attemptsRemaining);
+                    }
                 }
             }
         } catch (error) {
             console.error('PIN verification error:', error);
-            await ErrorMessenger.showError('AUTH_PIN_INVALID', {
-                error: 'System verification error'
-            }, {
-                duration: 6000
-            });
-            feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification system error. See message above.</span>';
+            if (feedback) {
+                feedback.innerHTML = '<span style="color: var(--error-color);">PIN verification system error. Please try again.</span>';
+                feedback.className = 'notification-message error';
+                feedback.style.display = 'block';
+                feedback.style.visibility = 'visible';
+                console.log('Showing system error');
+            }
             document.getElementById('pinInput').value = '';
         }
     }
@@ -3922,6 +3959,7 @@ export {
     hidePinOverlay,
     resetPinOverlay,
     verifyLockScreenPin,
+    showLockScreenMessage,
     returnToLockScreen,
     
     // Timer and recovery functions
