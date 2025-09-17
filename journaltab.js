@@ -100,7 +100,7 @@ function renderJournalTab(tabPanel) {
                     aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
                     style="cursor: pointer; user-select: none;">
                     📝 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Press Enter to collapse)</span>
+                    <span class="text-xs text-secondary font-normal">(Click to collapse)</span>
                 </h3>
                 
                 <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
@@ -186,7 +186,7 @@ function renderJournalTab(tabPanel) {
                     aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
                     style="cursor: pointer; user-select: none;">
                     📝 Record Your Dream 
-                    <span class="text-xs text-secondary font-normal">(Press Enter to expand)</span>
+                    <span class="text-xs text-secondary font-normal">(Click to expand)</span>
                 </h3>
             </div>
             
