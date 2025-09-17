@@ -1066,6 +1066,36 @@
             align-items: center;
             flex-wrap: wrap;
         }
+
+        .export-range-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .export-format-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .export-format-checkbox {
+            margin: 0;
+        }
+
+        .export-format-label {
+            margin: 0;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .export-format-label:hover {
+            color: var(--text-primary);
+        }
         
         .autocomplete-management-list {
             display: flex;

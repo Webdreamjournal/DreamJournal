@@ -1390,6 +1390,248 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
         }
     }
 
+/**
+ * Export currently displayed dreams with optional AI analysis formatting.
+ *
+ * This function exports dreams that match the current search/filter criteria
+ * on the Journal tab. The export format depends on the "Preformatted for AI Analysis"
+ * checkbox - when checked, it behaves identically to exportForAIAnalysis(),
+ * when unchecked, it exports in simple text format similar to exportEntries().
+ *
+ * The function uses the same filtering and sorting logic as the dream display
+ * to ensure users get exactly the dreams they're currently viewing.
+ *
+ * @async
+ * @function exportRange
+ * @throws {Error} When app is locked, no dreams match current filters, or export fails
+ * @returns {Promise<void>}
+ * @since 2.04.01
+ *
+ * @example
+ * // Export current range with simple formatting
+ * await exportRange(); // checkbox unchecked
+ *
+ * @example
+ * // Export current range with AI analysis formatting
+ * await exportRange(); // checkbox checked
+ *
+ * @example
+ * // Use cases:
+ * // - Export filtered/searched subset of dreams
+ * // - Export dreams from specific date range
+ * // - Export lucid dreams only with AI formatting
+ * // - Export recent dreams for analysis
+ */
+async function exportRange() {
+    if (!validateAppAccess('Please unlock your journal first to export dreams.')) {
+        return;
+    }
+
+    const { searchTerm, filterType, sortType, startDate, endDate } = getFilterValues();
+    const allDreams = await loadDreams();
+
+    // Apply same filtering as display
+    let dreams = filterDreams(allDreams, searchTerm, filterType, startDate, endDate);
+
+    // Apply same sorting as display for consistency
+    dreams.sort((a, b) => {
+        switch (sortType) {
+            case 'oldest':
+                return new Date(a.timestamp) - new Date(b.timestamp);
+
+            case 'lucid-first':
+                if (a.isLucid && !b.isLucid) return -1;
+                if (!a.isLucid && b.isLucid) return 1;
+                return new Date(b.timestamp) - new Date(a.timestamp);
+
+            case 'longest':
+                return b.content.length - a.content.length;
+
+            case 'newest':
+            default:
+                return new Date(b.timestamp) - new Date(a.timestamp);
+        }
+    });
+
+    if (dreams.length === 0) {
+        const filterText = filterType === 'all' ? '' :
+            filterType === 'lucid' ? ' lucid' : ' non-lucid';
+
+        const noResultsMessage = `No${filterText} dreams to export${searchTerm ? ' matching your search' : ''}. ${filterType === 'lucid' ? 'Try recording some lucid dreams first!' : 'Record some dreams first!'}`;
+
+        createInlineMessage('error', noResultsMessage, {
+            container: document.querySelector('.main-content'),
+            position: 'top',
+            duration: 5000
+        });
+        return;
+    }
+
+    try {
+        // Check if AI formatting is enabled
+        const aiFormatCheckbox = document.getElementById('exportFormatAI');
+        const useAIFormat = aiFormatCheckbox && aiFormatCheckbox.checked;
+
+        if (useAIFormat) {
+            // AI Analysis Format - identical to exportForAIAnalysis behavior
+            // Performance optimization: Limit analysis to most recent dreams based on size
+            const maxDreams = dreams.length > CONSTANTS.AI_ANALYSIS_THRESHOLD ? CONSTANTS.AI_ANALYSIS_RECENT_LIMIT : CONSTANTS.AI_ANALYSIS_TOTAL_LIMIT;
+            const recentDreams = dreams.slice(0, maxDreams);
+
+            // Format dreams for AI analysis
+            const dreamTexts = recentDreams.map(dream => {
+                const lucidStatus = dream.isLucid ? '[LUCID DREAM]' : '[REGULAR DREAM]';
+                const date = formatDisplayDate(dream.timestamp);
+                const emotions = dream.emotions ? ` [EMOTIONS: ${dream.emotions}]` : '';
+                const tags = Array.isArray(dream.tags) && dream.tags.length > 0 ? ` [TAGS: ${dream.tags.join(', ')}]` : '';
+                const dreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? ` [DREAM SIGNS: ${dream.dreamSigns.join(', ')}]` : '';
+                return `${lucidStatus}${emotions}${tags}${dreamSigns} ${date} - ${dream.title}: ${dream.content}`;
+            }).join('\n\n');
+
+            const totalDreams = dreams.length;
+            const lucidCount = dreams.filter(d => d.isLucid).length;
+            const lucidPercentage = totalDreams > 0 ? ((lucidCount / totalDreams) * 100).toFixed(1) : 0;
+
+            // Create the full AI analysis prompt
+            const aiAnalysisPrompt = `Analyze these dream journal entries for patterns, themes, and insights. The user has ${totalDreams} total dreams with ${lucidCount} lucid dreams (${lucidPercentage}% lucid rate). Each entry includes emotions, general tags/themes, and dream signs (specific lucidity triggers) when available.
+
+${dreamTexts}
+
+Please provide a comprehensive analysis including:
+
+1. **Dream Patterns & Themes**: What recurring elements, settings, characters, or situations appear across dreams? How do the user's tags reveal their most common dream themes?
+
+2. **Dream Signs Analysis**: What specific dream signs appear most frequently? Which dream signs correlate with lucid dreams vs regular dreams? What are the user's strongest personal lucidity triggers?
+
+3. **Emotional Patterns**: What emotional themes emerge across dreams? How do emotions correlate with dream content, lucidity, or timing? Are there emotional triggers or patterns?
+
+4. **Tag-Based Insights**: What do the user's tags reveal about their dream world? Are there tag patterns that correlate with lucidity, emotions, or specific time periods?
+
+5. **Lucid Dream Analysis**: What triggers or signs indicate increased lucidity? How do tagged elements, emotions, and dream signs work together to create lucid experiences?
+
+6. **Symbolic Interpretation**: What symbols or metaphors appear frequently and what might they represent? How do emotions and tags connect to symbolic content?
+
+7. **Practical Recommendations**: Specific techniques to improve dream recall, increase lucidity recognition, or work with recurring themes. How can the user leverage their personal dream signs for better lucidity?
+
+8. **Sleep & Dream Quality**: Any observations about dream complexity, vividness, timing patterns, and emotional intensity based on the available data?
+
+Make the analysis personal, insightful, and actionable. Focus on helping the user understand their unique dream patterns, recurring dream signs, emotional landscapes, and how to enhance their lucid dreaming practice using their personal data.
+
+${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams.length} most recent dreams of ${totalDreams} total)` : ''}`;
+
+            // Create and download the AI analysis file
+            const blob = new Blob([aiAnalysisPrompt], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dream-range-analysis-${new Date().toISOString().split('T')[0]}.txt`;
+            a.style.display = 'none';
+
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                if (document.body.contains(a)) {
+                    document.body.removeChild(a);
+                }
+                URL.revokeObjectURL(url);
+            }, 3000);
+
+            // Show success message
+            const analysisMessage = `Range AI analysis created! (${recentDreams.length} dreams, ${lucidPercentage}% lucid rate)`;
+
+            createInlineMessage('success', analysisMessage, {
+                container: document.querySelector('.main-content'),
+                position: 'top',
+                duration: 4000
+            });
+
+        } else {
+            // Simple Text Format - similar to exportEntries but for filtered dreams only
+            const exportText = dreams.map(dream => {
+                // Safety checks for dream properties
+                const safeTitle = dream && dream.title ? dream.title : 'Untitled Dream';
+                const safeTimestamp = dream && dream.timestamp ? dream.timestamp : new Date().toISOString();
+                const safeContent = dream && dream.content ? dream.content : 'No content';
+                const safeIsLucid = dream && dream.isLucid ? 'Lucid Dream ✨' : 'Regular Dream';
+                const safeEmotions = dream && dream.emotions ? dream.emotions : '';
+                const safeTags = Array.isArray(dream.tags) && dream.tags.length > 0 ? dream.tags.join(', ') : '';
+                const safeDreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? dream.dreamSigns.join(', ') : '';
+
+                // Include the original ID for consistency
+                const safeId = dream && dream.id ? dream.id : generateUniqueId();
+
+                let exportEntry = `Title: ${safeTitle}\n` +
+                       `ID: ${safeId}\n` +
+                       `Timestamp: ${safeTimestamp}\n` +
+                       `Type: ${safeIsLucid}\n`;
+
+                // Add emotions if they exist
+                if (safeEmotions) {
+                    exportEntry += `Emotions: ${safeEmotions}\n`;
+                }
+
+                // Add tags if they exist
+                if (safeTags) {
+                    exportEntry += `Tags: ${safeTags}\n`;
+                }
+
+                // Add dream signs if they exist
+                if (safeDreamSigns) {
+                    exportEntry += `Dream Signs: ${safeDreamSigns}\n`;
+                }
+
+                exportEntry += `Content: ${safeContent}\n` +
+                             `${'='.repeat(50)}\n`;
+
+                return exportEntry;
+            }).join('\n');
+
+            if (!exportText || exportText.trim().length === 0) {
+                throw new Error('No valid dream data found to export');
+            }
+
+            // Create and download the simple text file
+            const blob = new Blob([exportText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dream-range-${new Date().toISOString().split('T')[0]}.txt`;
+            a.style.display = 'none';
+
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                if (document.body.contains(a)) {
+                    document.body.removeChild(a);
+                }
+                URL.revokeObjectURL(url);
+            }, 3000);
+
+            // Show success message
+            const totalDreams = dreams.length;
+            const lucidCount = dreams.filter(d => d.isLucid).length;
+
+            createInlineMessage('success', `Range export created! (${totalDreams} dreams, ${lucidCount} lucid)`, {
+                container: document.querySelector('.main-content'),
+                position: 'top',
+                duration: 4000
+            });
+        }
+
+    } catch (error) {
+        console.error('Range export error:', error);
+        createInlineMessage('error', 'Error creating range export: ' + error.message, {
+            container: document.querySelector('.main-content'),
+            position: 'top',
+            duration: 5000
+        });
+    }
+}
+
 // ================================
 // 6. PASSWORD DIALOG SYSTEM
 // ================================
@@ -1657,7 +1899,7 @@ export {
     importEntries,
     exportAllData,
     importAllData,
-    exportForAIAnalysis,
+    exportRange,
     
     // Utility functions
     validateAppAccess,

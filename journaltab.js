@@ -310,8 +310,27 @@ function renderJournalTab(tabPanel) {
 
                 <!-- Dreams Management Controls -->
                 <div class="dreams-controls">
-                    <!-- AI Analysis Export Button - Exports dreams formatted for AI analysis -->
-                    <button data-action="export-ai" class="btn btn-success" title="Export a prompt for analysis by an AI model">Export for AI Analysis</button>
+                    <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
+                    <div class="export-range-container">
+                        <button data-action="export-range"
+                                class="btn btn-success"
+                                title="Export currently displayed dreams as text file"
+                                aria-describedby="export-format-help">
+                            Export Range
+                        </button>
+                        <div class="export-format-option">
+                            <input type="checkbox"
+                                   id="exportFormatAI"
+                                   class="export-format-checkbox"
+                                   aria-describedby="export-format-help">
+                            <label for="exportFormatAI" class="export-format-label">
+                                Preformatted for AI Analysis
+                            </label>
+                        </div>
+                        <small id="export-format-help" class="small-helper">
+                            When checked, exports include AI analysis prompt and formatting. When unchecked, exports simple dream text.
+                        </small>
+                    </div>
                 </div>
 
                 <!-- Visual Break Between Controls and Dream List -->

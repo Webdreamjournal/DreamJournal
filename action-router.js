@@ -94,7 +94,7 @@ import { switchStatsTab, renderCalendar } from './statstab.js';
 
 // Import/Export system
 import {
-    exportEntries, exportAllData, exportForAIAnalysis, confirmExportPassword,
+    exportEntries, exportAllData, exportRange, confirmExportPassword,
     cancelExportPassword, confirmImportPassword, cancelImportPassword
 } from './import-export.js';
 
@@ -314,7 +314,7 @@ const ACTION_MAP = {
         'import-dreams': () => document.getElementById('importFile').click(), // Trigger dreams import file dialog
         'export-all-data': () => exportAllData(),                           // Export complete application data to JSON
         'import-all-data': () => document.getElementById('importAllDataFile').click(), // Trigger complete data import file dialog
-        'export-ai': () => exportForAIAnalysis(),                           // Export dreams formatted for AI analysis
+        'export-range': () => exportRange(),                               // Export currently displayed dreams with optional AI formatting
         'clear-search-filters': () => clearSearchFilters(),                 // Clear all search and filter criteria to defaults
 
         // ================================
