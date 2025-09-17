@@ -1473,13 +1473,11 @@ async function exportRange() {
         const useAIFormat = aiFormatCheckbox && aiFormatCheckbox.checked;
 
         if (useAIFormat) {
-            // AI Analysis Format - identical to exportForAIAnalysis behavior
-            // Performance optimization: Limit analysis to most recent dreams based on size
-            const maxDreams = dreams.length > CONSTANTS.AI_ANALYSIS_THRESHOLD ? CONSTANTS.AI_ANALYSIS_RECENT_LIMIT : CONSTANTS.AI_ANALYSIS_TOTAL_LIMIT;
-            const recentDreams = dreams.slice(0, maxDreams);
+            // AI Analysis Format - export ALL currently filtered dreams (no artificial limits)
+            // User controls the dream count through their search/filter/pagination settings
 
-            // Format dreams for AI analysis
-            const dreamTexts = recentDreams.map(dream => {
+            // Format all filtered dreams for AI analysis
+            const dreamTexts = dreams.map(dream => {
                 const lucidStatus = dream.isLucid ? '[LUCID DREAM]' : '[REGULAR DREAM]';
                 const date = formatDisplayDate(dream.timestamp);
                 const emotions = dream.emotions ? ` [EMOTIONS: ${dream.emotions}]` : '';
@@ -1515,9 +1513,7 @@ Please provide a comprehensive analysis including:
 
 8. **Sleep & Dream Quality**: Any observations about dream complexity, vividness, timing patterns, and emotional intensity based on the available data?
 
-Make the analysis personal, insightful, and actionable. Focus on helping the user understand their unique dream patterns, recurring dream signs, emotional landscapes, and how to enhance their lucid dreaming practice using their personal data.
-
-${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams.length} most recent dreams of ${totalDreams} total)` : ''}`;
+Make the analysis personal, insightful, and actionable. Focus on helping the user understand their unique dream patterns, recurring dream signs, emotional landscapes, and how to enhance their lucid dreaming practice using their personal data.`;
 
             // Create and download the AI analysis file
             const blob = new Blob([aiAnalysisPrompt], { type: 'text/plain' });
@@ -1539,7 +1535,7 @@ ${recentDreams.length < totalDreams ? `\n(Note: Analysis based on ${recentDreams
             }, 3000);
 
             // Show success message
-            const analysisMessage = `Range AI analysis created! (${recentDreams.length} dreams, ${lucidPercentage}% lucid rate)`;
+            const analysisMessage = `Range AI analysis created! (${totalDreams} dreams, ${lucidPercentage}% lucid rate)`;
 
             createInlineMessage('success', analysisMessage, {
                 container: document.querySelector('.main-content'),
