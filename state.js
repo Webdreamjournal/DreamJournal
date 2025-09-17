@@ -493,13 +493,73 @@ let failedPinAttempts = 0;
  */
 let isDreamFormCollapsed = false;
 
+// ===================================================================================
+// SETTINGS PAGE COLLAPSE STATE
+// ===================================================================================
+
+/**
+ * Current collapse state of the Appearance settings section.
+ *
+ * Controls the visibility of the Appearance settings section content.
+ * When true, the section is collapsed to save screen space. When false,
+ * the full section content is displayed.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let isSettingsAppearanceCollapsed = false;
+
+/**
+ * Current collapse state of the Security settings section.
+ *
+ * Controls the visibility of the Security settings section content.
+ * When true, the section is collapsed to save screen space. When false,
+ * the full section content is displayed.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let isSettingsSecurityCollapsed = false;
+
+/**
+ * Current collapse state of the Data Management settings section.
+ *
+ * Controls the visibility of the Data Management settings section content.
+ * When true, the section is collapsed to save screen space. When false,
+ * the full section content is displayed.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let isSettingsDataCollapsed = false;
+
+/**
+ * Current collapse state of the Autocomplete Management settings section.
+ *
+ * Controls the visibility of the Autocomplete Management settings section content.
+ * When true, the section is collapsed to save screen space. When false,
+ * the full section content is displayed.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let isSettingsAutocompleteCollapsed = false;
+
+// ===================================================================================
+// VOICE INTERFACE STATE
+// ===================================================================================
+
 /**
  * Currently active tab in the voice interface section.
- * 
+ *
  * Determines which voice-related interface is displayed to the user.
  * Valid values are 'record' for the recording interface and 'stored'
  * for the stored voice notes interface.
- * 
+ *
  * @type {('record'|'stored')}
  * @default 'record'
  * @since 1.0.0
@@ -822,7 +882,7 @@ function setIsDreamFormCollapsed(collapsed) {
 
 /**
  * Gets the current dream form collapsed state.
- * 
+ *
  * @returns {boolean} True if the dream form is collapsed, false otherwise
  * @since 2.02.06
  */
@@ -830,9 +890,125 @@ function getIsDreamFormCollapsed() {
     return isDreamFormCollapsed;
 }
 
+// ===================================================================================
+// SETTINGS PAGE COLLAPSE STATE GETTERS/SETTERS
+// ===================================================================================
+
+/**
+ * Sets the appearance settings section collapsed state.
+ *
+ * @param {boolean} collapsed - Whether the appearance settings section is collapsed
+ * @returns {void}
+ * @since 2.04.01
+ * @example
+ * // Collapse the appearance settings section
+ * setIsSettingsAppearanceCollapsed(true);
+ */
+function setIsSettingsAppearanceCollapsed(collapsed) {
+    isSettingsAppearanceCollapsed = collapsed;
+}
+
+/**
+ * Gets the current appearance settings section collapsed state.
+ *
+ * @returns {boolean} True if the appearance settings section is collapsed, false otherwise
+ * @since 2.04.01
+ * @example
+ * // Check if appearance section is collapsed
+ * const isCollapsed = getIsSettingsAppearanceCollapsed();
+ */
+function getIsSettingsAppearanceCollapsed() {
+    return isSettingsAppearanceCollapsed;
+}
+
+/**
+ * Sets the security settings section collapsed state.
+ *
+ * @param {boolean} collapsed - Whether the security settings section is collapsed
+ * @returns {void}
+ * @since 2.04.01
+ * @example
+ * // Collapse the security settings section
+ * setIsSettingsSecurityCollapsed(true);
+ */
+function setIsSettingsSecurityCollapsed(collapsed) {
+    isSettingsSecurityCollapsed = collapsed;
+}
+
+/**
+ * Gets the current security settings section collapsed state.
+ *
+ * @returns {boolean} True if the security settings section is collapsed, false otherwise
+ * @since 2.04.01
+ * @example
+ * // Check if security section is collapsed
+ * const isCollapsed = getIsSettingsSecurityCollapsed();
+ */
+function getIsSettingsSecurityCollapsed() {
+    return isSettingsSecurityCollapsed;
+}
+
+/**
+ * Sets the data management settings section collapsed state.
+ *
+ * @param {boolean} collapsed - Whether the data settings section is collapsed
+ * @returns {void}
+ * @since 2.04.01
+ * @example
+ * // Collapse the data management settings section
+ * setIsSettingsDataCollapsed(true);
+ */
+function setIsSettingsDataCollapsed(collapsed) {
+    isSettingsDataCollapsed = collapsed;
+}
+
+/**
+ * Gets the current data management settings section collapsed state.
+ *
+ * @returns {boolean} True if the data settings section is collapsed, false otherwise
+ * @since 2.04.01
+ * @example
+ * // Check if data section is collapsed
+ * const isCollapsed = getIsSettingsDataCollapsed();
+ */
+function getIsSettingsDataCollapsed() {
+    return isSettingsDataCollapsed;
+}
+
+/**
+ * Sets the autocomplete management settings section collapsed state.
+ *
+ * @param {boolean} collapsed - Whether the autocomplete settings section is collapsed
+ * @returns {void}
+ * @since 2.04.01
+ * @example
+ * // Collapse the autocomplete management settings section
+ * setIsSettingsAutocompleteCollapsed(true);
+ */
+function setIsSettingsAutocompleteCollapsed(collapsed) {
+    isSettingsAutocompleteCollapsed = collapsed;
+}
+
+/**
+ * Gets the current autocomplete management settings section collapsed state.
+ *
+ * @returns {boolean} True if the autocomplete settings section is collapsed, false otherwise
+ * @since 2.04.01
+ * @example
+ * // Check if autocomplete section is collapsed
+ * const isCollapsed = getIsSettingsAutocompleteCollapsed();
+ */
+function getIsSettingsAutocompleteCollapsed() {
+    return isSettingsAutocompleteCollapsed;
+}
+
+// ===================================================================================
+// PAGINATION STATE GETTERS/SETTERS
+// ===================================================================================
+
 /**
  * Sets the current page number for pagination.
- * 
+ *
  * @param {number} page - The page number to set
  * @since 2.02.06
  */
@@ -1238,6 +1414,14 @@ export {
     getCompletedGoalsPage,
     setIsDreamFormCollapsed,
     getIsDreamFormCollapsed,
+    setIsSettingsAppearanceCollapsed,
+    getIsSettingsAppearanceCollapsed,
+    setIsSettingsSecurityCollapsed,
+    getIsSettingsSecurityCollapsed,
+    setIsSettingsDataCollapsed,
+    getIsSettingsDataCollapsed,
+    setIsSettingsAutocompleteCollapsed,
+    getIsSettingsAutocompleteCollapsed,
     setCurrentPage,
     getCurrentPage,
     setScrollDebounceTimer,
@@ -1315,6 +1499,10 @@ export {
     
     // Form & Tab State Management
     isDreamFormCollapsed,
+    isSettingsAppearanceCollapsed,
+    isSettingsSecurityCollapsed,
+    isSettingsDataCollapsed,
+    isSettingsAutocompleteCollapsed,
     activeVoiceTab,
     activeAppTab,
     isAppLocked,

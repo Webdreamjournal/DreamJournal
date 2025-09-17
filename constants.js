@@ -16,14 +16,62 @@
 
 /**
  * Storage key for dream form collapse state.
- * 
+ *
  * Used to persist whether the dream entry form is collapsed or expanded
  * across browser sessions for better user experience.
- * 
+ *
  * @constant {string}
  * @since 2.0.0
  */
 const DREAM_FORM_COLLAPSE_KEY = 'dreamFormCollapsed';
+
+// ===================================================================================
+// SETTINGS PAGE COLLAPSE STATE KEYS
+// ===================================================================================
+
+/**
+ * Storage key for settings appearance section collapse state.
+ *
+ * Used to persist whether the Appearance settings section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const SETTINGS_APPEARANCE_COLLAPSE_KEY = 'settingsAppearanceCollapsed';
+
+/**
+ * Storage key for settings security section collapse state.
+ *
+ * Used to persist whether the Security settings section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const SETTINGS_SECURITY_COLLAPSE_KEY = 'settingsSecurityCollapsed';
+
+/**
+ * Storage key for settings data management section collapse state.
+ *
+ * Used to persist whether the Data Management settings section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const SETTINGS_DATA_COLLAPSE_KEY = 'settingsDataCollapsed';
+
+/**
+ * Storage key for settings autocomplete section collapse state.
+ *
+ * Used to persist whether the Autocomplete Management settings section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY = 'settingsAutocompleteCollapsed';
 
 /**
  * Storage key for pagination preference setting.
@@ -664,6 +712,10 @@ const commonEmotions = [
 // Export all constants, templates, and functions for ES module compatibility
 export {
     DREAM_FORM_COLLAPSE_KEY,
+    SETTINGS_APPEARANCE_COLLAPSE_KEY,
+    SETTINGS_SECURITY_COLLAPSE_KEY,
+    SETTINGS_DATA_COLLAPSE_KEY,
+    SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
     PAGINATION_STORAGE_KEY,
     DEFAULT_PAGINATION_LIMIT,
     CONSTANTS,

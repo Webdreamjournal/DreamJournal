@@ -22,7 +22,18 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
-import { CONSTANTS, DREAM_FORM_COLLAPSE_KEY, getTipsCount, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
+import {
+    CONSTANTS,
+    DREAM_FORM_COLLAPSE_KEY,
+    SETTINGS_APPEARANCE_COLLAPSE_KEY,
+    SETTINGS_SECURITY_COLLAPSE_KEY,
+    SETTINGS_DATA_COLLAPSE_KEY,
+    SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+    getTipsCount,
+    commonTags,
+    commonDreamSigns,
+    commonEmotions
+} from './constants.js';
 import {
     getActiveAppTab,
     setActiveAppTab,
@@ -36,6 +47,14 @@ import {
     setCurrentTipIndex,
     getIsDreamFormCollapsed,
     setIsDreamFormCollapsed,
+    getIsSettingsAppearanceCollapsed,
+    setIsSettingsAppearanceCollapsed,
+    getIsSettingsSecurityCollapsed,
+    setIsSettingsSecurityCollapsed,
+    getIsSettingsDataCollapsed,
+    setIsSettingsDataCollapsed,
+    getIsSettingsAutocompleteCollapsed,
+    setIsSettingsAutocompleteCollapsed,
     asyncMutex,
     getActiveVoiceTab,
     setActiveVoiceTab
@@ -1586,6 +1605,162 @@ function toggleDreamForm(shouldMoveFocus = false) {
             try { localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, 'true'); } catch (e) {}
         }
     }
+
+/**
+ * Toggles the visibility of a specific settings section between expanded and collapsed states.
+ *
+ * This function provides collapsible functionality for settings page sections,
+ * allowing users to show/hide section content to organize their interface.
+ * State is persisted across browser sessions using localStorage for each section independently.
+ *
+ * **Supported Sections:**
+ * - 'appearance': Appearance settings (theme, display preferences)
+ * - 'security': Security settings (PIN, encryption, data protection)
+ * - 'data': Data Management settings (export/import, backup/restore)
+ * - 'autocomplete': Autocomplete Management settings (tags, dream signs, emotions)
+ *
+ * **Functionality:**
+ * - Toggles section content visibility (show/hide)
+ * - Updates ARIA attributes for accessibility
+ * - Persists collapse state to localStorage
+ * - Updates global application state
+ * - Provides visual feedback with expand/collapse indicators
+ *
+ * **Accessibility Features:**
+ * - Proper ARIA expanded/collapsed states
+ * - Keyboard navigation support
+ * - Screen reader announcements
+ * - Focus management
+ *
+ * @async
+ * @function
+ * @param {('appearance'|'security'|'data'|'autocomplete')} sectionName - Name of the settings section to toggle
+ * @returns {Promise<void>} Resolves when toggle operation completes
+ * @throws {Error} When sectionName is invalid or required DOM elements are missing
+ * @since 2.04.01
+ *
+ * @example
+ * // Toggle the security settings section
+ * await toggleSettingsSection('security');
+ *
+ * @example
+ * // Toggle appearance section (typically called via data-action)
+ * <h3 data-action="toggle-settings-appearance" role="button" tabindex="0">
+ *   🎨 Appearance <span class="collapse-indicator">🔽</span>
+ * </h3>
+ */
+async function toggleSettingsSection(sectionName) {
+    try {
+        // Validate section name
+        const validSections = ['appearance', 'security', 'data', 'autocomplete'];
+        if (!validSections.includes(sectionName)) {
+            throw new Error(`Invalid section name: ${sectionName}. Must be one of: ${validSections.join(', ')}`);
+        }
+
+        // Get the appropriate state functions and storage key
+        const sectionConfig = {
+            'appearance': {
+                getter: getIsSettingsAppearanceCollapsed,
+                setter: setIsSettingsAppearanceCollapsed,
+                storageKey: SETTINGS_APPEARANCE_COLLAPSE_KEY,
+                displayName: 'Appearance',
+                emoji: '🎨'
+            },
+            'security': {
+                getter: getIsSettingsSecurityCollapsed,
+                setter: setIsSettingsSecurityCollapsed,
+                storageKey: SETTINGS_SECURITY_COLLAPSE_KEY,
+                displayName: 'Security',
+                emoji: '🔐'
+            },
+            'data': {
+                getter: getIsSettingsDataCollapsed,
+                setter: setIsSettingsDataCollapsed,
+                storageKey: SETTINGS_DATA_COLLAPSE_KEY,
+                displayName: 'Data Management',
+                emoji: '💾'
+            },
+            'autocomplete': {
+                getter: getIsSettingsAutocompleteCollapsed,
+                setter: setIsSettingsAutocompleteCollapsed,
+                storageKey: SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+                displayName: 'Autocomplete Management',
+                emoji: '🏷️'
+            }
+        };
+
+        const config = sectionConfig[sectionName];
+
+        // Get the settings section element
+        const sectionElement = document.querySelector(`[data-settings-section="${sectionName}"]`);
+        if (!sectionElement) {
+            throw new Error(`Settings section element not found for: ${sectionName}`);
+        }
+
+        // Get the toggle header and content area
+        const toggleHeader = sectionElement.querySelector(`[data-action="toggle-settings-${sectionName}"]`);
+        const contentArea = sectionElement.querySelector('.settings-section-content');
+        const collapseIndicator = toggleHeader?.querySelector('.collapse-indicator');
+
+        if (!toggleHeader || !contentArea) {
+            throw new Error(`Required toggle elements not found for section: ${sectionName}`);
+        }
+
+        const isCurrentlyCollapsed = config.getter();
+
+        if (isCurrentlyCollapsed) {
+            // Expand: show content
+            contentArea.style.display = 'block';
+            config.setter(false);
+
+            // Update ARIA states for expanded section
+            toggleHeader.setAttribute('aria-expanded', 'true');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '🔽';
+                collapseIndicator.setAttribute('title', 'Click to collapse');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to collapse)';
+            }
+
+            // Save expanded state
+            try { localStorage.setItem(config.storageKey, 'false'); } catch (e) {}
+        } else {
+            // Collapse: hide content
+            contentArea.style.display = 'none';
+            config.setter(true);
+
+            // Update ARIA states for collapsed section
+            toggleHeader.setAttribute('aria-expanded', 'false');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '🔼';
+                collapseIndicator.setAttribute('title', 'Click to expand');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to expand)';
+            }
+
+            // Save collapsed state
+            try { localStorage.setItem(config.storageKey, 'true'); } catch (e) {}
+        }
+
+    } catch (error) {
+        console.error(`Error toggling settings section "${sectionName}":`, error);
+        throw error;
+    }
+}
 
 // ===================================================================================
 // LOADING STATE MANAGEMENT
@@ -3238,6 +3413,7 @@ export {
     syncSettingsDisplay,
     updateBrowserCompatibilityDisplay,
     toggleDreamForm,
+    toggleSettingsSection,
     
     // Search & Loading States
     showSearchLoading,

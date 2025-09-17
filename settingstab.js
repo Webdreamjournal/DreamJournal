@@ -50,14 +50,33 @@ if (typeof window === 'undefined') {
 // ================================
 
 // Import required dependencies
-import { CONSTANTS } from './constants.js';
+import {
+    CONSTANTS,
+    SETTINGS_APPEARANCE_COLLAPSE_KEY,
+    SETTINGS_SECURITY_COLLAPSE_KEY,
+    SETTINGS_DATA_COLLAPSE_KEY,
+    SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY
+} from './constants.js';
 import { 
     getAutocompleteSuggestions,
     saveItemToStore,
     loadItemFromStore,
     storageType 
 } from './storage.js';
-import { getActiveAppTab, getAppLocked, getUnlocked, getEncryptionEnabled } from './state.js';
+import {
+    getActiveAppTab,
+    getAppLocked,
+    getUnlocked,
+    getEncryptionEnabled,
+    getIsSettingsAppearanceCollapsed,
+    setIsSettingsAppearanceCollapsed,
+    getIsSettingsSecurityCollapsed,
+    setIsSettingsSecurityCollapsed,
+    getIsSettingsDataCollapsed,
+    setIsSettingsDataCollapsed,
+    getIsSettingsAutocompleteCollapsed,
+    setIsSettingsAutocompleteCollapsed
+} from './state.js';
 import { isPinSetup } from './security.js';
 import { getVoiceCapabilities } from './voice-notes.js';
 
@@ -126,174 +145,215 @@ function renderSettingsTab(tabPanel) {
     
     tabPanel.innerHTML = `
         <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3><br>
-        <div class="settings-section">
-            <h3>🎨 Appearance</h3>
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">Theme</div>
-                    <div class="settings-description">Choose your preferred color theme</div>
-                </div>
-                <div class="settings-controls">
-                    <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-keyshortcuts="Control+T">
-                        <option value="light" ${lightSelected}>🌞 Light</option>
-                        <option value="dark" ${darkSelected}>🌙 Dark</option>
-                    </select>
+        <div class="settings-section" data-settings-section="appearance">
+            <h3 data-action="toggle-settings-appearance"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Appearance section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                🎨 Appearance
+                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Theme</div>
+                        <div class="settings-description">Choose your preferred color theme</div>
+                    </div>
+                    <div class="settings-controls">
+                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-keyshortcuts="Control+T">
+                            <option value="light" ${lightSelected}>🌞 Light</option>
+                            <option value="dark" ${darkSelected}>🌙 Dark</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="settings-section">
-            <h3>🔐 Security</h3>
-
-            <!-- PIN Protection -->
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">PIN Protection</div>
-                    <div class="settings-description">Secure your dreams with a PIN code</div>
-                </div>
-                <div class="settings-controls">
-                    <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
-                    <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" aria-keyshortcuts="Control+L" style="display: none;">🔒 Lock Journal</button>
-                </div>
-            </div>
-
-            <!-- Data Encryption -->
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">Data Encryption</div>
-                    <div class="settings-description">
-                        Enable AES-256 encryption for your dreams and goals data.
-                        Requires a password to access your data.
-                    </div>
-                    <div class="encryption-status">
-                        <span class="status-indicator ${getEncryptionEnabled() ? 'enabled' : 'disabled'}">
-                            ${getEncryptionEnabled() ? '🔒 Enabled' : '🔓 Disabled'}
-                        </span>
-                    </div>
-                </div>
-                <div class="settings-controls">
-                    <button
-                        data-action="toggle-encryption"
-                        class="btn ${getEncryptionEnabled() ? 'btn-secondary' : 'btn-primary'}"
-                        aria-describedby="encryption-heading">
-                        ${getEncryptionEnabled() ? 'Disable' : 'Enable'} Encryption
-                    </button>
-                </div>
-            </div>
-
-            ${getEncryptionEnabled() ? `
+        <div class="settings-section" data-settings-section="security">
+            <h3 data-action="toggle-settings-security"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Security section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                🔐 Security
+                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <!-- PIN Protection -->
                 <div class="settings-row">
                     <div>
-                        <div class="settings-label">Change Encryption Password</div>
+                        <div class="settings-label">PIN Protection</div>
+                        <div class="settings-description">Secure your dreams with a PIN code</div>
+                    </div>
+                    <div class="settings-controls">
+                        <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
+                        <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" aria-keyshortcuts="Control+L" style="display: none;">🔒 Lock Journal</button>
+                    </div>
+                </div>
+
+                <!-- Data Encryption -->
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Data Encryption</div>
                         <div class="settings-description">
-                            Update the password used to encrypt your data.
+                            Enable AES-256 encryption for your dreams and goals data.
+                            Requires a password to access your data.
+                        </div>
+                        <div class="encryption-status">
+                            <span class="status-indicator ${getEncryptionEnabled() ? 'enabled' : 'disabled'}">
+                                ${getEncryptionEnabled() ? '🔒 Enabled' : '🔓 Disabled'}
+                            </span>
                         </div>
                     </div>
                     <div class="settings-controls">
                         <button
-                            data-action="change-encryption-password"
-                            class="btn btn-secondary">
-                            Change Password
+                            data-action="toggle-encryption"
+                            class="btn ${getEncryptionEnabled() ? 'btn-secondary' : 'btn-primary'}"
+                            aria-describedby="encryption-heading">
+                            ${getEncryptionEnabled() ? 'Disable' : 'Enable'} Encryption
                         </button>
                     </div>
                 </div>
-            ` : ''}
 
-            <div class="security-notice">
-                <div class="message-warning border-l-warning" style="margin-top: 15px;">
-                    <strong>⚠️ Important:</strong> If you forget your encryption password,
-                    your data cannot be recovered. Consider exporting backups regularly.
+                ${getEncryptionEnabled() ? `
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">Change Encryption Password</div>
+                            <div class="settings-description">
+                                Update the password used to encrypt your data.
+                            </div>
+                        </div>
+                        <div class="settings-controls">
+                            <button
+                                data-action="change-encryption-password"
+                                class="btn btn-secondary">
+                                Change Password
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="security-notice">
+                    <div class="message-warning border-l-warning" style="margin-top: 15px;">
+                        <strong>⚠️ Important:</strong> If you forget your encryption password,
+                        your data cannot be recovered. Consider exporting backups regularly.
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="settings-section">
-            <h3>💾 Data Management</h3>
-            
-            <!-- Dreams Only Export/Import -->
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">Dreams Export/Import</div>
-                    <div class="settings-description">Export or import your dreams as text files</div>
-                </div>
-                <div class="settings-controls export-import-controls">
-                    <button data-action="export-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+E">Export Dreams</button>
-                    <button data-action="import-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+I">Import Dreams</button>
-                    <div class="encryption-option flex-center gap-sm">
-                        <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
-                        <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
+        <div class="settings-section" data-settings-section="data">
+            <h3 data-action="toggle-settings-data"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Data Management section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                💾 Data Management
+                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <!-- Dreams Only Export/Import -->
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Dreams Export/Import</div>
+                        <div class="settings-description">Export or import your dreams as text files</div>
+                    </div>
+                    <div class="settings-controls export-import-controls">
+                        <button data-action="export-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+E">Export Dreams</button>
+                        <button data-action="import-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+I">Import Dreams</button>
+                        <div class="encryption-option flex-center gap-sm">
+                            <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
+                            <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Complete Data Export/Import -->
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">Complete Data Export/Import</div>
-                    <div class="settings-description">Export or import restorable data (dreams, goals, settings) as a JSON file. <br> Voice notes excluded.</div>
-                </div>
-                <div class="settings-controls export-import-controls">
-                    <button data-action="export-all-data" class="btn btn-primary">Export All Data</button>
-                    <button data-action="import-all-data" class="btn btn-primary">Import All Data</button>
-                    <div class="encryption-option flex-center gap-sm">
-                        <input type="checkbox" id="fullDataEncryption" class="form-checkbox">
-                        <label for="fullDataEncryption" class="form-label-inline text-primary">🔐 Password Protected</label>
+
+                <!-- Complete Data Export/Import -->
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Complete Data Export/Import</div>
+                        <div class="settings-description">Export or import restorable data (dreams, goals, settings) as a JSON file. <br> Voice notes excluded.</div>
                     </div>
-                </div>
-            </div>
-            
-        </div>
-        <div class="settings-section">
-            <h3>🏷️ Autocomplete Management</h3>
-            <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
-            
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">Tags & Themes</div>
-                    <div class="settings-description">Add a new custom tag or theme.</div>
-                </div>
-                <div style="flex: 1; min-width: 300px; max-width: 400px;">
-                    <div id="tagsManagementList" class="autocomplete-management-list">
-                        <div class="loading-state">Loading tags...</div>
-                    </div>
-                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
-                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
-                            <input type="text" id="newTagInput" class="form-control" placeholder="e.g., recurring-nightmare">
-                            <button data-action="add-custom-tag" class="btn btn-primary btn-small">Add</button>
+                    <div class="settings-controls export-import-controls">
+                        <button data-action="export-all-data" class="btn btn-primary">Export All Data</button>
+                        <button data-action="import-all-data" class="btn btn-primary">Import All Data</button>
+                        <div class="encryption-option flex-center gap-sm">
+                            <input type="checkbox" id="fullDataEncryption" class="form-checkbox">
+                            <label for="fullDataEncryption" class="form-label-inline text-primary">🔐 Password Protected</label>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">⚡ Dream Signs</div>
-                    <div class="settings-description">Add a new custom dream sign.</div>
-                </div>
-                <div style="flex: 1; min-width: 300px; max-width: 400px;">
-                    <div id="dreamSignsManagementList" class="autocomplete-management-list">
-                        <div class="loading-state">Loading dream signs...</div>
+        </div>
+        <div class="settings-section" data-settings-section="autocomplete">
+            <h3 data-action="toggle-settings-autocomplete"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                🏷️ Autocomplete Management
+                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
+
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Tags & Themes</div>
+                        <div class="settings-description">Add a new custom tag or theme.</div>
                     </div>
-                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
-                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
-                            <input type="text" id="newDreamSignInput" class="form-control" placeholder="e.g., extra-fingers">
-                            <button data-action="add-custom-dream-sign" class="btn btn-primary btn-small">Add</button>
+                    <div style="flex: 1; min-width: 300px; max-width: 400px;">
+                        <div id="tagsManagementList" class="autocomplete-management-list">
+                            <div class="loading-state">Loading tags...</div>
+                        </div>
+                        <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                            <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
+                                <input type="text" id="newTagInput" class="form-control" placeholder="e.g., recurring-nightmare">
+                                <button data-action="add-custom-tag" class="btn btn-primary btn-small">Add</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="settings-row">
-                <div>
-                    <div class="settings-label">💭 Emotions</div>
-                    <div class="settings-description">Add a new custom emotion.</div>
-                </div>
-                <div style="flex: 1; min-width: 300px; max-width: 400px;">
-                    <div id="emotionsManagementList" class="autocomplete-management-list">
-                        <div class="loading-state">Loading emotions...</div>
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">⚡ Dream Signs</div>
+                        <div class="settings-description">Add a new custom dream sign.</div>
                     </div>
-                    <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
-                        <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
-                            <input type="text" id="newEmotionInput" class="form-control" placeholder="e.g., contemplative">
-                            <button data-action="add-custom-emotion" class="btn btn-primary btn-small">Add</button>
+                    <div style="flex: 1; min-width: 300px; max-width: 400px;">
+                        <div id="dreamSignsManagementList" class="autocomplete-management-list">
+                            <div class="loading-state">Loading dream signs...</div>
+                        </div>
+                        <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                            <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
+                                <input type="text" id="newDreamSignInput" class="form-control" placeholder="e.g., extra-fingers">
+                                <button data-action="add-custom-dream-sign" class="btn btn-primary btn-small">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">💭 Emotions</div>
+                        <div class="settings-description">Add a new custom emotion.</div>
+                    </div>
+                    <div style="flex: 1; min-width: 300px; max-width: 400px;">
+                        <div id="emotionsManagementList" class="autocomplete-management-list">
+                            <div class="loading-state">Loading emotions...</div>
+                        </div>
+                        <div class="form-group mt-sm" style="display: flex; justify-content: flex-end;">
+                            <div class="flex-center gap-sm" style="width: 100%; max-width: 300px;">
+                                <input type="text" id="newEmotionInput" class="form-control" placeholder="e.g., contemplative">
+                                <button data-action="add-custom-emotion" class="btn btn-primary btn-small">Add</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1238,6 +1298,144 @@ function managePWASettingsSection() {
     }
 }
 
+/**
+ * Restores saved settings section collapse states from localStorage.
+ *
+ * This function applies saved collapse states to each settings section immediately
+ * after the HTML is rendered, preventing visual flicker and maintaining user
+ * preferences across browser sessions. Each section is handled independently.
+ *
+ * **Restoration Process:**
+ * 1. Check localStorage for each section's saved state
+ * 2. Apply visual state (show/hide content areas)
+ * 3. Update ARIA attributes for accessibility
+ * 4. Update visual indicators (arrows and hint text)
+ * 5. Synchronize global application state
+ *
+ * **Section Mapping:**
+ * - 'appearance': Theme and display settings
+ * - 'security': PIN protection and encryption settings
+ * - 'data': Export/import and backup settings
+ * - 'autocomplete': Tags, dream signs, and emotions management
+ *
+ * **Error Handling:**
+ * - Gracefully handles localStorage access failures
+ * - Falls back to expanded state for any missing elements
+ * - Continues processing other sections if one fails
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Called during settings tab initialization
+ * renderSettingsTab(tabPanel);
+ * restoreSettingsSectionStates();
+ * // All sections now reflect saved user preferences
+ */
+function restoreSettingsSectionStates() {
+    const sections = [
+        {
+            name: 'appearance',
+            storageKey: SETTINGS_APPEARANCE_COLLAPSE_KEY,
+            getter: getIsSettingsAppearanceCollapsed,
+            setter: setIsSettingsAppearanceCollapsed,
+            displayName: 'Appearance'
+        },
+        {
+            name: 'security',
+            storageKey: SETTINGS_SECURITY_COLLAPSE_KEY,
+            getter: getIsSettingsSecurityCollapsed,
+            setter: setIsSettingsSecurityCollapsed,
+            displayName: 'Security'
+        },
+        {
+            name: 'data',
+            storageKey: SETTINGS_DATA_COLLAPSE_KEY,
+            getter: getIsSettingsDataCollapsed,
+            setter: setIsSettingsDataCollapsed,
+            displayName: 'Data Management'
+        },
+        {
+            name: 'autocomplete',
+            storageKey: SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+            getter: getIsSettingsAutocompleteCollapsed,
+            setter: setIsSettingsAutocompleteCollapsed,
+            displayName: 'Autocomplete Management'
+        }
+    ];
+
+    sections.forEach(section => {
+        try {
+            // Get DOM elements for this section
+            const sectionElement = document.querySelector(`[data-settings-section="${section.name}"]`);
+            if (!sectionElement) {
+                console.warn(`Settings section element not found: ${section.name}`);
+                return;
+            }
+
+            const toggleHeader = sectionElement.querySelector(`[data-action="toggle-settings-${section.name}"]`);
+            const contentArea = sectionElement.querySelector('.settings-section-content');
+            const collapseIndicator = toggleHeader?.querySelector('.collapse-indicator');
+            const hintText = toggleHeader?.querySelector('.collapse-hint');
+
+            if (!toggleHeader || !contentArea) {
+                console.warn(`Required elements not found for section: ${section.name}`);
+                return;
+            }
+
+            // Get saved state from localStorage
+            let savedState;
+            try {
+                savedState = localStorage.getItem(section.storageKey);
+            } catch (e) {
+                console.warn(`Failed to read localStorage for ${section.name}:`, e);
+                savedState = null;
+            }
+
+            if (savedState === 'true') {
+                // Apply collapsed state
+                contentArea.style.display = 'none';
+                section.setter(true);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'false');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '🔼';
+                    collapseIndicator.setAttribute('title', 'Click to expand');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to expand)';
+                }
+            } else {
+                // Apply expanded state (default or explicitly saved as 'false')
+                contentArea.style.display = 'block';
+                section.setter(false);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'true');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '🔽';
+                    collapseIndicator.setAttribute('title', 'Click to collapse');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to collapse)';
+                }
+            }
+
+        } catch (error) {
+            console.error(`Error restoring state for ${section.name} section:`, error);
+            // Continue with other sections
+        }
+    });
+}
+
 // ================================
 // SETTINGS TAB INITIALIZATION
 // ================================
@@ -1310,7 +1508,10 @@ function initializeSettingsTab() {
             
             // Add PWA section if installation is available
             managePWASettingsSection();
-            
+
+            // Restore saved settings section collapse states
+            restoreSettingsSectionStates();
+
             // Synchronize all settings display elements
             syncSettingsDisplay();
             

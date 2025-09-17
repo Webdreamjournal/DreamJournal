@@ -43,8 +43,8 @@
 import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
-// Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
+// Core utilities
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, toggleSettingsSection, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -349,6 +349,10 @@ const ACTION_MAP = {
             const isKeyboardEvent = ctx.event && (ctx.event.type === 'keydown');
             toggleDreamForm(isKeyboardEvent);
         },                      // Collapse/expand dream entry form
+        'toggle-settings-appearance': () => toggleSettingsSection('appearance'), // Toggle appearance settings section visibility
+        'toggle-settings-security': () => toggleSettingsSection('security'),     // Toggle security settings section visibility
+        'toggle-settings-data': () => toggleSettingsSection('data'),             // Toggle data management settings section visibility
+        'toggle-settings-autocomplete': () => toggleSettingsSection('autocomplete'), // Toggle autocomplete management settings section visibility
         'create-from-transcription': (ctx) => createDreamFromTranscription(ctx.voiceNoteId), // Create dream from voice transcription
         
         // ================================
