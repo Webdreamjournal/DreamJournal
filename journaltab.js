@@ -314,22 +314,24 @@ function renderJournalTab(tabPanel) {
                     <div class="export-range-container">
                         <button data-action="export-range"
                                 class="btn btn-success"
-                                title="Export currently displayed dreams as text file"
-                                aria-describedby="export-format-help">
+                                title="Export currently displayed dreams as text file">
                             Export Range
                         </button>
                         <div class="export-format-option">
                             <input type="checkbox"
                                    id="exportFormatAI"
-                                   class="export-format-checkbox"
-                                   aria-describedby="export-format-help">
+                                   class="export-format-checkbox">
                             <label for="exportFormatAI" class="export-format-label">
                                 Preformatted for AI Analysis
                             </label>
+                            <button class="info-icon"
+                                    data-action="show-export-info"
+                                    type="button"
+                                    title="Click for more information about export formats"
+                                    aria-label="Show export format information">
+                                ℹ️
+                            </button>
                         </div>
-                        <small id="export-format-help" class="small-helper">
-                            When checked, exports include AI analysis prompt and formatting. When unchecked, exports simple dream text.
-                        </small>
                     </div>
                 </div>
 

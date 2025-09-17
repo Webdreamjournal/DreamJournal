@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities  
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter } from './dom-helpers.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -315,6 +315,8 @@ const ACTION_MAP = {
         'export-all-data': () => exportAllData(),                           // Export complete application data to JSON
         'import-all-data': () => document.getElementById('importAllDataFile').click(), // Trigger complete data import file dialog
         'export-range': () => exportRange(),                               // Export currently displayed dreams with optional AI formatting
+        'show-export-info': () => showExportFormatInfo(),                   // Show export format information tooltip
+        'close-export-info': () => closeExportFormatInfo(),                 // Close export format information tooltip
         'clear-search-filters': () => clearSearchFilters(),                 // Clear all search and filter criteria to defaults
 
         // ================================

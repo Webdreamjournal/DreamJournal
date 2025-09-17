@@ -1096,6 +1096,105 @@
         .export-format-label:hover {
             color: var(--text-primary);
         }
+
+        .info-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            padding: 2px 4px;
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+            margin-left: 4px;
+        }
+
+        .info-icon:hover {
+            background-color: var(--background-secondary);
+        }
+
+        .info-icon:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .export-info-tooltip {
+            position: fixed;
+            background: var(--background-primary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            padding: 0;
+            max-width: 400px;
+            min-width: 320px;
+            z-index: 1000;
+            font-size: 0.9em;
+            opacity: 1;
+            background-color: var(--background-primary);
+            backdrop-filter: blur(50px);
+        }
+
+        @media (max-width: 480px) {
+            .export-info-tooltip {
+                max-width: calc(100vw - 20px);
+                min-width: calc(100vw - 20px);
+                left: 10px !important;
+                right: 10px;
+            }
+        }
+
+        .tooltip-content {
+            padding: 16px;
+            background: var(--background-primary);
+            color: var(--text-primary);
+        }
+
+        .tooltip-content h4 {
+            margin: 0 0 12px 0;
+            color: var(--text-primary);
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .format-explanation {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .format-option {
+            padding: 12px;
+            border-radius: var(--border-radius);
+            background: var(--background-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .format-option strong {
+            display: block;
+            color: var(--primary-color);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .format-option p {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .tooltip-footer {
+            display: flex;
+            justify-content: center;
+            padding: 12px 0 0 0;
+            border-top: 1px solid var(--border-color);
+            background: var(--background-primary);
+        }
+
+        /* Ensure tooltip is fully opaque and visible */
+        .export-info-tooltip * {
+            opacity: 1 !important;
+        }
         
         .autocomplete-management-list {
             display: flex;

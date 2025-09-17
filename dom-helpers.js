@@ -2719,6 +2719,148 @@ function createGoalElement(goal, progress, isCompleted = false) {
     return goalDiv;
 }
 
+/**
+ * Shows export format information tooltip for Export Range functionality.
+ *
+ * This function creates and displays a temporary tooltip explaining the difference
+ * between the two export format options available in the Export Range feature.
+ * The tooltip appears when users click the info icon next to the AI formatting checkbox.
+ *
+ * @function showExportFormatInfo
+ * @returns {void}
+ * @since 2.04.36
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="show-export-info"
+ * showExportFormatInfo();
+ *
+ * @example
+ * // Tooltip content includes:
+ * // - Simple export format description
+ * // - AI analysis format description
+ * // - Usage recommendations
+ */
+function showExportFormatInfo() {
+    // Remove any existing tooltip
+    const existingTooltip = document.getElementById('export-info-tooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+
+    // Create tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.id = 'export-info-tooltip';
+    tooltip.className = 'export-info-tooltip';
+    tooltip.innerHTML = `
+        <div class="tooltip-content">
+            <h4>Export Range Formats</h4>
+            <div class="format-explanation">
+                <div class="format-option">
+                    <strong>🔲 Unchecked (Simple Export):</strong>
+                    <p>Exports dreams in clean text format with title, date, type, content, emotions, tags, and dream signs. Perfect for personal reading or simple analysis.</p>
+                </div>
+                <div class="format-option">
+                    <strong>☑️ Checked (AI Analysis):</strong>
+                    <p>Exports dreams with comprehensive AI analysis prompt including statistics and detailed instructions for pattern recognition. Ready to paste into AI tools like ChatGPT or Claude.</p>
+                </div>
+            </div>
+            <div class="tooltip-footer">
+                <button data-action="close-export-info" class="btn btn-secondary btn-small">Got it!</button>
+            </div>
+        </div>
+    `;
+
+    // Add ARIA attributes for accessibility
+    tooltip.setAttribute('role', 'dialog');
+    tooltip.setAttribute('aria-labelledby', 'export-info-title');
+    tooltip.setAttribute('aria-describedby', 'export-info-content');
+
+    // Position tooltip with smart viewport-aware positioning
+    const infoIcon = document.querySelector('[data-action="show-export-info"]');
+    if (infoIcon) {
+        const rect = infoIcon.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        const tooltipHeight = 300; // Estimated tooltip height
+        const tooltipWidth = Math.min(400, viewportWidth - 20);
+
+        tooltip.style.position = 'fixed';
+
+        // Smart vertical positioning - above icon if not enough space below
+        if (rect.bottom + tooltipHeight + 20 > viewportHeight) {
+            // Position above the icon
+            tooltip.style.top = Math.max(10, rect.top - tooltipHeight - 10) + 'px';
+        } else {
+            // Position below the icon
+            tooltip.style.top = (rect.bottom + 10) + 'px';
+        }
+
+        // Smart horizontal positioning for mobile and desktop
+        if (viewportWidth <= 480) {
+            // Mobile: Full width with margins
+            tooltip.style.left = '10px';
+            tooltip.style.right = '10px';
+        } else {
+            // Desktop: Position relative to icon but keep in viewport
+            const preferredLeft = rect.left - 150;
+            const maxLeft = viewportWidth - tooltipWidth - 10;
+            tooltip.style.left = Math.max(10, Math.min(preferredLeft, maxLeft)) + 'px';
+        }
+    }
+
+    document.body.appendChild(tooltip);
+
+    // Focus on the close button for keyboard navigation
+    const closeButton = tooltip.querySelector('[data-action="close-export-info"]');
+    if (closeButton) {
+        closeButton.focus();
+    }
+
+    // Auto-close after 10 seconds or on outside click
+    const autoCloseTimeout = setTimeout(() => {
+        if (document.getElementById('export-info-tooltip')) {
+            tooltip.remove();
+        }
+    }, 10000);
+
+    // Close on outside click
+    const handleOutsideClick = (event) => {
+        if (!tooltip.contains(event.target) && !infoIcon.contains(event.target)) {
+            clearTimeout(autoCloseTimeout);
+            tooltip.remove();
+            document.removeEventListener('click', handleOutsideClick);
+        }
+    };
+
+    // Delay adding the outside click listener to prevent immediate closure
+    setTimeout(() => {
+        document.addEventListener('click', handleOutsideClick);
+    }, 100);
+}
+
+/**
+ * Closes the export format information tooltip.
+ *
+ * This function removes the export format tooltip from the DOM when the user
+ * clicks the "Got it!" button or when called via other close triggers.
+ *
+ * @function closeExportFormatInfo
+ * @returns {void}
+ * @since 2.04.36
+ *
+ * @example
+ * // Called via action delegation system
+ * // data-action="close-export-info"
+ * closeExportFormatInfo();
+ */
+function closeExportFormatInfo() {
+    const tooltip = document.getElementById('export-info-tooltip');
+    if (tooltip) {
+        tooltip.remove();
+    }
+}
+
 // ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
@@ -2791,7 +2933,11 @@ export {
     createGoalElement,
     
     // Security UI
-    renderPinScreen
+    renderPinScreen,
+
+    // Export Info System
+    showExportFormatInfo,
+    closeExportFormatInfo
 };
 
 // Functions are now properly exported as ES modules for clean dependency management
