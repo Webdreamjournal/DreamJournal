@@ -332,7 +332,7 @@
         .pagination-info { text-align: center; padding: 20px; color: var(--text-secondary); }
         
         /* Small text utilities */
-        .text-xs { font-size: 0.75rem; } .text-xxs { font-size: 0.75rem; }
+        .text-xs { font-size: 0.75rem; } .text-xxs { font-size: 0.65rem; }
         .small-helper { color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; display: block; }
         .small-helper-warning { color: var(--warning-color); font-size: 0.9rem; margin-top: 5px; display: block; }
         
