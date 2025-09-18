@@ -2504,13 +2504,10 @@ function clearSearchFilters() {
         debouncedFilter(50); // Short delay for responsive feel
 
         // Provide user feedback
-        const { createInlineMessage } = import('./dom-helpers.js');
-        createInlineMessage.then(fn => {
-            fn('success', 'Search and filters cleared', {
-                container: document.querySelector('.search-filter-section'),
-                position: 'bottom',
-                duration: 2000
-            });
+        createInlineMessage('success', 'Search and filters cleared', {
+            container: document.querySelector('.search-filter-section'),
+            position: 'bottom',
+            duration: 2000
         });
 
     } catch (error) {
