@@ -55,7 +55,8 @@ import {
     SETTINGS_APPEARANCE_COLLAPSE_KEY,
     SETTINGS_SECURITY_COLLAPSE_KEY,
     SETTINGS_DATA_COLLAPSE_KEY,
-    SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY
+    SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+    SETTINGS_CLOUD_SYNC_COLLAPSE_KEY
 } from './constants.js';
 import { 
     getAutocompleteSuggestions,
@@ -75,7 +76,9 @@ import {
     getIsSettingsDataCollapsed,
     setIsSettingsDataCollapsed,
     getIsSettingsAutocompleteCollapsed,
-    setIsSettingsAutocompleteCollapsed
+    setIsSettingsAutocompleteCollapsed,
+    getIsSettingsCloudSyncCollapsed,
+    setIsSettingsCloudSyncCollapsed
 } from './state.js';
 import { isPinSetup } from './security.js';
 import { getVoiceCapabilities } from './voice-notes.js';
@@ -355,6 +358,94 @@ function renderSettingsTab(tabPanel) {
                                 <button data-action="add-custom-emotion" class="btn btn-primary btn-small">Add</button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-section" data-settings-section="cloud-sync">
+            <h3 data-action="toggle-settings-cloud-sync"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Cloud Sync section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                ☁️ Cloud Sync
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>
+
+                <!-- Account Connection Status -->
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Account Connection</div>
+                        <div class="settings-description">Connect to Dropbox for cloud backup and sync</div>
+                        <div class="cloud-sync-status">
+                            <span id="cloudSyncStatusIndicator" class="status-indicator">
+                                🔗 Not Connected
+                            </span>
+                        </div>
+                    </div>
+                    <div class="settings-controls">
+                        <button
+                            id="cloudSyncAccountButton"
+                            data-action="link-dropbox-account"
+                            class="btn btn-primary"
+                            aria-describedby="cloud-sync-status">
+                            Connect Dropbox
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Manual Sync Controls -->
+                <div id="cloudSyncControls" class="settings-row" style="display: none;">
+                    <div>
+                        <div class="settings-label">Manual Sync</div>
+                        <div class="settings-description">
+                            Upload your current data to cloud or download from cloud to restore.
+                        </div>
+                        <div class="cloud-sync-info">
+                            <span id="lastSyncTime" class="text-xs text-secondary">
+                                Never synced
+                            </span>
+                        </div>
+                    </div>
+                    <div class="settings-controls sync-controls">
+                        <button
+                            data-action="sync-to-cloud"
+                            class="btn btn-secondary"
+                            title="Upload current data to Dropbox">
+                            📤 Upload to Cloud
+                        </button>
+                        <button
+                            data-action="sync-from-cloud"
+                            class="btn btn-secondary"
+                            title="Download and restore data from Dropbox">
+                            📥 Download from Cloud
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sync Status Display -->
+                <div id="cloudSyncProgress" class="settings-row" style="display: none;">
+                    <div>
+                        <div class="settings-label">Sync Status</div>
+                        <div class="settings-description">
+                            <span id="syncProgressText">Synchronizing...</span>
+                        </div>
+                    </div>
+                    <div class="settings-controls">
+                        <div class="sync-progress-indicator">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cloud-sync-notice">
+                    <div class="message-info border-l-info" style="margin-top: 15px;">
+                        <strong>🔒 Privacy:</strong> Your data is encrypted before uploading to Dropbox.
+                        Only you can access your dreams with your encryption password.
                     </div>
                 </div>
             </div>
@@ -1362,6 +1453,13 @@ function restoreSettingsSectionStates() {
             getter: getIsSettingsAutocompleteCollapsed,
             setter: setIsSettingsAutocompleteCollapsed,
             displayName: 'Autocomplete Management'
+        },
+        {
+            name: 'cloud-sync',
+            storageKey: SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
+            getter: getIsSettingsCloudSyncCollapsed,
+            setter: setIsSettingsCloudSyncCollapsed,
+            displayName: 'Cloud Sync'
         }
     ];
 

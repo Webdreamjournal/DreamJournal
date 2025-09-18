@@ -2524,7 +2524,156 @@
                 justify-content: flex-start;
             }
         }
-        
+
+        /* ================================ */
+        /* CLOUD SYNC COMPONENT STYLES     */
+        /* ================================ */
+        /* Cloud synchronization interface styles using HSL theme system */
+
+        /* Cloud sync status indicators */
+        .cloud-sync-status {
+            margin-top: 8px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            font-weight: var(--font-weight-medium);
+            background: var(--bg-light);
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .status-indicator.connected {
+            background: hsl(var(--success-h), var(--success-s), 90%);
+            border-color: hsl(var(--success-h), var(--success-s), 70%);
+            color: hsl(var(--success-h), var(--success-s), 25%);
+        }
+
+        .status-indicator.connecting {
+            background: hsl(var(--info-h), var(--info-s), 95%);
+            border-color: hsl(var(--info-h), var(--info-s), 80%);
+            color: hsl(var(--info-h), var(--info-s), 30%);
+        }
+
+        .status-indicator.error {
+            background: hsl(var(--error-h), var(--error-s), 93%);
+            border-color: hsl(var(--error-h), var(--error-s), 75%);
+            color: hsl(var(--error-h), var(--error-s), 40%);
+        }
+
+        /* Cloud sync controls layout */
+        .sync-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .sync-controls .btn {
+            min-width: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* Sync progress indicator */
+        .sync-progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-light);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Cloud sync information display */
+        .cloud-sync-info {
+            margin-top: 4px;
+        }
+
+        .cloud-sync-info .text-xs {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Cloud sync notice styling */
+        .cloud-sync-notice {
+            margin-top: 20px;
+        }
+
+        .cloud-sync-notice .message-info {
+            background: hsl(var(--info-h), var(--info-s), 97%);
+            border-left: 3px solid hsl(var(--info-h), var(--info-s), 60%);
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            color: hsl(var(--info-h), var(--info-s), 25%);
+        }
+
+        /* Dark theme cloud sync adjustments */
+        [data-theme="dark"] .status-indicator {
+            background: hsl(var(--neutral-h), var(--neutral-s), 15%);
+            border-color: hsl(var(--neutral-h), var(--neutral-s), 25%);
+            color: hsl(var(--neutral-h), var(--neutral-s), 75%);
+        }
+
+        [data-theme="dark"] .status-indicator.connected {
+            background: hsl(var(--success-h), var(--success-s), 15%);
+            border-color: hsl(var(--success-h), var(--success-s), 35%);
+            color: hsl(var(--success-h), var(--success-s), 80%);
+        }
+
+        [data-theme="dark"] .status-indicator.connecting {
+            background: hsl(var(--info-h), var(--info-s), 15%);
+            border-color: hsl(var(--info-h), var(--info-s), 35%);
+            color: hsl(var(--info-h), var(--info-s), 80%);
+        }
+
+        [data-theme="dark"] .status-indicator.error {
+            background: hsl(var(--error-h), var(--error-s), 15%);
+            border-color: hsl(var(--error-h), var(--error-s), 35%);
+            color: hsl(var(--error-h), var(--error-s), 80%);
+        }
+
+        [data-theme="dark"] .cloud-sync-notice .message-info {
+            background: hsl(var(--info-h), var(--info-s), 10%);
+            border-left-color: hsl(var(--info-h), var(--info-s), 40%);
+            color: hsl(var(--info-h), var(--info-s), 85%);
+        }
+
+        /* Mobile responsive cloud sync styles */
+        @media (max-width: 768px) {
+            .sync-controls {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .sync-controls .btn {
+                min-width: 120px;
+                font-size: 13px;
+            }
+
+            .status-indicator {
+                font-size: 13px;
+            }
+        }
+
         /* Utility classes for common spacing */
         .text-center { text-align: center; }
         .font-weight-600 { font-weight: 600; }

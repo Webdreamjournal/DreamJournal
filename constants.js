@@ -74,6 +74,109 @@ const SETTINGS_DATA_COLLAPSE_KEY = 'settingsDataCollapsed';
 const SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY = 'settingsAutocompleteCollapsed';
 
 /**
+ * Storage key for settings cloud sync section collapse state.
+ *
+ * Used to persist whether the Cloud Sync settings section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const SETTINGS_CLOUD_SYNC_COLLAPSE_KEY = 'settingsCloudSyncCollapsed';
+
+// ===================================================================================
+// CLOUD SYNC CONFIGURATION
+// ===================================================================================
+
+/**
+ * Dropbox OAuth client ID for authentication.
+ *
+ * Application client ID registered with Dropbox for OAuth 2.0 authentication.
+ * This is a public identifier and safe to include in client-side code.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DROPBOX_CLIENT_ID = 'your-dropbox-app-key-here';
+
+/**
+ * OAuth redirect URI for Dropbox authentication callback.
+ *
+ * The redirect URI that Dropbox will use to return users after authentication.
+ * Must match exactly with the URI registered in the Dropbox app console.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DROPBOX_REDIRECT_URI = window.location.origin + window.location.pathname;
+
+/**
+ * Storage key for cloud sync enabled status.
+ *
+ * Used to persist whether cloud sync functionality is enabled
+ * across browser sessions.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const CLOUD_SYNC_ENABLED_KEY = 'cloudSyncEnabled';
+
+/**
+ * Storage key for automatic cloud sync preference.
+ *
+ * Used to persist user's preference for automatic cloud synchronization
+ * across browser sessions.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const CLOUD_AUTO_SYNC_KEY = 'cloudAutoSync';
+
+/**
+ * Storage key for Dropbox access token.
+ *
+ * Used to securely store the encrypted Dropbox access token
+ * for API authentication.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DROPBOX_ACCESS_TOKEN_KEY = 'dropboxAccessToken';
+
+/**
+ * Storage key for Dropbox refresh token.
+ *
+ * Used to securely store the encrypted Dropbox refresh token
+ * for automatic token renewal.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DROPBOX_REFRESH_TOKEN_KEY = 'dropboxRefreshToken';
+
+/**
+ * Storage key for Dropbox token expiration time.
+ *
+ * Used to store the access token expiration timestamp
+ * for automatic refresh handling.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const DROPBOX_TOKEN_EXPIRES_KEY = 'dropboxTokenExpires';
+
+/**
+ * Storage key for last cloud sync timestamp.
+ *
+ * Used to track when the last successful cloud synchronization
+ * occurred for display and automation purposes.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const LAST_CLOUD_SYNC_KEY = 'lastCloudSync';
+
+/**
  * Storage key for pagination preference setting.
  *
  * Used to persist user's pagination preference (5, 10, 20, 50, endless, all)
@@ -716,6 +819,15 @@ export {
     SETTINGS_SECURITY_COLLAPSE_KEY,
     SETTINGS_DATA_COLLAPSE_KEY,
     SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+    SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
+    DROPBOX_CLIENT_ID,
+    DROPBOX_REDIRECT_URI,
+    CLOUD_SYNC_ENABLED_KEY,
+    CLOUD_AUTO_SYNC_KEY,
+    DROPBOX_ACCESS_TOKEN_KEY,
+    DROPBOX_REFRESH_TOKEN_KEY,
+    DROPBOX_TOKEN_EXPIRES_KEY,
+    LAST_CLOUD_SYNC_KEY,
     PAGINATION_STORAGE_KEY,
     DEFAULT_PAGINATION_LIMIT,
     CONSTANTS,

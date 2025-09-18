@@ -723,6 +723,62 @@ let encryptionEnabled = false;
 let decryptedDataCache = new Map();
 
 // ===================================================================================
+// CLOUD SYNC STATE MANAGEMENT
+// ===================================================================================
+
+/**
+ * Flag indicating whether cloud sync functionality is enabled.
+ *
+ * Controls whether the user has enabled cloud synchronization features.
+ * When true, the user can upload and download data to/from cloud storage.
+ * Persisted to localStorage for consistent state across sessions.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let cloudSyncEnabled = false;
+
+/**
+ * Flag indicating whether cloud sync operations are currently in progress.
+ *
+ * Used to prevent concurrent sync operations and provide proper UI feedback
+ * during upload/download operations. Set to true during active sync operations
+ * and false when complete or when errors occur.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let cloudSyncInProgress = false;
+
+/**
+ * Timestamp of the last successful cloud synchronization.
+ *
+ * Stores the Date.now() timestamp when the last successful cloud sync
+ * operation completed. Used for displaying last sync time to users
+ * and for automatic sync scheduling logic.
+ *
+ * @type {number|null}
+ * @default null
+ * @since 2.04.01
+ */
+let lastCloudSyncTime = null;
+
+/**
+ * Current collapse state of the Cloud Sync settings section.
+ *
+ * Controls the visibility of the Cloud Sync settings section content.
+ * When true, the section is collapsed to save screen space. When false,
+ * the full section content is displayed.
+ *
+ * @type {boolean}
+ * @default false
+ * @since 2.04.01
+ */
+let isSettingsCloudSyncCollapsed = false;
+
+// ===================================================================================
 // MODULE EXPORTS
 // ===================================================================================
 
@@ -1388,6 +1444,168 @@ function clearDecryptedDataCache() {
     decryptedDataCache.clear();
 }
 
+// ===================================================================================
+// CLOUD SYNC STATE MANAGEMENT FUNCTIONS
+// ===================================================================================
+
+/**
+ * Gets whether cloud sync functionality is currently enabled.
+ *
+ * @returns {boolean} True if cloud sync is enabled, false otherwise
+ * @since 2.04.01
+ */
+function getCloudSyncEnabled() {
+    return cloudSyncEnabled;
+}
+
+/**
+ * Sets whether cloud sync functionality should be enabled.
+ *
+ * @param {boolean} enabled - Whether cloud sync should be enabled
+ * @since 2.04.01
+ */
+function setCloudSyncEnabled(enabled) {
+    cloudSyncEnabled = enabled;
+}
+
+/**
+ * Gets whether cloud sync operations are currently in progress.
+ *
+ * @returns {boolean} True if sync is in progress, false otherwise
+ * @since 2.04.01
+ */
+function getCloudSyncInProgress() {
+    return cloudSyncInProgress;
+}
+
+/**
+ * Sets whether cloud sync operations are currently in progress.
+ *
+ * @param {boolean} inProgress - Whether sync is in progress
+ * @since 2.04.01
+ */
+function setCloudSyncInProgress(inProgress) {
+    cloudSyncInProgress = inProgress;
+}
+
+/**
+ * Gets the timestamp of the last successful cloud synchronization.
+ *
+ * @returns {number|null} Timestamp of last sync or null if never synced
+ * @since 2.04.01
+ */
+function getLastCloudSyncTime() {
+    return lastCloudSyncTime;
+}
+
+/**
+ * Sets the timestamp of the last successful cloud synchronization.
+ *
+ * @param {number|null} timestamp - Timestamp of the sync completion
+ * @since 2.04.01
+ */
+function setLastCloudSyncTime(timestamp) {
+    lastCloudSyncTime = timestamp;
+}
+
+/**
+ * Gets whether the Cloud Sync settings section is collapsed.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ */
+function getIsSettingsCloudSyncCollapsed() {
+    return isSettingsCloudSyncCollapsed;
+}
+
+/**
+ * Sets whether the Cloud Sync settings section should be collapsed.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ */
+function setIsSettingsCloudSyncCollapsed(collapsed) {
+    isSettingsCloudSyncCollapsed = collapsed;
+}
+
+/**
+ * Gets the Dropbox access token from localStorage with fallback handling.
+ *
+ * Safely retrieves the stored Dropbox access token with proper error handling
+ * for localStorage access issues. Returns null if token is not available.
+ *
+ * @returns {string|null} The stored access token or null if not available
+ * @since 2.04.01
+ */
+function getDropboxAccessToken() {
+    try {
+        return localStorage.getItem('dropboxAccessToken');
+    } catch (error) {
+        console.error('Error accessing dropbox access token:', error);
+        return null;
+    }
+}
+
+/**
+ * Sets the Dropbox access token in localStorage with error handling.
+ *
+ * Safely stores the Dropbox access token with proper error handling for
+ * localStorage access issues. Logs errors but does not throw.
+ *
+ * @param {string|null} token - The access token to store or null to clear
+ * @since 2.04.01
+ */
+function setDropboxAccessToken(token) {
+    try {
+        if (token === null) {
+            localStorage.removeItem('dropboxAccessToken');
+        } else {
+            localStorage.setItem('dropboxAccessToken', token);
+        }
+    } catch (error) {
+        console.error('Error storing dropbox access token:', error);
+    }
+}
+
+/**
+ * Gets the Dropbox refresh token from localStorage with fallback handling.
+ *
+ * Safely retrieves the stored Dropbox refresh token with proper error handling
+ * for localStorage access issues. Returns null if token is not available.
+ *
+ * @returns {string|null} The stored refresh token or null if not available
+ * @since 2.04.01
+ */
+function getDropboxRefreshToken() {
+    try {
+        return localStorage.getItem('dropboxRefreshToken');
+    } catch (error) {
+        console.error('Error accessing dropbox refresh token:', error);
+        return null;
+    }
+}
+
+/**
+ * Sets the Dropbox refresh token in localStorage with error handling.
+ *
+ * Safely stores the Dropbox refresh token with proper error handling for
+ * localStorage access issues. Logs errors but does not throw.
+ *
+ * @param {string|null} token - The refresh token to store or null to clear
+ * @since 2.04.01
+ */
+function setDropboxRefreshToken(token) {
+    try {
+        if (token === null) {
+            localStorage.removeItem('dropboxRefreshToken');
+        } else {
+            localStorage.setItem('dropboxRefreshToken', token);
+        }
+    } catch (error) {
+        console.error('Error storing dropbox refresh token:', error);
+    }
+}
+
 // Export all global state variables and functions for ES module compatibility
 export {
     // Application Data State
@@ -1422,6 +1640,8 @@ export {
     getIsSettingsDataCollapsed,
     setIsSettingsAutocompleteCollapsed,
     getIsSettingsAutocompleteCollapsed,
+    setIsSettingsCloudSyncCollapsed,
+    getIsSettingsCloudSyncCollapsed,
     setCurrentPage,
     getCurrentPage,
     setScrollDebounceTimer,
@@ -1460,6 +1680,16 @@ export {
     setEncryptionEnabled,
     getDecryptedDataCache,
     clearDecryptedDataCache,
+    getCloudSyncEnabled,
+    setCloudSyncEnabled,
+    getCloudSyncInProgress,
+    setCloudSyncInProgress,
+    getLastCloudSyncTime,
+    setLastCloudSyncTime,
+    getDropboxAccessToken,
+    setDropboxAccessToken,
+    getDropboxRefreshToken,
+    setDropboxRefreshToken,
 
     // Voice Recording & Transcription State
     mediaRecorder,
@@ -1503,6 +1733,7 @@ export {
     isSettingsSecurityCollapsed,
     isSettingsDataCollapsed,
     isSettingsAutocompleteCollapsed,
+    isSettingsCloudSyncCollapsed,
     activeVoiceTab,
     activeAppTab,
     isAppLocked,
@@ -1519,5 +1750,10 @@ export {
     // Encryption State
     encryptionPassword,
     encryptionEnabled,
-    decryptedDataCache
+    decryptedDataCache,
+
+    // Cloud Sync State
+    cloudSyncEnabled,
+    cloudSyncInProgress,
+    lastCloudSyncTime
 };

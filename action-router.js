@@ -101,6 +101,14 @@ import {
 // PWA installation
 import { installPWA } from './pwa.js';
 
+// Cloud sync functions
+import {
+    startDropboxAuth,
+    disconnectDropbox,
+    syncToCloud,
+    syncFromCloud
+} from './cloud-sync.js';
+
 // Storage functions needed for goal handlers
 import { saveGoals } from './storage.js';
 
@@ -470,6 +478,15 @@ const ACTION_MAP = {
         // ================================
         'toggle-encryption': () => toggleEncryption(),                      // Enable/disable data encryption
         'change-encryption-password': () => changeEncryptionPassword(),     // Change encryption password (Settings tab)
+
+        // ================================
+        // CLOUD SYNC MANAGEMENT
+        // ================================
+        'link-dropbox-account': async () => await startDropboxAuth(),       // Start Dropbox OAuth authentication flow
+        'unlink-dropbox-account': async () => await disconnectDropbox(),    // Disconnect from Dropbox and clear tokens
+        'sync-to-cloud': async () => await syncToCloud(),                   // Upload current data to cloud storage
+        'sync-from-cloud': async () => await syncFromCloud(),               // Download and import data from cloud storage
+        'toggle-settings-cloud-sync': () => toggleSettingsSection('cloud-sync'), // Toggle cloud sync settings section
 
         // ================================
         // ENHANCED PASSWORD SCREENS (Phase 5.2)

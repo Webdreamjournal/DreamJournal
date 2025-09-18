@@ -96,6 +96,9 @@ import { handleUnifiedClick, handleUnifiedChange, handleTabListKeydown, handleUn
 // PWA installation system
 import { installPWA, setupPWAInstall } from './pwa.js';
 
+// Cloud sync system
+import { initializeCloudSync } from './cloud-sync.js';
+
 // ================================
 // MAIN APPLICATION INITIALIZATION MODULE
 // ================================
@@ -696,6 +699,9 @@ async function initializeApp() {
     
     // Setup PWA installation system
     setupPWAInstall();
+
+    // Initialize cloud sync system
+    await initializeCloudSync();
 
     setupEventDelegation();
 
