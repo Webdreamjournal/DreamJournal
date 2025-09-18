@@ -29,6 +29,7 @@ import {
     SETTINGS_SECURITY_COLLAPSE_KEY,
     SETTINGS_DATA_COLLAPSE_KEY,
     SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
+    SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
     getTipsCount,
     commonTags,
     commonDreamSigns,
@@ -55,6 +56,8 @@ import {
     setIsSettingsDataCollapsed,
     getIsSettingsAutocompleteCollapsed,
     setIsSettingsAutocompleteCollapsed,
+    getIsSettingsCloudSyncCollapsed,
+    setIsSettingsCloudSyncCollapsed,
     asyncMutex,
     getActiveVoiceTab,
     setActiveVoiceTab
@@ -1652,7 +1655,7 @@ function toggleDreamForm(shouldMoveFocus = false) {
 async function toggleSettingsSection(sectionName) {
     try {
         // Validate section name
-        const validSections = ['appearance', 'security', 'data', 'autocomplete'];
+        const validSections = ['appearance', 'security', 'data', 'autocomplete', 'cloud-sync'];
         if (!validSections.includes(sectionName)) {
             throw new Error(`Invalid section name: ${sectionName}. Must be one of: ${validSections.join(', ')}`);
         }
@@ -1686,6 +1689,13 @@ async function toggleSettingsSection(sectionName) {
                 storageKey: SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
                 displayName: 'Autocomplete Management',
                 emoji: '🏷️'
+            },
+            'cloud-sync': {
+                getter: getIsSettingsCloudSyncCollapsed,
+                setter: setIsSettingsCloudSyncCollapsed,
+                storageKey: SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
+                displayName: 'Cloud Sync',
+                emoji: '☁️'
             }
         };
 
