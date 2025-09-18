@@ -2571,6 +2571,7 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .sync-controls .btn {
@@ -2688,7 +2689,7 @@
         @media (max-width: 768px) {
             .sync-controls {
                 width: 100%;
-                justify-content: flex-start;
+                justify-content: flex-end;
             }
 
             .sync-controls .btn {

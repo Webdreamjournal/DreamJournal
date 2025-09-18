@@ -993,6 +993,10 @@ async function setupEncryption(password) {
             renderSettingsTab(settingsTab);
             initializeSettingsTab();
             // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
+
+            // Restore cloud sync UI state after re-rendering
+            const { updateCloudSyncUI } = await import('./cloud-sync.js');
+            updateCloudSyncUI();
         }
 
         const totalEncrypted = encryptedCount + goalsEncryptedCount + autocompleteEncryptedCount;
@@ -1303,6 +1307,10 @@ async function performEncryptionDisabling(password) {
         renderSettingsTab(settingsTab);
         initializeSettingsTab();
         // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
+
+        // Restore cloud sync UI state after re-rendering
+        const { updateCloudSyncUI } = await import('./cloud-sync.js');
+        updateCloudSyncUI();
     }
 
     const totalDecrypted = decryptedCount + goalsDecryptedCount + autocompleteDecryptedCount;
@@ -1387,6 +1395,10 @@ async function changeEncryptionPassword() {
             renderSettingsTab(settingsTab);
             initializeSettingsTab();
             // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
+
+            // Restore cloud sync UI state after re-rendering
+            const { updateCloudSyncUI } = await import('./cloud-sync.js');
+            updateCloudSyncUI();
         }
 
         createInlineMessage('success', `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
