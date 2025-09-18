@@ -30,8 +30,23 @@
 // ES MODULE IMPORTS
 // ================================
 
-import { CONSTANTS, GOAL_TEMPLATES } from './constants.js';
-import { getAllGoals, setAllGoals, getActiveGoalsPage, getCompletedGoalsPage, setActiveGoalsPage, setCompletedGoalsPage, goalDeleteTimeouts, withMutex } from './state.js';
+import { CONSTANTS, GOAL_TEMPLATES, GOALS_ACTIVE_COLLAPSE_KEY, GOALS_TEMPLATES_COLLAPSE_KEY, GOALS_COMPLETED_COLLAPSE_KEY } from './constants.js';
+import {
+    getAllGoals,
+    setAllGoals,
+    getActiveGoalsPage,
+    getCompletedGoalsPage,
+    setActiveGoalsPage,
+    setCompletedGoalsPage,
+    goalDeleteTimeouts,
+    withMutex,
+    getIsGoalsActiveCollapsed,
+    setIsGoalsActiveCollapsed,
+    getIsGoalsTemplatesCollapsed,
+    setIsGoalsTemplatesCollapsed,
+    getIsGoalsCompletedCollapsed,
+    setIsGoalsCompletedCollapsed
+} from './state.js';
 import { loadGoals, saveGoals, generateUniqueId, loadDreams } from './storage.js';
 import { announceLiveMessage, createInlineMessage, escapeHtml, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
 import { calculateDreamRecallStreak, calculateJournalingStreak } from './statstab.js';
@@ -1622,65 +1637,100 @@ function renderGoalsTab(tabPanel) {
     }
     
     tabPanel.innerHTML = `
-        <div class="settings-section">
-            <div class="flex-between mb-lg">
-                <h3 id="goals-main-heading" tabindex="-1">Your Dream Goals</h3>
-                <button data-action="create-goal" class="btn btn-primary btn-small">➕ New Goal</button>
-            </div>
-            <div id="activeGoalsContainer">
-                <!-- Active goals will be populated here -->
-            </div>
-            <div id="activeGoalsPagination" class="pagination-container" style="display: none;">
-                <!-- Active goals pagination will be populated here -->
-            </div>
-            <div id="noGoalsMessage" class="card-md text-center" style="display: none;">
-                <div class="icon-lg mb-md">🎯</div>
-                <h4 class="mb-sm">No Active Goals</h4>
-                <p class="text-secondary mb-md">Create a new goal to start tracking your lucid dreaming progress!</p>
-            </div>
-        </div>
-        
-        <div class="settings-section">
-            <h3>📈 Quick Goal Templates</h3>
-            <div class="grid-auto">
-                <div class="stats-card hover-card" data-action="create-template-goal" data-template="lucid-monthly">
-                    <div class="icon-lg">✨</div>
-                    <div class="stats-label">Monthly Lucid Goals</div>
-                    <div class="stats-detail">Track lucid dreams per month</div>
-                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+        <h3 id="goals-main-heading" tabindex="-1">🎯 Your Dream Goals</h3><br>
+        <div class="settings-section" data-goals-section="active">
+            <h3 data-action="toggle-goals-active"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Active Goals section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                🎯 Active Goals
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div class="flex-between mb-lg">
+                    <div></div>
+                    <button data-action="create-goal" class="btn btn-primary btn-small">➕ New Goal</button>
                 </div>
-                <div class="stats-card hover-card" data-action="create-template-goal" data-template="recall-streak">
-                    <div class="icon-lg">🧠</div>
-                    <div class="stats-label">Dream Recall Streak</div>
-                    <div class="stats-detail">Remember dreams daily</div>
-                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                <div id="activeGoalsContainer">
+                    <!-- Active goals will be populated here -->
                 </div>
-                <div class="stats-card hover-card" data-action="create-template-goal" data-template="dream-signs">
-                    <div class="icon-lg">🔍</div>
-                    <div class="stats-label">Dream Signs Tracking</div>
-                    <div class="stats-detail">Identify recurring patterns</div>
-                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                <div id="activeGoalsPagination" class="pagination-container" style="display: none;">
+                    <!-- Active goals pagination will be populated here -->
                 </div>
-                <div class="stats-card hover-card" data-action="create-template-goal" data-template="custom">
-                    <div class="icon-lg">⭐</div>
-                    <div class="stats-label">Custom Goal</div>
-                    <div class="stats-detail">Manual progress tracking</div>
-                    <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                <div id="noGoalsMessage" class="card-md text-center" style="display: none;">
+                    <div class="icon-lg mb-md">🎯</div>
+                    <h4 class="mb-sm">No Active Goals</h4>
+                    <p class="text-secondary mb-md">Create a new goal to start tracking your lucid dreaming progress!</p>
                 </div>
             </div>
         </div>
-        
-        <div class="settings-section">
-            <h3>🏆 Completed Goals</h3>
-            <div id="completedGoalsContainer">
-                <!-- Completed goals will be populated here -->
+
+        <div class="settings-section" data-goals-section="templates">
+            <h3 data-action="toggle-goals-templates"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Quick Goal Templates section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                📈 Quick Goal Templates
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div class="grid-auto">
+                    <div class="stats-card hover-card" data-action="create-template-goal" data-template="lucid-monthly">
+                        <div class="icon-lg">✨</div>
+                        <div class="stats-label">Monthly Lucid Goals</div>
+                        <div class="stats-detail">Track lucid dreams per month</div>
+                        <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                    </div>
+                    <div class="stats-card hover-card" data-action="create-template-goal" data-template="recall-streak">
+                        <div class="icon-lg">🧠</div>
+                        <div class="stats-label">Dream Recall Streak</div>
+                        <div class="stats-detail">Remember dreams daily</div>
+                        <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                    </div>
+                    <div class="stats-card hover-card" data-action="create-template-goal" data-template="dream-signs">
+                        <div class="icon-lg">🔍</div>
+                        <div class="stats-label">Dream Signs Tracking</div>
+                        <div class="stats-detail">Identify recurring patterns</div>
+                        <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                    </div>
+                    <div class="stats-card hover-card" data-action="create-template-goal" data-template="custom">
+                        <div class="icon-lg">⭐</div>
+                        <div class="stats-label">Custom Goal</div>
+                        <div class="stats-detail">Manual progress tracking</div>
+                        <button class="btn btn-outline btn-small mt-sm">Use Template</button>
+                    </div>
+                </div>
             </div>
-            <div id="completedGoalsPagination" class="pagination-container" style="display: none;">
-                <!-- Completed goals pagination will be populated here -->
-            </div>
-            <div id="noCompletedGoalsMessage" class="text-center text-secondary p-lg" style="display: none;">
-                <div class="icon-lg mb-sm">🏆</div>
-                <p>Your completed goals will appear here</p>
+        </div>
+
+        <div class="settings-section" data-goals-section="completed">
+            <h3 data-action="toggle-goals-completed"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Completed Goals section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                🏆 Completed Goals
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div id="completedGoalsContainer">
+                    <!-- Completed goals will be populated here -->
+                </div>
+                <div id="completedGoalsPagination" class="pagination-container" style="display: none;">
+                    <!-- Completed goals pagination will be populated here -->
+                </div>
+                <div id="noCompletedGoalsMessage" class="text-center text-secondary p-lg" style="display: none;">
+                    <div class="icon-lg mb-sm">🏆</div>
+                    <p>Your completed goals will appear here</p>
+                </div>
             </div>
         </div>
     `;
@@ -1704,10 +1754,144 @@ function renderGoalsTab(tabPanel) {
 async function initializeGoalsTab() {
     try {
         await initGoals();
+
+        // Restore saved goals section collapse states
+        restoreGoalsSectionStates();
+
         displayGoals();
     } catch (error) {
         console.error('Error initializing Goals tab:', error);
         // Fallback to just displaying current goals
         displayGoals();
     }
+}
+
+/**
+ * Restores saved goals section collapse states from localStorage.
+ *
+ * This function applies saved collapse states to each goals section immediately
+ * after the HTML is rendered, preventing visual flicker and maintaining user
+ * preferences across browser sessions. Each section is handled independently.
+ *
+ * **Restoration Process:**
+ * 1. Check localStorage for each section's saved state
+ * 2. Apply visual state (show/hide content areas)
+ * 3. Update ARIA attributes for accessibility
+ * 4. Update visual indicators (arrows and hint text)
+ * 5. Synchronize global application state
+ *
+ * **Section Mapping:**
+ * - 'active': Active Goals section
+ * - 'templates': Quick Goal Templates section
+ * - 'completed': Completed Goals section
+ *
+ * **Error Handling:**
+ * - Gracefully handles localStorage access failures
+ * - Falls back to expanded state for any missing elements
+ * - Continues processing other sections if one fails
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Called during goals tab initialization
+ * renderGoalsTab(tabPanel);
+ * restoreGoalsSectionStates();
+ * // All sections now reflect saved user preferences
+ */
+function restoreGoalsSectionStates() {
+    const sections = [
+        {
+            name: 'active',
+            storageKey: GOALS_ACTIVE_COLLAPSE_KEY,
+            getter: getIsGoalsActiveCollapsed,
+            setter: setIsGoalsActiveCollapsed,
+            displayName: 'Active Goals'
+        },
+        {
+            name: 'templates',
+            storageKey: GOALS_TEMPLATES_COLLAPSE_KEY,
+            getter: getIsGoalsTemplatesCollapsed,
+            setter: setIsGoalsTemplatesCollapsed,
+            displayName: 'Quick Goal Templates'
+        },
+        {
+            name: 'completed',
+            storageKey: GOALS_COMPLETED_COLLAPSE_KEY,
+            getter: getIsGoalsCompletedCollapsed,
+            setter: setIsGoalsCompletedCollapsed,
+            displayName: 'Completed Goals'
+        }
+    ];
+
+    sections.forEach(section => {
+        try {
+            // Get DOM elements for this section
+            const sectionElement = document.querySelector(`[data-goals-section="${section.name}"]`);
+            if (!sectionElement) {
+                console.warn(`Goals section element not found: ${section.name}`);
+                return;
+            }
+
+            const toggleHeader = sectionElement.querySelector(`[data-action="toggle-goals-${section.name}"]`);
+            const contentArea = sectionElement.querySelector('.settings-section-content');
+            const collapseIndicator = toggleHeader?.querySelector('.collapse-indicator');
+            const hintText = toggleHeader?.querySelector('.collapse-hint');
+
+            if (!toggleHeader || !contentArea) {
+                console.warn(`Required elements not found for goals section: ${section.name}`);
+                return;
+            }
+
+            // Get saved state from localStorage
+            let savedState;
+            try {
+                savedState = localStorage.getItem(section.storageKey);
+            } catch (e) {
+                console.warn(`Failed to read localStorage for goals ${section.name}:`, e);
+                savedState = null;
+            }
+
+            if (savedState === 'true') {
+                // Apply collapsed state
+                contentArea.style.display = 'none';
+                section.setter(true);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'false');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '';
+                    collapseIndicator.setAttribute('title', 'Click to expand');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to expand)';
+                }
+            } else {
+                // Apply expanded state (default or explicitly saved as 'false')
+                contentArea.style.display = 'block';
+                section.setter(false);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'true');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '';
+                    collapseIndicator.setAttribute('title', 'Click to collapse');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to collapse)';
+                }
+            }
+
+        } catch (error) {
+            console.error(`Error restoring state for goals ${section.name} section:`, error);
+            // Continue with other sections
+        }
+    });
 }

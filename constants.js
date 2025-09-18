@@ -85,6 +85,43 @@ const SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY = 'settingsAutocompleteCollapsed';
 const SETTINGS_CLOUD_SYNC_COLLAPSE_KEY = 'settingsCloudSyncCollapsed';
 
 // ===================================================================================
+// GOALS PAGE COLLAPSE STATE KEYS
+// ===================================================================================
+
+/**
+ * Storage key for goals active section collapse state.
+ *
+ * Used to persist whether the Active Goals section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const GOALS_ACTIVE_COLLAPSE_KEY = 'goalsActiveCollapsed';
+
+/**
+ * Storage key for goals templates section collapse state.
+ *
+ * Used to persist whether the Quick Goal Templates section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const GOALS_TEMPLATES_COLLAPSE_KEY = 'goalsTemplatesCollapsed';
+
+/**
+ * Storage key for goals completed section collapse state.
+ *
+ * Used to persist whether the Completed Goals section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const GOALS_COMPLETED_COLLAPSE_KEY = 'goalsCompletedCollapsed';
+
+// ===================================================================================
 // CLOUD SYNC CONFIGURATION
 // ===================================================================================
 
@@ -844,6 +881,9 @@ export {
     SETTINGS_DATA_COLLAPSE_KEY,
     SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
     SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
+    GOALS_ACTIVE_COLLAPSE_KEY,
+    GOALS_TEMPLATES_COLLAPSE_KEY,
+    GOALS_COMPLETED_COLLAPSE_KEY,
     DEFAULT_DROPBOX_CLIENT_ID,
     CUSTOM_DROPBOX_CLIENT_ID_KEY,
     DROPBOX_REDIRECT_URI,

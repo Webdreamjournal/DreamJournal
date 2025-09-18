@@ -1575,6 +1575,139 @@ function setIsSettingsCloudSyncCollapsed(collapsed) {
     isSettingsCloudSyncCollapsed = collapsed;
 }
 
+// ===================================================================================
+// GOALS PAGE COLLAPSE STATES
+// ===================================================================================
+
+/**
+ * State variable for goals active section collapse status.
+ *
+ * Controls whether the Active Goals section is collapsed or expanded in the goals tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isGoalsActiveCollapsed = false;
+
+/**
+ * State variable for goals templates section collapse status.
+ *
+ * Controls whether the Quick Goal Templates section is collapsed or expanded in the goals tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isGoalsTemplatesCollapsed = false;
+
+/**
+ * State variable for goals completed section collapse status.
+ *
+ * Controls whether the Completed Goals section is collapsed or expanded in the goals tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isGoalsCompletedCollapsed = false;
+
+/**
+ * Gets the current collapse state for the goals active section.
+ *
+ * Returns whether the Active Goals section should be displayed as collapsed
+ * in the goals tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsGoalsActiveCollapsed();
+ */
+function getIsGoalsActiveCollapsed() {
+    return isGoalsActiveCollapsed;
+}
+
+/**
+ * Sets the collapse state for the goals active section.
+ *
+ * Updates the in-memory state for the Active Goals section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsGoalsActiveCollapsed(true);
+ */
+function setIsGoalsActiveCollapsed(collapsed) {
+    isGoalsActiveCollapsed = collapsed;
+}
+
+/**
+ * Gets the current collapse state for the goals templates section.
+ *
+ * Returns whether the Quick Goal Templates section should be displayed as collapsed
+ * in the goals tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsGoalsTemplatesCollapsed();
+ */
+function getIsGoalsTemplatesCollapsed() {
+    return isGoalsTemplatesCollapsed;
+}
+
+/**
+ * Sets the collapse state for the goals templates section.
+ *
+ * Updates the in-memory state for the Quick Goal Templates section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsGoalsTemplatesCollapsed(true);
+ */
+function setIsGoalsTemplatesCollapsed(collapsed) {
+    isGoalsTemplatesCollapsed = collapsed;
+}
+
+/**
+ * Gets the current collapse state for the goals completed section.
+ *
+ * Returns whether the Completed Goals section should be displayed as collapsed
+ * in the goals tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsGoalsCompletedCollapsed();
+ */
+function getIsGoalsCompletedCollapsed() {
+    return isGoalsCompletedCollapsed;
+}
+
+/**
+ * Sets the collapse state for the goals completed section.
+ *
+ * Updates the in-memory state for the Completed Goals section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsGoalsCompletedCollapsed(true);
+ */
+function setIsGoalsCompletedCollapsed(collapsed) {
+    isGoalsCompletedCollapsed = collapsed;
+}
+
 /**
  * Gets the Dropbox access token from localStorage with fallback handling.
  *
@@ -1749,6 +1882,12 @@ export {
     getIsSettingsAutocompleteCollapsed,
     setIsSettingsCloudSyncCollapsed,
     getIsSettingsCloudSyncCollapsed,
+    setIsGoalsActiveCollapsed,
+    getIsGoalsActiveCollapsed,
+    setIsGoalsTemplatesCollapsed,
+    getIsGoalsTemplatesCollapsed,
+    setIsGoalsCompletedCollapsed,
+    getIsGoalsCompletedCollapsed,
     setCurrentPage,
     getCurrentPage,
     setScrollDebounceTimer,
