@@ -3305,6 +3305,7 @@
     box-shadow: var(--shadow-lg);
     color: var(--text-color);
     text-align: center;
+    backdrop-filter: blur(100px);
 }
 
 .security-dialog-content h3 {
