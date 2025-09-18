@@ -55,7 +55,8 @@ import {
     CLOUD_AUTO_SYNC_KEY,
     DROPBOX_ACCESS_TOKEN_KEY,
     DROPBOX_REFRESH_TOKEN_KEY,
-    DROPBOX_TOKEN_EXPIRES_KEY
+    DROPBOX_TOKEN_EXPIRES_KEY,
+    DREAM_FORM_COLLAPSE_KEY
 } from './constants.js';
 
 import {
@@ -75,7 +76,9 @@ import {
 
 import {
     loadDreams,
-    loadGoals
+    loadGoals,
+    getAutocompleteSuggestions,
+    storageType
 } from './storage.js';
 
 import {
@@ -84,15 +87,17 @@ import {
 } from './security.js';
 
 import {
-    exportAllData,
-    importAllData
+    importAllData,
+    validateAppAccess
 } from './import-export.js';
 
 import {
     createInlineMessage,
     escapeHtml,
     formatDateTimeDisplay,
-    announceLiveMessage
+    announceLiveMessage,
+    getCurrentPaginationPreference,
+    getCurrentTheme
 } from './dom-helpers.js';
 
 console.log('Loading Cloud Sync Module v2.04.01');
@@ -187,7 +192,7 @@ function initializeDropboxAuth() {
 
         dropboxAuth = new Dropbox.DropboxAuth({
             clientId: clientId,
-            fetch: fetch // Use modern fetch API
+            fetch: fetch.bind(window) // Bind fetch to window context
         });
 
         console.log('Dropbox authentication initialized successfully');
@@ -396,6 +401,13 @@ async function handleOAuthCallback() {
 
         // Clear URL parameters
         window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Update UI to reflect connected state
+        updateCloudSyncUI();
+
+        // Show success message
+        createInlineMessage('success', '🎉 Successfully connected to Dropbox! You can now sync your dreams to the cloud.');
+        announceLiveMessage('Successfully connected to Dropbox');
 
         console.log('Dropbox authentication completed successfully');
         return true;
@@ -606,7 +618,7 @@ async function initializeDropboxAPI() {
 
         dropboxInstance = new Dropbox.Dropbox({
             accessToken: accessToken,
-            fetch: fetch
+            fetch: fetch.bind(window)
         });
 
         console.log('Dropbox API initialized successfully');
@@ -631,6 +643,122 @@ function clearAuthenticationState() {
     localStorage.removeItem(DROPBOX_TOKEN_EXPIRES_KEY);
     dropboxInstance = null;
     dropboxAuth = null;
+}
+
+// ================================
+// DATA GENERATION UTILITIES
+// ================================
+
+/**
+ * Generates export data for cloud sync without downloading.
+ *
+ * Creates the same comprehensive export data structure as exportAllData()
+ * but returns the JSON string directly for cloud upload operations.
+ * Validates app access and collects all necessary data including dreams,
+ * goals, settings, and autocomplete suggestions.
+ *
+ * **Data Collection Process:**
+ * 1. Validates app access and PIN protection
+ * 2. Loads dreams and goals from IndexedDB
+ * 3. Collects autocomplete suggestions (tags, dream signs, emotions)
+ * 4. Gathers settings from localStorage
+ * 5. Creates comprehensive export object with metadata
+ * 6. Returns JSON string ready for cloud storage
+ *
+ * **Export Structure:**
+ * - exportDate: ISO timestamp of generation
+ * - exportType: "complete"
+ * - data: { dreams, goals, settings, autocomplete, metadata }
+ *
+ * @async
+ * @function
+ * @returns {Promise<string|null>} JSON string of export data, null if failed
+ * @throws {Error} When app is locked, no data exists, or generation fails
+ * @since 2.04.48
+ *
+ * @example
+ * // Generate data for cloud upload
+ * const exportData = await generateExportData();
+ * if (exportData) {
+ *   await uploadToCloud(exportData);
+ * }
+ *
+ * @example
+ * // Export structure returned:
+ * // {
+ * //   exportDate: "2023-12-01T10:30:00.000Z",
+ * //   exportType: "complete",
+ * //   data: {
+ * //     dreams: [...],
+ * //     goals: [...],
+ * //     settings: { theme, storageType, paginationLimit, dreamFormCollapsed },
+ * //     autocomplete: { tags: [...], dreamSigns: [...], emotions: [...] },
+ * //     metadata: { totalDreams, totalGoals, lucidDreams, note }
+ * //   }
+ * // }
+ */
+async function generateExportData() {
+    if (!validateAppAccess('Please unlock your journal first to sync data.')) {
+        return null;
+    }
+
+    try {
+        // Collect restorable data (voice notes excluded - audio cannot be exported/imported)
+        const [dreams, goals, userTags, userDreamSigns, userEmotions] = await Promise.all([
+            loadDreams(),
+            loadGoals(),
+            getAutocompleteSuggestions('tags'),
+            getAutocompleteSuggestions('dreamSigns'),
+            getAutocompleteSuggestions('emotions')
+        ]);
+
+        // Collect settings from localStorage
+        const settings = {
+            theme: getCurrentTheme(),
+            storageType: storageType,
+            paginationLimit: getCurrentPaginationPreference(),
+            dreamFormCollapsed: localStorage.getItem(DREAM_FORM_COLLAPSE_KEY) === 'true',
+            // Note: PIN data and encryption settings are intentionally NOT exported for security
+            // Encryption settings are device/setup specific and shouldn't be portable
+        };
+
+        // Create comprehensive export object
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            exportType: "complete",
+            data: {
+                dreams: dreams || [],
+                goals: goals || [],
+                settings: settings,
+                autocomplete: {
+                    tags: userTags || [],
+                    dreamSigns: userDreamSigns || [],
+                    emotions: userEmotions || []
+                },
+                metadata: {
+                    totalDreams: (dreams || []).length,
+                    totalGoals: (goals || []).length,
+                    lucidDreams: (dreams || []).filter(d => d.isLucid).length,
+                    totalTags: (userTags || []).length,
+                    totalDreamSigns: (userDreamSigns || []).length,
+                    note: "Voice notes are not included in exports - audio data cannot be reliably backed up/restored. Use individual voice note downloads for important recordings."
+                }
+            }
+        };
+
+        // Validate we have data to export
+        if (exportData.data.dreams.length === 0 && exportData.data.goals.length === 0) {
+            throw new Error('No data to export yet. Create some dreams or goals first!');
+        }
+
+        // Return JSON string ready for cloud upload
+        const jsonData = JSON.stringify(exportData, null, 2);
+        return jsonData;
+
+    } catch (error) {
+        console.error('Error generating export data for cloud sync:', error);
+        throw new Error(`Failed to generate export data: ${error.message}`);
+    }
 }
 
 // ================================
@@ -688,23 +816,20 @@ async function syncToCloud() {
         setCloudSyncInProgress(true);
         createInlineMessage('info', 'Uploading data to cloud...');
 
-        // Export all data
-        const exportData = await exportAllData();
+        // Generate export data for cloud upload
+        const exportData = await generateExportData();
         if (!exportData) {
-            throw new Error('Failed to export data for cloud sync');
+            throw new Error('Failed to generate data for cloud sync');
         }
 
         // Generate filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `dream-journal-backup-${timestamp}.json`;
 
-        // Upload to Dropbox
+        // Upload to Dropbox using simple format (app folder automatically prefixed by SDK)
         const uploadResponse = await dropboxInstance.filesUpload({
-            path: `/Apps/Dream Journal/${filename}`,
-            contents: exportData,
-            mode: 'add',
-            autorename: true,
-            mute: false
+            path: `/${filename}`,
+            contents: exportData
         });
 
         // Update sync status
@@ -770,9 +895,9 @@ async function syncFromCloud() {
         setCloudSyncInProgress(true);
         createInlineMessage('info', 'Retrieving backup files from cloud...');
 
-        // List backup files
+        // List backup files (app folder root)
         const listResponse = await dropboxInstance.filesListFolder({
-            path: '/Apps/Dream Journal',
+            path: '',
             recursive: false
         });
 
@@ -866,6 +991,9 @@ async function disconnectDropbox() {
         // Clear all authentication state
         clearAuthenticationState();
 
+        // Update UI to reflect disconnected state
+        updateCloudSyncUI();
+
         createInlineMessage('success', 'Disconnected from Dropbox successfully');
         announceLiveMessage('Disconnected from Dropbox');
 
@@ -873,6 +1001,7 @@ async function disconnectDropbox() {
         console.error('Error disconnecting from Dropbox:', error);
         // Still clear local state even if there's an error
         clearAuthenticationState();
+        updateCloudSyncUI();
         createInlineMessage('warning', 'Disconnected locally. Some remote cleanup may have failed.');
     }
 }
@@ -917,6 +1046,9 @@ async function initializeCloudSync() {
             }
         }
 
+        // Update UI to reflect current state
+        updateCloudSyncUI();
+
         console.log('Cloud sync module initialized');
     } catch (error) {
         console.error('Error initializing cloud sync:', error);
@@ -939,6 +1071,73 @@ function getCloudSyncStatus() {
     };
 }
 
+/**
+ * Updates the cloud sync UI to reflect current connection status.
+ *
+ * Updates status indicators, button text, and shows/hides relevant sections
+ * based on whether the user is currently connected to Dropbox.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function updateCloudSyncUI() {
+    try {
+        const status = getCloudSyncStatus();
+        const isAuthenticated = status.authenticated;
+
+        // Update status indicator
+        const statusIndicator = document.getElementById('cloudSyncStatusIndicator');
+        if (statusIndicator) {
+            if (isAuthenticated) {
+                statusIndicator.textContent = '✅ Connected';
+                statusIndicator.className = 'status-indicator connected';
+            } else {
+                statusIndicator.textContent = '🔗 Not Connected';
+                statusIndicator.className = 'status-indicator';
+            }
+        }
+
+        // Update account button
+        const accountButton = document.getElementById('cloudSyncAccountButton');
+        if (accountButton) {
+            if (isAuthenticated) {
+                accountButton.textContent = 'Disconnect Dropbox';
+                accountButton.setAttribute('data-action', 'unlink-dropbox-account');
+                accountButton.className = 'btn btn-secondary';
+                accountButton.title = 'Disconnect from Dropbox';
+            } else {
+                accountButton.textContent = 'Connect Dropbox';
+                accountButton.setAttribute('data-action', 'link-dropbox-account');
+                accountButton.className = 'btn btn-primary';
+                accountButton.title = 'Connect to Dropbox for cloud backup';
+            }
+        }
+
+        // Show/hide sync controls
+        const syncControls = document.getElementById('cloudSyncControls');
+        if (syncControls) {
+            syncControls.style.display = isAuthenticated ? 'flex' : 'none';
+        }
+
+        // Update last sync time
+        const lastSyncElement = document.getElementById('lastSyncTime');
+        if (lastSyncElement && isAuthenticated) {
+            const lastSync = status.lastSync;
+            if (lastSync) {
+                const syncDate = new Date(lastSync);
+                lastSyncElement.textContent = `Last sync: ${formatDateTimeDisplay(syncDate)}`;
+            } else {
+                lastSyncElement.textContent = 'Never synced';
+            }
+        }
+
+        console.log('Cloud sync UI updated, authenticated:', isAuthenticated);
+    } catch (error) {
+        console.error('Error updating cloud sync UI:', error);
+    }
+}
+
 // ================================
 // MODULE EXPORTS
 // ================================
@@ -958,7 +1157,8 @@ export {
     syncToCloud,
     syncFromCloud,
     isAuthenticated,
-    getCloudSyncStatus
+    getCloudSyncStatus,
+    updateCloudSyncUI
 };
 
 // For backward compatibility, also expose via window global
