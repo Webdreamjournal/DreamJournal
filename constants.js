@@ -158,6 +158,20 @@ const ADVICE_TECHNIQUES_COLLAPSE_KEY = 'adviceTechniquesCollapsed';
  */
 const ADVICE_GENERAL_COLLAPSE_KEY = 'adviceGeneralCollapsed';
 
+// ===================================================================================
+// JOURNAL PAGE COLLAPSE STATE KEYS
+// ===================================================================================
+
+/**
+ * Storage key for journal controls section collapse state.
+ *
+ * Used to persist whether the Search & Filter Controls section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const JOURNAL_CONTROLS_COLLAPSE_KEY = 'journalControlsCollapsed';
 
 // ===================================================================================
 // CLOUD SYNC CONFIGURATION
@@ -925,6 +939,7 @@ export {
     ADVICE_DAILY_TIP_COLLAPSE_KEY,
     ADVICE_TECHNIQUES_COLLAPSE_KEY,
     ADVICE_GENERAL_COLLAPSE_KEY,
+    JOURNAL_CONTROLS_COLLAPSE_KEY,
     DEFAULT_DROPBOX_CLIENT_ID,
     CUSTOM_DROPBOX_CLIENT_ID_KEY,
     DROPBOX_REDIRECT_URI,

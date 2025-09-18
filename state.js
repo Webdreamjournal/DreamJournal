@@ -1842,6 +1842,52 @@ function setIsAdviceGeneralCollapsed(collapsed) {
     isAdviceGeneralCollapsed = collapsed;
 }
 
+// ===================================================================================
+// JOURNAL PAGE COLLAPSE STATES
+// ===================================================================================
+
+/**
+ * State variable for journal controls section collapse status.
+ *
+ * Controls whether the Search & Filter Controls section is collapsed or expanded in the journal tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isJournalControlsCollapsed = false;
+
+/**
+ * Gets the current collapse state for the journal controls section.
+ *
+ * Returns whether the Search & Filter Controls section should be displayed as collapsed
+ * in the journal tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsJournalControlsCollapsed();
+ */
+function getIsJournalControlsCollapsed() {
+    return isJournalControlsCollapsed;
+}
+
+/**
+ * Sets the collapse state for the journal controls section.
+ *
+ * Updates the in-memory state for the Search & Filter Controls section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsJournalControlsCollapsed(true);
+ */
+function setIsJournalControlsCollapsed(collapsed) {
+    isJournalControlsCollapsed = collapsed;
+}
 
 /**
  * Gets the Dropbox access token from localStorage with fallback handling.
@@ -2029,6 +2075,8 @@ export {
     getIsAdviceTechniquesCollapsed,
     setIsAdviceGeneralCollapsed,
     getIsAdviceGeneralCollapsed,
+    setIsJournalControlsCollapsed,
+    getIsJournalControlsCollapsed,
     setCurrentPage,
     getCurrentPage,
     setScrollDebounceTimer,

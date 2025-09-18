@@ -15,8 +15,8 @@
  */
 
 // Import state management function and constants for form state synchronization
-import { setIsDreamFormCollapsed } from './state.js';
-import { DREAM_FORM_COLLAPSE_KEY } from './constants.js';
+import { setIsDreamFormCollapsed, getIsJournalControlsCollapsed, setIsJournalControlsCollapsed } from './state.js';
+import { DREAM_FORM_COLLAPSE_KEY, JOURNAL_CONTROLS_COLLAPSE_KEY } from './constants.js';
 import { getCurrentPaginationPreference } from './dom-helpers.js';
 
 /**
@@ -259,15 +259,25 @@ function renderJournalTab(tabPanel) {
             <!-- DREAMS SECTION HEADER            -->
             <!-- ================================ -->
             <div class="dreams-section-header">
-                <h3>Your Dreams</h3>
-                
-
+                <h3>📚 Your Dreams</h3>
             </div>
-            
+
             <!-- ================================ -->
             <!-- SEARCH & FILTER CONTROLS         -->
             <!-- ================================ -->
-            <div class="controls" role="search" aria-label="Search and filter dreams">
+            <div class="settings-section" data-journal-section="controls">
+                <h3 data-action="toggle-journal-controls"
+                    role="button"
+                    tabindex="0"
+                    aria-expanded="true"
+                    aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse"
+                    style="cursor: pointer; user-select: none;">
+                    🔍 Search & Filter Controls
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                </h3>
+                <div class="settings-section-content">
+                    <div class="controls" role="search" aria-label="Search and filter dreams">
 
                 <!-- Search and Filter Controls Group -->
                 <div class="search-filter-section">
@@ -360,8 +370,10 @@ function renderJournalTab(tabPanel) {
                     </div>
                 </div>
 
-                <!-- Visual Break Between Controls and Dream List -->
-                <div class="control-row-break"></div>
+                        <!-- Visual Break Between Controls and Dream List -->
+                        <div class="control-row-break"></div>
+                    </div>
+                </div>
             </div>
             
             <!-- ================================ -->
@@ -377,9 +389,10 @@ function renderJournalTab(tabPanel) {
         </div>
     `;
     
-    // CRITICAL: Apply saved form state immediately after rendering
+    // CRITICAL: Apply saved states immediately after rendering
     // This prevents timing race condition where user sees both forms hidden
     applyDreamFormStateAfterRender();
+    applyJournalControlsStateAfterRender();
 }
 
 /**
@@ -465,6 +478,95 @@ function applyDreamFormStateAfterRender() {
         }
         // Update global state for fallback
         setIsDreamFormCollapsed(false);
+    }
+}
+
+/**
+ * Apply saved journal controls state immediately after HTML rendering.
+ *
+ * This function restores the user's saved controls collapse preference immediately
+ * after the HTML is created, preventing visual flicker and maintaining user
+ * preferences across browser sessions.
+ *
+ * @private
+ * @returns {void}
+ * @since 2.04.01
+ */
+function applyJournalControlsStateAfterRender() {
+    try {
+        // Get DOM elements for the controls section
+        const sectionElement = document.querySelector('[data-journal-section="controls"]');
+        if (!sectionElement) {
+            console.warn('Journal controls section element not found');
+            return;
+        }
+
+        const toggleHeader = sectionElement.querySelector('[data-action="toggle-journal-controls"]');
+        const contentArea = sectionElement.querySelector('.settings-section-content');
+        const collapseIndicator = toggleHeader?.querySelector('.collapse-indicator');
+        const hintText = toggleHeader?.querySelector('.collapse-hint');
+
+        if (!toggleHeader || !contentArea) {
+            console.warn('Required elements not found for journal controls section');
+            return;
+        }
+
+        // Get saved state from localStorage
+        let savedState;
+        try {
+            savedState = localStorage.getItem(JOURNAL_CONTROLS_COLLAPSE_KEY);
+        } catch (e) {
+            console.warn('Failed to read localStorage for journal controls:', e);
+            savedState = null;
+        }
+
+        if (savedState === 'true') {
+            // Apply collapsed state
+            contentArea.style.display = 'none';
+            setIsJournalControlsCollapsed(true);
+
+            // Update ARIA attributes
+            toggleHeader.setAttribute('aria-expanded', 'false');
+            toggleHeader.setAttribute('aria-label', 'Search & Filter Controls section - currently collapsed. Press Enter or Space to expand');
+
+            // Update visual indicators
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to expand');
+            }
+            if (hintText) {
+                hintText.textContent = '(Click to expand)';
+            }
+        } else {
+            // Apply expanded state (default or explicitly saved as 'false')
+            contentArea.style.display = 'block';
+            setIsJournalControlsCollapsed(false);
+
+            // Update ARIA attributes
+            toggleHeader.setAttribute('aria-expanded', 'true');
+            toggleHeader.setAttribute('aria-label', 'Search & Filter Controls section - currently expanded. Press Enter or Space to collapse');
+
+            // Update visual indicators
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to collapse');
+            }
+            if (hintText) {
+                hintText.textContent = '(Click to collapse)';
+            }
+        }
+
+    } catch (error) {
+        console.error('Error restoring journal controls state:', error);
+        // Fallback to expanded state
+        const sectionElement = document.querySelector('[data-journal-section="controls"]');
+        if (sectionElement) {
+            const contentArea = sectionElement.querySelector('.settings-section-content');
+            if (contentArea) {
+                contentArea.style.display = 'block';
+            }
+        }
+        setIsJournalControlsCollapsed(false);
     }
 }
 

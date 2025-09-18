@@ -36,6 +36,7 @@ import {
     ADVICE_DAILY_TIP_COLLAPSE_KEY,
     ADVICE_TECHNIQUES_COLLAPSE_KEY,
     ADVICE_GENERAL_COLLAPSE_KEY,
+    JOURNAL_CONTROLS_COLLAPSE_KEY,
     getTipsCount,
     commonTags,
     commonDreamSigns,
@@ -76,6 +77,8 @@ import {
     setIsAdviceTechniquesCollapsed,
     getIsAdviceGeneralCollapsed,
     setIsAdviceGeneralCollapsed,
+    getIsJournalControlsCollapsed,
+    setIsJournalControlsCollapsed,
     asyncMutex,
     getActiveVoiceTab,
     setActiveVoiceTab
@@ -2086,6 +2089,134 @@ async function toggleAdviceSection(sectionName) {
     }
 }
 
+/**
+ * Toggles the collapse/expand state of a journal section with state persistence.
+ *
+ * This function handles the UI interactions for collapsing and expanding journal sections
+ * including visual state updates, ARIA attribute management, localStorage persistence,
+ * and focus management. It follows the same pattern as other section toggles but works
+ * specifically with journal sections.
+ *
+ * **Supported Sections:**
+ * - 'controls': Search & Filter Controls section
+ *
+ * **State Management:**
+ * - Updates visual indicators (arrows and hint text)
+ * - Saves state to localStorage for persistence across sessions
+ * - Updates ARIA attributes for screen readers
+ * - Synchronizes with global application state
+ *
+ * **Error Handling:**
+ * - Validates section names before processing
+ * - Handles DOM element availability gracefully
+ * - Provides fallback for localStorage access issues
+ *
+ * @async
+ * @function toggleJournalSection
+ * @param {string} sectionName - Name of the journal section to toggle ('controls')
+ * @returns {Promise<void>} Promise that resolves when toggle operation completes
+ * @throws {Error} When invalid section name is provided or required DOM elements are missing
+ * @since 2.04.01
+ *
+ * @example
+ * // Toggle the controls section
+ * await toggleJournalSection('controls');
+ */
+async function toggleJournalSection(sectionName) {
+    try {
+        // Validate section name
+        const validSections = ['controls'];
+        if (!validSections.includes(sectionName)) {
+            throw new Error(`Invalid journal section name: ${sectionName}. Must be one of: ${validSections.join(', ')}`);
+        }
+
+        // Get the appropriate state functions and storage key
+        const sectionConfig = {
+            'controls': {
+                getter: getIsJournalControlsCollapsed,
+                setter: setIsJournalControlsCollapsed,
+                storageKey: JOURNAL_CONTROLS_COLLAPSE_KEY,
+                displayName: 'Search & Filter Controls',
+                emoji: '🔍'
+            }
+        };
+
+        const config = sectionConfig[sectionName];
+        if (!config) {
+            throw new Error(`Journal section configuration not found for: ${sectionName}`);
+        }
+
+        // Get DOM elements
+        const sectionElement = document.querySelector(`[data-journal-section="${sectionName}"]`);
+        if (!sectionElement) {
+            throw new Error(`Journal section element not found: [data-journal-section="${sectionName}"]`);
+        }
+
+        const toggleHeader = sectionElement.querySelector(`[data-action="toggle-journal-${sectionName}"]`);
+        const contentArea = sectionElement.querySelector('.settings-section-content');
+
+        if (!toggleHeader || !contentArea) {
+            throw new Error(`Required elements not found in journal section: ${sectionName}`);
+        }
+
+        // Get current state and toggle
+        const isCurrentlyCollapsed = config.getter();
+        const collapseIndicator = toggleHeader.querySelector('.collapse-indicator');
+
+        if (isCurrentlyCollapsed) {
+            // Expand: show content
+            contentArea.style.display = 'block';
+            config.setter(false);
+
+            // Update ARIA states for expanded section
+            toggleHeader.setAttribute('aria-expanded', 'true');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to collapse');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to collapse)';
+            }
+
+            // Save expanded state
+            try { localStorage.setItem(config.storageKey, 'false'); } catch (e) {}
+        } else {
+            // Collapse: hide content
+            contentArea.style.display = 'none';
+            config.setter(true);
+
+            // Update ARIA states for collapsed section
+            toggleHeader.setAttribute('aria-expanded', 'false');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to expand');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to expand)';
+            }
+
+            // Save collapsed state
+            try { localStorage.setItem(config.storageKey, 'true'); } catch (e) {}
+        }
+
+    } catch (error) {
+        console.error(`Error toggling journal section "${sectionName}":`, error);
+        throw error;
+    }
+}
+
 // ===================================================================================
 // LOADING STATE MANAGEMENT
 // ===================================================================================
@@ -3740,6 +3871,7 @@ export {
     toggleSettingsSection,
     toggleGoalsSection,
     toggleAdviceSection,
+    toggleJournalSection,
 
     // Search & Loading States
     showSearchLoading,

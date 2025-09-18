@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, toggleSettingsSection, toggleGoalsSection, toggleAdviceSection, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
+import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, toggleSettingsSection, toggleGoalsSection, toggleAdviceSection, toggleJournalSection, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -374,6 +374,7 @@ const ACTION_MAP = {
         'toggle-advice-daily-tip': () => toggleAdviceSection('daily-tip'),       // Toggle advice daily tip section visibility
         'toggle-advice-techniques': () => toggleAdviceSection('techniques'),     // Toggle advice techniques section visibility
         'toggle-advice-general': () => toggleAdviceSection('general'),           // Toggle advice general section visibility
+        'toggle-journal-controls': () => toggleJournalSection('controls'),       // Toggle journal controls section visibility
         'create-from-transcription': (ctx) => createDreamFromTranscription(ctx.voiceNoteId), // Create dream from voice transcription
         
         // ================================
