@@ -777,6 +777,10 @@ async function toggleCloudEncryption() {
 
             // Re-initialize the settings tab to restore state
             initializeSettingsTab();
+
+            // Restore cloud sync UI state after re-rendering
+            const { updateCloudSyncUI } = await import('./cloud-sync.js');
+            updateCloudSyncUI();
         }
 
         // Show feedback message

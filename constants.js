@@ -178,6 +178,18 @@ const DROPBOX_REFRESH_TOKEN_KEY = 'dropboxRefreshToken';
 const DROPBOX_TOKEN_EXPIRES_KEY = 'dropboxTokenExpires';
 
 /**
+ * Storage key for cloud backup encryption setting.
+ *
+ * When enabled, cloud backups are encrypted using the user's
+ * encryption password before uploading to Dropbox. When disabled,
+ * cloud backups are stored as plain JSON for portability.
+ *
+ * @constant {string}
+ * @since 2.04.65
+ */
+const CLOUD_ENCRYPTION_ENABLED_KEY = 'cloudEncryptionEnabled';
+
+/**
  * Storage key for last cloud sync timestamp.
  *
  * Used to track when the last successful cloud synchronization
@@ -837,6 +849,7 @@ export {
     DROPBOX_REDIRECT_URI,
     CLOUD_SYNC_ENABLED_KEY,
     CLOUD_AUTO_SYNC_KEY,
+    CLOUD_ENCRYPTION_ENABLED_KEY,
     DROPBOX_ACCESS_TOKEN_KEY,
     DROPBOX_REFRESH_TOKEN_KEY,
     DROPBOX_TOKEN_EXPIRES_KEY,

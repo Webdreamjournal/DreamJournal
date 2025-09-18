@@ -1443,7 +1443,13 @@ function setEncryptionEnabled(enabled) {
  * @since 2.04.64
  */
 function getCloudEncryptionEnabled() {
-    return cloudEncryptionEnabled;
+    // Load from localStorage, default to true for security
+    try {
+        const stored = localStorage.getItem('cloudEncryptionEnabled');
+        return stored !== null ? stored === 'true' : true;
+    } catch (e) {
+        return true; // Default to encrypted for security
+    }
 }
 
 /**
@@ -1454,6 +1460,13 @@ function getCloudEncryptionEnabled() {
  */
 function setCloudEncryptionEnabled(enabled) {
     cloudEncryptionEnabled = enabled;
+
+    // Persist to localStorage
+    try {
+        localStorage.setItem('cloudEncryptionEnabled', enabled.toString());
+    } catch (e) {
+        console.warn('Could not save cloud encryption setting to localStorage:', e);
+    }
 }
 
 /**
