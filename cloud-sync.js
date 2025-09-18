@@ -697,43 +697,33 @@ async function importCloudData(backupData) {
         const data = backupData.data;
 
         // Import dreams
-        console.log('- Importing dreams:', data.dreams?.length || 0, 'entries');
         if (data.dreams && Array.isArray(data.dreams)) {
             // Clear existing dreams first
             await saveToStore('dreams', []);
-            console.log('- Cleared existing dreams');
-
             // Import new dreams directly to storage (saveDream expects form inputs, not objects)
-            console.log('- Saving all dreams directly to storage...');
             await saveToStore('dreams', data.dreams);
         }
 
         // Import goals
-        console.log('- Importing goals:', data.goals?.length || 0, 'entries');
         if (data.goals && Array.isArray(data.goals)) {
             await saveToStore('goals', data.goals);
         }
 
         // Import autocomplete data
         if (data.autocomplete) {
-            console.log('- Importing autocomplete data...');
             if (data.autocomplete.tags) {
-                console.log('- Saving tags:', data.autocomplete.tags.length);
                 await saveAutocompleteSuggestions('tags', data.autocomplete.tags);
             }
             if (data.autocomplete.dreamSigns) {
-                console.log('- Saving dream signs:', data.autocomplete.dreamSigns.length);
                 await saveAutocompleteSuggestions('dreamSigns', data.autocomplete.dreamSigns);
             }
             if (data.autocomplete.emotions) {
-                console.log('- Saving emotions:', data.autocomplete.emotions.length);
                 await saveAutocompleteSuggestions('emotions', data.autocomplete.emotions);
             }
         }
 
         // Import settings (excluding security settings)
         if (data.settings) {
-            console.log('- Importing settings...');
             if (data.settings.theme && ['light', 'dark', 'auto'].includes(data.settings.theme)) {
                 storeTheme(data.settings.theme);
                 applyTheme(data.settings.theme);
@@ -746,18 +736,7 @@ async function importCloudData(backupData) {
             }
         }
 
-        // Verify what's actually in the database after import
-        console.log('- Verifying database after import...');
-        const savedDreams = await loadDreams();
-        const savedGoals = await loadGoals();
-        console.log('- Dreams in database after import:', savedDreams?.length || 0);
-        console.log('- Goals in database after import:', savedGoals?.length || 0);
-        if (savedDreams?.length > 0) {
-            console.log('- First dream:', savedDreams[0].id, savedDreams[0].title);
-        }
-
         // Refresh displays
-        console.log('- Refreshing displays...');
         displayDreams();
 
         return {
@@ -926,39 +905,29 @@ async function generateExportData() {
 async function checkForLocalChanges() {
     try {
         const lastSyncTime = getLastCloudSyncTime();
-        console.log('- Checking for local changes since:', new Date(lastSyncTime || 0).toISOString());
 
         if (!lastSyncTime) {
             // No previous sync, assume local changes exist
-            console.log('- No previous sync found, assuming local changes exist');
             return true;
         }
 
         // Check dreams for modifications
         const dreams = await loadDreams();
         if (dreams && dreams.length > 0) {
-            console.log(`- Checking ${dreams.length} dreams for modifications...`);
-
             for (const dream of dreams) {
                 const dreamTime = dream.lastModified || dream.createdAt || 0;
-                const dreamDate = new Date(dreamTime).toISOString();
 
                 // Convert both to numbers for comparison
                 const dreamTimestamp = Number(dreamTime);
                 const syncTimestamp = Number(lastSyncTime);
                 const isModified = dreamTimestamp > syncTimestamp;
 
-                console.log(`  - Dream "${dream.title}": ${dreamDate}`);
-                console.log(`    dreamTime: ${dreamTimestamp}, lastSync: ${syncTimestamp}, modified: ${isModified}`);
-
                 // Also check if dream has no timestamp (treat as potentially modified)
                 if (dreamTimestamp === 0) {
-                    console.log(`    Warning: Dream "${dream.title}" has no timestamp - treating as potentially modified`);
                     return true;
                 }
 
                 if (isModified) {
-                    console.log('- Found dreams modified since last sync');
                     return true;
                 }
             }
@@ -967,23 +936,16 @@ async function checkForLocalChanges() {
         // Check goals for modifications
         const goals = await loadGoals();
         if (goals && goals.length > 0) {
-            console.log(`- Checking ${goals.length} goals for modifications...`);
-
             for (const goal of goals) {
                 const goalTime = goal.lastModified || goal.createdAt || 0;
-                const goalDate = new Date(goalTime).toISOString();
                 const isModified = goalTime > lastSyncTime;
 
-                console.log(`  - Goal "${goal.title || goal.description}": ${goalDate} (modified: ${isModified})`);
-
                 if (isModified) {
-                    console.log('- Found goals modified since last sync');
                     return true;
                 }
             }
         }
 
-        console.log('- No local changes detected since last sync');
         return false;
 
     } catch (error) {
@@ -1072,6 +1034,163 @@ async function showConflictDialog() {
     });
 }
 
+/**
+ * Checks if cloud data is newer than local data before upload.
+ *
+ * Downloads and compares the cloud backup's export date with the last
+ * local sync time to detect if the cloud has been updated by another
+ * device since the last sync from this device.
+ *
+ * **Detection Logic:**
+ * 1. Downloads current cloud backup file
+ * 2. Compares cloud export date with last local sync time
+ * 3. Returns true if cloud is newer (potential conflict)
+ * 4. Handles cases where no cloud file exists
+ *
+ * @async
+ * @function
+ * @returns {Promise<boolean>} True if cloud has newer data, false otherwise
+ * @since 2.04.58
+ *
+ * @example
+ * // Check before uploading to cloud
+ * const hasConflict = await checkForCloudConflicts();
+ * if (hasConflict) {
+ *   // Show upload confirmation dialog
+ * }
+ */
+async function checkForCloudConflicts() {
+    try {
+        const lastSyncTime = getLastCloudSyncTime();
+
+        // List cloud files to check if backup exists
+        const listResponse = await dropboxInstance.filesListFolder({
+            path: '',
+            recursive: false
+        });
+
+        const backupFiles = listResponse.result.entries.filter(entry =>
+            entry['.tag'] === 'file' && (
+                entry.name === 'dream-journal-cloud-sync.json' ||
+                entry.name.includes('dream-journal-backup')
+            )
+        );
+
+        if (backupFiles.length === 0) {
+            return false;
+        }
+
+        // Get the most recent backup
+        const latestBackup = backupFiles.sort((a, b) =>
+            new Date(b.client_modified) - new Date(a.client_modified)
+        )[0];
+
+
+        // Download and check the cloud backup's export date
+        const downloadResponse = await dropboxInstance.filesDownload({
+            path: latestBackup.path_lower
+        });
+
+        if (!downloadResponse.result.fileBlob) {
+            return false;
+        }
+
+        const backupDataText = await downloadResponse.result.fileBlob.text();
+        const backupData = JSON.parse(backupDataText);
+
+        const cloudExportDate = new Date(backupData.exportDate).getTime();
+
+        // If cloud was exported after our last sync, it has newer data
+        const isCloudNewer = cloudExportDate > (lastSyncTime || 0);
+
+        return isCloudNewer;
+
+    } catch (error) {
+        console.error('Error checking for cloud conflicts:', error);
+        // If we can't determine, assume conflict exists for safety
+        return true;
+    }
+}
+
+/**
+ * Shows upload conflict dialog when cloud data is newer than local.
+ *
+ * Displays a warning dialog informing the user that the cloud has
+ * newer data (possibly from another device) and uploading will
+ * overwrite it. Provides options to cancel or proceed.
+ *
+ * **Dialog Features:**
+ * - Warning about overwriting newer cloud data
+ * - Cancel button to preserve cloud data
+ * - Upload button to overwrite cloud data
+ * - Different styling to distinguish from download conflicts
+ *
+ * @async
+ * @function
+ * @returns {Promise<boolean>} True if user confirms upload, false if cancelled
+ * @since 2.04.58
+ *
+ * @example
+ * // Show upload conflict confirmation
+ * const confirmed = await showUploadConflictDialog();
+ * if (confirmed) {
+ *   // Proceed with upload
+ * }
+ */
+async function showUploadConflictDialog() {
+    return new Promise((resolve) => {
+        // Create dialog HTML
+        const dialogHtml = `
+            <div class="security-dialog-content">
+                <h3>☁️ Newer Cloud Data Detected</h3>
+                <p>The cloud has newer data than your local device. This might be from another device or recent changes.</p>
+                <p><strong>Uploading will overwrite the newer cloud data and it will be lost permanently.</strong></p>
+                <div class="dialog-actions">
+                    <button id="upload-conflict-cancel" class="btn btn-secondary">
+                        Cancel - Keep Cloud Data
+                    </button>
+                    <button id="upload-conflict-confirm" class="btn btn-primary" style="background-color: var(--error-color);">
+                        Upload Anyway - Overwrite Cloud
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Create and show dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'security-dialog-overlay';
+        dialog.innerHTML = dialogHtml;
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-labelledby', 'upload-conflict-dialog-title');
+        dialog.setAttribute('aria-modal', 'true');
+
+        // Add event listeners
+        dialog.querySelector('#upload-conflict-cancel').addEventListener('click', () => {
+            document.body.removeChild(dialog);
+            resolve(false);
+        });
+
+        dialog.querySelector('#upload-conflict-confirm').addEventListener('click', () => {
+            document.body.removeChild(dialog);
+            resolve(true);
+        });
+
+        // Close on overlay click
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                document.body.removeChild(dialog);
+                resolve(false);
+            }
+        });
+
+        // Show dialog
+        document.body.appendChild(dialog);
+
+        // Focus the cancel button (safer default)
+        dialog.querySelector('#upload-conflict-cancel').focus();
+    });
+}
+
 // ================================
 // CLOUD SYNC OPERATIONS
 // ================================
@@ -1125,6 +1244,18 @@ async function syncToCloud() {
         }
 
         setCloudSyncInProgress(true);
+        createInlineMessage('info', 'Checking for cloud conflicts...');
+
+        // Check if cloud has newer data than local
+        const hasCloudConflict = await checkForCloudConflicts();
+        if (hasCloudConflict) {
+            const userConfirmed = await showUploadConflictDialog();
+            if (!userConfirmed) {
+                createInlineMessage('info', 'Upload cancelled - cloud data preserved');
+                return false;
+            }
+        }
+
         createInlineMessage('info', 'Uploading data to cloud...');
 
         // Generate export data for cloud upload
@@ -1136,24 +1267,12 @@ async function syncToCloud() {
         // Use consistent filename for cloud sync (no timestamp)
         const filename = `dream-journal-cloud-sync.json`;
 
-        // Debug logging
-        console.log('Upload attempt details:');
-        console.log('- Filename:', filename);
-        console.log('- Export data size:', exportData.length, 'characters');
-        console.log('- Export data preview:', exportData.substring(0, 200) + '...');
-        console.log('- Dropbox instance exists:', !!dropboxInstance);
-        console.log('- Access token from state:', !!getDropboxAccessToken());
-
         // Upload to Dropbox with overwrite mode for cloud sync
-        console.log('Uploading to cloud with overwrite mode...');
-
         const uploadResponse = await dropboxInstance.filesUpload({
             path: `/${filename}`,
             contents: exportData,
             mode: {'.tag': 'overwrite'}  // Overwrite existing file
         });
-
-        console.log('SUCCESS: File uploaded/overwritten');
 
         // Update sync status
         setLastCloudSyncTime(Date.now());
@@ -1236,10 +1355,6 @@ async function syncFromCloud() {
             recursive: false
         });
 
-        // Debug logging for download
-        console.log('Cloud sync download attempt:');
-        console.log('- Available files:', listResponse.result.entries.map(f => f.name));
-
         // Look for the consistent cloud sync file
         const backupFiles = listResponse.result.entries.filter(entry =>
             entry['.tag'] === 'file' && (
@@ -1247,8 +1362,6 @@ async function syncFromCloud() {
                 entry.name.includes('dream-journal-backup')  // Fallback for old files
             )
         );
-
-        console.log('- Matching backup files:', backupFiles.map(f => f.name));
 
         if (backupFiles.length === 0) {
             createInlineMessage('info', 'No backup files found in cloud storage.');
@@ -1261,34 +1374,23 @@ async function syncFromCloud() {
             new Date(b.client_modified) - new Date(a.client_modified)
         )[0];
 
-        console.log('- Selected backup:', latestBackup.name, 'path:', latestBackup.path_lower);
         createInlineMessage('info', `Downloading backup: ${latestBackup.name}...`);
 
         // Download the backup file
-        console.log('- Starting download...');
         const downloadResponse = await dropboxInstance.filesDownload({
             path: latestBackup.path_lower
         });
-
-        console.log('- Download response:', !!downloadResponse.result, !!downloadResponse.result?.fileBlob);
 
         if (!downloadResponse.result.fileBlob) {
             throw new Error('Failed to download backup file');
         }
 
         // Convert blob to text and parse JSON
-        console.log('- Converting blob to text...');
         const backupDataText = await downloadResponse.result.fileBlob.text();
-        console.log('- Backup data size:', backupDataText.length, 'characters');
-        console.log('- Backup data preview:', backupDataText.substring(0, 100) + '...');
-
         const backupData = JSON.parse(backupDataText);
-        console.log('- Parsed JSON successfully, data structure:', Object.keys(backupData));
 
         // Import the data manually (since importAllData expects file event)
-        console.log('- Starting import process...');
         const importResult = await importCloudData(backupData);
-        console.log('- Import result:', importResult);
 
         if (importResult && importResult.success) {
             setLastCloudSyncTime(Date.now());
