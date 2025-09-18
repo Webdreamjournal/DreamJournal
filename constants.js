@@ -89,15 +89,27 @@ const SETTINGS_CLOUD_SYNC_COLLAPSE_KEY = 'settingsCloudSyncCollapsed';
 // ===================================================================================
 
 /**
- * Dropbox OAuth client ID for authentication.
+ * Default Dropbox OAuth client ID for authentication.
  *
- * Application client ID registered with Dropbox for OAuth 2.0 authentication.
- * This is a public identifier and safe to include in client-side code.
+ * This is the default app key that works for most users. Advanced users can
+ * override this in the settings if they want to use their own Dropbox app
+ * (for example, if hosting on a different domain or experiencing rate limits).
  *
  * @constant {string}
  * @since 2.04.01
  */
-const DROPBOX_CLIENT_ID = 'your-dropbox-app-key-here';
+const DEFAULT_DROPBOX_CLIENT_ID = 'q3er21gj468udt5';
+
+/**
+ * Storage key for custom Dropbox client ID.
+ *
+ * Used to store a user-configured Dropbox app key that overrides the default.
+ * Only used by advanced users who need their own Dropbox app configuration.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const CUSTOM_DROPBOX_CLIENT_ID_KEY = 'customDropboxClientId';
 
 /**
  * OAuth redirect URI for Dropbox authentication callback.
@@ -820,7 +832,8 @@ export {
     SETTINGS_DATA_COLLAPSE_KEY,
     SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
     SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
-    DROPBOX_CLIENT_ID,
+    DEFAULT_DROPBOX_CLIENT_ID,
+    CUSTOM_DROPBOX_CLIENT_ID_KEY,
     DROPBOX_REDIRECT_URI,
     CLOUD_SYNC_ENABLED_KEY,
     CLOUD_AUTO_SYNC_KEY,

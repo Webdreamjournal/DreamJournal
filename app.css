@@ -2626,6 +2626,33 @@
             color: hsl(var(--info-h), var(--info-s), 25%);
         }
 
+        /* Message styling for advanced configuration */
+        .message-warning {
+            background: hsl(var(--warning-h), var(--warning-s), 95%);
+            border-left: 3px solid hsl(var(--warning-h), var(--warning-s), 60%);
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            color: hsl(var(--warning-h), var(--warning-s), 30%);
+        }
+
+        .border-l-warning {
+            border-left: 3px solid hsl(var(--warning-h), var(--warning-s), 60%);
+        }
+
+        .message-success {
+            background: hsl(var(--success-h), var(--success-s), 95%);
+            border-left: 3px solid hsl(var(--success-h), var(--success-s), 60%);
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+            color: hsl(var(--success-h), var(--success-s), 30%);
+        }
+
+        .border-l-success {
+            border-left: 3px solid hsl(var(--success-h), var(--success-s), 60%);
+        }
+
         /* Dark theme cloud sync adjustments */
         [data-theme="dark"] .status-indicator {
             background: hsl(var(--neutral-h), var(--neutral-s), 15%);

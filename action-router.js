@@ -109,6 +109,12 @@ import {
     syncFromCloud
 } from './cloud-sync.js';
 
+// Settings tab functions for advanced configuration
+import {
+    getCurrentDropboxClientId,
+    setCustomDropboxClientId
+} from './settingstab.js';
+
 // Storage functions needed for goal handlers
 import { saveGoals } from './storage.js';
 
@@ -487,6 +493,10 @@ const ACTION_MAP = {
         'sync-to-cloud': async () => await syncToCloud(),                   // Upload current data to cloud storage
         'sync-from-cloud': async () => await syncFromCloud(),               // Download and import data from cloud storage
         'toggle-settings-cloud-sync': () => toggleSettingsSection('cloud-sync'), // Toggle cloud sync settings section
+        'edit-dropbox-app-key': () => handleEditDropboxAppKey(),            // Edit Dropbox app key (advanced users)
+        'confirm-dropbox-app-key': () => handleConfirmDropboxAppKey(),      // Confirm Dropbox app key changes
+        'enable-app-key-editing': () => enableAppKeyEditing(),              // Enable app key editing after confirmation
+        'close-app-key-dialog': () => closeAppKeyDialog(),                  // Close app key explanation dialog
 
         // ================================
         // ENHANCED PASSWORD SCREENS (Phase 5.2)
@@ -990,6 +1000,219 @@ function handleUnifiedKeydown(event) {
         
         // Execute the action
         routeAction(context, event);
+    }
+}
+
+// ================================
+// CLOUD SYNC CONFIGURATION HANDLERS
+// ================================
+
+/**
+ * Handles the edit action for Dropbox app key configuration.
+ *
+ * Shows a confirmation dialog explaining what the app key is for,
+ * then enables editing mode if the user confirms.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function handleEditDropboxAppKey() {
+    showAppKeyExplanationDialog();
+}
+
+/**
+ * Shows explanation dialog for Dropbox app key editing.
+ *
+ * Displays a popup explaining what the app key is and why someone
+ * might want to change it, with options to proceed or cancel.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ * @private
+ */
+function showAppKeyExplanationDialog() {
+    // Create explanation dialog
+    const overlay = document.createElement('div');
+    overlay.id = 'appKeyExplanationOverlay';
+    overlay.className = 'pin-overlay';
+    overlay.style.display = 'block';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'appKeyDialogTitle');
+
+    overlay.innerHTML = `
+        <div class="pin-container">
+            <h2 id="appKeyDialogTitle">🔑 Dropbox App Key Configuration</h2>
+            <div style="text-align: left; margin: 20px 0;">
+                <p style="margin-bottom: 15px;">
+                    The <strong>Dropbox App Key</strong> identifies this application to Dropbox's servers
+                    when you connect your account. Most users should <strong>never change this</strong>.
+                </p>
+
+                <p style="margin-bottom: 15px;">
+                    <strong>You might want to use your own app key if:</strong>
+                </p>
+                <ul style="margin-left: 20px; margin-bottom: 15px;">
+                    <li>You're self-hosting on a different domain</li>
+                    <li>You're experiencing rate limiting issues</li>
+                    <li>You want complete control over your Dropbox app</li>
+                    <li>You're a developer customizing the application</li>
+                </ul>
+
+                <p style="margin-bottom: 15px;">
+                    <strong style="color: var(--warning-color);">⚠️ Warning:</strong>
+                    An invalid app key will prevent cloud sync from working entirely.
+                </p>
+
+                <p style="font-size: 12px; opacity: 0.8;">
+                    To create your own app key, visit
+                    <a href="https://www.dropbox.com/developers/apps" target="_blank" style="color: var(--primary-color);">
+                        Dropbox Developers
+                    </a> and create a new app.
+                </p>
+            </div>
+
+            <div class="pin-buttons">
+                <button data-action="enable-app-key-editing" class="btn btn-primary">
+                    I Understand - Let Me Edit
+                </button>
+                <button data-action="close-app-key-dialog" class="btn btn-secondary">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Add event listeners
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeAppKeyDialog();
+        }
+    });
+}
+
+/**
+ * Enables app key editing mode after user confirmation.
+ *
+ * Makes the input field editable, shows warning message,
+ * and changes the edit button to a confirm button.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function enableAppKeyEditing() {
+    const appKeyInput = document.getElementById('dropboxAppKeyInput');
+    const editBtn = document.getElementById('editDropboxAppKeyBtn');
+    const warning = document.getElementById('appKeyWarning');
+
+    if (appKeyInput) {
+        appKeyInput.readOnly = false;
+        appKeyInput.focus();
+        appKeyInput.select();
+    }
+
+    if (editBtn) {
+        editBtn.textContent = 'Confirm';
+        editBtn.className = 'btn btn-primary btn-small';
+        editBtn.setAttribute('data-action', 'confirm-dropbox-app-key');
+    }
+
+    if (warning) {
+        warning.style.display = 'block';
+    }
+
+    closeAppKeyDialog();
+}
+
+/**
+ * Handles the confirm action for Dropbox app key changes.
+ *
+ * Validates and saves the new app key, then resets to read-only mode.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function handleConfirmDropboxAppKey() {
+    const appKeyInput = document.getElementById('dropboxAppKeyInput');
+
+    if (appKeyInput) {
+        const newKey = appKeyInput.value.trim();
+
+        if (newKey === '') {
+            alert('App key cannot be empty. Please enter a valid Dropbox app key.');
+            return;
+        }
+
+        // Save the new key
+        setCustomDropboxClientId(newKey);
+
+        // Reset to read-only mode
+        resetAppKeyEditing();
+
+        // Show success message
+        const container = document.querySelector('#advancedCloudConfig');
+        const successMsg = document.createElement('div');
+        successMsg.className = 'message-success border-l-success';
+        successMsg.style.marginTop = '10px';
+        successMsg.innerHTML = '<strong>✅ Success:</strong> App key updated successfully.';
+
+        container.appendChild(successMsg);
+
+        // Remove success message after 3 seconds
+        setTimeout(() => {
+            if (successMsg.parentNode) {
+                successMsg.parentNode.removeChild(successMsg);
+            }
+        }, 3000);
+    }
+}
+
+/**
+ * Closes the app key explanation dialog.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function closeAppKeyDialog() {
+    const overlay = document.getElementById('appKeyExplanationOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+/**
+ * Resets the app key editing state (shared with settingstab.js).
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ * @private
+ */
+function resetAppKeyEditing() {
+    const appKeyInput = document.getElementById('dropboxAppKeyInput');
+    const editBtn = document.getElementById('editDropboxAppKeyBtn');
+    const warning = document.getElementById('appKeyWarning');
+
+    if (appKeyInput) {
+        appKeyInput.readOnly = true;
+        appKeyInput.value = getCurrentDropboxClientId();
+    }
+
+    if (editBtn) {
+        editBtn.textContent = 'Edit';
+        editBtn.className = 'btn btn-secondary btn-small';
+        editBtn.setAttribute('data-action', 'edit-dropbox-app-key');
+    }
+
+    if (warning) {
+        warning.style.display = 'none';
     }
 }
 

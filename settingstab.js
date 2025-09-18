@@ -56,7 +56,9 @@ import {
     SETTINGS_SECURITY_COLLAPSE_KEY,
     SETTINGS_DATA_COLLAPSE_KEY,
     SETTINGS_AUTOCOMPLETE_COLLAPSE_KEY,
-    SETTINGS_CLOUD_SYNC_COLLAPSE_KEY
+    SETTINGS_CLOUD_SYNC_COLLAPSE_KEY,
+    DEFAULT_DROPBOX_CLIENT_ID,
+    CUSTOM_DROPBOX_CLIENT_ID_KEY
 } from './constants.js';
 import { 
     getAutocompleteSuggestions,
@@ -375,6 +377,49 @@ function renderSettingsTab(tabPanel) {
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>
+
+                <!-- Advanced Configuration -->
+                <div class="settings-row">
+                    <div>
+                        <label class="settings-label" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="showAdvancedCloudConfig" style="margin: 0;">
+                            <span>Show Advanced Configuration</span>
+                        </label>
+                        <div class="settings-description">
+                            Configure custom Dropbox app settings (for advanced users only)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Configuration Panel -->
+                <div id="advancedCloudConfig" class="settings-row" style="display: none;">
+                    <div style="width: 100%;">
+                        <div class="settings-label">Dropbox App Key</div>
+                        <div class="settings-description" style="margin-bottom: 15px;">
+                            The Dropbox application key used for authentication. Most users should not change this.
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <input
+                                type="text"
+                                id="dropboxAppKeyInput"
+                                class="form-control"
+                                style="flex: 1; font-family: monospace;"
+                                readonly
+                                value=""
+                                aria-label="Dropbox App Key">
+                            <button
+                                id="editDropboxAppKeyBtn"
+                                data-action="edit-dropbox-app-key"
+                                class="btn btn-secondary btn-small">
+                                Edit
+                            </button>
+                        </div>
+                        <div class="message-warning border-l-warning" style="display: none;" id="appKeyWarning">
+                            <strong>⚠️ Warning:</strong> Only change this if you know what you're doing.
+                            An invalid app key will prevent cloud sync from working.
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Account Connection Status -->
                 <div class="settings-row">
@@ -1603,6 +1648,9 @@ function initializeSettingsTab() {
             renderAutocompleteManagementList('tags');
             renderAutocompleteManagementList('dreamSigns');
             renderAutocompleteManagementList('emotions');
+
+            // Initialize cloud sync configuration
+            initializeCloudSyncConfig();
             
             // Add PWA section if installation is available
             managePWASettingsSection();
@@ -1656,8 +1704,153 @@ export {
     toggleEncryption,
     enableEncryption,
     disableEncryption,
-    changeEncryptionPassword
+    changeEncryptionPassword,
+
+    // Cloud sync configuration functions
+    initializeCloudSyncConfig,
+    toggleAdvancedCloudConfig,
+    getCurrentDropboxClientId,
+    setCustomDropboxClientId
 };
+
+// ================================
+// CLOUD SYNC CONFIGURATION MANAGEMENT
+// ================================
+
+/**
+ * Initializes cloud sync configuration UI.
+ *
+ * Sets up the advanced configuration panel, populates the app key field,
+ * and configures event listeners for the advanced toggle and app key editing.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function initializeCloudSyncConfig() {
+    try {
+        // Populate the app key field with current value
+        const appKeyInput = document.getElementById('dropboxAppKeyInput');
+        if (appKeyInput) {
+            appKeyInput.value = getCurrentDropboxClientId();
+        }
+
+        // Set up advanced config toggle
+        const advancedToggle = document.getElementById('showAdvancedCloudConfig');
+        if (advancedToggle) {
+            advancedToggle.addEventListener('change', toggleAdvancedCloudConfig);
+        }
+
+        console.log('Cloud sync configuration initialized');
+    } catch (error) {
+        console.error('Error initializing cloud sync config:', error);
+    }
+}
+
+/**
+ * Toggles the visibility of advanced cloud sync configuration.
+ *
+ * Shows or hides the advanced configuration panel based on checkbox state.
+ * Also manages the warning message visibility.
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ */
+function toggleAdvancedCloudConfig() {
+    const advancedPanel = document.getElementById('advancedCloudConfig');
+    const checkbox = document.getElementById('showAdvancedCloudConfig');
+
+    if (advancedPanel && checkbox) {
+        if (checkbox.checked) {
+            advancedPanel.style.display = 'block';
+        } else {
+            advancedPanel.style.display = 'none';
+            // Reset any editing state when hiding
+            resetAppKeyEditing();
+        }
+    }
+}
+
+/**
+ * Gets the current Dropbox client ID (custom or default).
+ *
+ * Returns the user's custom app key if set, otherwise returns the default.
+ *
+ * @function
+ * @returns {string} The current Dropbox client ID
+ * @since 2.04.01
+ */
+function getCurrentDropboxClientId() {
+    try {
+        const customKey = localStorage.getItem(CUSTOM_DROPBOX_CLIENT_ID_KEY);
+        return customKey || DEFAULT_DROPBOX_CLIENT_ID;
+    } catch (error) {
+        console.error('Error getting Dropbox client ID:', error);
+        return DEFAULT_DROPBOX_CLIENT_ID;
+    }
+}
+
+/**
+ * Sets a custom Dropbox client ID.
+ *
+ * Stores the custom app key in localStorage and updates the UI.
+ *
+ * @function
+ * @param {string} clientId - The custom client ID to store
+ * @returns {void}
+ * @since 2.04.01
+ */
+function setCustomDropboxClientId(clientId) {
+    try {
+        if (clientId && clientId.trim() !== '') {
+            localStorage.setItem(CUSTOM_DROPBOX_CLIENT_ID_KEY, clientId.trim());
+        } else {
+            localStorage.removeItem(CUSTOM_DROPBOX_CLIENT_ID_KEY);
+        }
+
+        // Update the input field
+        const appKeyInput = document.getElementById('dropboxAppKeyInput');
+        if (appKeyInput) {
+            appKeyInput.value = getCurrentDropboxClientId();
+        }
+
+        console.log('Custom Dropbox client ID updated');
+    } catch (error) {
+        console.error('Error setting custom Dropbox client ID:', error);
+    }
+}
+
+/**
+ * Resets the app key editing state.
+ *
+ * Makes the input readonly again and changes button back to "Edit".
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ * @private
+ */
+function resetAppKeyEditing() {
+    const appKeyInput = document.getElementById('dropboxAppKeyInput');
+    const editBtn = document.getElementById('editDropboxAppKeyBtn');
+    const warning = document.getElementById('appKeyWarning');
+
+    if (appKeyInput) {
+        appKeyInput.readOnly = true;
+        appKeyInput.value = getCurrentDropboxClientId();
+    }
+
+    if (editBtn) {
+        editBtn.textContent = 'Edit';
+        editBtn.className = 'btn btn-secondary btn-small';
+        editBtn.setAttribute('data-action', 'edit-dropbox-app-key');
+    }
+
+    if (warning) {
+        warning.style.display = 'none';
+    }
+}
 
 // For backward compatibility, also expose via window global
 // This allows both ES modules and traditional script approaches to work

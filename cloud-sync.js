@@ -48,7 +48,8 @@ if (typeof window === 'undefined') {
 // Import required dependencies
 import {
     CONSTANTS,
-    DROPBOX_CLIENT_ID,
+    DEFAULT_DROPBOX_CLIENT_ID,
+    CUSTOM_DROPBOX_CLIENT_ID_KEY,
     DROPBOX_REDIRECT_URI,
     CLOUD_SYNC_ENABLED_KEY,
     CLOUD_AUTO_SYNC_KEY,
@@ -95,6 +96,31 @@ import {
 } from './dom-helpers.js';
 
 console.log('Loading Cloud Sync Module v2.04.01');
+
+// ================================
+// DROPBOX CLIENT ID MANAGEMENT
+// ================================
+
+/**
+ * Gets the current Dropbox client ID (custom or default).
+ *
+ * Returns the user's custom app key if set, otherwise returns the default.
+ * This allows advanced users to override the default app key while most
+ * users can use the default without any configuration.
+ *
+ * @function
+ * @returns {string} The current Dropbox client ID
+ * @since 2.04.01
+ */
+function getCurrentDropboxClientId() {
+    try {
+        const customKey = localStorage.getItem(CUSTOM_DROPBOX_CLIENT_ID_KEY);
+        return customKey || DEFAULT_DROPBOX_CLIENT_ID;
+    } catch (error) {
+        console.error('Error getting Dropbox client ID:', error);
+        return DEFAULT_DROPBOX_CLIENT_ID;
+    }
+}
 
 // ================================
 // DROPBOX SDK INTEGRATION
@@ -154,8 +180,13 @@ function initializeDropboxAuth() {
             throw new Error('Dropbox SDK not loaded. Please include the Dropbox JavaScript SDK.');
         }
 
+        const clientId = getCurrentDropboxClientId();
+        if (!clientId || clientId.trim() === '') {
+            throw new Error('Dropbox Client ID not configured. Please set up your Dropbox app first.');
+        }
+
         dropboxAuth = new Dropbox.DropboxAuth({
-            clientId: DROPBOX_CLIENT_ID,
+            clientId: clientId,
             fetch: fetch // Use modern fetch API
         });
 
