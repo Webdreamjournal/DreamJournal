@@ -51,6 +51,7 @@ import {
     addCustomAutocompleteItem,
     deleteAutocompleteItem,
     toggleEncryption,
+    toggleCloudEncryption,
     changeEncryptionPassword
 } from './settingstab.js';
 
@@ -483,6 +484,7 @@ const ACTION_MAP = {
         // ENCRYPTION SETTINGS MANAGEMENT
         // ================================
         'toggle-encryption': () => toggleEncryption(),                      // Enable/disable data encryption
+        'toggle-cloud-encryption': () => toggleCloudEncryption(),           // Enable/disable cloud backup encryption
         'change-encryption-password': () => changeEncryptionPassword(),     // Change encryption password (Settings tab)
 
         // ================================

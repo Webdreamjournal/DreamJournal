@@ -71,6 +71,8 @@ import {
     getAppLocked,
     getUnlocked,
     getEncryptionEnabled,
+    getCloudEncryptionEnabled,
+    setCloudEncryptionEnabled,
     getIsSettingsAppearanceCollapsed,
     setIsSettingsAppearanceCollapsed,
     getIsSettingsSecurityCollapsed,
@@ -487,10 +489,35 @@ function renderSettingsTab(tabPanel) {
                     </div>
                 </div>
 
+                <!-- Cloud Encryption Option (only shown when encryption is enabled) -->
+                ${getEncryptionEnabled() ? `
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Cloud Encryption</div>
+                        <div class="settings-description">
+                            Encrypt your cloud backups using your encryption password for maximum security.
+                        </div>
+                    </div>
+                    <div class="settings-controls">
+                        <label class="checkbox-container">
+                            <input
+                                type="checkbox"
+                                id="cloudEncryptionEnabled"
+                                data-action="toggle-cloud-encryption"
+                                ${getCloudEncryptionEnabled() ? 'checked' : ''}>
+                            <span class="checkmark"></span>
+                            <span class="checkbox-label">Encrypt cloud backups</span>
+                        </label>
+                    </div>
+                </div>
+                ` : ''}
+
                 <div class="cloud-sync-notice">
                     <div class="message-info border-l-info" style="margin-top: 15px;">
                         <strong>🔒 Privacy:</strong> ${getEncryptionEnabled()
-                            ? 'Your cloud backups contain encrypted data. Only you can decrypt them with your encryption password.'
+                            ? (getCloudEncryptionEnabled()
+                                ? 'Your cloud backups are encrypted using your encryption password. Only you can decrypt them.'
+                                : 'Your cloud backups are stored as readable JSON. Enable "Encrypt cloud backups" above for maximum security.')
                             : 'Your cloud backups contain readable JSON data. Enable encryption in settings above for secure cloud storage.'}
                     </div>
                 </div>
@@ -712,6 +739,60 @@ async function toggleEncryption() {
 }
 
 /**
+ * Toggles cloud backup encryption on/off.
+ *
+ * This function enables or disables encryption for cloud backups specifically,
+ * allowing users to choose whether their Dropbox backups should be encrypted
+ * even when general app encryption is enabled. This provides flexibility for
+ * users who want local encryption but prefer plain text cloud backups.
+ *
+ * @async
+ * @function toggleCloudEncryption
+ * @returns {Promise<void>} Promise that resolves when toggle is complete
+ * @throws {Error} When cloud encryption toggle fails
+ * @since 2.04.64
+ *
+ * @example
+ * // Toggle cloud encryption from action router
+ * await toggleCloudEncryption();
+ */
+async function toggleCloudEncryption() {
+    try {
+        const currentlyEnabled = getCloudEncryptionEnabled();
+        const newState = !currentlyEnabled;
+
+        // Update the setting
+        setCloudEncryptionEnabled(newState);
+
+        // Update the checkbox UI
+        const checkbox = document.getElementById('cloudEncryptionEnabled');
+        if (checkbox) {
+            checkbox.checked = newState;
+        }
+
+        // Update the privacy notice to reflect the change
+        const settingsTabPanel = document.getElementById('settingsTab');
+        if (settingsTabPanel) {
+            renderSettingsTab(settingsTabPanel);
+
+            // Re-initialize the settings tab to restore state
+            initializeSettingsTab();
+        }
+
+        // Show feedback message
+        const message = newState
+            ? 'Cloud backup encryption enabled. Your Dropbox backups will now be encrypted.'
+            : 'Cloud backup encryption disabled. Your Dropbox backups will be stored as plain text.';
+
+        createInlineMessage('success', message);
+
+    } catch (error) {
+        console.error('Error toggling cloud encryption:', error);
+        createInlineMessage('error', 'Failed to change cloud encryption setting. Please try again.');
+    }
+}
+
+/**
  * Enables data encryption with comprehensive password setup and data migration.
  *
  * This function implements the complete encryption enablement process including
@@ -880,13 +961,13 @@ async function setupEncryption(password) {
         }
 
         // Encrypt existing autocomplete data (tags and dream signs)
-        const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
+        const { getAutocompleteSuggestionsRawData } = await import('./storage.js');
         const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
         let autocompleteEncryptedCount = 0;
 
         for (const type of autocompleteTypes) {
             try {
-                const autocompleteData = await getAutocompleteSuggestionsRaw(type);
+                const autocompleteData = await getAutocompleteSuggestionsRawData(type);
                 if (autocompleteData && !autocompleteData.encrypted) {
                     const encrypted = await encryptItemForStorage(autocompleteData, password);
                     await saveItemToStore('autocomplete', encrypted);
@@ -1703,6 +1784,7 @@ export {
 
     // Encryption settings functions
     toggleEncryption,
+    toggleCloudEncryption,
     enableEncryption,
     disableEncryption,
     changeEncryptionPassword,

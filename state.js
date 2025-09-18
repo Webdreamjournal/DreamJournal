@@ -709,6 +709,20 @@ let encryptionPassword = null;
 let encryptionEnabled = false;
 
 /**
+ * Flag indicating whether cloud backups should be encrypted.
+ *
+ * When true, cloud sync operations will encrypt the backup data using the
+ * user's encryption password before uploading to Dropbox. When false,
+ * cloud backups are stored as plain JSON for easier access and portability.
+ * This setting only appears when general encryption is enabled.
+ *
+ * @type {boolean}
+ * @default true
+ * @since 2.04.64
+ */
+let cloudEncryptionEnabled = true;
+
+/**
  * Cache of decrypted data for current session to improve performance.
  *
  * Prevents repeated decryption operations during app usage by storing
@@ -1423,6 +1437,26 @@ function setEncryptionEnabled(enabled) {
 }
 
 /**
+ * Gets whether cloud backup encryption is currently enabled.
+ *
+ * @returns {boolean} True if cloud encryption is enabled, false otherwise
+ * @since 2.04.64
+ */
+function getCloudEncryptionEnabled() {
+    return cloudEncryptionEnabled;
+}
+
+/**
+ * Sets whether cloud backup encryption should be enabled.
+ *
+ * @param {boolean} enabled - Whether cloud encryption should be enabled
+ * @since 2.04.64
+ */
+function setCloudEncryptionEnabled(enabled) {
+    cloudEncryptionEnabled = enabled;
+}
+
+/**
  * Gets the decrypted data cache for the current session.
  *
  * @returns {Map<string, any>} The decrypted data cache map
@@ -1738,6 +1772,8 @@ export {
     setEncryptionPassword,
     getEncryptionEnabled,
     setEncryptionEnabled,
+    getCloudEncryptionEnabled,
+    setCloudEncryptionEnabled,
     getDecryptedDataCache,
     clearDecryptedDataCache,
     getCloudSyncEnabled,

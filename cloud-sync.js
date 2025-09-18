@@ -72,6 +72,7 @@ import {
     setLastCloudSyncTime,
     getEncryptionEnabled,
     getEncryptionPassword,
+    getCloudEncryptionEnabled,
     getDropboxUserInfo,
     setDropboxUserInfo
 } from './state.js';
@@ -87,7 +88,9 @@ import {
 
 import {
     testEncryptionPassword,
-    showPasswordDialog
+    showPasswordDialog,
+    encryptData,
+    decryptData
 } from './security.js';
 
 import {
@@ -1135,6 +1138,7 @@ async function checkForCloudConflicts() {
         const backupFiles = listResponse.result.entries.filter(entry =>
             entry['.tag'] === 'file' && (
                 entry.name === 'dream-journal-cloud-sync.json' ||
+                entry.name === 'dream-journal-cloud-sync.enc' ||
                 entry.name.includes('dream-journal-backup')
             )
         );
@@ -1143,11 +1147,34 @@ async function checkForCloudConflicts() {
             return false;
         }
 
-        // Get the most recent backup
-        const latestBackup = backupFiles.sort((a, b) =>
-            new Date(b.client_modified) - new Date(a.client_modified)
-        )[0];
+        // Prioritize file selection based on current cloud encryption setting for conflict checking
+        let latestBackup;
+        const preferredFileName = (getEncryptionEnabled() && getCloudEncryptionEnabled())
+            ? 'dream-journal-cloud-sync.enc'
+            : 'dream-journal-cloud-sync.json';
 
+        // First, try to find the preferred file type
+        latestBackup = backupFiles.find(file => file.name === preferredFileName);
+
+        // If preferred file doesn't exist, fall back to any available cloud sync file
+        if (!latestBackup) {
+            const cloudSyncFiles = backupFiles.filter(file =>
+                file.name === 'dream-journal-cloud-sync.json' ||
+                file.name === 'dream-journal-cloud-sync.enc'
+            );
+
+            if (cloudSyncFiles.length > 0) {
+                // Use the most recent cloud sync file (either type)
+                latestBackup = cloudSyncFiles.sort((a, b) =>
+                    new Date(b.client_modified) - new Date(a.client_modified)
+                )[0];
+            } else {
+                // Fall back to legacy backup files
+                latestBackup = backupFiles.sort((a, b) =>
+                    new Date(b.client_modified) - new Date(a.client_modified)
+                )[0];
+            }
+        }
 
         // Download and check the cloud backup's export date
         const downloadResponse = await dropboxInstance.filesDownload({
@@ -1159,7 +1186,40 @@ async function checkForCloudConflicts() {
         }
 
         const backupDataText = await downloadResponse.result.fileBlob.text();
-        const backupData = JSON.parse(backupDataText);
+
+        // Check if file is encrypted based on filename
+        const isEncryptedFile = latestBackup.name.endsWith('.enc');
+        let backupData;
+
+        if (isEncryptedFile) {
+            // File is encrypted, decrypt it for conflict checking
+            if (!getEncryptionEnabled()) {
+                console.warn('Cannot decrypt cloud backup for conflict checking: encryption not enabled');
+                return true; // Assume conflict for safety
+            }
+
+            const password = getEncryptionPassword();
+            if (!password) {
+                console.warn('Cannot decrypt cloud backup for conflict checking: password not available');
+                return true; // Assume conflict for safety
+            }
+
+            try {
+                const decryptedText = await decryptData(backupDataText, password);
+                backupData = JSON.parse(decryptedText);
+            } catch (decryptError) {
+                console.warn('Cannot decrypt cloud backup for conflict checking:', decryptError);
+                return true; // Assume conflict for safety
+            }
+        } else {
+            // File is plain JSON
+            try {
+                backupData = JSON.parse(backupDataText);
+            } catch (parseError) {
+                console.warn('Cannot parse cloud backup for conflict checking:', parseError);
+                return true; // Assume conflict for safety
+            }
+        }
 
         const cloudExportDate = new Date(backupData.exportDate).getTime();
 
@@ -1667,13 +1727,25 @@ async function syncToCloud() {
             throw new Error('Failed to generate data for cloud sync');
         }
 
-        // Use consistent filename for cloud sync (no timestamp)
-        const filename = `dream-journal-cloud-sync.json`;
+        // Check if cloud encryption is enabled
+        let finalData = exportData;
+        let filename = `dream-journal-cloud-sync.json`;
+
+        if (getEncryptionEnabled() && getCloudEncryptionEnabled()) {
+            // Encrypt the data using the user's encryption password
+            const password = getEncryptionPassword();
+            if (!password) {
+                throw new Error('Encryption password not available for cloud backup encryption');
+            }
+
+            finalData = await encryptData(exportData, password);
+            filename = `dream-journal-cloud-sync.enc`;
+        }
 
         // Upload to Dropbox with overwrite mode for cloud sync
         const uploadResponse = await dropboxInstance.filesUpload({
             path: `/${filename}`,
-            contents: exportData,
+            contents: finalData,
             mode: {'.tag': 'overwrite'}  // Overwrite existing file
         });
 
@@ -1769,10 +1841,11 @@ async function syncFromCloud() {
             recursive: false
         });
 
-        // Look for the consistent cloud sync file
+        // Look for cloud sync files (both encrypted and plain text)
         const backupFiles = listResponse.result.entries.filter(entry =>
             entry['.tag'] === 'file' && (
                 entry.name === 'dream-journal-cloud-sync.json' ||
+                entry.name === 'dream-journal-cloud-sync.enc' ||
                 entry.name.includes('dream-journal-backup')  // Fallback for old files
             )
         );
@@ -1782,11 +1855,34 @@ async function syncFromCloud() {
             return false;
         }
 
-        // For now, download the most recent backup
-        // TODO: Implement user selection UI for multiple backups
-        const latestBackup = backupFiles.sort((a, b) =>
-            new Date(b.client_modified) - new Date(a.client_modified)
-        )[0];
+        // Prioritize file selection based on current cloud encryption setting
+        let latestBackup;
+        const preferredFileName = (getEncryptionEnabled() && getCloudEncryptionEnabled())
+            ? 'dream-journal-cloud-sync.enc'
+            : 'dream-journal-cloud-sync.json';
+
+        // First, try to find the preferred file type
+        latestBackup = backupFiles.find(file => file.name === preferredFileName);
+
+        // If preferred file doesn't exist, fall back to any available cloud sync file
+        if (!latestBackup) {
+            const cloudSyncFiles = backupFiles.filter(file =>
+                file.name === 'dream-journal-cloud-sync.json' ||
+                file.name === 'dream-journal-cloud-sync.enc'
+            );
+
+            if (cloudSyncFiles.length > 0) {
+                // Use the most recent cloud sync file (either type)
+                latestBackup = cloudSyncFiles.sort((a, b) =>
+                    new Date(b.client_modified) - new Date(a.client_modified)
+                )[0];
+            } else {
+                // Fall back to legacy backup files
+                latestBackup = backupFiles.sort((a, b) =>
+                    new Date(b.client_modified) - new Date(a.client_modified)
+                )[0];
+            }
+        }
 
         // Download the backup file
         const downloadResponse = await dropboxInstance.filesDownload({
@@ -1797,9 +1893,38 @@ async function syncFromCloud() {
             throw new Error('Failed to download backup file');
         }
 
-        // Convert blob to text and parse JSON
+        // Convert blob to text
         const backupDataText = await downloadResponse.result.fileBlob.text();
-        const backupData = JSON.parse(backupDataText);
+
+        // Check if file is encrypted based on filename or content
+        const isEncryptedFile = latestBackup.name.endsWith('.enc');
+        let backupData;
+
+        if (isEncryptedFile) {
+            // File is encrypted, decrypt it
+            if (!getEncryptionEnabled()) {
+                throw new Error('Cannot decrypt cloud backup: local encryption is not enabled. Please enable encryption in settings first.');
+            }
+
+            const password = getEncryptionPassword();
+            if (!password) {
+                throw new Error('Encryption password not available for decrypting cloud backup');
+            }
+
+            try {
+                const decryptedText = await decryptData(backupDataText, password);
+                backupData = JSON.parse(decryptedText);
+            } catch (decryptError) {
+                throw new Error('Failed to decrypt cloud backup. Please check your encryption password.');
+            }
+        } else {
+            // File is plain JSON
+            try {
+                backupData = JSON.parse(backupDataText);
+            } catch (parseError) {
+                throw new Error('Failed to parse cloud backup data. The file may be corrupted.');
+            }
+        }
 
         // Import the data manually (since importAllData expects file event)
         const importResult = await importCloudData(backupData);
