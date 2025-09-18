@@ -3367,4 +3367,97 @@
     }
 }
 
+/* ================================ */
+/* PROGRESS DIALOG STYLING          */
+/* ================================ */
+
+.progress-dialog .security-dialog-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+.progress-dialog .security-dialog-content h3 {
+    color: var(--primary-color);
+    font-size: 1.4em;
+    margin-bottom: 1.5rem;
+}
+
+.progress-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2rem 0;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.progress-dialog .security-dialog-content p {
+    margin: 1rem 0;
+    font-size: 1.1em;
+}
+
+.progress-dialog .security-dialog-content small {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.progress-dialog .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: var(--secondary-color);
+    color: var(--text-secondary);
+}
+
+.progress-dialog .btn:disabled:hover {
+    opacity: 0.6;
+    background-color: var(--secondary-color);
+}
+
+/* Success and error states */
+.progress-dialog .security-dialog-content h3:has-text("✅") {
+    color: var(--success-color);
+}
+
+.progress-dialog .security-dialog-content h3:has-text("❌") {
+    color: var(--error-color);
+}
+
+/* ================================ */
+/* CLOUD SYNC BUTTON STATES         */
+/* ================================ */
+
+/* Disabled cloud sync buttons during operations */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn:disabled:hover {
+    opacity: 0.6;
+}
+
+/* Cloud sync buttons in comparing state */
+.btn.btn-secondary:disabled {
+    background-color: var(--secondary-color);
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
 

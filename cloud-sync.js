@@ -1191,6 +1191,337 @@ async function showUploadConflictDialog() {
     });
 }
 
+/**
+ * Shows a modal progress popup during upload operations.
+ *
+ * Creates a non-dismissible modal dialog that displays upload progress
+ * and prevents user interaction until the operation completes. The popup
+ * shows loading state, then success or error state with appropriate messaging.
+ *
+ * **Features:**
+ * - Non-dismissible during operation (no overlay click, ESC key disabled)
+ * - Loading spinner and progress text during upload
+ * - Success/error state with appropriate icons and messages
+ * - OK button only enabled after operation completes
+ * - Proper ARIA attributes for accessibility
+ *
+ * @async
+ * @function
+ * @param {string} operation - The operation being performed ('uploading', 'success', 'error')
+ * @param {string} [message] - Optional custom message for the operation
+ * @returns {Promise<void>} Resolves when user dismisses the completed dialog
+ * @since 2.04.59
+ *
+ * @example
+ * // Show upload progress
+ * const progressDialog = showUploadProgress('uploading');
+ * try {
+ *   await performUpload();
+ *   await showUploadProgress('success', 'Upload completed successfully!');
+ * } catch (error) {
+ *   await showUploadProgress('error', 'Upload failed: ' + error.message);
+ * }
+ */
+async function showUploadProgress(operation, message = '') {
+    return new Promise((resolve) => {
+        let dialog = document.getElementById('upload-progress-dialog');
+
+        if (!dialog) {
+            // Create dialog if it doesn't exist
+            dialog = document.createElement('div');
+            dialog.id = 'upload-progress-dialog';
+            dialog.className = 'security-dialog-overlay progress-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'upload-progress-title');
+            document.body.appendChild(dialog);
+        }
+
+        let dialogHtml = '';
+        let canDismiss = false;
+
+        if (operation === 'uploading') {
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="upload-progress-title">☁️ Uploading to Cloud</h3>
+                    <div class="progress-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                    <p>Uploading your data to Dropbox...</p>
+                    <p><small>Please wait, do not close this window.</small></p>
+                    <div class="dialog-actions">
+                        <button id="upload-progress-ok" class="btn btn-primary" disabled>
+                            Please Wait...
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'success') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="upload-progress-title">✅ Upload Successful</h3>
+                    <p>${message || 'Your data has been successfully uploaded to the cloud.'}</p>
+                    <div class="dialog-actions">
+                        <button id="upload-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'error') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="upload-progress-title">❌ Upload Failed</h3>
+                    <p>${message || 'An error occurred while uploading your data.'}</p>
+                    <div class="dialog-actions">
+                        <button id="upload-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        dialog.innerHTML = dialogHtml;
+
+        if (canDismiss) {
+            // Add event listener for OK button
+            const okButton = dialog.querySelector('#upload-progress-ok');
+            okButton.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve();
+            });
+
+            // Focus the OK button
+            okButton.focus();
+        }
+
+        // Prevent dismissal during operation
+        if (!canDismiss) {
+            // Disable ESC key and overlay click
+            dialog.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Store resolve function for later use
+            dialog._resolveFunction = resolve;
+        }
+    });
+}
+
+/**
+ * Shows a modal progress popup during download operations.
+ *
+ * Creates a non-dismissible modal dialog that displays download progress
+ * and prevents user interaction until the operation completes. The popup
+ * shows loading state, then success or error state with appropriate messaging.
+ *
+ * **Features:**
+ * - Non-dismissible during operation (no overlay click, ESC key disabled)
+ * - Loading spinner and progress text during download
+ * - Success/error state with appropriate icons and messages
+ * - OK button only enabled after operation completes
+ * - Proper ARIA attributes for accessibility
+ *
+ * @async
+ * @function
+ * @param {string} operation - The operation being performed ('downloading', 'success', 'error')
+ * @param {string} [message] - Optional custom message for the operation
+ * @returns {Promise<void>} Resolves when user dismisses the completed dialog
+ * @since 2.04.59
+ *
+ * @example
+ * // Show download progress
+ * const progressDialog = showDownloadProgress('downloading');
+ * try {
+ *   await performDownload();
+ *   await showDownloadProgress('success', 'Download completed successfully!');
+ * } catch (error) {
+ *   await showDownloadProgress('error', 'Download failed: ' + error.message);
+ * }
+ */
+async function showDownloadProgress(operation, message = '') {
+    return new Promise((resolve) => {
+        let dialog = document.getElementById('download-progress-dialog');
+
+        if (!dialog) {
+            // Create dialog if it doesn't exist
+            dialog = document.createElement('div');
+            dialog.id = 'download-progress-dialog';
+            dialog.className = 'security-dialog-overlay progress-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'download-progress-title');
+            document.body.appendChild(dialog);
+        }
+
+        let dialogHtml = '';
+        let canDismiss = false;
+
+        if (operation === 'downloading') {
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="download-progress-title">☁️ Downloading from Cloud</h3>
+                    <div class="progress-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                    <p>Downloading your data from Dropbox...</p>
+                    <p><small>Please wait, do not close this window.</small></p>
+                    <div class="dialog-actions">
+                        <button id="download-progress-ok" class="btn btn-primary" disabled>
+                            Please Wait...
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'success') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="download-progress-title">✅ Download Successful</h3>
+                    <p>${message || 'Your data has been successfully downloaded from the cloud.'}</p>
+                    <div class="dialog-actions">
+                        <button id="download-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'error') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="download-progress-title">❌ Download Failed</h3>
+                    <p>${message || 'An error occurred while downloading your data.'}</p>
+                    <div class="dialog-actions">
+                        <button id="download-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        dialog.innerHTML = dialogHtml;
+
+        if (canDismiss) {
+            // Add event listener for OK button
+            const okButton = dialog.querySelector('#download-progress-ok');
+            okButton.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve();
+            });
+
+            // Focus the OK button
+            okButton.focus();
+        }
+
+        // Prevent dismissal during operation
+        if (!canDismiss) {
+            // Disable ESC key and overlay click
+            dialog.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            // Store resolve function for later use
+            dialog._resolveFunction = resolve;
+        }
+    });
+}
+
+/**
+ * Sets the state of cloud sync buttons during operations.
+ *
+ * Manages the visual state and interactivity of cloud sync buttons
+ * to prevent user confusion and multiple simultaneous operations.
+ * Updates button text, disabled state, and visual feedback.
+ *
+ * **Button States:**
+ * - 'idle': Normal state with default text and enabled buttons
+ * - 'comparing': Conflict detection in progress, buttons disabled with status text
+ * - 'operating': Upload/download in progress, all buttons disabled
+ *
+ * @function
+ * @param {string} state - The operation state ('idle', 'comparing', 'operating')
+ * @param {string} [operation] - The specific operation ('upload' or 'download') for comparing state
+ * @since 2.04.60
+ *
+ * @example
+ * // Start conflict detection for upload
+ * setCloudSyncButtonState('comparing', 'upload');
+ *
+ * // Return to normal state
+ * setCloudSyncButtonState('idle');
+ */
+function setCloudSyncButtonState(state, operation = '') {
+    const uploadButton = document.querySelector('[data-action="sync-to-cloud"]');
+    const downloadButton = document.querySelector('[data-action="sync-from-cloud"]');
+    const disconnectButton = document.querySelector('[data-action="unlink-dropbox-account"]');
+
+    if (!uploadButton || !downloadButton) {
+        return; // Buttons not found, probably not on settings page
+    }
+
+    switch (state) {
+        case 'idle':
+            // Reset all buttons to normal state
+            if (uploadButton) {
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Upload to Cloud';
+                uploadButton.className = 'btn btn-primary';
+            }
+            if (downloadButton) {
+                downloadButton.disabled = false;
+                downloadButton.textContent = 'Download from Cloud';
+                downloadButton.className = 'btn btn-secondary';
+            }
+            if (disconnectButton) {
+                disconnectButton.disabled = false;
+            }
+            break;
+
+        case 'comparing':
+            // Disable all buttons, show status on active button
+            if (uploadButton) {
+                uploadButton.disabled = true;
+                if (operation === 'upload') {
+                    uploadButton.textContent = 'Comparing data...';
+                    uploadButton.className = 'btn btn-secondary';
+                } else {
+                    uploadButton.disabled = true;
+                }
+            }
+            if (downloadButton) {
+                downloadButton.disabled = true;
+                if (operation === 'download') {
+                    downloadButton.textContent = 'Checking for conflicts...';
+                    downloadButton.className = 'btn btn-secondary';
+                } else {
+                    downloadButton.disabled = true;
+                }
+            }
+            if (disconnectButton) {
+                disconnectButton.disabled = true;
+            }
+            break;
+
+        case 'operating':
+            // Disable all buttons during upload/download operations
+            if (uploadButton) {
+                uploadButton.disabled = true;
+            }
+            if (downloadButton) {
+                downloadButton.disabled = true;
+            }
+            if (disconnectButton) {
+                disconnectButton.disabled = true;
+            }
+            break;
+    }
+}
+
 // ================================
 // CLOUD SYNC OPERATIONS
 // ================================
@@ -1233,9 +1564,13 @@ async function showUploadConflictDialog() {
  */
 async function syncToCloud() {
     try {
+        // Set initial button state to prevent spam clicks
+        setCloudSyncButtonState('comparing', 'upload');
+
         // Validate authentication
         if (!await isAuthenticated()) {
-            createInlineMessage('error', 'Please connect your Dropbox account first.');
+            setCloudSyncButtonState('idle');
+            await showUploadProgress('error', 'Please connect your Dropbox account first.');
             return false;
         }
 
@@ -1244,19 +1579,24 @@ async function syncToCloud() {
         }
 
         setCloudSyncInProgress(true);
-        createInlineMessage('info', 'Checking for cloud conflicts...');
 
         // Check if cloud has newer data than local
         const hasCloudConflict = await checkForCloudConflicts();
         if (hasCloudConflict) {
+            // Reset button state before showing conflict dialog
+            setCloudSyncButtonState('idle');
             const userConfirmed = await showUploadConflictDialog();
             if (!userConfirmed) {
-                createInlineMessage('info', 'Upload cancelled - cloud data preserved');
+                setCloudSyncInProgress(false);
                 return false;
             }
         }
 
-        createInlineMessage('info', 'Uploading data to cloud...');
+        // Set button state to operating during upload
+        setCloudSyncButtonState('operating');
+
+        // Show upload progress popup
+        showUploadProgress('uploading');
 
         // Generate export data for cloud upload
         const exportData = await generateExportData();
@@ -1277,17 +1617,19 @@ async function syncToCloud() {
         // Update sync status
         setLastCloudSyncTime(Date.now());
 
-        createInlineMessage('success', `Data uploaded successfully as ${uploadResponse.result.name}`);
+        // Show success popup
+        await showUploadProgress('success', `Data uploaded successfully as ${uploadResponse.result.name}`);
         announceLiveMessage('Data uploaded to cloud successfully');
 
         return true;
 
     } catch (error) {
         console.error('Error syncing to cloud:', error);
-        createInlineMessage('error', `Upload failed: ${error.message}`);
+        await showUploadProgress('error', `Upload failed: ${error.message}`);
         return false;
     } finally {
         setCloudSyncInProgress(false);
+        setCloudSyncButtonState('idle');
     }
 }
 
@@ -1324,9 +1666,13 @@ async function syncToCloud() {
  */
 async function syncFromCloud() {
     try {
+        // Set initial button state to prevent spam clicks
+        setCloudSyncButtonState('comparing', 'download');
+
         // Validate authentication
         if (!await isAuthenticated()) {
-            createInlineMessage('error', 'Please connect your Dropbox account first.');
+            setCloudSyncButtonState('idle');
+            await showDownloadProgress('error', 'Please connect your Dropbox account first.');
             return false;
         }
 
@@ -1335,19 +1681,24 @@ async function syncFromCloud() {
         }
 
         setCloudSyncInProgress(true);
-        createInlineMessage('info', 'Checking for conflicts...');
 
         // Check for local changes since last sync
         const hasLocalChanges = await checkForLocalChanges();
         if (hasLocalChanges) {
+            // Reset button state before showing conflict dialog
+            setCloudSyncButtonState('idle');
             const userConfirmed = await showConflictDialog();
             if (!userConfirmed) {
-                createInlineMessage('info', 'Download cancelled - local changes preserved');
+                setCloudSyncInProgress(false);
                 return false;
             }
         }
 
-        createInlineMessage('info', 'Retrieving backup files from cloud...');
+        // Set button state to operating during download
+        setCloudSyncButtonState('operating');
+
+        // Show download progress popup
+        showDownloadProgress('downloading');
 
         // List backup files (app folder root)
         const listResponse = await dropboxInstance.filesListFolder({
@@ -1364,7 +1715,7 @@ async function syncFromCloud() {
         );
 
         if (backupFiles.length === 0) {
-            createInlineMessage('info', 'No backup files found in cloud storage.');
+            await showDownloadProgress('error', 'No backup files found in cloud storage.');
             return false;
         }
 
@@ -1373,8 +1724,6 @@ async function syncFromCloud() {
         const latestBackup = backupFiles.sort((a, b) =>
             new Date(b.client_modified) - new Date(a.client_modified)
         )[0];
-
-        createInlineMessage('info', `Downloading backup: ${latestBackup.name}...`);
 
         // Download the backup file
         const downloadResponse = await dropboxInstance.filesDownload({
@@ -1394,20 +1743,20 @@ async function syncFromCloud() {
 
         if (importResult && importResult.success) {
             setLastCloudSyncTime(Date.now());
-            createInlineMessage('success', `Data restored successfully from ${latestBackup.name}`);
+            await showDownloadProgress('success', `Data restored successfully from ${latestBackup.name}`);
             announceLiveMessage('Data restored from cloud successfully');
             return true;
         } else {
-            createInlineMessage('error', 'Failed to import downloaded backup');
-            return false;
+            throw new Error('Failed to import downloaded backup');
         }
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
-        createInlineMessage('error', `Download failed: ${error.message}`);
+        await showDownloadProgress('error', `Download failed: ${error.message}`);
         return false;
     } finally {
         setCloudSyncInProgress(false);
+        setCloudSyncButtonState('idle');
     }
 }
 
