@@ -1206,7 +1206,9 @@ async function checkForCloudConflicts() {
             }
 
             try {
-                const decryptedText = await decryptData(backupDataText, password);
+                // Convert base64 back to binary data
+                const binaryData = new Uint8Array(atob(backupDataText).split('').map(char => char.charCodeAt(0)));
+                const decryptedText = await decryptData(binaryData, password);
                 backupData = JSON.parse(decryptedText);
             } catch (decryptError) {
                 console.warn('Cannot decrypt cloud backup for conflict checking:', decryptError);
@@ -1739,7 +1741,9 @@ async function syncToCloud() {
                 throw new Error('Encryption password not available for cloud backup encryption');
             }
 
-            finalData = await encryptData(exportData, password);
+            const encryptedBinary = await encryptData(exportData, password);
+            // Convert binary data to base64 for safe text storage
+            finalData = btoa(String.fromCharCode(...encryptedBinary));
             filename = `dream-journal-cloud-sync.enc`;
         }
 
@@ -1913,7 +1917,9 @@ async function syncFromCloud() {
             }
 
             try {
-                const decryptedText = await decryptData(backupDataText, password);
+                // Convert base64 back to binary data
+                const binaryData = new Uint8Array(atob(backupDataText).split('').map(char => char.charCodeAt(0)));
+                const decryptedText = await decryptData(binaryData, password);
                 backupData = JSON.parse(decryptedText);
             } catch (decryptError) {
                 throw new Error('Failed to decrypt cloud backup. Please check your encryption password.');
