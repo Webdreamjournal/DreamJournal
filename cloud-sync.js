@@ -71,7 +71,9 @@ import {
     getLastCloudSyncTime,
     setLastCloudSyncTime,
     getEncryptionEnabled,
-    getEncryptionPassword
+    getEncryptionPassword,
+    getDropboxUserInfo,
+    setDropboxUserInfo
 } from './state.js';
 
 import {
@@ -402,6 +404,13 @@ async function handleOAuthCallback() {
         // Initialize Dropbox API instance
         await initializeDropboxAPI();
 
+        // Fetch and store user account information
+        const userInfo = await fetchDropboxUserInfo();
+        if (userInfo) {
+            setDropboxUserInfo(userInfo);
+            console.log('Dropbox user info stored:', userInfo.email);
+        }
+
         // Update authentication state
         setCloudSyncEnabled(true);
         setLastCloudSyncTime(Date.now());
@@ -650,9 +659,63 @@ function clearAuthenticationState() {
     setDropboxAccessToken(null);
     setDropboxRefreshToken(null);
     setCloudSyncEnabled(false);
+    setDropboxUserInfo(null);
     localStorage.removeItem(DROPBOX_TOKEN_EXPIRES_KEY);
     dropboxInstance = null;
     dropboxAuth = null;
+}
+
+/**
+ * Retrieves Dropbox user account information.
+ *
+ * Fetches the current user's account information from Dropbox including
+ * email address and display name. This information is used to show
+ * which account is currently connected in the UI.
+ *
+ * **Account Information Retrieved:**
+ * - Email address (primary identifier)
+ * - Display name (user's name on Dropbox)
+ * - Account type (basic, pro, business)
+ *
+ * @async
+ * @function
+ * @returns {Promise<Object|null>} User account info object or null if failed
+ * @throws {Error} When API request fails or user is not authenticated
+ * @since 2.04.62
+ *
+ * @example
+ * // Get current user's account info
+ * const userInfo = await fetchDropboxUserInfo();
+ * if (userInfo) {
+ *   console.log('Connected as:', userInfo.email);
+ *   setDropboxUserInfo(userInfo);
+ * }
+ */
+async function fetchDropboxUserInfo() {
+    try {
+        if (!dropboxInstance) {
+            throw new Error('Dropbox instance not initialized');
+        }
+
+        // Get current user's account information
+        const response = await dropboxInstance.usersGetCurrentAccount();
+
+        if (!response || !response.result) {
+            throw new Error('Invalid response from Dropbox API');
+        }
+
+        const accountInfo = response.result;
+
+        return {
+            email: accountInfo.email,
+            name: accountInfo.name ? accountInfo.name.display_name : null,
+            accountType: accountInfo.account_type ? accountInfo.account_type['.tag'] : 'unknown'
+        };
+
+    } catch (error) {
+        console.error('Error fetching Dropbox user info:', error);
+        return null;
+    }
 }
 
 // ================================
@@ -1898,7 +1961,12 @@ function updateCloudSyncUI() {
         const statusIndicator = document.getElementById('cloudSyncStatusIndicator');
         if (statusIndicator) {
             if (isAuthenticated) {
-                statusIndicator.textContent = '✅ Connected';
+                const userInfo = getDropboxUserInfo();
+                if (userInfo && userInfo.email) {
+                    statusIndicator.textContent = `✅ Connected: ${userInfo.email}`;
+                } else {
+                    statusIndicator.textContent = '✅ Connected';
+                }
                 statusIndicator.className = 'status-indicator connected';
             } else {
                 statusIndicator.textContent = '🔗 Not Connected';

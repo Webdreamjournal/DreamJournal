@@ -489,8 +489,9 @@ function renderSettingsTab(tabPanel) {
 
                 <div class="cloud-sync-notice">
                     <div class="message-info border-l-info" style="margin-top: 15px;">
-                        <strong>🔒 Privacy:</strong> Your data is encrypted before uploading to Dropbox.
-                        Only you can access your dreams with your encryption password.
+                        <strong>🔒 Privacy:</strong> ${getEncryptionEnabled()
+                            ? 'Your cloud backups contain encrypted data. Only you can decrypt them with your encryption password.'
+                            : 'Your cloud backups contain readable JSON data. Enable encryption in settings above for secure cloud storage.'}
                     </div>
                 </div>
             </div>

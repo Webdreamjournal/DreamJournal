@@ -1606,6 +1606,66 @@ function setDropboxRefreshToken(token) {
     }
 }
 
+/**
+ * Gets the Dropbox user account information from localStorage.
+ *
+ * Safely retrieves stored Dropbox user account data including email address
+ * and display name with proper error handling for localStorage access issues.
+ * Returns null if account info is not available.
+ *
+ * @returns {Object|null} User account object with email and name, or null if not available
+ * @since 2.04.62
+ *
+ * @example
+ * const userInfo = getDropboxUserInfo();
+ * if (userInfo) {
+ *   console.log('Connected as:', userInfo.email);
+ * }
+ */
+function getDropboxUserInfo() {
+    try {
+        const userInfoStr = localStorage.getItem('dropboxUserInfo');
+        return userInfoStr ? JSON.parse(userInfoStr) : null;
+    } catch (error) {
+        console.error('Error retrieving dropbox user info:', error);
+        return null;
+    }
+}
+
+/**
+ * Sets the Dropbox user account information in localStorage.
+ *
+ * Safely stores Dropbox user account data including email address and display
+ * name with proper error handling for localStorage access issues. Pass null
+ * to clear the stored user information.
+ *
+ * @param {Object|null} userInfo - User account object with email and name, or null to clear
+ * @param {string} userInfo.email - User's email address
+ * @param {string} userInfo.name - User's display name
+ * @since 2.04.62
+ *
+ * @example
+ * // Store user account info
+ * setDropboxUserInfo({
+ *   email: 'user@example.com',
+ *   name: 'John Doe'
+ * });
+ *
+ * // Clear user account info
+ * setDropboxUserInfo(null);
+ */
+function setDropboxUserInfo(userInfo) {
+    try {
+        if (userInfo === null) {
+            localStorage.removeItem('dropboxUserInfo');
+        } else {
+            localStorage.setItem('dropboxUserInfo', JSON.stringify(userInfo));
+        }
+    } catch (error) {
+        console.error('Error storing dropbox user info:', error);
+    }
+}
+
 // Export all global state variables and functions for ES module compatibility
 export {
     // Application Data State
@@ -1755,5 +1815,7 @@ export {
     // Cloud Sync State
     cloudSyncEnabled,
     cloudSyncInProgress,
-    lastCloudSyncTime
+    lastCloudSyncTime,
+    getDropboxUserInfo,
+    setDropboxUserInfo
 };
