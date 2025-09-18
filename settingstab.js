@@ -153,7 +153,7 @@ function renderSettingsTab(tabPanel) {
                 aria-label="Appearance section - currently expanded. Press Enter or Space to collapse"
                 style="cursor: pointer; user-select: none;">
                 🎨 Appearance
-                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-indicator" title="Click to collapse"></span>
                 <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
@@ -179,7 +179,7 @@ function renderSettingsTab(tabPanel) {
                 aria-label="Security section - currently expanded. Press Enter or Space to collapse"
                 style="cursor: pointer; user-select: none;">
                 🔐 Security
-                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-indicator" title="Click to collapse"></span>
                 <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
@@ -253,7 +253,7 @@ function renderSettingsTab(tabPanel) {
                 aria-label="Data Management section - currently expanded. Press Enter or Space to collapse"
                 style="cursor: pointer; user-select: none;">
                 💾 Data Management
-                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-indicator" title="Click to collapse"></span>
                 <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
@@ -298,7 +298,7 @@ function renderSettingsTab(tabPanel) {
                 aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse"
                 style="cursor: pointer; user-select: none;">
                 🏷️ Autocomplete Management
-                <span class="collapse-indicator" title="Click to collapse">🔽</span>
+                <span class="collapse-indicator" title="Click to collapse"></span>
                 <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
@@ -1404,7 +1404,7 @@ function restoreSettingsSectionStates() {
 
                 // Update visual indicators
                 if (collapseIndicator) {
-                    collapseIndicator.textContent = '🔼';
+                    collapseIndicator.textContent = '';
                     collapseIndicator.setAttribute('title', 'Click to expand');
                 }
                 if (hintText) {
@@ -1421,7 +1421,7 @@ function restoreSettingsSectionStates() {
 
                 // Update visual indicators
                 if (collapseIndicator) {
-                    collapseIndicator.textContent = '🔽';
+                    collapseIndicator.textContent = '';
                     collapseIndicator.setAttribute('title', 'Click to collapse');
                 }
                 if (hintText) {

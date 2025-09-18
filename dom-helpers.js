@@ -1719,7 +1719,7 @@ async function toggleSettingsSection(sectionName) {
 
             // Update visual indicator
             if (collapseIndicator) {
-                collapseIndicator.textContent = '🔽';
+                collapseIndicator.textContent = '';
                 collapseIndicator.setAttribute('title', 'Click to collapse');
             }
 
@@ -1742,7 +1742,7 @@ async function toggleSettingsSection(sectionName) {
 
             // Update visual indicator
             if (collapseIndicator) {
-                collapseIndicator.textContent = '🔼';
+                collapseIndicator.textContent = '';
                 collapseIndicator.setAttribute('title', 'Click to expand');
             }
 
