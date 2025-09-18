@@ -122,6 +122,44 @@ const GOALS_TEMPLATES_COLLAPSE_KEY = 'goalsTemplatesCollapsed';
 const GOALS_COMPLETED_COLLAPSE_KEY = 'goalsCompletedCollapsed';
 
 // ===================================================================================
+// ADVICE PAGE COLLAPSE STATE KEYS
+// ===================================================================================
+
+/**
+ * Storage key for advice daily tip section collapse state.
+ *
+ * Used to persist whether the Daily Lucid Dreaming Tip section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const ADVICE_DAILY_TIP_COLLAPSE_KEY = 'adviceDailyTipCollapsed';
+
+/**
+ * Storage key for advice techniques section collapse state.
+ *
+ * Used to persist whether the Lucid Dreaming Techniques section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const ADVICE_TECHNIQUES_COLLAPSE_KEY = 'adviceTechniquesCollapsed';
+
+/**
+ * Storage key for advice general section collapse state.
+ *
+ * Used to persist whether the General Advice section is collapsed or expanded
+ * across browser sessions for better user experience.
+ *
+ * @constant {string}
+ * @since 2.04.01
+ */
+const ADVICE_GENERAL_COLLAPSE_KEY = 'adviceGeneralCollapsed';
+
+
+// ===================================================================================
 // CLOUD SYNC CONFIGURATION
 // ===================================================================================
 
@@ -884,6 +922,9 @@ export {
     GOALS_ACTIVE_COLLAPSE_KEY,
     GOALS_TEMPLATES_COLLAPSE_KEY,
     GOALS_COMPLETED_COLLAPSE_KEY,
+    ADVICE_DAILY_TIP_COLLAPSE_KEY,
+    ADVICE_TECHNIQUES_COLLAPSE_KEY,
+    ADVICE_GENERAL_COLLAPSE_KEY,
     DEFAULT_DROPBOX_CLIENT_ID,
     CUSTOM_DROPBOX_CLIENT_ID_KEY,
     DROPBOX_REDIRECT_URI,

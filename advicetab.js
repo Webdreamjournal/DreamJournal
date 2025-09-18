@@ -41,8 +41,19 @@
 // ================================
 // ES MODULE IMPORTS
 // ================================
-import { getTipsCount, loadTipByIndex, getCachedDailyTip } from './constants.js';
-import { setDailyTips, getDailyTips, getCurrentTipIndex, setCurrentTipIndex } from './state.js';
+import { getTipsCount, loadTipByIndex, getCachedDailyTip, ADVICE_DAILY_TIP_COLLAPSE_KEY, ADVICE_TECHNIQUES_COLLAPSE_KEY, ADVICE_GENERAL_COLLAPSE_KEY } from './constants.js';
+import {
+    setDailyTips,
+    getDailyTips,
+    getCurrentTipIndex,
+    setCurrentTipIndex,
+    getIsAdviceDailyTipCollapsed,
+    setIsAdviceDailyTipCollapsed,
+    getIsAdviceTechniquesCollapsed,
+    setIsAdviceTechniquesCollapsed,
+    getIsAdviceGeneralCollapsed,
+    setIsAdviceGeneralCollapsed
+} from './state.js';
 import { escapeHtml, displayTip, handleTipNavigation } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
 
@@ -93,59 +104,94 @@ console.log('Loading Advice Tab Module v2.04.00');
  */
 function renderAdviceTab(tabPanel) {
     tabPanel.innerHTML = `
-        <div class="settings-section">
-            <h3 id="advice-main-heading" tabindex="-1">💡Daily Lucid Dreaming Tip</h3>
-            <div id="dailyTipContainer" class="card-elevated card-lg text-center">
-                <p id="tipText" class="text-lg line-height-loose mb-lg" style="height: 180px; overflow-y: auto;">Loading tip...</p>
-                <div class="tip-navigation flex-between">
-                    <button id="prevTip" data-action="prev-tip" class="calendar-nav-btn prev" title="Previous Tip"></button>
-                    <span id="tipCounter" class="font-semibold text-secondary">Tip 1 / 375</span>
-                    <button id="nextTip" data-action="next-tip" class="calendar-nav-btn next" title="Next Tip"></button>
+        <h3 id="advice-main-heading" tabindex="-1">💡 Lucid Dreaming Advice</h3><br>
+        <div class="settings-section" data-advice-section="daily-tip">
+            <h3 data-action="toggle-advice-daily-tip"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Daily Lucid Dreaming Tip section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                💡 Daily Lucid Dreaming Tip
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div id="dailyTipContainer" class="card-elevated card-lg text-center">
+                    <p id="tipText" class="text-lg line-height-loose mb-lg" style="height: 180px; overflow-y: auto;">Loading tip...</p>
+                    <div class="tip-navigation flex-between">
+                        <button id="prevTip" data-action="prev-tip" class="calendar-nav-btn prev" title="Previous Tip"></button>
+                        <span id="tipCounter" class="font-semibold text-secondary">Tip 1 / 375</span>
+                        <button id="nextTip" data-action="next-tip" class="calendar-nav-btn next" title="Next Tip"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section" data-advice-section="techniques">
+            <h3 data-action="toggle-advice-techniques"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="Lucid Dreaming Techniques section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                📚 Lucid Dreaming Techniques
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div class="grid-auto">
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">🔄 MILD Technique</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Mnemonic Induction: As you fall asleep, repeat "Next time I'm dreaming, I'll remember I'm dreaming" while visualizing becoming lucid.</p>
+                    </div>
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">⏰ WBTB Method</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Wake-Back-to-Bed: Wake up 4-6 hours after sleep, stay awake for 20-30 minutes thinking about lucid dreaming, then return to sleep.</p>
+                    </div>
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">✋ Reality Checks</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Daily Habit: Check your hands, read text twice, or look at digital clocks. In dreams, these often appear distorted.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section" data-advice-section="general">
+            <h3 data-action="toggle-advice-general"
+                role="button"
+                tabindex="0"
+                aria-expanded="true"
+                aria-label="General Advice section - currently expanded. Press Enter or Space to collapse"
+                style="cursor: pointer; user-select: none;">
+                💡 General Advice
+                <span class="collapse-indicator" title="Click to collapse"></span>
+                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+            </h3>
+            <div class="settings-section-content">
+                <div class="grid-auto">
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">🧘 Sleep Optimization</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Maintain consistent sleep and wake times to improve REM sleep quality and dream recall. Avoid screens 1 hour before bed. Blue light can disrupt melatonin production and dream intensity.</p>
+                    </div>
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">📝 Dream Journaling</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Keep a dream journal by your bed. Write down your dreams as soon as you wake up. This improves dream recall and helps you identify recurring dream signs.</p>
+                    </div>
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">🥗 Supplements & Nutrition</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">Certain supplements like Vitamin B6 can enhance dream vividness. A balanced diet supports overall brain health, which is crucial for dreaming.</p>
+                    </div>
+                    <div class="stats-card hover-card">
+                        <h4 class="text-primary mb-sm">🤔 Troubleshooting</h4>
+                        <p class="text-secondary text-sm line-height-relaxed">If you're struggling, focus on improving dream recall first. Don't get discouraged by dry spells; consistency is key.</p>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="settings-section">
-            <h3 class="mb-lg">📚 Lucid Dreaming Techniques</h3>
-            <div class="grid-auto">
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">🔄 MILD Technique</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Mnemonic Induction: As you fall asleep, repeat "Next time I'm dreaming, I'll remember I'm dreaming" while visualizing becoming lucid.</p>
-                </div>
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">⏰ WBTB Method</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Wake-Back-to-Bed: Wake up 4-6 hours after sleep, stay awake for 20-30 minutes thinking about lucid dreaming, then return to sleep.</p>
-                </div>
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">✋ Reality Checks</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Daily Habit: Check your hands, read text twice, or look at digital clocks. In dreams, these often appear distorted.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="settings-section">
-            <h3 class="mb-lg">💡 General Advice</h3>
-            <div class="grid-auto">
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">🧘 Sleep Optimization</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Maintain consistent sleep and wake times to improve REM sleep quality and dream recall. Avoid screens 1 hour before bed. Blue light can disrupt melatonin production and dream intensity.</p>
-                </div>
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">📝 Dream Journaling</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Keep a dream journal by your bed. Write down your dreams as soon as you wake up. This improves dream recall and helps you identify recurring dream signs.</p>
-                </div>
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">🥗 Supplements & Nutrition</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">Certain supplements like Vitamin B6 can enhance dream vividness. A balanced diet supports overall brain health, which is crucial for dreaming.</p>
-                </div>
-                <div class="stats-card hover-card">
-                    <h4 class="text-primary mb-sm">🤔 Troubleshooting</h4>
-                    <p class="text-secondary text-sm line-height-relaxed">If you're struggling, focus on improving dream recall first. Don't get discouraged by dry spells; consistency is key.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="settings-section">
+            <h3>⚠️ Important Disclaimer</h3>
             <p class="text-secondary text-sm text-center line-height-relaxed">
                 <strong>Disclaimer:</strong> This application is for entertainment and personal journaling purposes only. It is not intended to provide medical, psychological, or therapeutic advice. If you have concerns about your sleep, dreams, or mental health, please consult a qualified healthcare professional.
             </p>
@@ -198,6 +244,9 @@ function renderAdviceTab(tabPanel) {
  */
 async function initializeAdviceTab() {
     try {
+        // Restore saved advice section collapse states
+        restoreAdviceSectionStates();
+
         // Check for cached daily tip first for instant loading
         const cachedTip = getCachedDailyTip();
         if (cachedTip) {
@@ -451,6 +500,136 @@ async function initializeAdviceTabComplete() {
 // ================================
 // ES MODULE EXPORTS
 // ================================
+
+/**
+ * Restores saved advice section collapse states from localStorage.
+ *
+ * This function applies saved collapse states to each advice section immediately
+ * after the HTML is rendered, preventing visual flicker and maintaining user
+ * preferences across browser sessions. Each section is handled independently.
+ *
+ * **Restoration Process:**
+ * 1. Check localStorage for each section's saved state
+ * 2. Apply visual state (show/hide content areas)
+ * 3. Update ARIA attributes for accessibility
+ * 4. Update visual indicators (arrows and hint text)
+ * 5. Synchronize global application state
+ *
+ * **Section Mapping:**
+ * - 'daily-tip': Daily Lucid Dreaming Tip section
+ * - 'techniques': Lucid Dreaming Techniques section
+ * - 'general': General Advice section
+ *
+ * **Error Handling:**
+ * - Gracefully handles localStorage access failures
+ * - Falls back to expanded state for any missing elements
+ * - Continues processing other sections if one fails
+ *
+ * @function
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Called during advice tab initialization
+ * renderAdviceTab(tabPanel);
+ * restoreAdviceSectionStates();
+ * // All sections now reflect saved user preferences
+ */
+function restoreAdviceSectionStates() {
+    const sections = [
+        {
+            name: 'daily-tip',
+            storageKey: ADVICE_DAILY_TIP_COLLAPSE_KEY,
+            getter: getIsAdviceDailyTipCollapsed,
+            setter: setIsAdviceDailyTipCollapsed,
+            displayName: 'Daily Lucid Dreaming Tip'
+        },
+        {
+            name: 'techniques',
+            storageKey: ADVICE_TECHNIQUES_COLLAPSE_KEY,
+            getter: getIsAdviceTechniquesCollapsed,
+            setter: setIsAdviceTechniquesCollapsed,
+            displayName: 'Lucid Dreaming Techniques'
+        },
+        {
+            name: 'general',
+            storageKey: ADVICE_GENERAL_COLLAPSE_KEY,
+            getter: getIsAdviceGeneralCollapsed,
+            setter: setIsAdviceGeneralCollapsed,
+            displayName: 'General Advice'
+        },
+    ];
+
+    sections.forEach(section => {
+        try {
+            // Get DOM elements for this section
+            const sectionElement = document.querySelector(`[data-advice-section="${section.name}"]`);
+            if (!sectionElement) {
+                console.warn(`Advice section element not found: ${section.name}`);
+                return;
+            }
+
+            const toggleHeader = sectionElement.querySelector(`[data-action="toggle-advice-${section.name}"]`);
+            const contentArea = sectionElement.querySelector('.settings-section-content');
+            const collapseIndicator = toggleHeader?.querySelector('.collapse-indicator');
+            const hintText = toggleHeader?.querySelector('.collapse-hint');
+
+            if (!toggleHeader || !contentArea) {
+                console.warn(`Required elements not found for advice section: ${section.name}`);
+                return;
+            }
+
+            // Get saved state from localStorage
+            let savedState;
+            try {
+                savedState = localStorage.getItem(section.storageKey);
+            } catch (e) {
+                console.warn(`Failed to read localStorage for advice ${section.name}:`, e);
+                savedState = null;
+            }
+
+            if (savedState === 'true') {
+                // Apply collapsed state
+                contentArea.style.display = 'none';
+                section.setter(true);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'false');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '';
+                    collapseIndicator.setAttribute('title', 'Click to expand');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to expand)';
+                }
+            } else {
+                // Apply expanded state (default or explicitly saved as 'false')
+                contentArea.style.display = 'block';
+                section.setter(false);
+
+                // Update ARIA attributes
+                toggleHeader.setAttribute('aria-expanded', 'true');
+                toggleHeader.setAttribute('aria-label', `${section.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+                // Update visual indicators
+                if (collapseIndicator) {
+                    collapseIndicator.textContent = '';
+                    collapseIndicator.setAttribute('title', 'Click to collapse');
+                }
+                if (hintText) {
+                    hintText.textContent = '(Click to collapse)';
+                }
+            }
+
+        } catch (error) {
+            console.error(`Error restoring state for advice ${section.name} section:`, error);
+            // Continue with other sections
+        }
+    });
+}
 
 /**
  * Public API exports for the Advice Tab Module.

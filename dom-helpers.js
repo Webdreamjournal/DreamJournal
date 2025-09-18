@@ -33,6 +33,9 @@ import {
     GOALS_ACTIVE_COLLAPSE_KEY,
     GOALS_TEMPLATES_COLLAPSE_KEY,
     GOALS_COMPLETED_COLLAPSE_KEY,
+    ADVICE_DAILY_TIP_COLLAPSE_KEY,
+    ADVICE_TECHNIQUES_COLLAPSE_KEY,
+    ADVICE_GENERAL_COLLAPSE_KEY,
     getTipsCount,
     commonTags,
     commonDreamSigns,
@@ -67,6 +70,12 @@ import {
     setIsGoalsTemplatesCollapsed,
     getIsGoalsCompletedCollapsed,
     setIsGoalsCompletedCollapsed,
+    getIsAdviceDailyTipCollapsed,
+    setIsAdviceDailyTipCollapsed,
+    getIsAdviceTechniquesCollapsed,
+    setIsAdviceTechniquesCollapsed,
+    getIsAdviceGeneralCollapsed,
+    setIsAdviceGeneralCollapsed,
     asyncMutex,
     getActiveVoiceTab,
     setActiveVoiceTab
@@ -1929,6 +1938,154 @@ async function toggleGoalsSection(sectionName) {
     }
 }
 
+/**
+ * Toggles the collapse/expand state of an advice section with state persistence.
+ *
+ * This function handles the UI interactions for collapsing and expanding advice sections
+ * including visual state updates, ARIA attribute management, localStorage persistence,
+ * and focus management. It follows the same pattern as settings and goals sections but works
+ * specifically with advice sections.
+ *
+ * **Supported Sections:**
+ * - 'daily-tip': Daily Lucid Dreaming Tip section
+ * - 'techniques': Lucid Dreaming Techniques section
+ * - 'general': General Advice section
+ *
+ * **State Management:**
+ * - Updates visual indicators (arrows and hint text)
+ * - Saves state to localStorage for persistence across sessions
+ * - Updates ARIA attributes for screen readers
+ * - Synchronizes with global application state
+ *
+ * **Error Handling:**
+ * - Validates section names before processing
+ * - Handles DOM element availability gracefully
+ * - Provides fallback for localStorage access issues
+ *
+ * @async
+ * @function toggleAdviceSection
+ * @param {string} sectionName - Name of the advice section to toggle ('daily-tip', 'techniques', 'general')
+ * @returns {Promise<void>} Promise that resolves when toggle operation completes
+ * @throws {Error} When invalid section name is provided or required DOM elements are missing
+ * @since 2.04.01
+ *
+ * @example
+ * // Toggle the daily tip section
+ * await toggleAdviceSection('daily-tip');
+ *
+ * @example
+ * // Toggle the techniques section
+ * await toggleAdviceSection('techniques');
+ */
+async function toggleAdviceSection(sectionName) {
+    try {
+        // Validate section name
+        const validSections = ['daily-tip', 'techniques', 'general'];
+        if (!validSections.includes(sectionName)) {
+            throw new Error(`Invalid advice section name: ${sectionName}. Must be one of: ${validSections.join(', ')}`);
+        }
+
+        // Get the appropriate state functions and storage key
+        const sectionConfig = {
+            'daily-tip': {
+                getter: getIsAdviceDailyTipCollapsed,
+                setter: setIsAdviceDailyTipCollapsed,
+                storageKey: ADVICE_DAILY_TIP_COLLAPSE_KEY,
+                displayName: 'Daily Lucid Dreaming Tip',
+                emoji: '💡'
+            },
+            'techniques': {
+                getter: getIsAdviceTechniquesCollapsed,
+                setter: setIsAdviceTechniquesCollapsed,
+                storageKey: ADVICE_TECHNIQUES_COLLAPSE_KEY,
+                displayName: 'Lucid Dreaming Techniques',
+                emoji: '📚'
+            },
+            'general': {
+                getter: getIsAdviceGeneralCollapsed,
+                setter: setIsAdviceGeneralCollapsed,
+                storageKey: ADVICE_GENERAL_COLLAPSE_KEY,
+                displayName: 'General Advice',
+                emoji: '💡'
+            }
+        };
+
+        const config = sectionConfig[sectionName];
+        if (!config) {
+            throw new Error(`Advice section configuration not found for: ${sectionName}`);
+        }
+
+        // Get DOM elements
+        const sectionElement = document.querySelector(`[data-advice-section="${sectionName}"]`);
+        if (!sectionElement) {
+            throw new Error(`Advice section element not found: [data-advice-section="${sectionName}"]`);
+        }
+
+        const toggleHeader = sectionElement.querySelector(`[data-action="toggle-advice-${sectionName}"]`);
+        const contentArea = sectionElement.querySelector('.settings-section-content');
+
+        if (!toggleHeader || !contentArea) {
+            throw new Error(`Required elements not found in advice section: ${sectionName}`);
+        }
+
+        // Get current state and toggle
+        const isCurrentlyCollapsed = config.getter();
+        const collapseIndicator = toggleHeader.querySelector('.collapse-indicator');
+
+        if (isCurrentlyCollapsed) {
+            // Expand: show content
+            contentArea.style.display = 'block';
+            config.setter(false);
+
+            // Update ARIA states for expanded section
+            toggleHeader.setAttribute('aria-expanded', 'true');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently expanded. Press Enter or Space to collapse`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to collapse');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to collapse)';
+            }
+
+            // Save expanded state
+            try { localStorage.setItem(config.storageKey, 'false'); } catch (e) {}
+        } else {
+            // Collapse: hide content
+            contentArea.style.display = 'none';
+            config.setter(true);
+
+            // Update ARIA states for collapsed section
+            toggleHeader.setAttribute('aria-expanded', 'false');
+            toggleHeader.setAttribute('aria-label', `${config.displayName} section - currently collapsed. Press Enter or Space to expand`);
+
+            // Update visual indicator
+            if (collapseIndicator) {
+                collapseIndicator.textContent = '';
+                collapseIndicator.setAttribute('title', 'Click to expand');
+            }
+
+            // Update hint text
+            const hintText = toggleHeader.querySelector('.collapse-hint');
+            if (hintText) {
+                hintText.textContent = '(Click to expand)';
+            }
+
+            // Save collapsed state
+            try { localStorage.setItem(config.storageKey, 'true'); } catch (e) {}
+        }
+
+    } catch (error) {
+        console.error(`Error toggling advice section "${sectionName}":`, error);
+        throw error;
+    }
+}
+
 // ===================================================================================
 // LOADING STATE MANAGEMENT
 // ===================================================================================
@@ -3582,6 +3739,7 @@ export {
     toggleDreamForm,
     toggleSettingsSection,
     toggleGoalsSection,
+    toggleAdviceSection,
 
     // Search & Loading States
     showSearchLoading,

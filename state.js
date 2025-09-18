@@ -1708,6 +1708,141 @@ function setIsGoalsCompletedCollapsed(collapsed) {
     isGoalsCompletedCollapsed = collapsed;
 }
 
+// ===================================================================================
+// ADVICE PAGE COLLAPSE STATES
+// ===================================================================================
+
+/**
+ * State variable for advice daily tip section collapse status.
+ *
+ * Controls whether the Daily Lucid Dreaming Tip section is collapsed or expanded in the advice tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isAdviceDailyTipCollapsed = false;
+
+/**
+ * State variable for advice techniques section collapse status.
+ *
+ * Controls whether the Lucid Dreaming Techniques section is collapsed or expanded in the advice tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isAdviceTechniquesCollapsed = false;
+
+/**
+ * State variable for advice general section collapse status.
+ *
+ * Controls whether the General Advice section is collapsed or expanded in the advice tab.
+ * Synchronized with localStorage for persistence across browser sessions.
+ *
+ * @type {boolean}
+ * @since 2.04.01
+ */
+let isAdviceGeneralCollapsed = false;
+
+
+/**
+ * Gets the current collapse state for the advice daily tip section.
+ *
+ * Returns whether the Daily Lucid Dreaming Tip section should be displayed as collapsed
+ * in the advice tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsAdviceDailyTipCollapsed();
+ */
+function getIsAdviceDailyTipCollapsed() {
+    return isAdviceDailyTipCollapsed;
+}
+
+/**
+ * Sets the collapse state for the advice daily tip section.
+ *
+ * Updates the in-memory state for the Daily Lucid Dreaming Tip section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsAdviceDailyTipCollapsed(true);
+ */
+function setIsAdviceDailyTipCollapsed(collapsed) {
+    isAdviceDailyTipCollapsed = collapsed;
+}
+
+/**
+ * Gets the current collapse state for the advice techniques section.
+ *
+ * Returns whether the Lucid Dreaming Techniques section should be displayed as collapsed
+ * in the advice tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsAdviceTechniquesCollapsed();
+ */
+function getIsAdviceTechniquesCollapsed() {
+    return isAdviceTechniquesCollapsed;
+}
+
+/**
+ * Sets the collapse state for the advice techniques section.
+ *
+ * Updates the in-memory state for the Lucid Dreaming Techniques section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsAdviceTechniquesCollapsed(true);
+ */
+function setIsAdviceTechniquesCollapsed(collapsed) {
+    isAdviceTechniquesCollapsed = collapsed;
+}
+
+/**
+ * Gets the current collapse state for the advice general section.
+ *
+ * Returns whether the General Advice section should be displayed as collapsed
+ * in the advice tab interface. Used for UI state management and persistence.
+ *
+ * @returns {boolean} True if section is collapsed, false if expanded
+ * @since 2.04.01
+ *
+ * @example
+ * const isCollapsed = getIsAdviceGeneralCollapsed();
+ */
+function getIsAdviceGeneralCollapsed() {
+    return isAdviceGeneralCollapsed;
+}
+
+/**
+ * Sets the collapse state for the advice general section.
+ *
+ * Updates the in-memory state for the General Advice section collapse status.
+ * This state should be synchronized with localStorage for persistence.
+ *
+ * @param {boolean} collapsed - Whether section should be collapsed
+ * @since 2.04.01
+ *
+ * @example
+ * setIsAdviceGeneralCollapsed(true);
+ */
+function setIsAdviceGeneralCollapsed(collapsed) {
+    isAdviceGeneralCollapsed = collapsed;
+}
+
+
 /**
  * Gets the Dropbox access token from localStorage with fallback handling.
  *
@@ -1888,6 +2023,12 @@ export {
     getIsGoalsTemplatesCollapsed,
     setIsGoalsCompletedCollapsed,
     getIsGoalsCompletedCollapsed,
+    setIsAdviceDailyTipCollapsed,
+    getIsAdviceDailyTipCollapsed,
+    setIsAdviceTechniquesCollapsed,
+    getIsAdviceTechniquesCollapsed,
+    setIsAdviceGeneralCollapsed,
+    getIsAdviceGeneralCollapsed,
     setCurrentPage,
     getCurrentPage,
     setScrollDebounceTimer,
