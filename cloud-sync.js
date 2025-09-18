@@ -78,7 +78,9 @@ import {
     loadDreams,
     loadGoals,
     getAutocompleteSuggestions,
-    storageType
+    storageType,
+    saveToStore,
+    saveAutocompleteSuggestions
 } from './storage.js';
 
 import {
@@ -92,12 +94,20 @@ import {
 } from './import-export.js';
 
 import {
+    saveDream,
+    displayDreams
+} from './dream-crud.js';
+
+import {
     createInlineMessage,
     escapeHtml,
     formatDateTimeDisplay,
     announceLiveMessage,
     getCurrentPaginationPreference,
-    getCurrentTheme
+    getCurrentTheme,
+    storeTheme,
+    applyTheme,
+    storePaginationPreference
 } from './dom-helpers.js';
 
 console.log('Loading Cloud Sync Module v2.04.01');
@@ -646,6 +656,111 @@ function clearAuthenticationState() {
 }
 
 // ================================
+// DATA IMPORT UTILITIES
+// ================================
+
+/**
+ * Imports cloud sync data directly from parsed JSON object.
+ *
+ * Processes cloud backup data and restores dreams, goals, settings, and
+ * autocomplete suggestions. This function handles data imported from cloud
+ * storage rather than file uploads, bypassing the file event handling.
+ *
+ * **Import Process:**
+ * 1. Validates data structure and format
+ * 2. Processes dreams and goals arrays
+ * 3. Restores application settings
+ * 4. Updates autocomplete suggestions
+ * 5. Refreshes UI displays
+ *
+ * @async
+ * @function
+ * @param {Object} backupData - Parsed JSON backup data object
+ * @returns {Promise<Object>} Import result with success status and details
+ * @throws {Error} When data is invalid or import fails
+ * @since 2.04.58
+ *
+ * @example
+ * // Import data from cloud backup
+ * const importResult = await importCloudData(parsedBackupJson);
+ * if (importResult.success) {
+ *   console.log('Data imported successfully');
+ * }
+ */
+async function importCloudData(backupData) {
+    try {
+        // Validate backup data structure
+        if (!backupData || !backupData.data) {
+            throw new Error('Invalid backup data structure');
+        }
+
+        const data = backupData.data;
+
+        // Import dreams
+        if (data.dreams && Array.isArray(data.dreams)) {
+            // Clear existing dreams first
+            await saveToStore('dreams', []);
+
+            // Import new dreams
+            for (const dream of data.dreams) {
+                await saveDream(dream);
+            }
+        }
+
+        // Import goals
+        if (data.goals && Array.isArray(data.goals)) {
+            await saveToStore('goals', data.goals);
+        }
+
+        // Import autocomplete data
+        if (data.autocomplete) {
+            if (data.autocomplete.tags) {
+                await saveAutocompleteSuggestions('tags', data.autocomplete.tags);
+            }
+            if (data.autocomplete.dreamSigns) {
+                await saveAutocompleteSuggestions('dreamSigns', data.autocomplete.dreamSigns);
+            }
+            if (data.autocomplete.emotions) {
+                await saveAutocompleteSuggestions('emotions', data.autocomplete.emotions);
+            }
+        }
+
+        // Import settings (excluding security settings)
+        if (data.settings) {
+            if (data.settings.theme && ['light', 'dark', 'auto'].includes(data.settings.theme)) {
+                storeTheme(data.settings.theme);
+                applyTheme(data.settings.theme);
+            }
+            if (data.settings.paginationLimit) {
+                storePaginationPreference(data.settings.paginationLimit);
+            }
+            if (typeof data.settings.dreamFormCollapsed === 'boolean') {
+                localStorage.setItem(DREAM_FORM_COLLAPSE_KEY, data.settings.dreamFormCollapsed.toString());
+            }
+        }
+
+        // Refresh displays
+        displayDreams();
+
+        return {
+            success: true,
+            message: 'Data imported successfully from cloud',
+            stats: {
+                dreams: data.dreams ? data.dreams.length : 0,
+                goals: data.goals ? data.goals.length : 0,
+                tags: data.autocomplete?.tags ? data.autocomplete.tags.length : 0,
+                dreamSigns: data.autocomplete?.dreamSigns ? data.autocomplete.dreamSigns.length : 0,
+                emotions: data.autocomplete?.emotions ? data.autocomplete.emotions.length : 0
+            }
+        };
+
+    } catch (error) {
+        console.error('Error importing cloud data:', error);
+        throw new Error(`Failed to import cloud data: ${error.message}`);
+    }
+}
+
+// ================================
 // DATA GENERATION UTILITIES
 // ================================
 
@@ -826,11 +941,55 @@ async function syncToCloud() {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `dream-journal-backup-${timestamp}.json`;
 
-        // Upload to Dropbox using simple format (app folder automatically prefixed by SDK)
-        const uploadResponse = await dropboxInstance.filesUpload({
-            path: `/${filename}`,
-            contents: exportData
-        });
+        // Debug logging
+        console.log('Upload attempt details:');
+        console.log('- Filename:', filename);
+        console.log('- Export data size:', exportData.length, 'characters');
+        console.log('- Export data preview:', exportData.substring(0, 200) + '...');
+        console.log('- Dropbox instance exists:', !!dropboxInstance);
+        console.log('- Access token from state:', !!getDropboxAccessToken());
+
+        // Try multiple path formats to debug
+        const pathOptions = [
+            `/${filename}`,           // Current format
+            filename,                 // No leading slash
+            `./${filename}`,          // Relative path
+            `/tmp/${filename}`        // Explicit folder
+        ];
+
+        let uploadResponse = null;
+        let lastError = null;
+
+        for (const pathFormat of pathOptions) {
+            try {
+                console.log('Trying path format:', pathFormat);
+
+                // Upload to Dropbox using simple format
+                uploadResponse = await dropboxInstance.filesUpload({
+                    path: pathFormat,
+                    contents: exportData
+                });
+
+                console.log('SUCCESS with path format:', pathFormat);
+                break; // Success, exit loop
+
+            } catch (error) {
+                console.log('FAILED with path format:', pathFormat);
+                console.log('Error details:', {
+                    status: error.status,
+                    message: error.message,
+                    error: error.error,
+                    response: error.response
+                });
+                lastError = error;
+                // Continue to next path format
+            }
+        }
+
+        if (!uploadResponse) {
+            // All path formats failed, throw the last error with details
+            throw new Error(`All upload attempts failed. Last error: ${lastError.message}. Status: ${lastError.status}. Details: ${JSON.stringify(lastError.error || {})}`);
+        }
 
         // Update sync status
         setLastCloudSyncTime(Date.now());
@@ -927,11 +1086,12 @@ async function syncFromCloud() {
             throw new Error('Failed to download backup file');
         }
 
-        // Convert blob to text
-        const backupData = await downloadResponse.result.fileBlob.text();
+        // Convert blob to text and parse JSON
+        const backupDataText = await downloadResponse.result.fileBlob.text();
+        const backupData = JSON.parse(backupDataText);
 
-        // Import the data
-        const importResult = await importAllData(backupData);
+        // Import the data manually (since importAllData expects file event)
+        const importResult = await importCloudData(backupData);
 
         if (importResult && importResult.success) {
             setLastCloudSyncTime(Date.now());
