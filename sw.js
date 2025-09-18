@@ -99,6 +99,7 @@ const urlsToCache = [
   './settingstab.js',      // Settings tab rendering
   './import-export.js',    // Data import/export
   './action-router.js',    // Event delegation
+  './cloud-sync.js',       // Cloud synchronization
   './main.js'              // App initialization
 ];
 
