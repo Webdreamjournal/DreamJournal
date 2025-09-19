@@ -283,96 +283,96 @@ function renderJournalTab(tabPanel) {
                 <div class="settings-section-content">
                     <div class="controls" role="search" aria-label="Search and filter dreams">
 
-                <!-- Search and Filter Controls Group -->
-                <div class="search-filter-section">
-                    <div class="section-header-with-action">
-                        <h4 class="section-header">🔍 Search & Filter
-                            <button class="info-icon search-info-btn"
-                                    data-action="show-smart-search-help"
-                                    type="button"
-                                    title="Click for smart search syntax help"
-                                    aria-label="Show smart search help">
-                                ℹ️
-                            </button></h4>
-                        <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
-                    </div>
-                    <div class="search-filter-group">
-                        <!-- Smart Search Box with Info Button -->
-                        <div class="search-input-group">
-                            <input type="text"
-                                   id="searchBox"
-                                   class="search-box"
-                                   placeholder="Smart search: title:flying tag:lucid or just search text..."
-                                   aria-label="Smart search with field-specific queries or general text search"
-                                   role="searchbox">
+                        <!-- Search and Filter Controls Group -->
+                        <div class="search-filter-section">
+                            <div class="section-header-with-action">
+                                <h4 class="section-header">🔍 Search & Filter
+                                    <button class="info-icon search-info-btn"
+                                            data-action="show-smart-search-help"
+                                            type="button"
+                                            title="Click for smart search syntax help"
+                                            aria-label="Show smart search help">
+                                        ℹ️
+                                    </button></h4>
+                                <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
+                            </div>
+                            <div class="search-filter-group">
+                                <!-- Smart Search Box with Info Button -->
+                                <div class="search-input-group">
+                                    <input type="text"
+                                        id="searchBox"
+                                        class="search-box"
+                                        placeholder="Smart search: title:flying tag:lucid or just search text..."
+                                        aria-label="Smart search with field-specific queries or general text search"
+                                        role="searchbox">
 
+                                </div>
+
+                                <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
+                                <select id="filterSelect" class="filter-select">
+                                    <option value="all">All Dreams</option>
+                                    <option value="lucid">Lucid Dreams</option>
+                                    <option value="non-lucid">Non-Lucid Dreams</option>
+                                </select>
+                            </div>
+
+                            <!-- Date Range Filter Controls -->
+                            <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
+                                <!-- Start Date Filter -->
+                                <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
+                                <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+
+                                <!-- End Date Filter -->
+                                <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
+                                <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                            </div>
                         </div>
 
-                        <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
-                        <select id="filterSelect" class="filter-select">
-                            <option value="all">All Dreams</option>
-                            <option value="lucid">Lucid Dreams</option>
-                            <option value="non-lucid">Non-Lucid Dreams</option>
-                        </select>
-                    </div>
+                        <!-- Display and Sorting Controls Group -->
+                        <div class="display-sort-section">
+                            <h4 class="section-header">📊 Display & Sort</h4>
+                            <div class="display-sort-group">
+                                <!-- Sort Order Dropdown - Controls dream display order -->
+                                <select id="sortSelect" class="filter-select">
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="lucid-first">Lucid First</option>
+                                    <option value="longest">Longest First</option>
+                                </select>
 
-                    <!-- Date Range Filter Controls -->
-                    <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
-                        <!-- Start Date Filter -->
-                        <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
-                        <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
-
-                        <!-- End Date Filter -->
-                        <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
-                        <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
-                    </div>
-                </div>
-
-                <!-- Display and Sorting Controls Group -->
-                <div class="display-sort-section">
-                    <h4 class="section-header">📊 Display & Sort</h4>
-                    <div class="display-sort-group">
-                        <!-- Sort Order Dropdown - Controls dream display order -->
-                        <select id="sortSelect" class="filter-select">
-                            <option value="newest">Newest First</option>
-                            <option value="oldest">Oldest First</option>
-                            <option value="lucid-first">Lucid First</option>
-                            <option value="longest">Longest First</option>
-                        </select>
-
-                        <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
-                        <select id="limitSelect" class="filter-select">
-                            ${generatePaginationDropdownOptions()}
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Dreams Management Controls -->
-                <div class="dreams-controls">
-                    <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
-                    <div class="export-range-container">
-                        <button data-action="export-range"
-                                class="btn btn-success"
-                                title="Export currently displayed dreams as text file">
-                            Export Range
-                        </button>
-                        <div class="export-format-option">
-                            <input type="checkbox"
-                                   id="exportFormatAI"
-                                   class="export-format-checkbox">
-                            <label for="exportFormatAI" class="export-format-label">
-                                Preformatted for AI Analysis
-                            </label>
-                            <button class="info-icon"
-                                    data-action="show-export-info"
-                                    type="button"
-                                    title="Click for more information about export formats"
-                                    aria-label="Show export format information">
-                                ℹ️
-                            </button>
+                                <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
+                                <select id="limitSelect" class="filter-select">
+                                    ${generatePaginationDropdownOptions()}
+                                </select>
+                            </div>
                         </div>
-                    </div>
-                </div>
+
+                        <!-- Dreams Management Controls -->
+                        <div class="dreams-controls">
+                            <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
+                            <div class="export-range-container">
+                                <button data-action="export-range"
+                                        class="btn btn-success"
+                                        title="Export currently displayed dreams as text file">
+                                    Export Range
+                                </button>
+                                <div class="export-format-option">
+                                    <input type="checkbox"
+                                        id="exportFormatAI"
+                                        class="export-format-checkbox">
+                                    <label for="exportFormatAI" class="export-format-label">
+                                        Preformatted for AI Analysis
+                                    </label>
+                                    <button class="info-icon"
+                                            data-action="show-export-info"
+                                            type="button"
+                                            title="Click for more information about export formats"
+                                            aria-label="Show export format information">
+                                        ℹ️
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Visual Break Between Controls and Dream List -->
                         <div class="control-row-break"></div>
