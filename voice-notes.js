@@ -1378,7 +1378,9 @@ async function updateRecordButtonState() {
                         updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - ${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount} slot${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount === 1 ? '' : 's'} remaining`, 'warning');
                     } else {
                         const voiceCapabilities = getVoiceCapabilities();
-                        if (voiceCapabilities.canTranscribe) {
+                        if (voiceCapabilities.canTranscribeMobile) {
+                            updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording supported (experimental transcription - unreliable on mobile)`, 'info');
+                        } else if (voiceCapabilities.canTranscribe) {
                             updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording and transcription supported`, 'info');
                         } else {
                             updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording supported (no transcription)`, 'warning');
