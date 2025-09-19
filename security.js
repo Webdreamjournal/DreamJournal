@@ -3833,6 +3833,308 @@ function cancelPasswordDialog() {
     hidePasswordDialog();
 }
 
+/**
+ * Shows a modal progress popup during encryption operations.
+ *
+ * Creates a non-dismissible modal dialog that displays encryption progress
+ * and prevents user interaction until the operation completes. The popup
+ * shows loading state, then success or error state with appropriate messaging.
+ *
+ * **Features:**
+ * - Non-dismissible during operation (no overlay click, ESC key disabled)
+ * - Loading spinner and progress text during encryption
+ * - Success/error state with appropriate icons and messages
+ * - OK button only enabled after operation completes
+ * - Proper ARIA attributes for accessibility
+ * - Follows established cloud sync progress dialog pattern
+ *
+ * **Operation States:**
+ * - 'encrypting': Shows loading spinner with progress message
+ * - 'success': Shows success icon with completion message
+ * - 'error': Shows error icon with failure message
+ *
+ * @async
+ * @function
+ * @param {string} operation - The operation being performed ('encrypting', 'success', 'error')
+ * @param {string} [message] - Optional custom message for the operation
+ * @returns {Promise<void>} Resolves when user dismisses the completed dialog
+ * @throws {Error} When dialog creation or operation fails
+ * @since 2.04.01
+ *
+ * @example
+ * // Show encryption progress
+ * showEncryptionProgress('encrypting');
+ * try {
+ *   await performEncryption();
+ *   await showEncryptionProgress('success', 'Encryption completed successfully!');
+ * } catch (error) {
+ *   await showEncryptionProgress('error', 'Encryption failed: ' + error.message);
+ * }
+ */
+async function showEncryptionProgress(operation, message = '') {
+    return new Promise((resolve) => {
+        let dialog = document.getElementById('encryption-progress-dialog');
+
+        if (!dialog) {
+            // Create dialog if it doesn't exist
+            dialog = document.createElement('div');
+            dialog.id = 'encryption-progress-dialog';
+            dialog.className = 'security-dialog-overlay progress-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'encryption-progress-title');
+            document.body.appendChild(dialog);
+        }
+
+        let dialogHtml = '';
+        let canDismiss = false;
+
+        if (operation === 'encrypting') {
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="encryption-progress-title">🔒 Encrypting Data</h3>
+                    <div class="progress-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                    <p id="encryption-progress-message">Encrypting your data...</p>
+                    <p><small>Please wait, do not close this window.</small></p>
+                    <div class="dialog-actions">
+                        <button id="encryption-progress-ok" class="btn btn-primary" disabled>
+                            Please Wait...
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'success') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="encryption-progress-title">✅ Encryption Successful</h3>
+                    <p>${message || 'Your data has been successfully encrypted.'}</p>
+                    <div class="dialog-actions">
+                        <button id="encryption-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'error') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="encryption-progress-title">❌ Encryption Failed</h3>
+                    <p>${message || 'An error occurred while encrypting your data.'}</p>
+                    <div class="dialog-actions">
+                        <button id="encryption-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        dialog.innerHTML = dialogHtml;
+
+        if (canDismiss) {
+            // Add event listener for OK button
+            const okButton = dialog.querySelector('#encryption-progress-ok');
+            okButton.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve();
+            });
+        }
+
+        if (!canDismiss) {
+            // Disable ESC key and overlay click
+            dialog.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+            document.addEventListener('keydown', function preventEsc(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Shows a modal progress popup during decryption operations.
+ *
+ * Creates a non-dismissible modal dialog that displays decryption progress
+ * and prevents user interaction until the operation completes. The popup
+ * shows loading state, then success or error state with appropriate messaging.
+ *
+ * **Features:**
+ * - Non-dismissible during operation (no overlay click, ESC key disabled)
+ * - Loading spinner and progress text during decryption
+ * - Success/error state with appropriate icons and messages
+ * - OK button only enabled after operation completes
+ * - Proper ARIA attributes for accessibility
+ * - Follows established cloud sync progress dialog pattern
+ *
+ * **Operation States:**
+ * - 'decrypting': Shows loading spinner with progress message
+ * - 'success': Shows success icon with completion message
+ * - 'error': Shows error icon with failure message
+ *
+ * @async
+ * @function
+ * @param {string} operation - The operation being performed ('decrypting', 'success', 'error')
+ * @param {string} [message] - Optional custom message for the operation
+ * @returns {Promise<void>} Resolves when user dismisses the completed dialog
+ * @throws {Error} When dialog creation or operation fails
+ * @since 2.04.01
+ *
+ * @example
+ * // Show decryption progress
+ * showDecryptionProgress('decrypting');
+ * try {
+ *   await performDecryption();
+ *   await showDecryptionProgress('success', 'Decryption completed successfully!');
+ * } catch (error) {
+ *   await showDecryptionProgress('error', 'Decryption failed: ' + error.message);
+ * }
+ */
+async function showDecryptionProgress(operation, message = '') {
+    return new Promise((resolve) => {
+        let dialog = document.getElementById('decryption-progress-dialog');
+
+        if (!dialog) {
+            // Create dialog if it doesn't exist
+            dialog = document.createElement('div');
+            dialog.id = 'decryption-progress-dialog';
+            dialog.className = 'security-dialog-overlay progress-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'decryption-progress-title');
+            document.body.appendChild(dialog);
+        }
+
+        let dialogHtml = '';
+        let canDismiss = false;
+
+        if (operation === 'decrypting') {
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="decryption-progress-title">🔓 Decrypting Data</h3>
+                    <div class="progress-spinner">
+                        <div class="spinner"></div>
+                    </div>
+                    <p id="decryption-progress-message">Decrypting your data...</p>
+                    <p><small>Please wait, do not close this window.</small></p>
+                    <div class="dialog-actions">
+                        <button id="decryption-progress-ok" class="btn btn-primary" disabled>
+                            Please Wait...
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'success') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="decryption-progress-title">✅ Decryption Successful</h3>
+                    <p>${message || 'Your data has been successfully decrypted.'}</p>
+                    <div class="dialog-actions">
+                        <button id="decryption-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (operation === 'error') {
+            canDismiss = true;
+            dialogHtml = `
+                <div class="security-dialog-content">
+                    <h3 id="decryption-progress-title">❌ Decryption Failed</h3>
+                    <p>${message || 'An error occurred while decrypting your data.'}</p>
+                    <div class="dialog-actions">
+                        <button id="decryption-progress-ok" class="btn btn-primary">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        dialog.innerHTML = dialogHtml;
+
+        if (canDismiss) {
+            // Add event listener for OK button
+            const okButton = dialog.querySelector('#decryption-progress-ok');
+            okButton.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+                resolve();
+            });
+        }
+
+        if (!canDismiss) {
+            // Disable ESC key and overlay click
+            dialog.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+            document.addEventListener('keydown', function preventEsc(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Updates the message in an active encryption progress dialog.
+ *
+ * This helper function allows updating the progress message while
+ * the encryption dialog is already showing, useful for providing
+ * detailed feedback during long operations.
+ *
+ * @function
+ * @param {string} message - The new message to display
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Update progress message during encryption
+ * updateEncryptionProgress('Processing dreams...');
+ * // ... encrypt dreams ...
+ * updateEncryptionProgress('Processing goals...');
+ */
+function updateEncryptionProgress(message) {
+    const messageElement = document.getElementById('encryption-progress-message');
+    if (messageElement) {
+        messageElement.textContent = message;
+    }
+}
+
+/**
+ * Updates the message in an active decryption progress dialog.
+ *
+ * This helper function allows updating the progress message while
+ * the decryption dialog is already showing, useful for providing
+ * detailed feedback during long operations.
+ *
+ * @function
+ * @param {string} message - The new message to display
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Update progress message during decryption
+ * updateDecryptionProgress('Processing dreams...');
+ * // ... decrypt dreams ...
+ * updateDecryptionProgress('Processing goals...');
+ */
+function updateDecryptionProgress(message) {
+    const messageElement = document.getElementById('decryption-progress-message');
+    if (messageElement) {
+        messageElement.textContent = message;
+    }
+}
+
 // ================================
 // ES MODULE EXPORTS
 // ================================
@@ -3917,6 +4219,12 @@ export {
     showForgotEncryptionPassword,
     wipeAllData,
     confirmDataWipe,
+
+    // Progress dialog functions
+    showEncryptionProgress,
+    showDecryptionProgress,
+    updateEncryptionProgress,
+    updateDecryptionProgress,
 
     // Application control
     toggleLock,

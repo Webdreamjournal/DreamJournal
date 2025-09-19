@@ -144,6 +144,66 @@ console.log('Loading Settings Tab Module v2.02.06');
  * 
  * @since 2.02.05
  */
+
+/**
+ * Manages the state of encryption-related controls during operations.
+ *
+ * This helper function enables or disables encryption controls to prevent
+ * user interaction during encryption/decryption operations. It affects
+ * the encryption toggle button and change password button to ensure users
+ * cannot interfere with ongoing encryption processes.
+ *
+ * **Affected Controls:**
+ * - Encryption enable/disable button
+ * - Change encryption password button
+ * - Updates button text to indicate operation status
+ *
+ * @function
+ * @param {boolean} enabled - Whether controls should be enabled (true) or disabled (false)
+ * @returns {void}
+ * @since 2.04.01
+ *
+ * @example
+ * // Disable controls during encryption
+ * setEncryptionControlsState(false);
+ * // ... perform encryption operation ...
+ * setEncryptionControlsState(true); // Re-enable when done
+ */
+function setEncryptionControlsState(enabled) {
+    // Find encryption toggle button
+    const encryptionButton = document.querySelector('[data-action="toggle-encryption"]');
+    if (encryptionButton) {
+        encryptionButton.disabled = !enabled;
+        if (!enabled) {
+            encryptionButton.textContent = 'Processing...';
+        } else {
+            // Restore proper button text based on current state
+            const { getEncryptionEnabled } = window.stateModule || {};
+            if (getEncryptionEnabled) {
+                encryptionButton.textContent = getEncryptionEnabled() ? 'Disable Encryption' : 'Enable Encryption';
+            }
+        }
+    }
+
+    // Find change password button
+    const changePasswordButton = document.querySelector('[data-action="change-encryption-password"]');
+    if (changePasswordButton) {
+        changePasswordButton.disabled = !enabled;
+    }
+
+    // Add visual feedback for disabled state
+    const encryptionControls = document.querySelectorAll('[data-action="toggle-encryption"], [data-action="change-encryption-password"]');
+    encryptionControls.forEach(control => {
+        if (!enabled) {
+            control.style.opacity = '0.6';
+            control.style.cursor = 'not-allowed';
+        } else {
+            control.style.opacity = '';
+            control.style.cursor = '';
+        }
+    });
+}
+
 function renderSettingsTab(tabPanel) {
     // Get current theme to set correct option as selected
     const currentTheme = getCurrentTheme();
@@ -933,20 +993,32 @@ async function setupEncryption(password) {
     try {
         // Import required functions
         const { setEncryptionPassword, clearDecryptedDataCache, setEncryptionEnabled } = await import('./state.js');
-        const { saveEncryptionSettings } = await import('./security.js');
+        const { saveEncryptionSettings, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
+        // Disable encryption controls to prevent user interaction
+        setEncryptionControlsState(false);
+
+        // Show encryption progress dialog
+        showEncryptionProgress('encrypting');
+
         // Enable encryption setting
+        updateEncryptionProgress('Enabling encryption settings...');
         await saveEncryptionSettings(true);
         setEncryptionEnabled(true);
         setEncryptionPassword(password);
 
         // Encrypt existing dreams
+        updateEncryptionProgress('Processing dreams...');
         const dreams = await loadDreamsRaw();
         let encryptedCount = 0;
-        for (const dream of dreams) {
+        for (let i = 0; i < dreams.length; i++) {
+            const dream = dreams[i];
             if (!dream.encrypted) { // Don't re-encrypt already encrypted items
+                if (dreams.length > 5) {
+                    updateEncryptionProgress(`Processing dreams... (${i + 1} of ${dreams.length})`);
+                }
                 const encrypted = await encryptItemForStorage(dream, password);
                 await saveItemToStore('dreams', encrypted);
                 encryptedCount++;
@@ -954,10 +1026,15 @@ async function setupEncryption(password) {
         }
 
         // Encrypt existing goals
+        updateEncryptionProgress('Processing goals...');
         const goals = await loadGoalsRaw();
         let goalsEncryptedCount = 0;
-        for (const goal of goals) {
+        for (let i = 0; i < goals.length; i++) {
+            const goal = goals[i];
             if (!goal.encrypted) { // Don't re-encrypt already encrypted items
+                if (goals.length > 5) {
+                    updateEncryptionProgress(`Processing goals... (${i + 1} of ${goals.length})`);
+                }
                 const encrypted = await encryptItemForStorage(goal, password);
                 await saveItemToStore('goals', encrypted);
                 goalsEncryptedCount++;
@@ -965,6 +1042,7 @@ async function setupEncryption(password) {
         }
 
         // Encrypt existing autocomplete data (tags and dream signs)
+        updateEncryptionProgress('Processing autocomplete data...');
         const { getAutocompleteSuggestionsRawData } = await import('./storage.js');
         const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
         let autocompleteEncryptedCount = 0;
@@ -984,10 +1062,12 @@ async function setupEncryption(password) {
         }
 
         // Clear cache and reload data
+        updateEncryptionProgress('Updating application data...');
         clearDecryptedDataCache();
         await initializeApplicationData();
 
         // Update settings UI to reflect new state
+        updateEncryptionProgress('Refreshing settings interface...');
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
@@ -999,6 +1079,10 @@ async function setupEncryption(password) {
             updateCloudSyncUI();
         }
 
+        // Re-enable encryption controls
+        setEncryptionControlsState(true);
+
+        // Build success message
         const totalEncrypted = encryptedCount + goalsEncryptedCount + autocompleteEncryptedCount;
         let message = 'Encryption enabled successfully!';
         if (totalEncrypted > 0) {
@@ -1010,10 +1094,19 @@ async function setupEncryption(password) {
         } else {
             message += ' All data is now encrypted.';
         }
-        createInlineMessage('success', message);
+
+        // Show success dialog
+        await showEncryptionProgress('success', message);
 
     } catch (error) {
         console.error('Error setting up encryption:', error);
+
+        // Re-enable controls on error
+        setEncryptionControlsState(true);
+
+        // Show error dialog
+        await showEncryptionProgress('error', 'Failed to enable encryption. Please try again.');
+
         throw error;
     }
 }
@@ -1245,86 +1338,125 @@ async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncrypt
  * @private
  */
 async function performEncryptionDisabling(password) {
-    // Import required functions
-    const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-    const { saveEncryptionSettings } = await import('./security.js');
-    const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
-    const { initializeApplicationData } = await import('./main.js');
+    try {
+        // Import required functions
+        const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress } = await import('./security.js');
+        const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
+        const { initializeApplicationData } = await import('./main.js');
 
-    // Decrypt all encrypted dreams
-    const dreams = await loadDreamsRaw();
-    let decryptedCount = 0;
-    for (const dream of dreams) {
-        if (isEncryptedItem(dream)) {
-            const decrypted = await decryptItemFromStorage(dream, password);
-            await saveItemToStore('dreams', decrypted);
-            decryptedCount++;
-        }
-    }
+        // Disable encryption controls to prevent user interaction
+        setEncryptionControlsState(false);
 
-    // Decrypt all encrypted goals
-    const goals = await loadGoalsRaw();
-    let goalsDecryptedCount = 0;
-    for (const goal of goals) {
-        if (isEncryptedItem(goal)) {
-            const decrypted = await decryptItemFromStorage(goal, password);
-            await saveItemToStore('goals', decrypted);
-            goalsDecryptedCount++;
-        }
-    }
+        // Show decryption progress dialog
+        showDecryptionProgress('decrypting');
 
-    // Decrypt all encrypted autocomplete data (tags and dream signs)
-    const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
-    const autocompleteTypes = ['tags', 'dreamSigns'];
-    let autocompleteDecryptedCount = 0;
-
-    for (const type of autocompleteTypes) {
-        try {
-            const autocompleteData = await getAutocompleteSuggestionsRaw(type);
-            if (autocompleteData && isEncryptedItem(autocompleteData)) {
-                const decrypted = await decryptItemFromStorage(autocompleteData, password);
-                await saveItemToStore('autocomplete', decrypted);
-                autocompleteDecryptedCount++;
+        // Decrypt all encrypted dreams
+        updateDecryptionProgress('Processing dreams...');
+        const dreams = await loadDreamsRaw();
+        let decryptedCount = 0;
+        for (let i = 0; i < dreams.length; i++) {
+            const dream = dreams[i];
+            if (isEncryptedItem(dream)) {
+                if (dreams.length > 5) {
+                    updateDecryptionProgress(`Processing dreams... (${i + 1} of ${dreams.length})`);
+                }
+                const decrypted = await decryptItemFromStorage(dream, password);
+                await saveItemToStore('dreams', decrypted);
+                decryptedCount++;
             }
-        } catch (error) {
-            // Autocomplete may not exist for this type, continue with other types
-            console.warn(`Autocomplete ${type} decryption skipped:`, error.message);
         }
+
+        // Decrypt all encrypted goals
+        updateDecryptionProgress('Processing goals...');
+        const goals = await loadGoalsRaw();
+        let goalsDecryptedCount = 0;
+        for (let i = 0; i < goals.length; i++) {
+            const goal = goals[i];
+            if (isEncryptedItem(goal)) {
+                if (goals.length > 5) {
+                    updateDecryptionProgress(`Processing goals... (${i + 1} of ${goals.length})`);
+                }
+                const decrypted = await decryptItemFromStorage(goal, password);
+                await saveItemToStore('goals', decrypted);
+                goalsDecryptedCount++;
+            }
+        }
+
+        // Decrypt all encrypted autocomplete data (tags and dream signs)
+        updateDecryptionProgress('Processing autocomplete data...');
+        const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
+        const autocompleteTypes = ['tags', 'dreamSigns'];
+        let autocompleteDecryptedCount = 0;
+
+        for (const type of autocompleteTypes) {
+            try {
+                const autocompleteData = await getAutocompleteSuggestionsRaw(type);
+                if (autocompleteData && isEncryptedItem(autocompleteData)) {
+                    const decrypted = await decryptItemFromStorage(autocompleteData, password);
+                    await saveItemToStore('autocomplete', decrypted);
+                    autocompleteDecryptedCount++;
+                }
+            } catch (error) {
+                // Autocomplete may not exist for this type, continue with other types
+                console.warn(`Autocomplete ${type} decryption skipped:`, error.message);
+            }
+        }
+
+        // Disable encryption settings
+        updateDecryptionProgress('Disabling encryption settings...');
+        await saveEncryptionSettings(false);
+        setEncryptionEnabled(false);
+        setEncryptionPassword(null);
+
+        // Clear cache and reload data
+        updateDecryptionProgress('Updating application data...');
+        clearDecryptedDataCache();
+        await initializeApplicationData();
+
+        // Update settings UI
+        updateDecryptionProgress('Refreshing settings interface...');
+        const settingsTab = document.getElementById('settingsTab');
+        if (settingsTab && !settingsTab.hidden) {
+            renderSettingsTab(settingsTab);
+            initializeSettingsTab();
+            // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
+
+            // Restore cloud sync UI state after re-rendering
+            const { updateCloudSyncUI } = await import('./cloud-sync.js');
+            updateCloudSyncUI();
+        }
+
+        // Re-enable encryption controls
+        setEncryptionControlsState(true);
+
+        // Build success message
+        const totalDecrypted = decryptedCount + goalsDecryptedCount + autocompleteDecryptedCount;
+        let message = 'Encryption disabled successfully!';
+        if (totalDecrypted > 0) {
+            const parts = [];
+            if (decryptedCount > 0) parts.push(`${decryptedCount} dreams`);
+            if (goalsDecryptedCount > 0) parts.push(`${goalsDecryptedCount} goals`);
+            if (autocompleteDecryptedCount > 0) parts.push(`${autocompleteDecryptedCount} autocomplete lists`);
+            message += ` ${parts.join(', ')} decrypted.`;
+        } else {
+            message += ' All data is now unencrypted.';
+        }
+
+        // Show success dialog
+        await showDecryptionProgress('success', message);
+
+    } catch (error) {
+        console.error('Error during encryption disabling:', error);
+
+        // Re-enable controls on error
+        setEncryptionControlsState(true);
+
+        // Show error dialog
+        await showDecryptionProgress('error', 'Failed to disable encryption. Please try again.');
+
+        throw error;
     }
-
-    // Disable encryption settings
-    await saveEncryptionSettings(false);
-    setEncryptionEnabled(false);
-    setEncryptionPassword(null);
-
-    // Clear cache and reload data
-    clearDecryptedDataCache();
-    await initializeApplicationData();
-
-    // Update settings UI
-    const settingsTab = document.getElementById('settingsTab');
-    if (settingsTab && !settingsTab.hidden) {
-        renderSettingsTab(settingsTab);
-        initializeSettingsTab();
-        // Note: syncSettingsDisplay() is called inside initializeSettingsTab() with proper timing
-
-        // Restore cloud sync UI state after re-rendering
-        const { updateCloudSyncUI } = await import('./cloud-sync.js');
-        updateCloudSyncUI();
-    }
-
-    const totalDecrypted = decryptedCount + goalsDecryptedCount + autocompleteDecryptedCount;
-    let message = 'Encryption disabled successfully!';
-    if (totalDecrypted > 0) {
-        const parts = [];
-        if (decryptedCount > 0) parts.push(`${decryptedCount} dreams`);
-        if (goalsDecryptedCount > 0) parts.push(`${goalsDecryptedCount} goals`);
-        if (autocompleteDecryptedCount > 0) parts.push(`${autocompleteDecryptedCount} autocomplete lists`);
-        message += ` ${parts.join(', ')} decrypted.`;
-    } else {
-        message += ' All data is now unencrypted.';
-    }
-    createInlineMessage('success', message);
 }
 
 /**
@@ -1360,7 +1492,7 @@ async function performEncryptionDisabling(password) {
 async function changeEncryptionPassword() {
     try {
         // Import required functions
-        const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword } = await import('./security.js');
+        const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
 
         // Step 1: Verify current password with retry logic
         const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword);
@@ -1386,10 +1518,18 @@ async function changeEncryptionPassword() {
             return;
         }
 
-        // Step 3: Re-encrypt all data with new password
+        // Step 3: Disable controls and show progress
+        setEncryptionControlsState(false);
+        showEncryptionProgress('encrypting');
+        updateEncryptionProgress('Re-encrypting all data with new password...');
+
+        // Step 4: Re-encrypt all data with new password
         const reEncryptedCount = await reEncryptAllData(currentPassword, newPassword);
 
-        // Step 4: Update settings UI
+        // Step 5: Re-enable controls
+        setEncryptionControlsState(true);
+
+        // Step 6: Update settings UI
         const settingsTab = document.getElementById('settingsTab');
         if (settingsTab && !settingsTab.hidden) {
             renderSettingsTab(settingsTab);
@@ -1401,11 +1541,18 @@ async function changeEncryptionPassword() {
             updateCloudSyncUI();
         }
 
-        createInlineMessage('success', `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`);
+        // Step 7: Show success dialog
+        const successMessage = `Encryption password changed successfully! ${reEncryptedCount > 0 ? `${reEncryptedCount} items re-encrypted.` : 'All encrypted data updated.'}`;
+        await showEncryptionProgress('success', successMessage);
 
     } catch (error) {
         console.error('Error changing encryption password:', error);
-        createInlineMessage('error', 'Failed to change encryption password. Please try again.');
+
+        // Re-enable controls on error
+        setEncryptionControlsState(true);
+
+        // Show error dialog
+        await showEncryptionProgress('error', 'Failed to change encryption password. Please try again.');
     }
 }
 
@@ -1454,10 +1601,12 @@ async function reEncryptAllData(oldPassword, newPassword) {
             saveItemToStore
         } = await import('./storage.js');
         const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { updateEncryptionProgress } = await import('./security.js');
 
         let reEncryptedCount = 0;
 
         // Re-encrypt dreams
+        updateEncryptionProgress('Re-encrypting dreams...');
         const dreams = await loadDreamsRaw();
         for (const dream of dreams) {
             if (isEncryptedItem(dream)) {
@@ -1469,6 +1618,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
         }
 
         // Re-encrypt goals
+        updateEncryptionProgress('Re-encrypting goals...');
         const goals = await loadGoalsRaw();
         for (const goal of goals) {
             if (isEncryptedItem(goal)) {
@@ -1478,7 +1628,27 @@ async function reEncryptAllData(oldPassword, newPassword) {
             }
         }
 
-        // Update session password
+        // Re-encrypt autocomplete data (tags, dreamSigns, emotions)
+        updateEncryptionProgress('Re-encrypting autocomplete data...');
+        const { getAutocompleteSuggestionsRawData } = await import('./storage.js');
+        const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
+
+        for (const type of autocompleteTypes) {
+            try {
+                const autocompleteData = await getAutocompleteSuggestionsRawData(type);
+                if (autocompleteData && isEncryptedItem(autocompleteData)) {
+                    const decrypted = await decryptItemFromStorage(autocompleteData, oldPassword);
+                    const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
+                    await saveItemToStore('autocomplete', reEncrypted);
+                }
+            } catch (error) {
+                // Autocomplete may not exist for this type, continue with other types
+                console.warn(`Autocomplete ${type} re-encryption skipped:`, error.message);
+            }
+        }
+
+        // Update session password and finalize
+        updateEncryptionProgress('Updating session and finalizing...');
         setEncryptionPassword(newPassword);
 
         // Clear cache to force reload with new password
