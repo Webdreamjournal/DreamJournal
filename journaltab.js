@@ -97,11 +97,11 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (EXPANDED)     -->
             <!-- ================================ -->
-            <div class="entry-form" id="dreamFormFull">
+            <div class="settings-section" id="dreamFormFull">
                 <!-- Collapsible form header with toggle functionality -->
                 <h3 id="journal-main-heading"
                     tabindex="0"
-                    data-action="toggle-dream-form"
+                    data-action="toggle-settings-dream"
                     role="button"
                     aria-expanded="true"
                     aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
@@ -200,9 +200,9 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (COLLAPSED)    -->
             <!-- ================================ -->
-            <div class="entry-form" id="dreamFormCollapsed">
+            <div class="settings-section" id="dreamFormCollapsed">
                 <!-- Collapsed form header with expand functionality -->
-                <h3 data-action="toggle-dream-form"
+                <h3 data-action="toggle-settings-dream"
                     role="button"
                     tabindex="0"
                     aria-expanded="false"

@@ -359,7 +359,7 @@ const ACTION_MAP = {
         // DREAM ENTRY MANAGEMENT
         // ================================
         'save-dream': () => saveDream(),                                     // Save new dream entry from form
-        'toggle-dream-form': (ctx) => {
+        'toggle-settings-dream': (ctx) => {
             // Determine if triggered by keyboard (for focus management)
             const isKeyboardEvent = ctx.event && (ctx.event.type === 'keydown');
             toggleDreamForm(isKeyboardEvent);
@@ -598,7 +598,7 @@ function routeAction(context, event = null) {
         if (handler) {
             try {
                 // Special handling: some actions require the original event object
-                if (context.action === 'seek-audio' || context.action === 'toggle-dream-form') {
+                if (context.action === 'seek-audio' || context.action === 'toggle-settings-dream') {
                     context.event = event;
                 }
                 
@@ -981,7 +981,7 @@ async function decreaseGoalProgress(goalId) {
  * 
  * @example
  * // HTML structure that triggers this handler
- * <h3 data-action="toggle-dream-form" role="button" tabindex="0">
+ * <h3 data-action="toggle-settings-dream" role="button" tabindex="0">
  *   Record Your Dream (Press Enter to expand)
  * </h3>
  */
