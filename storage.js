@@ -323,7 +323,22 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 const store = transaction.objectStore(storeName);
                 const request = store.put(item);
 
-                request.onsuccess = () => {
+                request.onsuccess = async () => {
+                    // Clear cache when data is saved
+                    try {
+                        const { getDecryptedDataCache } = await import('./state.js');
+                        const cache = getDecryptedDataCache();
+
+                        if (storeName === 'dreams') {
+                            cache.delete('dreams');
+                        } else if (storeName === 'goals') {
+                            cache.delete('goals');
+                        }
+                    } catch (error) {
+                        // Non-critical error - just log it
+                        console.warn('Could not clear cache after saving:', error);
+                    }
+
                     resolve(true);
                 };
 
@@ -727,6 +742,18 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * }
      */
     async function loadDreams() {
+        // Import caching functions
+        const { getDecryptedDataCache, getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+
+        // Check cache first if encryption is enabled
+        if (getEncryptionEnabled()) {
+            const cache = getDecryptedDataCache();
+            const cachedDreams = cache.get('dreams');
+            if (cachedDreams) {
+                return cachedDreams;
+            }
+        }
+
         // Load raw data first
         const rawDreams = await loadDreamsRaw();
 
@@ -734,9 +761,6 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         if (!rawDreams.length) {
             return rawDreams;
         }
-
-        // Import encryption state dynamically to avoid circular dependencies
-        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
 
         if (!getEncryptionEnabled()) {
             return rawDreams;
@@ -768,6 +792,10 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 // about inaccessible encrypted dreams
             }
         }
+
+        // Cache the processed dreams for future calls
+        const cache = getDecryptedDataCache();
+        cache.set('dreams', processedDreams);
 
         return processedDreams;
     }
@@ -934,14 +962,23 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * }
      */
     async function loadGoals() {
+        // Import caching functions
+        const { getDecryptedDataCache, getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
+
+        // Check cache first if encryption is enabled
+        if (getEncryptionEnabled()) {
+            const cache = getDecryptedDataCache();
+            const cachedGoals = cache.get('goals');
+            if (cachedGoals) {
+                return cachedGoals;
+            }
+        }
+
         const rawGoals = await loadGoalsRaw();
 
         if (!rawGoals.length) {
             return rawGoals;
         }
-
-        // Import encryption state dynamically to avoid circular dependencies
-        const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
 
         if (!getEncryptionEnabled()) {
             return rawGoals;
@@ -967,6 +1004,10 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 // Skip this goal but continue processing others
             }
         }
+
+        // Cache the processed goals for future calls
+        const cache = getDecryptedDataCache();
+        cache.set('goals', processedGoals);
 
         return processedGoals;
     }
@@ -1026,12 +1067,31 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         return withMutex('saveGoals', async () => {
             if (isIndexedDBAvailable()) {
                 const saved = await saveGoalsToIndexedDB(goals);
-                if (saved) return;
+                if (saved) {
+                    // Clear cache when goals are saved successfully
+                    try {
+                        const { getDecryptedDataCache } = await import('./state.js');
+                        const cache = getDecryptedDataCache();
+                        cache.delete('goals');
+                    } catch (error) {
+                        console.warn('Could not clear goals cache after saving:', error);
+                    }
+                    return;
+                }
             }
-            
+
             if (isLocalStorageAvailable()) {
                 try {
                     localStorage.setItem('dreamJournalGoals', JSON.stringify(goals));
+
+                    // Clear cache when goals are saved successfully to localStorage
+                    try {
+                        const { getDecryptedDataCache } = await import('./state.js');
+                        const cache = getDecryptedDataCache();
+                        cache.delete('goals');
+                    } catch (error) {
+                        console.warn('Could not clear goals cache after saving:', error);
+                    }
                 } catch (error) {
                     console.error('Error saving goals to localStorage:', error);
                 }

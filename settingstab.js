@@ -1064,7 +1064,7 @@ async function setupEncryption(password) {
         // Clear cache and reload data
         updateEncryptionProgress('Updating application data...');
         clearDecryptedDataCache();
-        await initializeApplicationData();
+        await initializeApplicationData(false);
 
         // Update settings UI to reflect new state
         updateEncryptionProgress('Refreshing settings interface...');
@@ -1412,7 +1412,7 @@ async function performEncryptionDisabling(password) {
         // Clear cache and reload data
         updateDecryptionProgress('Updating application data...');
         clearDecryptedDataCache();
-        await initializeApplicationData();
+        await initializeApplicationData(false);
 
         // Update settings UI
         updateDecryptionProgress('Refreshing settings interface...');

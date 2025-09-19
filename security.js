@@ -1324,7 +1324,7 @@ async function verifyLockScreenPin() {
 
                     // Load and display all application data after successful lock screen PIN authentication
                     const { initializeApplicationData } = await import('./main.js');
-                    await initializeApplicationData();
+                    await initializeApplicationData(false);
                 }, 200);
                 
             } else {
@@ -1384,7 +1384,7 @@ async function verifyLockScreenPin() {
                 // Load and display all application data after successful PIN authentication
                 const { initializeApplicationData } = await import('./main.js');
                 const { switchAppTab, showAllTabButtons } = await import('./dom-helpers.js');
-                await initializeApplicationData();
+                await initializeApplicationData(false);
 
                 // Switch to the journal tab and show all tab buttons
                 switchAppTab(getPreLockActiveTab() || 'journal');
@@ -2867,7 +2867,7 @@ async function setupPin() {
 
                 // Load and display all application data after timer expiration recovery
                 const { initializeApplicationData } = await import('./main.js');
-                await initializeApplicationData();
+                await initializeApplicationData(true);
                 
                 setTimeout(() => {
                     const container = document.querySelector('.main-content');
@@ -2975,7 +2975,7 @@ async function setupPin() {
 
         // Load and display all application data after PIN setup
         const { initializeApplicationData } = await import('./main.js');
-        await initializeApplicationData();
+        await initializeApplicationData(false);
     }
 
 /**
