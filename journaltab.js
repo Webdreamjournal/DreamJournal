@@ -91,20 +91,18 @@ function renderJournalTab(tabPanel) {
             <!-- DREAM ENTRY FORM (EXPANDED)     -->
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormFull">
-                <div class="settings-section">
-                    <!-- Collapsible form header with toggle functionality -->
-                    <h3 id="journal-main-heading"
-                        tabindex="0"
-                        data-action="toggle-dream-form"
-                        role="button"
-                        aria-expanded="true"
-                        aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
-                        style="cursor: pointer; user-select: none;">
-                        📝 Record Your Dream
-                        <span class="collapse-indicator" title="Click to collapse"></span>
-                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
-                    </h3>
-                </div>
+                <!-- Collapsible form header with toggle functionality -->
+                <h3 id="journal-main-heading"
+                    tabindex="0"
+                    data-action="toggle-dream-form"
+                    role="button"
+                    aria-expanded="true"
+                    aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
+                    style="cursor: pointer; user-select: none;">
+                    📝 Record Your Dream
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </h3>
                 
                 <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
                 <div class="form-group">
@@ -196,19 +194,17 @@ function renderJournalTab(tabPanel) {
             <!-- DREAM ENTRY FORM (COLLAPSED)    -->
             <!-- ================================ -->
             <div class="entry-form" id="dreamFormCollapsed">
-                <div class="settings-section">
-                    <!-- Collapsed form header with expand functionality -->
-                    <h3 data-action="toggle-dream-form"
-                        role="button"
-                        tabindex="0"
-                        aria-expanded="false"
-                        aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
-                        style="cursor: pointer; user-select: none;">
-                        📝 Record Your Dream
-                        <span class="collapse-indicator" title="Click to expand"></span>
-                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to expand)</span>
-                    </h3>
-                </div>
+                <!-- Collapsed form header with expand functionality -->
+                <h3 data-action="toggle-dream-form"
+                    role="button"
+                    tabindex="0"
+                    aria-expanded="false"
+                    aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
+                    style="cursor: pointer; user-select: none;">
+                    📝 Record Your Dream
+                    <span class="collapse-indicator" title="Click to expand"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to expand)</span>
+                </h3>
             </div>
             
             <!-- ================================ -->
