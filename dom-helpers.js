@@ -3456,7 +3456,9 @@ function showInfoTooltip(config) {
         // Context menu style positioning: decide above or below based on available space and actual height
         const spaceBelow = viewportHeight - rect.bottom;
         const spaceAbove = rect.top;
-        const showAbove = spaceBelow < actualHeight + 20 && spaceAbove >= actualHeight + 20;
+        // Use larger buffer for desktop to account for browser chrome and scrollbars
+        const positionBuffer = viewportWidth > 768 ? 130 : 120;
+        const showAbove = spaceBelow < actualHeight + positionBuffer && spaceAbove >= actualHeight + positionBuffer;
 
         let topPosition;
         if (showAbove) {
@@ -3466,8 +3468,10 @@ function showInfoTooltip(config) {
             // Position below: top of tooltip near the icon
             topPosition = rect.bottom + 5;
             // If it would go off bottom, move up as much as needed
-            if (topPosition + actualHeight > viewportHeight - 10) {
-                topPosition = Math.max(10, viewportHeight - actualHeight - 10);
+            const bottomBuffer = viewportWidth > 768 ? 130 : 110;
+            if (topPosition + actualHeight > viewportHeight - bottomBuffer) {
+                // Use larger buffer for desktop to account for browser chrome
+                topPosition = Math.max(110, viewportHeight - actualHeight - bottomBuffer);
             }
         }
 
