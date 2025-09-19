@@ -785,7 +785,7 @@
             display: flex;
             gap: 10px;
             flex: 1;
-            min-width: 500px;
+            min-width: 0;
         }
 
         /* Display and Sort Section */
@@ -3142,6 +3142,25 @@
                 gap: 10px;
             }
 
+            .date-filter-group {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 10px !important;
+                grid-template-columns: none !important;
+                grid-template-rows: none !important;
+            }
+
+            .date-filter-group label {
+                font-weight: 600;
+                color: var(--text-primary);
+                margin-bottom: 4px;
+            }
+
+            .date-filter-group input {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
             .display-sort-group {
                 /* Keep horizontal layout longer - only stack on very small screens */
                 min-width: auto;
@@ -3463,3 +3482,57 @@
 }
 
 
+
+
+/* ================================ */
+/* MOBILE SEARCH LAYOUT FIXES      */
+/* ================================ */
+
+/* Additional mobile improvements for better layout */
+@media (max-width: 768px) {
+    /* Enhanced mobile improvements for search controls */
+    .date-filter-group input {
+        padding: 10px 12px !important;
+        font-size: 16px !important;
+    }
+
+    .date-filter-group label {
+        font-size: 14px !important;
+        margin-bottom: 4px;
+    }
+
+    /* Reduce visual clutter on mobile */
+    .search-filter-section {
+        padding: 12px !important;
+        margin-bottom: 10px !important;
+        border: 1px solid var(--border-color);
+    }
+
+    .controls {
+        padding: 0 !important;
+    }
+
+    .settings-section-content {
+        padding: 0 !important;
+    }
+
+    /* Improve spacing between control groups */
+    .search-filter-group,
+    .date-filter-group,
+    .display-sort-group {
+        margin-bottom: 15px !important;
+    }
+
+    .search-filter-group:last-child,
+    .date-filter-group:last-child,
+    .display-sort-group:last-child {
+        margin-bottom: 0 !important;
+    }
+
+    /* Make buttons more touch-friendly on mobile */
+    .btn-small {
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+        min-height: 36px !important;
+    }
+}

@@ -296,19 +296,16 @@ function renderJournalTab(tabPanel) {
                                     </button></h4>
                                 <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
                             </div>
+
+                            <!-- Search Input and Dream Type Filter -->
                             <div class="search-filter-group">
-                                <!-- Smart Search Box with Info Button -->
-                                <div class="search-input-group">
-                                    <input type="text"
-                                        id="searchBox"
-                                        class="search-box"
-                                        placeholder="Smart search: title:flying tag:lucid or just search text..."
-                                        aria-label="Smart search with field-specific queries or general text search"
-                                        role="searchbox">
+                                <input type="text"
+                                    id="searchBox"
+                                    class="search-box"
+                                    placeholder="Smart search: title:flying tag:lucid..."
+                                    aria-label="Smart search with field-specific queries or general text search"
+                                    role="searchbox">
 
-                                </div>
-
-                                <!-- Lucidity Filter Dropdown - Filter by dream lucidity status -->
                                 <select id="filterSelect" class="filter-select">
                                     <option value="all">All Dreams</option>
                                     <option value="lucid">Lucid Dreams</option>
@@ -316,23 +313,17 @@ function renderJournalTab(tabPanel) {
                                 </select>
                             </div>
 
-                            <!-- Date Range Filter Controls -->
-                            <div class="date-filter-group" style="display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px; align-items: center;">
-                                <!-- Start Date Filter -->
-                                <label for="startDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">From:</label>
-                                <input type="date" id="startDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                            <!-- Date Range Filters -->
+                            <div class="date-filter-group">
+                                <label for="startDateFilter" class="form-label-inline text-primary">From:</label>
+                                <input type="date" id="startDateFilter" class="filter-select">
 
-                                <!-- End Date Filter -->
-                                <label for="endDateFilter" class="form-label-inline text-primary" style="font-size: 13px;">To:</label>
-                                <input type="date" id="endDateFilter" class="filter-select" style="padding: 8px; font-size: 14px;">
+                                <label for="endDateFilter" class="form-label-inline text-primary">To:</label>
+                                <input type="date" id="endDateFilter" class="filter-select">
                             </div>
-                        </div>
 
-                        <!-- Display and Sorting Controls Group -->
-                        <div class="display-sort-section">
-                            <h4 class="section-header">📊 Display & Sort</h4>
+                            <!-- Sort and Display Controls -->
                             <div class="display-sort-group">
-                                <!-- Sort Order Dropdown - Controls dream display order -->
                                 <select id="sortSelect" class="filter-select">
                                     <option value="newest">Newest First</option>
                                     <option value="oldest">Oldest First</option>
@@ -340,7 +331,6 @@ function renderJournalTab(tabPanel) {
                                     <option value="longest">Longest First</option>
                                 </select>
 
-                                <!-- Display Limit Dropdown - Controls pagination and endless scroll -->
                                 <select id="limitSelect" class="filter-select">
                                     ${generatePaginationDropdownOptions()}
                                 </select>
