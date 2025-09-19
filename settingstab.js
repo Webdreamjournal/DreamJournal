@@ -161,7 +161,7 @@ function renderSettingsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 🎨 Appearance
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div class="settings-row">
@@ -187,7 +187,7 @@ function renderSettingsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 🔐 Security
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <!-- PIN Protection -->
@@ -261,7 +261,7 @@ function renderSettingsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 💾 Data Management
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <!-- Dreams Only Export/Import -->
@@ -306,7 +306,7 @@ function renderSettingsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 🏷️ Autocomplete Management
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
@@ -375,7 +375,7 @@ function renderSettingsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 ☁️ Cloud Sync
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>

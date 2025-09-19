@@ -102,7 +102,7 @@ function renderJournalTab(tabPanel) {
                         style="cursor: pointer; user-select: none;">
                         📝 Record Your Dream
                         <span class="collapse-indicator" title="Click to collapse"></span>
-                        <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
                     </h3>
                 </div>
                 
@@ -206,7 +206,7 @@ function renderJournalTab(tabPanel) {
                         style="cursor: pointer; user-select: none;">
                         📝 Record Your Dream
                         <span class="collapse-indicator" title="Click to expand"></span>
-                        <span class="collapse-hint text-xs text-secondary font-normal">(Click to expand)</span>
+                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to expand)</span>
                     </h3>
                 </div>
             </div>
@@ -280,7 +280,7 @@ function renderJournalTab(tabPanel) {
                     style="cursor: pointer; user-select: none;">
                     🔍 Search & Filter Controls
                     <span class="collapse-indicator" title="Click to collapse"></span>
-                    <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
                 </h3>
                 <div class="settings-section-content">
                     <div class="controls" role="search" aria-label="Search and filter dreams">

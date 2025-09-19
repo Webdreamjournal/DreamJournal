@@ -1647,7 +1647,7 @@ function renderGoalsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 🎯 Active Goals
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div class="flex-between mb-lg">
@@ -1677,7 +1677,7 @@ function renderGoalsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 📈 Quick Goal Templates
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">
@@ -1718,7 +1718,7 @@ function renderGoalsTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 🏆 Completed Goals
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div id="completedGoalsContainer">

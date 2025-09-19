@@ -114,7 +114,7 @@ function renderAdviceTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 💡 Daily Lucid Dreaming Tip
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div id="dailyTipContainer" class="card-elevated card-lg text-center">
@@ -137,7 +137,7 @@ function renderAdviceTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 📚 Lucid Dreaming Techniques
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">
@@ -166,7 +166,7 @@ function renderAdviceTab(tabPanel) {
                 style="cursor: pointer; user-select: none;">
                 💡 General Advice
                 <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xs text-secondary font-normal">(Click to collapse)</span>
+                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">
