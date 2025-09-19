@@ -479,10 +479,24 @@ function setupAdditionalEventListeners() {
  * await initializeApplicationData(true);
  * // Application data loaded and PIN expiration message shown
  */
-async function initializeApplicationData(timerExpiredAndRemovedPin) {
+async function initializeApplicationData(timerExpiredAndRemovedPin, progressCallback = null) {
     try {
+        // Update progress if callback provided (from password verification)
+        if (progressCallback) {
+            progressCallback('Loading and decrypting dreams...');
+        }
+
         const dreams = await loadDreams();
+
+        if (progressCallback) {
+            progressCallback('Displaying dreams in journal...');
+        }
+
         await displayDreams();
+
+        if (progressCallback) {
+            progressCallback('Setting up application interface...');
+        }
 
         // Cache daily tip for instant advice tab loading (background task)
         cacheDailyTip(dreams).catch(error => {
@@ -492,7 +506,7 @@ async function initializeApplicationData(timerExpiredAndRemovedPin) {
         await updateRecordButtonState();
         // Only load voice notes if stored tab is active (removed unconditional displayVoiceNotes call)
         updateSecurityControls();
-        
+
         setTimeout(() => updateRecordButtonState(), 100);
 
         if (timerExpiredAndRemovedPin) {

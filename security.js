@@ -3341,7 +3341,14 @@ async function verifyEncryptionPassword() {
         return;
     }
 
+    // Disable unlock button to prevent multiple attempts
+    setUnlockButtonState(false);
+
     try {
+        // Show progress dialog for password verification
+        showDecryptionProgress('decrypting');
+        updateDecryptionProgress('Verifying encryption password...');
+
         // Test password by attempting to decrypt known encrypted data
         const testResult = await testEncryptionPassword(password);
 
@@ -3357,6 +3364,8 @@ async function verifyEncryptionPassword() {
             // Import initialization function
             const { initializeApplicationData } = await import('./main.js');
 
+            updateDecryptionProgress('Password verified! Loading encrypted data...');
+
             setEncryptionPassword(password);
             setUnlocked(true);
             setAppLocked(false);
@@ -3366,35 +3375,63 @@ async function verifyEncryptionPassword() {
                 passwordInput.value = '';
             }
 
-            // Load and decrypt all data
-            await initializeApplicationData();
+            // Load and decrypt all data with progress updates
+            await initializeApplicationData(false, (message) => {
+                updateDecryptionProgress(message);
+            });
+
+            updateDecryptionProgress('Finalizing application setup...');
 
             hidePinOverlay();
             switchAppTab(getPreLockActiveTab() || 'journal');
             showAllTabButtons();
 
-            const container = document.querySelector('.main-content');
-            createInlineMessage('success', 'Data decrypted and ready!', {
-                container: container,
-                position: 'top',
-                duration: 3000
-            });
-        } else {
-            setFailedPinAttempts(getFailedPinAttempts() + 1);
+            // Show success and transition to main app
+            await showDecryptionProgress('success', 'Welcome back! Your encrypted data has been loaded successfully.');
 
-            // Show error in appropriate container
+            // Show additional success message in main app
+            setTimeout(() => {
+                const container = document.querySelector('.main-content');
+                createInlineMessage('success', 'Dream journal unlocked and ready!', {
+                    container: container,
+                    position: 'top',
+                    duration: 3000
+                });
+            }, 100);
+
+        } else {
+            // Re-enable button for retry
+            setUnlockButtonState(true);
+
+            setFailedPinAttempts(getFailedPinAttempts() + 1);
+            const attempts = getFailedPinAttempts();
+
+            // Enhanced error feedback with attempt tracking
             const feedback = document.getElementById('lockScreenFeedback');
-            if (feedback) {
-                feedback.innerHTML = '<div class="message-base message-error">Incorrect password. Please try again.</div>';
-            } else {
-                showMessage('error', 'Incorrect password. Please try again.');
+            let errorMessage = 'Incorrect password. Please try again.';
+
+            if (attempts >= 3) {
+                errorMessage = 'Multiple failed attempts. Please check your password or use "Forgot Password?" if needed.';
+            } else if (attempts > 1) {
+                errorMessage = `Incorrect password (attempt ${attempts}). Please try again.`;
             }
 
+            if (feedback) {
+                feedback.innerHTML = `<div class="message-base message-error">${errorMessage}</div>`;
+            } else {
+                showMessage('error', errorMessage);
+            }
+
+            // Hide progress dialog and restore input focus
+            await showDecryptionProgress('error', 'Incorrect password. Please try again.');
             passwordInput.value = '';
             passwordInput.focus();
         }
     } catch (error) {
         console.error('Password verification error:', error);
+
+        // Re-enable button on error
+        setUnlockButtonState(true);
 
         // Show error in appropriate container
         const feedback = document.getElementById('lockScreenFeedback');
@@ -3404,8 +3441,55 @@ async function verifyEncryptionPassword() {
             showMessage('error', 'Error verifying password. Please try again.');
         }
 
+        // Show error dialog and restore input focus
+        await showDecryptionProgress('error', 'An error occurred during password verification. Please try again.');
         passwordInput.value = '';
         passwordInput.focus();
+    }
+}
+
+/**
+ * Manages the state of the unlock button during password verification.
+ *
+ * This helper function enables or disables the unlock button to prevent
+ * multiple submission attempts during password verification and decryption
+ * operations. It provides visual feedback to users about the operation state.
+ *
+ * **Affected Controls:**
+ * - Unlock Journal button (data-action="verify-encryption-password")
+ * - Updates button text to indicate operation status
+ * - Disables/enables button interaction
+ *
+ * @function
+ * @param {boolean} enabled - Whether the unlock button should be enabled (true) or disabled (false)
+ * @returns {void}
+ * @since 2.04.78
+ *
+ * @example
+ * // Disable unlock button during processing
+ * setUnlockButtonState(false);
+ * // ... perform password verification and decryption ...
+ * setUnlockButtonState(true); // Re-enable on error (success transitions to main app)
+ */
+function setUnlockButtonState(enabled) {
+    // Find unlock button
+    const unlockButton = document.querySelector('[data-action="verify-encryption-password"]');
+    if (unlockButton) {
+        unlockButton.disabled = !enabled;
+        if (!enabled) {
+            unlockButton.textContent = '🔓 Unlocking...';
+        } else {
+            unlockButton.textContent = '🔓 Unlock Journal';
+        }
+
+        // Add visual feedback for disabled state
+        if (!enabled) {
+            unlockButton.style.opacity = '0.6';
+            unlockButton.style.cursor = 'not-allowed';
+        } else {
+            unlockButton.style.opacity = '';
+            unlockButton.style.cursor = '';
+        }
     }
 }
 
