@@ -86,6 +86,13 @@ function renderJournalTab(tabPanel) {
     
     tabPanel.innerHTML = `
         <div class="main-content">
+
+            <!-- ================================ -->
+            <!-- DREAMS SECTION HEADER            -->
+            <!-- ================================ -->
+            <div class="dreams-section-header">
+                <h3>📚 Your Dreams</h3>
+            </div>
             
             <!-- ================================ -->
             <!-- DREAM ENTRY FORM (EXPANDED)     -->
@@ -257,12 +264,7 @@ function renderJournalTab(tabPanel) {
                 </div>
             </div>
             
-            <!-- ================================ -->
-            <!-- DREAMS SECTION HEADER            -->
-            <!-- ================================ -->
-            <div class="dreams-section-header">
-                <h3>📚 Your Dreams</h3>
-            </div>
+
 
             <!-- ================================ -->
             <!-- SEARCH & FILTER CONTROLS         -->
