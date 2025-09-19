@@ -57,7 +57,7 @@
  * @since 2.0.0
  */
 
-const CACHE_NAME = 'dream-journal-v2-04-72';
+const CACHE_NAME = 'dream-journal-v2-04-74';
 
 /**
  * List of essential files to cache for complete offline functionality.
