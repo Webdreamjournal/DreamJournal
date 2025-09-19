@@ -342,7 +342,7 @@
         
         /* Footer and structural elements */
         .app-footer { background: var(--bg-light); border: 2px solid var(--border-dark-l);
-                      padding: 20px; margin-top: 40px; text-align: center;
+                      padding: 20px; margin-top: 4px; text-align: center;
                       color: var(--text-secondary); font-size: 14px;
                       border-top-left-radius: 0;
                       border-top-right-radius: 0;
@@ -2022,7 +2022,7 @@
         
         .tab-content-container {
             background: var(--bg-primary);
-            min-height: 400px; /* Ensures adequate viewport height for all tab content without scroll */
+            min-height: 300px; /* Ensures adequate viewport height for all tab content without scroll */
             overflow-x: hidden;
         }
         
