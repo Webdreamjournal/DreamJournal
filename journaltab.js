@@ -270,100 +270,97 @@ function renderJournalTab(tabPanel) {
             <!-- SEARCH & FILTER CONTROLS         -->
             <!-- ================================ -->
             <div class="settings-section" data-journal-section="controls">
-                <h3 data-action="toggle-journal-controls"
-                    role="button"
-                    tabindex="0"
-                    aria-expanded="true"
-                    aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse"
-                    style="cursor: pointer; user-select: none;">
-                    🔍 Search & Sort Controls
-                    <span class="collapse-indicator" title="Click to collapse"></span>
-                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
-                </h3>
+                <div class="section-header-with-action">
+                    <h3 data-action="toggle-journal-controls"
+                        role="button"
+                        tabindex="0"
+                        aria-expanded="true"
+                        aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse"
+                        style="cursor: pointer; user-select: none;">
+                        🔍 Search & Filter
+                        <span class="collapse-indicator" title="Click to collapse"></span>
+                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                        
+                    </h3>
+                    <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">Clear</button>
+                </div>
                 <div class="settings-section-content">
+                
                     <div class="controls" role="search" aria-label="Search and filter dreams">
+                        <!-- Search Input and Dream Type Filter -->
+                        <div class="search-filter-group">
+                            
+                            <input type="text"
+                                id="searchBox"
+                                class="search-box"
+                                placeholder="Smart search: title:flying tag:lucid..."
+                                aria-label="Smart search with field-specific queries or general text search"
+                                role="searchbox">
+                            <button class="info-icon search-info-btn"
+                                data-action="show-smart-search-help"
+                                type="button"
+                                title="Click for smart search syntax help"
+                                aria-label="Show smart search help">
+                            ℹ️
+                            </button>
 
-                        <!-- Search and Filter Controls Group -->
-                        <div class="search-filter-section">
-                            <div class="section-header-with-action">
-                                <h4 class="section-header">🔍 Search & Filter
-                                    <button class="info-icon search-info-btn"
-                                            data-action="show-smart-search-help"
+                            <select id="filterSelect" class="filter-select">
+                                <option value="all">All Dreams</option>
+                                <option value="lucid">Lucid Dreams</option>
+                                <option value="non-lucid">Non-Lucid Dreams</option>
+                            </select>
+                            
+                        </div>
+
+                        <!-- Date Range Filters -->
+                        <div class="date-filter-group">
+                            <label for="startDateFilter" class="form-label-inline text-primary">From:</label>
+                            <input type="date" id="startDateFilter" class="filter-select">
+
+                            <label for="endDateFilter" class="form-label-inline text-primary">To:</label>
+                            <input type="date" id="endDateFilter" class="filter-select">
+                        </div>
+
+                        <!-- Sort and Display Controls -->
+                        <div class="display-sort-group">
+                            <select id="sortSelect" class="filter-select">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="lucid-first">Lucid First</option>
+                                <option value="longest">Longest First</option>
+                            </select>
+
+                            <select id="limitSelect" class="filter-select">
+                                ${generatePaginationDropdownOptions()}
+                            </select>
+                        </div>
+
+                        <!-- Dreams Management Controls -->
+                        <div class="dreams-controls">
+                            <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
+                            <div class="export-range-container">
+                                <button data-action="export-range"
+                                        class="btn btn-success"
+                                        title="Export currently displayed dreams as text file">
+                                    Export Range
+                                </button>
+                                <div class="export-format-option">
+                                    <input type="checkbox"
+                                        id="exportFormatAI"
+                                        class="export-format-checkbox">
+                                    <label for="exportFormatAI" class="export-format-label">
+                                        Preformatted for AI Analysis
+                                    </label>
+                                    <button class="info-icon"
+                                            data-action="show-export-info"
                                             type="button"
-                                            title="Click for smart search syntax help"
-                                            aria-label="Show smart search help">
+                                            title="Click for more information about export formats"
+                                            aria-label="Show export format information">
                                         ℹ️
-                                    </button></h4>
-                                <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">🗑️ Clear</button>
-                            </div>
-
-                            <!-- Search Input and Dream Type Filter -->
-                            <div class="search-filter-group">
-                                <input type="text"
-                                    id="searchBox"
-                                    class="search-box"
-                                    placeholder="Smart search: title:flying tag:lucid..."
-                                    aria-label="Smart search with field-specific queries or general text search"
-                                    role="searchbox">
-
-                                <select id="filterSelect" class="filter-select">
-                                    <option value="all">All Dreams</option>
-                                    <option value="lucid">Lucid Dreams</option>
-                                    <option value="non-lucid">Non-Lucid Dreams</option>
-                                </select>
-                            </div>
-
-                            <!-- Date Range Filters -->
-                            <div class="date-filter-group">
-                                <label for="startDateFilter" class="form-label-inline text-primary">From:</label>
-                                <input type="date" id="startDateFilter" class="filter-select">
-
-                                <label for="endDateFilter" class="form-label-inline text-primary">To:</label>
-                                <input type="date" id="endDateFilter" class="filter-select">
-                            </div>
-
-                            <!-- Sort and Display Controls -->
-                            <div class="display-sort-group">
-                                <select id="sortSelect" class="filter-select">
-                                    <option value="newest">Newest First</option>
-                                    <option value="oldest">Oldest First</option>
-                                    <option value="lucid-first">Lucid First</option>
-                                    <option value="longest">Longest First</option>
-                                </select>
-
-                                <select id="limitSelect" class="filter-select">
-                                    ${generatePaginationDropdownOptions()}
-                                </select>
-                            </div>
-                            <!-- Dreams Management Controls -->
-                            <div class="dreams-controls">
-                                <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
-                                <div class="export-range-container">
-                                    <button data-action="export-range"
-                                            class="btn btn-success"
-                                            title="Export currently displayed dreams as text file">
-                                        Export Range
                                     </button>
-                                    <div class="export-format-option">
-                                        <input type="checkbox"
-                                            id="exportFormatAI"
-                                            class="export-format-checkbox">
-                                        <label for="exportFormatAI" class="export-format-label">
-                                            Preformatted for AI Analysis
-                                        </label>
-                                        <button class="info-icon"
-                                                data-action="show-export-info"
-                                                type="button"
-                                                title="Click for more information about export formats"
-                                                aria-label="Show export format information">
-                                            ℹ️
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        
 
                         <!-- Visual Break Between Controls and Dream List -->
                         <div class="control-row-break"></div>
