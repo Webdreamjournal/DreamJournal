@@ -595,18 +595,18 @@
                 font-size: 11px;
             }
             
-            /* Make date filters stack on very small screens */
+            /* Keep date filters inline on very small screens */
             .date-filter-group {
                 grid-template-columns: auto 1fr !important;
                 grid-template-rows: auto auto !important;
                 gap: 6px !important;
             }
-            
+
             .date-filter-group label:nth-child(3) {
                 grid-column: 1;
                 grid-row: 2;
             }
-            
+
             .date-filter-group input:nth-child(4) {
                 grid-column: 2;
                 grid-row: 2;
@@ -793,6 +793,13 @@
             gap: 10px;
             flex: 1;
             min-width: 0;
+        }
+
+        .date-filter-group {
+            display: grid;
+            grid-template-columns: auto 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
         }
 
         /* Display and Sort Section */
@@ -3205,17 +3212,27 @@
             }
 
             .date-filter-group {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 10px !important;
-                grid-template-columns: none !important;
-                grid-template-rows: none !important;
+                display: grid !important;
+                grid-template-columns: auto 1fr !important;
+                grid-template-rows: auto auto !important;
+                gap: 8px !important;
+                align-items: center;
             }
 
             .date-filter-group label {
                 font-weight: 600;
                 color: var(--text-primary);
-                margin-bottom: 4px;
+                margin-bottom: 0;
+            }
+
+            .date-filter-group label:nth-child(3) {
+                grid-column: 1;
+                grid-row: 2;
+            }
+
+            .date-filter-group input:nth-child(4) {
+                grid-column: 2;
+                grid-row: 2;
             }
 
             .date-filter-group input {
