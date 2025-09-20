@@ -788,6 +788,13 @@
             min-width: 0;
         }
 
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-width: 0;
+        }
+
         /* Display and Sort Section */
         .display-sort-section {
             display: flex;
@@ -1106,6 +1113,11 @@
             border-radius: 50%;
             transition: background-color 0.2s ease;
             margin-left: 4px;
+        }
+
+        /* Position search info icon on the right side of search container */
+        .search-filter-group .info-icon {
+            margin-left: auto;
         }
 
         .info-icon:hover {
@@ -3180,7 +3192,14 @@
             }
 
             .search-filter-group {
-                flex-direction: column;
+                flex-direction: row;
+                min-width: auto;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .filter-group {
+                flex-direction: row;
                 min-width: auto;
                 gap: 10px;
             }
@@ -3212,7 +3231,7 @@
 
             .search-box, .filter-select {
                 min-width: auto;
-                flex: none;
+                flex: 1;
             }
 
             .tab-panel:not(#journalTab) {
@@ -3556,12 +3575,14 @@
 
     /* Improve spacing between control groups */
     .search-filter-group,
+    .filter-group,
     .date-filter-group,
     .display-sort-group {
         margin-bottom: 15px !important;
     }
 
     .search-filter-group:last-child,
+    .filter-group:last-child,
     .date-filter-group:last-child,
     .display-sort-group:last-child {
         margin-bottom: 0 !important;

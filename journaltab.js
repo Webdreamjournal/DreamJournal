@@ -282,14 +282,13 @@ function renderJournalTab(tabPanel) {
                         <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
                         
                     </h3>
-                    <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">Clear</button>
+                  
                 </div>
                 <div class="settings-section-content">
                 
                     <div class="controls" role="search" aria-label="Search and filter dreams">
-                        <!-- Search Input and Dream Type Filter -->
+                        <!-- Search Input with Info Icon -->
                         <div class="search-filter-group">
-                            
                             <input type="text"
                                 id="searchBox"
                                 class="search-box"
@@ -303,13 +302,15 @@ function renderJournalTab(tabPanel) {
                                 aria-label="Show smart search help">
                             ℹ️
                             </button>
+                        </div>
 
+                        <!-- Dream Type Filter -->
+                        <div class="filter-group">
                             <select id="filterSelect" class="filter-select">
                                 <option value="all">All Dreams</option>
                                 <option value="lucid">Lucid Dreams</option>
                                 <option value="non-lucid">Non-Lucid Dreams</option>
                             </select>
-                            
                         </div>
 
                         <!-- Date Range Filters -->
@@ -339,11 +340,13 @@ function renderJournalTab(tabPanel) {
                         <div class="dreams-controls">
                             <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
                             <div class="export-range-container">
+                              
                                 <button data-action="export-range"
                                         class="btn btn-success"
                                         title="Export currently displayed dreams as text file">
                                     Export Range
                                 </button>
+                                
                                 <div class="export-format-option">
                                     <input type="checkbox"
                                         id="exportFormatAI"
@@ -358,7 +361,10 @@ function renderJournalTab(tabPanel) {
                                             aria-label="Show export format information">
                                         ℹ️
                                     </button>
+                                    
                                 </div>
+                                <button data-action="clear-search-filters" class="btn btn-secondary btn-small" title="Clear all search and filter criteria">Clear
+                                </button>
                             </div>
                         </div>
 
