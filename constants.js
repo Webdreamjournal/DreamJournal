@@ -285,13 +285,15 @@ const CLOUD_ENCRYPTION_ENABLED_KEY = 'cloudEncryptionEnabled';
  * to prevent false positive conflict warnings. Accounts for timing differences between
  * export generation and sync completion, network latency, and minor clock drift.
  *
- * Set to 60 seconds to provide reasonable tolerance while still detecting real conflicts
- * from other devices or significant time differences.
+ * Set to 15 seconds to provide reasonable tolerance for network delays and processing
+ * time while still detecting real conflicts from other devices or rapid modifications.
+ * This covers slow mobile connections, encryption processing, and UI delays without
+ * masking legitimate cross-device conflicts.
  *
  * @constant {number}
- * @since 2.04.01
+ * @since 2.05.01
  */
-const CLOUD_CONFLICT_TOLERANCE_MS = 60000;
+const CLOUD_CONFLICT_TOLERANCE_MS = 15000;
 
 /**
  * Storage key for last cloud sync timestamp.

@@ -974,29 +974,85 @@ async function checkForLocalChanges() {
     try {
         const lastSyncTime = getLastCloudSyncTime();
 
+        console.log('Local changes check:', {
+            lastSyncTime,
+            lastSyncTimeISO: lastSyncTime ? new Date(lastSyncTime).toISOString() : 'Never synced'
+        });
+
         if (!lastSyncTime) {
             // No previous sync, assume local changes exist
+            console.log('No previous sync time found - assuming local changes exist');
             return true;
         }
+
+        let hasChanges = false;
+        let newestItemTime = 0;
+        let newestItemInfo = null;
 
         // Check dreams for modifications
         const dreams = await loadDreams();
         if (dreams && dreams.length > 0) {
             for (const dream of dreams) {
-                const dreamTime = dream.lastModified || dream.createdAt || 0;
+                const dreamTime = dream.lastModified || dream.createdAt || dream.timestamp || 0;
 
                 // Convert both to numbers for comparison
-                const dreamTimestamp = Number(dreamTime);
+                // Handle ISO string timestamps properly
+                const dreamTimestamp = dreamTime ? (typeof dreamTime === 'string' ? new Date(dreamTime).getTime() : Number(dreamTime)) : 0;
                 const syncTimestamp = Number(lastSyncTime);
-                const isModified = dreamTimestamp > syncTimestamp;
+
+                // Track the newest item for debugging
+                if (dreamTimestamp > newestItemTime) {
+                    newestItemTime = dreamTimestamp;
+                    newestItemInfo = {
+                        type: 'dream',
+                        id: dream.id,
+                        title: dream.title,
+                        lastModified: dream.lastModified,
+                        createdAt: dream.createdAt,
+                        timestamp: dreamTimestamp
+                    };
+                }
+
+                // Check if item was modified after sync
+                const timeDifference = dreamTimestamp - syncTimestamp;
+
+                // For downloads: detect items modified significantly AFTER sync
+                // Apply small tolerance to prevent false positives from items modified
+                // during the sync process itself (processing time, UI delays)
+                const isModified = timeDifference > 1000; // 1 second tolerance (fixed)
 
                 // Also check if dream has no timestamp (treat as potentially modified)
                 if (dreamTimestamp === 0) {
+                    console.log('Dream with no valid timestamp found - assuming modified:', {
+                        dreamId: dream.id,
+                        dreamTitle: dream.title,
+                        lastModified: dream.lastModified,
+                        createdAt: dream.createdAt,
+                        timestamp: dream.timestamp,
+                        selectedTime: dreamTime
+                    });
                     return true;
                 }
 
+                // Enhanced debugging for timing analysis
+                console.log('Dream timing analysis:', {
+                    dreamId: dream.id,
+                    dreamTitle: dream.title,
+                    dreamTimestamp,
+                    dreamTimeISO: new Date(dreamTimestamp).toISOString(),
+                    syncTimestamp,
+                    syncTimeISO: new Date(syncTimestamp).toISOString(),
+                    timeDifference,
+                    timeDifferenceSeconds: Math.round(timeDifference / 1000),
+                    toleranceMs: CLOUD_CONFLICT_TOLERANCE_MS / 60,
+                    toleranceSeconds: (CLOUD_CONFLICT_TOLERANCE_MS / 60) / 1000,
+                    isModified,
+                    usedField: dream.lastModified ? 'lastModified' : (dream.createdAt ? 'createdAt' : 'timestamp')
+                });
+
                 if (isModified) {
-                    return true;
+                    console.log('✓ Local dream modification detected - will show conflict warning');
+                    hasChanges = true;
                 }
             }
         }
@@ -1005,16 +1061,58 @@ async function checkForLocalChanges() {
         const goals = await loadGoals();
         if (goals && goals.length > 0) {
             for (const goal of goals) {
-                const goalTime = goal.lastModified || goal.createdAt || 0;
-                const isModified = goalTime > lastSyncTime;
+                const goalTime = goal.lastModified || goal.createdAt || goal.timestamp || 0;
+                // Handle ISO string timestamps properly
+                const goalTimestamp = goalTime ? (typeof goalTime === 'string' ? new Date(goalTime).getTime() : Number(goalTime)) : 0;
+
+                // Track the newest item for debugging
+                if (goalTimestamp > newestItemTime) {
+                    newestItemTime = goalTimestamp;
+                    newestItemInfo = {
+                        type: 'goal',
+                        id: goal.id,
+                        title: goal.title,
+                        lastModified: goal.lastModified,
+                        createdAt: goal.createdAt,
+                        timestamp: goalTimestamp
+                    };
+                }
+
+                // Check if goal was modified after sync
+                const timeDifference = goalTimestamp - lastSyncTime;
+
+                // For downloads: detect goals modified significantly AFTER sync
+                // Apply small tolerance to prevent false positives from goals modified
+                // during the sync process itself (processing time, UI delays)
+                const isModified = timeDifference > 1000; // 1 second tolerance (fixed)
 
                 if (isModified) {
-                    return true;
+                    console.log('Local goal modification detected:', {
+                        goalId: goal.id,
+                        goalTitle: goal.title,
+                        goalTimestamp,
+                        goalTimeISO: new Date(goalTimestamp).toISOString(),
+                        syncTimestamp: lastSyncTime,
+                        syncTimeISO: new Date(lastSyncTime).toISOString(),
+                        timeDifference,
+                        toleranceMs: CLOUD_CONFLICT_TOLERANCE_MS
+                    });
+                    hasChanges = true;
                 }
             }
         }
 
-        return false;
+        // Log summary of findings
+        console.log('Local changes check complete:', {
+            hasChanges,
+            newestItemTime,
+            newestItemTimeISO: newestItemTime ? new Date(newestItemTime).toISOString() : 'No items',
+            newestItemInfo,
+            timeDifferenceFromSync: newestItemTime - (lastSyncTime || 0),
+            toleranceWindow: CLOUD_CONFLICT_TOLERANCE_MS
+        });
+
+        return hasChanges;
 
     } catch (error) {
         console.error('Error checking for local changes:', error);
