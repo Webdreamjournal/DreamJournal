@@ -1968,6 +1968,7 @@
          * Ready for modularization into _tabs.scss
          *
          * Component Structure:
+         * - .tab-scroll-container: Wrapper with gradient scroll indicators
          * - .app-tabs:       Horizontal flexbox container with scroll overflow
          * - .app-tab:        Individual tab buttons with hover states
          * - .app-tab.active: Applied via JavaScript to show current section
@@ -1978,19 +1979,61 @@
          * - Equal flex distribution on wider screens
          * - JavaScript manages .active state and panel visibility
          * - Bottom border indicates active selection
+         * - Subtle gradient indicators show scrollable content on mobile
          */
-        .app-tabs {
-            display: flex;
+        .tab-scroll-container {
+            position: relative;
             background: var(--bg-secondary);
             border-bottom: 2px solid var(--border-color);
+        }
+
+        .app-tabs {
+            display: flex;
+            background: transparent;
             padding: 0;
             margin: 0;
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            position: relative;
         }
         .app-tabs::-webkit-scrollbar {
             display: none;
+        }
+
+        /* Scroll indicators - subtle gradients that appear when content overflows */
+        .tab-scroll-container::before,
+        .tab-scroll-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 2px; /* Account for border */
+            width: 20px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Left scroll indicator */
+        .tab-scroll-container::before {
+            left: 0;
+            background: linear-gradient(to right, var(--bg-secondary), transparent);
+        }
+
+        /* Right scroll indicator */
+        .tab-scroll-container::after {
+            right: 0;
+            background: linear-gradient(to left, var(--bg-secondary), transparent);
+        }
+
+        /* Show indicators when scrollable content exists */
+        .tab-scroll-container.scrollable-left::before {
+            opacity: 1;
+        }
+
+        .tab-scroll-container.scrollable-right::after {
+            opacity: 1;
         }
         
         .app-tab {

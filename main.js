@@ -164,20 +164,118 @@ function initializeTheme() {
 function setupEventDelegation() {
     document.addEventListener('click', handleUnifiedClick);
     document.addEventListener('change', handleUnifiedChange);
-    
+
     // ARIA: Add keyboard navigation for tabs and general accessibility
     document.addEventListener('keydown', handleTabListKeydown);
     document.addEventListener('keydown', handleUnifiedKeydown);
-    
+
     const importFileInput = document.getElementById('importFile');
     if (importFileInput) {
         importFileInput.addEventListener('change', importEntries);
     }
-    
+
     const importAllDataFileInput = document.getElementById('importAllDataFile');
     if (importAllDataFileInput) {
         importAllDataFileInput.addEventListener('change', importAllData);
     }
+
+    // Initialize tab scroll indicators for mobile scrollability
+    setupTabScrollIndicators();
+}
+
+/**
+ * Sets up scroll indicators for the tab navigation on mobile devices.
+ *
+ * This function implements subtle gradient fade-outs on the left and right edges
+ * of the tab container when there is scrollable content. The indicators help users
+ * understand that the tab bar can be scrolled horizontally on narrow screens.
+ *
+ * Features:
+ * - Detects when tabs overflow container width
+ * - Shows/hides gradient indicators based on scroll position
+ * - Handles window resize to recalculate overflow state
+ * - Uses CSS classes for smooth fade transitions
+ * - Responsive to content changes (new tabs added/removed)
+ *
+ * @function setupTabScrollIndicators
+ * @memberof module:MainApplication
+ * @since 2.04.01
+ * @example
+ * // Called automatically during app initialization
+ * setupTabScrollIndicators();
+ *
+ * // Manually refresh indicators after DOM changes
+ * updateTabScrollIndicators();
+ */
+function setupTabScrollIndicators() {
+    const container = document.getElementById('tabScrollContainer');
+    const tabsElement = document.querySelector('.app-tabs');
+
+    if (!container || !tabsElement) {
+        return;
+    }
+
+    /**
+     * Updates the visibility of scroll indicators based on current scroll position.
+     *
+     * @function updateTabScrollIndicators
+     * @memberof module:MainApplication.setupTabScrollIndicators
+     * @since 2.04.01
+     */
+    function updateTabScrollIndicators() {
+        const scrollLeft = tabsElement.scrollLeft;
+        const scrollWidth = tabsElement.scrollWidth;
+        const clientWidth = tabsElement.clientWidth;
+        const maxScroll = scrollWidth - clientWidth;
+
+        // Only show indicators if content overflows
+        if (scrollWidth <= clientWidth) {
+            container.classList.remove('scrollable-left', 'scrollable-right');
+            return;
+        }
+
+        // Show left indicator if not at the start
+        if (scrollLeft > 5) { // Small threshold to avoid flickering
+            container.classList.add('scrollable-left');
+        } else {
+            container.classList.remove('scrollable-left');
+        }
+
+        // Show right indicator if not at the end
+        if (scrollLeft < maxScroll - 5) { // Small threshold to avoid flickering
+            container.classList.add('scrollable-right');
+        } else {
+            container.classList.remove('scrollable-right');
+        }
+    }
+
+    // Initial check
+    updateTabScrollIndicators();
+
+    // Update on scroll
+    tabsElement.addEventListener('scroll', updateTabScrollIndicators);
+
+    // Update on window resize (orientation change, responsive breakpoints)
+    window.addEventListener('resize', updateTabScrollIndicators);
+
+    // Update when new tabs might be added/removed (mutation observer)
+    const observer = new MutationObserver(updateTabScrollIndicators);
+    observer.observe(tabsElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
+
+    // Store reference for potential cleanup
+    if (!window.tabScrollCleanup) {
+        window.tabScrollCleanup = [];
+    }
+    window.tabScrollCleanup.push(() => {
+        tabsElement.removeEventListener('scroll', updateTabScrollIndicators);
+        window.removeEventListener('resize', updateTabScrollIndicators);
+        observer.disconnect();
+    });
 }
 
 /**
@@ -781,10 +879,11 @@ export {
     // Main application initialization
     initializeApp,
     
-    // Application initialization functions  
+    // Application initialization functions
     // initializeAdviceTab moved to advicetab.js module
     initializeTheme,
     setupEventDelegation,
+    setupTabScrollIndicators,
     registerServiceWorker,
     
     

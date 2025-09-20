@@ -276,7 +276,7 @@ function renderJournalTab(tabPanel) {
                     aria-expanded="true"
                     aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse"
                     style="cursor: pointer; user-select: none;">
-                    🔍 Search & Filter Controls
+                    🔍 Search & Sort Controls
                     <span class="collapse-indicator" title="Click to collapse"></span>
                     <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
                 </h3>
@@ -335,34 +335,35 @@ function renderJournalTab(tabPanel) {
                                     ${generatePaginationDropdownOptions()}
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- Dreams Management Controls -->
-                        <div class="dreams-controls">
-                            <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
-                            <div class="export-range-container">
-                                <button data-action="export-range"
-                                        class="btn btn-success"
-                                        title="Export currently displayed dreams as text file">
-                                    Export Range
-                                </button>
-                                <div class="export-format-option">
-                                    <input type="checkbox"
-                                        id="exportFormatAI"
-                                        class="export-format-checkbox">
-                                    <label for="exportFormatAI" class="export-format-label">
-                                        Preformatted for AI Analysis
-                                    </label>
-                                    <button class="info-icon"
-                                            data-action="show-export-info"
-                                            type="button"
-                                            title="Click for more information about export formats"
-                                            aria-label="Show export format information">
-                                        ℹ️
+                            <!-- Dreams Management Controls -->
+                            <div class="dreams-controls">
+                                <!-- Export Range Controls - Export currently displayed dreams with optional AI formatting -->
+                                <div class="export-range-container">
+                                    <button data-action="export-range"
+                                            class="btn btn-success"
+                                            title="Export currently displayed dreams as text file">
+                                        Export Range
                                     </button>
+                                    <div class="export-format-option">
+                                        <input type="checkbox"
+                                            id="exportFormatAI"
+                                            class="export-format-checkbox">
+                                        <label for="exportFormatAI" class="export-format-label">
+                                            Preformatted for AI Analysis
+                                        </label>
+                                        <button class="info-icon"
+                                                data-action="show-export-info"
+                                                type="button"
+                                                title="Click for more information about export formats"
+                                                aria-label="Show export format information">
+                                            ℹ️
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        
 
                         <!-- Visual Break Between Controls and Dream List -->
                         <div class="control-row-break"></div>
