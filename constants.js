@@ -279,6 +279,21 @@ const DROPBOX_TOKEN_EXPIRES_KEY = 'dropboxTokenExpires';
 const CLOUD_ENCRYPTION_ENABLED_KEY = 'cloudEncryptionEnabled';
 
 /**
+ * Tolerance window for cloud conflict detection in milliseconds.
+ *
+ * Time tolerance used when comparing cloud backup timestamps with local sync times
+ * to prevent false positive conflict warnings. Accounts for timing differences between
+ * export generation and sync completion, network latency, and minor clock drift.
+ *
+ * Set to 60 seconds to provide reasonable tolerance while still detecting real conflicts
+ * from other devices or significant time differences.
+ *
+ * @constant {number}
+ * @since 2.04.01
+ */
+const CLOUD_CONFLICT_TOLERANCE_MS = 60000;
+
+/**
  * Storage key for last cloud sync timestamp.
  *
  * Used to track when the last successful cloud synchronization
@@ -946,6 +961,7 @@ export {
     CLOUD_SYNC_ENABLED_KEY,
     CLOUD_AUTO_SYNC_KEY,
     CLOUD_ENCRYPTION_ENABLED_KEY,
+    CLOUD_CONFLICT_TOLERANCE_MS,
     DROPBOX_ACCESS_TOKEN_KEY,
     DROPBOX_REFRESH_TOKEN_KEY,
     DROPBOX_TOKEN_EXPIRES_KEY,

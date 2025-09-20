@@ -1538,21 +1538,52 @@ function setCloudSyncInProgress(inProgress) {
 /**
  * Gets the timestamp of the last successful cloud synchronization.
  *
+ * Retrieves the sync timestamp from localStorage with proper error handling.
+ * This ensures sync time comparisons work correctly for conflict detection
+ * even after page reloads or browser restarts.
+ *
  * @returns {number|null} Timestamp of last sync or null if never synced
  * @since 2.04.01
  */
 function getLastCloudSyncTime() {
-    return lastCloudSyncTime;
+    try {
+        const stored = localStorage.getItem('lastCloudSync');
+        if (stored === null) {
+            return null;
+        }
+
+        const timestamp = parseInt(stored, 10);
+        return isNaN(timestamp) ? null : timestamp;
+    } catch (error) {
+        console.error('Error retrieving last cloud sync time:', error);
+        return null;
+    }
 }
 
 /**
  * Sets the timestamp of the last successful cloud synchronization.
  *
- * @param {number|null} timestamp - Timestamp of the sync completion
+ * Stores the sync timestamp both in memory and localStorage for persistence
+ * across browser sessions. This ensures sync time comparisons work correctly
+ * for conflict detection even after page reloads.
+ *
+ * @param {number|null} timestamp - Timestamp of the sync completion or null to clear
  * @since 2.04.01
  */
 function setLastCloudSyncTime(timestamp) {
+    // Update in-memory variable for backwards compatibility
     lastCloudSyncTime = timestamp;
+
+    // Persist to localStorage for cross-session persistence
+    try {
+        if (timestamp === null) {
+            localStorage.removeItem('lastCloudSync');
+        } else {
+            localStorage.setItem('lastCloudSync', timestamp.toString());
+        }
+    } catch (error) {
+        console.error('Error storing last cloud sync time:', error);
+    }
 }
 
 /**

@@ -54,6 +54,7 @@ import {
     CLOUD_SYNC_ENABLED_KEY,
     CLOUD_AUTO_SYNC_KEY,
     CLOUD_ENCRYPTION_ENABLED_KEY,
+    CLOUD_CONFLICT_TOLERANCE_MS,
     DROPBOX_ACCESS_TOKEN_KEY,
     DROPBOX_REFRESH_TOKEN_KEY,
     DROPBOX_TOKEN_EXPIRES_KEY,
@@ -1225,9 +1226,30 @@ async function checkForCloudConflicts() {
         }
 
         const cloudExportDate = new Date(backupData.exportDate).getTime();
+        const localSyncTime = lastSyncTime || 0;
 
-        // If cloud was exported after our last sync, it has newer data
-        const isCloudNewer = cloudExportDate > (lastSyncTime || 0);
+        // Calculate time difference between cloud export and last local sync
+        const timeDifference = cloudExportDate - localSyncTime;
+
+        // Add improved logging for debugging timing issues
+        console.log('Cloud conflict check:', {
+            cloudExportDate,
+            localSyncTime,
+            timeDifference,
+            toleranceMs: CLOUD_CONFLICT_TOLERANCE_MS,
+            cloudExportDateISO: backupData.exportDate,
+            localSyncDateISO: localSyncTime ? new Date(localSyncTime).toISOString() : 'Never synced'
+        });
+
+        // Only consider cloud newer if it's significantly newer (beyond tolerance window)
+        // This prevents false positives from timing differences during upload process
+        const isCloudNewer = timeDifference > CLOUD_CONFLICT_TOLERANCE_MS;
+
+        if (isCloudNewer) {
+            console.log('Cloud conflict detected: Cloud data is', Math.round(timeDifference / 1000), 'seconds newer than local sync');
+        } else {
+            console.log('No cloud conflict: Time difference within tolerance window');
+        }
 
         return isCloudNewer;
 
