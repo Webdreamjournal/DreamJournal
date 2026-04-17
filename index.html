@@ -196,7 +196,7 @@ GNU Affero General Public License for more details.
                 
                 <!-- Version Information and Additional Medical Disclaimer -->
                 <p>
-                    Dream Journal v2.05.03 | Not a substitute for professional medical advice
+                    Dream Journal v2.05.04 | Not a substitute for professional medical advice
                 </p>
             </div>
         </footer>
@@ -260,7 +260,14 @@ GNU Affero General Public License for more details.
     <!-- ================================ -->
 
     <!-- Dropbox JavaScript SDK for Cloud Sync -->
-    <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
+    <!-- SRI hash pins the exact bytes of dropbox@10.34.0/dist/Dropbox-sdk.min.js (47133 bytes). -->
+    <!-- Verified: sha256 nEXhCLt8UCjywhycJ33d4Nxfyp8BMxHuJpGECT3iAA8= matches jsdelivr registry. -->
+    <!-- If this version is ever bumped, regenerate the hash: -->
+    <!--   curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A -->
+    <script src="https://cdn.jsdelivr.net/npm/dropbox@10.34.0/dist/Dropbox-sdk.min.js"
+            integrity="sha384-YWkd65tkMrhoUmJnjCxyrQASvTgA80dRkNv1iltGzS5KgwXnxYEhNC0hO7jjWkZe"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
 
     <!-- Form Validation Module -->
     <script src="form-validation.js"></script>
