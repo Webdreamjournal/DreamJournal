@@ -11,7 +11,7 @@
  * 
  * @author Dream Journal Development Team
  * @since 2.02.06
- * @version 2.04.00
+ * @version 2.05.01
  */
 
 // Import state management function and constants for form state synchronization

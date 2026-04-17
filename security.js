@@ -17,7 +17,7 @@
  * - Password dialog system for import/export operations
  * 
  * @module Security
- * @version 2.04.00
+ * @version 2.05.01
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants

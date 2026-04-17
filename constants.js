@@ -5,7 +5,7 @@
  * Maintains single source of truth for consistent behavior across modules.
  * 
  * @module constants
- * @version 2.04.00
+ * @version 2.05.01
  * @author Dream Journal Development Team
  * @since 1.0.0
  */

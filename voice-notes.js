@@ -11,7 +11,7 @@
  * - Cross-browser compatibility handling
  * 
  * @module VoiceNotes
- * @version 2.04.00
+ * @version 2.05.01
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
