@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.05.02
+ * @version 2.05.03
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -117,7 +117,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.05.02');
+console.log('Loading Cloud Sync Module v2.05.03');
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -1574,10 +1574,12 @@ async function showUploadProgress(operation, message = '') {
             `;
         } else if (operation === 'success') {
             canDismiss = true;
+            // Escape: message may embed Dropbox-provided filenames, which are attacker-controllable
+            const safeMessage = escapeHtml(message || 'Your data has been successfully uploaded to the cloud.');
             dialogHtml = `
                 <div class="security-dialog-content">
                     <h3 id="upload-progress-title">✅ Upload Successful</h3>
-                    <p>${message || 'Your data has been successfully uploaded to the cloud.'}</p>
+                    <p>${safeMessage}</p>
                     <div class="dialog-actions">
                         <button id="upload-progress-ok" class="btn btn-primary">
                             OK
@@ -1587,10 +1589,12 @@ async function showUploadProgress(operation, message = '') {
             `;
         } else if (operation === 'error') {
             canDismiss = true;
+            // Escape: message often embeds error.message from the Dropbox SDK, which can carry server-returned content
+            const safeMessage = escapeHtml(message || 'An error occurred while uploading your data.');
             dialogHtml = `
                 <div class="security-dialog-content">
                     <h3 id="upload-progress-title">❌ Upload Failed</h3>
-                    <p>${message || 'An error occurred while uploading your data.'}</p>
+                    <p>${safeMessage}</p>
                     <div class="dialog-actions">
                         <button id="upload-progress-ok" class="btn btn-primary">
                             OK
@@ -1694,10 +1698,12 @@ async function showDownloadProgress(operation, message = '') {
             `;
         } else if (operation === 'success') {
             canDismiss = true;
+            // Escape: message may embed Dropbox-provided filenames, which are attacker-controllable
+            const safeMessage = escapeHtml(message || 'Your data has been successfully downloaded from the cloud.');
             dialogHtml = `
                 <div class="security-dialog-content">
                     <h3 id="download-progress-title">✅ Download Successful</h3>
-                    <p>${message || 'Your data has been successfully downloaded from the cloud.'}</p>
+                    <p>${safeMessage}</p>
                     <div class="dialog-actions">
                         <button id="download-progress-ok" class="btn btn-primary">
                             OK
@@ -1707,10 +1713,12 @@ async function showDownloadProgress(operation, message = '') {
             `;
         } else if (operation === 'error') {
             canDismiss = true;
+            // Escape: message often embeds error.message from the Dropbox SDK, which can carry server-returned content
+            const safeMessage = escapeHtml(message || 'An error occurred while downloading your data.');
             dialogHtml = `
                 <div class="security-dialog-content">
                     <h3 id="download-progress-title">❌ Download Failed</h3>
-                    <p>${message || 'An error occurred while downloading your data.'}</p>
+                    <p>${safeMessage}</p>
                     <div class="dialog-actions">
                         <button id="download-progress-ok" class="btn btn-primary">
                             OK
