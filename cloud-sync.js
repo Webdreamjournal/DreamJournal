@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.05.03
+ * @version 2.05.05
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -117,7 +117,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.05.03');
+console.log('Loading Cloud Sync Module v2.05.05');
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -331,6 +331,9 @@ async function startDropboxAuth() {
 
     } catch (error) {
         console.error('Error starting Dropbox authentication:', error);
+        // Clean up PKCE verifier if it was stored before the error, so a later
+        // spurious callback cannot reuse an orphaned verifier. Safe if nothing was stored.
+        window.sessionStorage.removeItem('dropbox_code_verifier');
         createInlineMessage('error', 'Failed to start authentication. Please try again.');
         throw error;
     }
