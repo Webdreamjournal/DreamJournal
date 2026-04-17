@@ -7,7 +7,7 @@
  * concurrency control, and UI state management.
  * 
  * @module State
- * @version 2.04.00
+ * @version 2.05.01
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires none

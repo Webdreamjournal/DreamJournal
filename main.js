@@ -17,7 +17,7 @@
  * - Tab container management and dynamic content
  * 
  * @module MainApplication
- * @version 2.04.00
+ * @version 2.05.01
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -732,7 +732,7 @@ function restoreDreamFormState() {
  * @async
  * @function
  * @since 1.0.0
- * @version 2.04.00
+ * @version 2.05.01
  * @todo Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions for better separation of fast startup vs slower initialization tasks
  * @example
  * // Called by app entry point:

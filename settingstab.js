@@ -32,8 +32,8 @@
  * - Browser compatibility detection
  * - PWA installation integration
  * 
- * @module settingstab  
- * @version 2.04.00
+ * @module settingstab
+ * @version 2.05.01
  * @since 2.02.05
  * @author Dream Journal Application
  */

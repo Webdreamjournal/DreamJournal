@@ -33,7 +33,7 @@
  * - Coordinates with main app initialization sequence
  * 
  * @module advicetab
- * @version 2.04.00
+ * @version 2.05.01
  * @since 2.02.44
  * @author Dream Journal Application
  */

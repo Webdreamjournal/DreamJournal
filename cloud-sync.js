@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.04.01
+ * @version 2.05.02
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -117,7 +117,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.04.01');
+console.log('Loading Cloud Sync Module v2.05.02');
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -485,10 +485,13 @@ async function handleOAuthCallback() {
  */
 async function storeTokensSecurely(tokenData) {
     try {
-        // Store tokens (will be encrypted by existing security system if enabled)
-        setDropboxAccessToken(tokenData.access_token);
+        // Encrypt with the user's encryption password when the security system is active;
+        // otherwise fall back to plaintext so the OAuth flow still works for users who
+        // haven't enabled encryption. Existing plaintext tokens remain readable because
+        // decryptTokenIfNeeded() only runs when the ENCRYPTED_TOKEN_PREFIX sentinel is present.
+        setDropboxAccessToken(await encryptTokenIfEnabled(tokenData.access_token));
         if (tokenData.refresh_token) {
-            setDropboxRefreshToken(tokenData.refresh_token);
+            setDropboxRefreshToken(await encryptTokenIfEnabled(tokenData.refresh_token));
         }
 
         // Calculate and store expiration time
@@ -501,6 +504,75 @@ async function storeTokensSecurely(tokenData) {
     } catch (error) {
         console.error('Error storing tokens:', error);
         throw error;
+    }
+}
+
+/**
+ * Sentinel prefix marking a token stored in encrypted form. Lets us
+ * distinguish encrypted payloads from legacy plaintext tokens written
+ * before real encryption was wired up, so both can coexist during upgrade.
+ * @type {string}
+ * @private
+ */
+const ENCRYPTED_TOKEN_PREFIX = 'enc:v1:';
+
+/**
+ * Encrypts a token with the user's encryption password when the security
+ * system is active, otherwise returns the plaintext token unchanged.
+ *
+ * Returns `null`/empty passthrough unchanged so callers can pass raw
+ * tokenData fields without null-checking first.
+ *
+ * @async
+ * @function
+ * @param {string|null|undefined} plainToken - Token to encrypt
+ * @returns {Promise<string|null|undefined>} Sentinel-prefixed base64 ciphertext when encrypting, or the original value
+ * @since 2.05.02
+ * @private
+ */
+async function encryptTokenIfEnabled(plainToken) {
+    if (!plainToken) return plainToken;
+    if (!getEncryptionEnabled()) return plainToken;
+    const password = getEncryptionPassword();
+    if (!password) {
+        console.warn('Encryption enabled but password unavailable; storing Dropbox token in plaintext');
+        return plainToken;
+    }
+    const encrypted = await encryptData(plainToken, password);
+    return ENCRYPTED_TOKEN_PREFIX + btoa(String.fromCharCode(...encrypted));
+}
+
+/**
+ * Decrypts a token previously written by encryptTokenIfEnabled().
+ *
+ * Returns plaintext unchanged when the sentinel prefix is absent so
+ * legacy tokens stored before encryption was enabled keep working.
+ * Returns null when the token is encrypted but the password is
+ * unavailable (e.g. app is locked) so callers can re-prompt instead
+ * of receiving ciphertext.
+ *
+ * @async
+ * @function
+ * @param {string|null|undefined} storedValue - Raw value from state.js token getter
+ * @returns {Promise<string|null>} Plaintext token, or null if unavailable/undecryptable
+ * @since 2.05.02
+ * @private
+ */
+async function decryptTokenIfNeeded(storedValue) {
+    if (!storedValue) return null;
+    if (!storedValue.startsWith(ENCRYPTED_TOKEN_PREFIX)) return storedValue;
+    const password = getEncryptionPassword();
+    if (!password) {
+        console.warn('Cannot decrypt stored Dropbox token: encryption password not available');
+        return null;
+    }
+    try {
+        const base64 = storedValue.slice(ENCRYPTED_TOKEN_PREFIX.length);
+        const binary = new Uint8Array(atob(base64).split('').map(c => c.charCodeAt(0)));
+        return await decryptData(binary, password);
+    } catch (error) {
+        console.error('Failed to decrypt stored Dropbox token:', error);
+        return null;
     }
 }
 
@@ -532,8 +604,7 @@ async function storeTokensSecurely(tokenData) {
  */
 async function getDecryptedAccessToken() {
     try {
-        const storedToken = getDropboxAccessToken();
-        return storedToken;
+        return await decryptTokenIfNeeded(getDropboxAccessToken());
     } catch (error) {
         console.error('Error retrieving access token:', error);
         throw error;
@@ -615,8 +686,7 @@ async function refreshAccessToken() {
  */
 async function getDecryptedRefreshToken() {
     try {
-        const storedToken = getDropboxRefreshToken();
-        return storedToken;
+        return await decryptTokenIfNeeded(getDropboxRefreshToken());
     } catch (error) {
         console.error('Error retrieving refresh token:', error);
         throw error;
