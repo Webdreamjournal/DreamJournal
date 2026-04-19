@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.05.05
+ * @version 2.05.06
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -117,7 +117,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.05.05');
+console.log('Loading Cloud Sync Module v2.05.06');
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -169,6 +169,33 @@ let dropboxInstance = null;
  * @private
  */
 let dropboxAuth = null;
+
+/**
+ * In-flight token refresh promise, used as a single-slot mutex so that
+ * concurrent callers share one network exchange instead of each hitting
+ * the Dropbox refresh endpoint with the same refresh token.
+ *
+ * Cleared in the refresh IIFE's finally block once the exchange resolves
+ * (success or failure), so the next caller after completion starts a
+ * fresh refresh.
+ *
+ * @type {Promise<boolean>|null}
+ * @private
+ * @since 2.05.06
+ */
+let refreshTokenInFlight = null;
+
+/**
+ * In-flight OAuth code-exchange promise. Prevents `handleOAuthCallback()`
+ * from being invoked twice concurrently (e.g. double-fire on init) and
+ * sending the same single-use authorization code to Dropbox twice — the
+ * second exchange would always fail because PKCE auth codes are one-shot.
+ *
+ * @type {Promise<boolean>|null}
+ * @private
+ * @since 2.05.06
+ */
+let oauthCallbackInFlight = null;
 
 // ================================
 // AUTHENTICATION MANAGEMENT
@@ -376,79 +403,98 @@ async function startDropboxAuth() {
  * }
  */
 async function handleOAuthCallback() {
-    try {
-        // Check if we have an authorization code in the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const authCode = urlParams.get('code');
-
-        if (!authCode) {
-            console.log('No authorization code found in URL');
-            return false;
-        }
-
-        // Get stored code verifier
-        const codeVerifier = window.sessionStorage.getItem('dropbox_code_verifier');
-        if (!codeVerifier) {
-            throw new Error('Code verifier not found. Authentication may have been interrupted.');
-        }
-
-        if (!dropboxAuth) {
-            initializeDropboxAuth();
-        }
-
-        // Set the code verifier for token exchange
-        dropboxAuth.setCodeVerifier(codeVerifier);
-
-        // Exchange authorization code for tokens
-        const tokenResponse = await dropboxAuth.getAccessTokenFromCode(DROPBOX_REDIRECT_URI, authCode);
-
-        if (!tokenResponse.result.access_token) {
-            throw new Error('No access token received from Dropbox');
-        }
-
-        // Store tokens securely
-        await storeTokensSecurely(tokenResponse.result);
-
-        // Initialize Dropbox API instance
-        await initializeDropboxAPI();
-
-        // Fetch and store user account information
-        const userInfo = await fetchDropboxUserInfo();
-        if (userInfo) {
-            setDropboxUserInfo(userInfo);
-            console.log('Dropbox user info stored:', userInfo.email);
-        }
-
-        // Update authentication state
-        setCloudSyncEnabled(true);
-        setLastCloudSyncTime(Date.now());
-
-        // Clean up temporary data
-        window.sessionStorage.removeItem('dropbox_code_verifier');
-
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        // Update UI to reflect connected state
-        updateCloudSyncUI();
-
-        // Show success message
-        createInlineMessage('success', '🎉 Successfully connected to Dropbox! You can now sync your dreams to the cloud.');
-        announceLiveMessage('Successfully connected to Dropbox');
-
-        console.log('Dropbox authentication completed successfully');
-        return true;
-
-    } catch (error) {
-        console.error('Error handling OAuth callback:', error);
-        createInlineMessage('error', `Authentication failed: ${error.message}`);
-
-        // Clean up on error
-        window.sessionStorage.removeItem('dropbox_code_verifier');
-        clearAuthenticationState();
-
-        return false;
+    // Coalesce concurrent callers — PKCE authorization codes are strictly
+    // single-use, so a second exchange of the same code is guaranteed to
+    // fail at Dropbox's token endpoint. If initializeCloudSync() ever fires
+    // twice (re-init after fast back-forward navigation, hot reload, or a
+    // future auto-refresh flow), returning the shared promise avoids a
+    // spurious "invalid_grant" error wiping authenticated state.
+    if (oauthCallbackInFlight) {
+        console.log('OAuth callback already in flight; awaiting existing promise');
+        return oauthCallbackInFlight;
     }
+
+    oauthCallbackInFlight = (async () => {
+        try {
+            // Check if we have an authorization code in the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code');
+
+            if (!authCode) {
+                console.log('No authorization code found in URL');
+                return false;
+            }
+
+            // Get stored code verifier
+            const codeVerifier = window.sessionStorage.getItem('dropbox_code_verifier');
+            if (!codeVerifier) {
+                throw new Error('Code verifier not found. Authentication may have been interrupted.');
+            }
+
+            if (!dropboxAuth) {
+                initializeDropboxAuth();
+            }
+
+            // Set the code verifier for token exchange
+            dropboxAuth.setCodeVerifier(codeVerifier);
+
+            // Exchange authorization code for tokens
+            const tokenResponse = await dropboxAuth.getAccessTokenFromCode(DROPBOX_REDIRECT_URI, authCode);
+
+            if (!tokenResponse.result.access_token) {
+                throw new Error('No access token received from Dropbox');
+            }
+
+            // Store tokens securely
+            await storeTokensSecurely(tokenResponse.result);
+
+            // Initialize Dropbox API instance
+            await initializeDropboxAPI();
+
+            // Fetch and store user account information
+            const userInfo = await fetchDropboxUserInfo();
+            if (userInfo) {
+                setDropboxUserInfo(userInfo);
+                console.log('Dropbox user info stored:', userInfo.email);
+            }
+
+            // Update authentication state
+            setCloudSyncEnabled(true);
+            setLastCloudSyncTime(Date.now());
+
+            // Clean up temporary data
+            window.sessionStorage.removeItem('dropbox_code_verifier');
+
+            // Clear URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Update UI to reflect connected state
+            updateCloudSyncUI();
+
+            // Show success message
+            createInlineMessage('success', '🎉 Successfully connected to Dropbox! You can now sync your dreams to the cloud.');
+            announceLiveMessage('Successfully connected to Dropbox');
+
+            console.log('Dropbox authentication completed successfully');
+            return true;
+
+        } catch (error) {
+            console.error('Error handling OAuth callback:', error);
+            createInlineMessage('error', `Authentication failed: ${error.message}`);
+
+            // Clean up on error
+            window.sessionStorage.removeItem('dropbox_code_verifier');
+            clearAuthenticationState();
+
+            return false;
+        } finally {
+            // Clear the slot so a future legitimate callback (e.g. user
+            // re-initiates auth in the same session) can proceed.
+            oauthCallbackInFlight = null;
+        }
+    })();
+
+    return oauthCallbackInFlight;
 }
 
 /**
@@ -643,38 +689,60 @@ async function getDecryptedAccessToken() {
  * }
  */
 async function refreshAccessToken() {
-    try {
-        const refreshToken = await getDecryptedRefreshToken();
-        if (!refreshToken) {
-            console.log('No refresh token available');
-            return false;
-        }
-
-        if (!dropboxAuth) {
-            initializeDropboxAuth();
-        }
-
-        // Set refresh token and request new access token
-        dropboxAuth.setRefreshToken(refreshToken);
-        const tokenResponse = await dropboxAuth.refreshAccessToken();
-
-        if (!tokenResponse.result.access_token) {
-            throw new Error('No access token received from refresh');
-        }
-
-        // Store new tokens
-        await storeTokensSecurely(tokenResponse.result);
-
-        // Update Dropbox API instance
-        await initializeDropboxAPI();
-
-        console.log('Access token refreshed successfully');
-        return true;
-
-    } catch (error) {
-        console.error('Error refreshing access token:', error);
-        return false;
+    // Coalesce concurrent callers onto a single in-flight exchange.
+    // Two simultaneous `isAuthenticated()` calls (e.g. auto-sync firing
+    // while the user clicks the manual upload button) would otherwise
+    // both see the expired token, both read the same refresh token, and
+    // both POST to Dropbox — wasting a request and racing at the
+    // storeTokensSecurely() write. If the provider ever rotates refresh
+    // tokens, the second response would also invalidate the first.
+    if (refreshTokenInFlight) {
+        console.log('Dropbox token refresh already in flight; awaiting existing promise');
+        return refreshTokenInFlight;
     }
+
+    refreshTokenInFlight = (async () => {
+        try {
+            const refreshToken = await getDecryptedRefreshToken();
+            if (!refreshToken) {
+                console.log('No refresh token available');
+                return false;
+            }
+
+            if (!dropboxAuth) {
+                initializeDropboxAuth();
+            }
+
+            // Set refresh token and request new access token
+            dropboxAuth.setRefreshToken(refreshToken);
+            const tokenResponse = await dropboxAuth.refreshAccessToken();
+
+            if (!tokenResponse.result.access_token) {
+                throw new Error('No access token received from refresh');
+            }
+
+            // Store new tokens
+            await storeTokensSecurely(tokenResponse.result);
+
+            // Update Dropbox API instance
+            await initializeDropboxAPI();
+
+            console.log('Access token refreshed successfully');
+            return true;
+
+        } catch (error) {
+            console.error('Error refreshing access token:', error);
+            return false;
+        } finally {
+            // Clear the slot so the next caller after completion starts fresh.
+            // Inside the IIFE's finally so it runs whether the body resolved
+            // or threw (the outer catch normally swallows throws and returns
+            // false, but finally guarantees cleanup either way).
+            refreshTokenInFlight = null;
+        }
+    })();
+
+    return refreshTokenInFlight;
 }
 
 /**

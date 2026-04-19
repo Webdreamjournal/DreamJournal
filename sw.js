@@ -25,7 +25,7 @@
  * - Old caches are automatically cleaned up during activation
  * - Service worker can be force-updated via message passing
  * 
- * @version 2.05.05
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 2.0.0
  * @example
@@ -57,7 +57,7 @@
  * @since 2.0.0
  */
 
-const CACHE_NAME = 'dream-journal-v2-05-05';
+const CACHE_NAME = 'dream-journal-v2-05-06';
 
 /**
  * List of essential files to cache for complete offline functionality.
