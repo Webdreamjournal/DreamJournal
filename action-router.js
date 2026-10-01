@@ -353,6 +353,7 @@ const ACTION_MAP = {
         'switch-app-tab': (ctx) => switchAppTab(ctx.element.dataset.tab),   // Switch main application tabs
         'switch-theme': (ctx) => switchTheme(ctx.element.value),            // Switch application theme (light/dark)
         'show-pin-overlay': () => showPinOverlay(),                         // Show PIN entry overlay
+        'reload-app': () => window.location.reload(),                      // Reload the page (error/wipe screens)
         'cancel-timer': () => cancelResetTimer(),                           // Cancel active PIN reset timer
         
         // ================================

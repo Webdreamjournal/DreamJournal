@@ -619,7 +619,7 @@ async function initializeApplicationData(timerExpiredAndRemovedPin, progressCall
         console.error('Error displaying dreams on page load:', error);
         const container = document.getElementById('entriesContainer');
         if (container) {
-            container.innerHTML = `<div class="no-entries"><h3>⚠️ Error Loading Dreams</h3><p>There was a problem loading your dreams. Please refresh the page.</p><button onclick="location.reload()" class="btn btn-primary" style="margin-top: 15px;">🔄 Refresh Page</button></div>`;
+            container.innerHTML = `<div class="no-entries"><h3>⚠️ Error Loading Dreams</h3><p>There was a problem loading your dreams. Please refresh the page.</p><button data-action="reload-app" class="btn btn-primary" style="margin-top: 15px;">🔄 Refresh Page</button></div>`;
         }
     }
 }

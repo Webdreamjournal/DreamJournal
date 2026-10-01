@@ -2028,7 +2028,7 @@ async function confirmDataWipe() {
                         <p class="text-secondary mb-lg line-height-relaxed">
                             All application data has been permanently deleted. The app will reload with a fresh start.
                         </p>
-                        <button onclick="window.location.reload()" class="btn btn-primary">🔄 Reload Application</button>
+                        <button data-action="reload-app" class="btn btn-primary">🔄 Reload Application</button>
                     </div>
                 </div>
             `;

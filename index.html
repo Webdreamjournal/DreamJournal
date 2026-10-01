@@ -19,6 +19,10 @@ GNU Affero General Public License for more details.
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Journal</title>
+
+    <!-- Content Security Policy: no inline/eval scripts; network limited to Dropbox API and the pinned SDK CDN.
+         (frame-ancestors cannot be set via meta; set it as an HTTP header if the host allows.) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.dropboxapi.com https://content.dropboxapi.com https://notify.dropboxapi.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -41,19 +45,8 @@ GNU Affero General Public License for more details.
     <!-- Main stylesheet for application styling and themes -->
     <link rel="stylesheet" href="app.css">
     
-    <!-- Inline theme initialization script to prevent flash of unstyled content -->
-    <script>
-        (function() {
-            try {
-                // Load saved theme preference or default to dark theme
-                var theme = localStorage.getItem('dreamJournalTheme') || 'dark';
-                // Apply theme immediately to document root for CSS custom properties
-                document.documentElement.setAttribute('data-theme', theme);
-            } catch (e) {
-                // Silently handle localStorage access errors (e.g., private browsing)
-            }
-        })();
-    </script>
+    <!-- Theme initialisation (external so CSP can forbid inline scripts) -->
+    <script src="theme-init.js"></script>
 </head>
 <body>
     <!-- ARIA: Global announcer for SPA navigation -->
@@ -277,9 +270,6 @@ GNU Affero General Public License for more details.
     <script type="module" src="./src/app.js"></script>
     
     <!-- Legacy Script Fallback for browsers that don't support ES modules -->
-    <script nomodule>
-        // For IE and very old browsers - would need a bundled version
-        document.body.innerHTML = '<div style="padding: 20px; text-align: center;"><h2>Browser Not Supported</h2><p>This application requires a modern browser that supports ES modules. Please update your browser or try Chrome, Firefox, Safari, or Edge.</p></div>';
-    </script>
+    <script nomodule src="unsupported-browser.js"></script>
 </body>
 </html>

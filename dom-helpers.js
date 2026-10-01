@@ -978,7 +978,7 @@ function createTabPanel(tabId, tabContainer) {
         tabPanel.innerHTML = `
             <div class="message-error">
                 Error loading ${friendlyName} tab. Please refresh the page.
-                <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                <button data-action="reload-app" class="btn btn-primary mt-sm">Refresh</button>
             </div>
         `;
     }
@@ -1237,7 +1237,7 @@ function switchAppTab(tabName, isInitialLoad = false) {
             existingJournalTab.innerHTML = `
                 <div class="message-error">
                     Error loading Journal tab. Please refresh the page.
-                    <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                    <button data-action="reload-app" class="btn btn-primary mt-sm">Refresh</button>
                 </div>
             `;
         }
