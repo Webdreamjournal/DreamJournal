@@ -1942,7 +1942,7 @@ function initializeSettingsTab() {
                 <div class="message-base message-error">
                     <h3>Settings Temporarily Unavailable</h3>
                     <p>There was an error loading the settings interface. Please refresh the page and try again.</p>
-                    <p class="text-sm">Error details: ${error.message}</p>
+                    <p class="text-sm">Error details: ${escapeHtml(error.message)}</p>
                 </div>
             `;
         }
@@ -2135,4 +2135,4 @@ window.SettingsTab = {
 // ================================
 // MODULE LOADING COMPLETE
 // ================================
-console.log('Settings Tab Module loaded successfully - Available as ES module exports and window.SettingsTab');
+console.log('Settings Tab Module loaded successfully - Available as ES module exports and window.SettingsTab');

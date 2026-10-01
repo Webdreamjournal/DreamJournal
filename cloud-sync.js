@@ -85,7 +85,8 @@ import {
     getAutocompleteSuggestions,
     storageType,
     saveToStore,
-    saveAutocompleteSuggestions
+    saveAutocompleteSuggestions,
+    sanitizeEntityIds
 } from './storage.js';
 
 import {
@@ -842,12 +843,12 @@ async function importCloudData(backupData) {
             // Clear existing dreams first
             await saveToStore('dreams', []);
             // Import new dreams directly to storage (saveDream expects form inputs, not objects)
-            await saveToStore('dreams', data.dreams);
+            await saveToStore('dreams', sanitizeEntityIds(data.dreams, 'dream'));
         }
 
         // Import goals
         if (data.goals && Array.isArray(data.goals)) {
-            await saveToStore('goals', data.goals);
+            await saveToStore('goals', sanitizeEntityIds(data.goals, 'goal'));
         }
 
         // Import autocomplete data

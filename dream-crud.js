@@ -1054,9 +1054,9 @@ function parseSmartSearchQuery(searchInput) {
         entryElement.classList.add('delete-pending');
         
         // Replace delete button with confirm button
-        const deleteBtn = actionsElement.querySelector(`button[data-dream-id="${dreamId}"][data-action="delete-dream"]`);
+        const deleteBtn = actionsElement.querySelector(`button[data-dream-id="${CSS.escape(dreamId)}"][data-action="delete-dream"]`);
         if (deleteBtn) {
-            deleteBtn.outerHTML = `<button data-action="confirm-delete" data-dream-id="${dreamId}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
+            deleteBtn.outerHTML = `<button data-action="confirm-delete" data-dream-id="${escapeAttr(dreamId)}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
         }
         
         // Set timeout to revert after specified time
@@ -1157,9 +1157,9 @@ function parseSmartSearchQuery(searchInput) {
             entryElement.classList.remove('delete-pending');
             
             // Replace confirm button with original delete button
-            const confirmBtn = actionsElement.querySelector(`button[data-dream-id="${dreamId}"][data-action="confirm-delete"]`);
+            const confirmBtn = actionsElement.querySelector(`button[data-dream-id="${CSS.escape(dreamId)}"][data-action="confirm-delete"]`);
             if (confirmBtn) {
-                confirmBtn.outerHTML = `<button data-action="delete-dream" data-dream-id="${dreamId}" class="btn btn-delete btn-small">Delete</button>`;
+                confirmBtn.outerHTML = `<button data-action="delete-dream" data-dream-id="${escapeAttr(dreamId)}" class="btn btn-delete btn-small">Delete</button>`;
             }
         }
     }
@@ -2577,4 +2577,4 @@ export {
     showNoResultsMessage,
     clearPagination,
     clearSearchFilters
-};
+};

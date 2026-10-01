@@ -48,7 +48,7 @@ import {
     setIsGoalsCompletedCollapsed
 } from './state.js';
 import { loadGoals, saveGoals, generateUniqueId, loadDreams } from './storage.js';
-import { announceLiveMessage, createInlineMessage, escapeHtml, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, escapeHtml, escapeAttr, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
 import { calculateDreamRecallStreak, calculateJournalingStreak } from './statstab.js';
 
 // ================================
@@ -1461,9 +1461,9 @@ function deleteGoal(goalId) {
     goalElement.classList.add('delete-pending');
     
     // Replace delete button with confirm button
-    const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="delete-goal"]`);
+    const deleteBtn = actionsElement.querySelector(`button[data-goal-id="${CSS.escape(goalId)}"][data-action="delete-goal"]`);
     if (deleteBtn) {
-        deleteBtn.outerHTML = `<button data-action="confirm-delete-goal" data-goal-id="${goalId}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
+        deleteBtn.outerHTML = `<button data-action="confirm-delete-goal" data-goal-id="${escapeAttr(goalId)}" class="btn btn-confirm-delete btn-small">Confirm Delete</button>`;
     }
     
     // Set timeout to revert after specified time
@@ -1502,9 +1502,9 @@ function cancelGoalDelete(goalId) {
         const actionsElement = goalElement.querySelector('.goal-actions');
         if (actionsElement) {
             // Replace confirm button with original delete button
-            const confirmBtn = actionsElement.querySelector(`button[data-goal-id="${goalId}"][data-action="confirm-delete-goal"]`);
+            const confirmBtn = actionsElement.querySelector(`button[data-goal-id="${CSS.escape(goalId)}"][data-action="confirm-delete-goal"]`);
             if (confirmBtn) {
-                confirmBtn.outerHTML = `<button data-action="delete-goal" data-goal-id="${goalId}" class="btn btn-error btn-small">Delete</button>`;
+                confirmBtn.outerHTML = `<button data-action="delete-goal" data-goal-id="${escapeAttr(goalId)}" class="btn btn-error btn-small">Delete</button>`;
             }
         }
     }
@@ -1894,4 +1894,4 @@ function restoreGoalsSectionStates() {
             // Continue with other sections
         }
     });
-}
+}

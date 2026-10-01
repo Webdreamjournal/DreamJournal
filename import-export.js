@@ -39,6 +39,8 @@ import {
     saveGoals,
     storageType,
     generateUniqueId,
+    isSafeEntityId,
+    sanitizeEntityIds,
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
@@ -605,7 +607,7 @@ async function importEntries(event) {
                     const dateString = formatDateTimeDisplay(timestamp);
                     
                     const newDream = {
-                        id: dreamId || generateUniqueId(), // Use original ID if available, otherwise generate new one
+                        id: isSafeEntityId(dreamId) ? dreamId : generateUniqueId(), // Use original ID if available, otherwise generate new one
                         title: title,
                         content: content,
                         emotions: emotions, // Include emotions in imported dreams
@@ -962,7 +964,7 @@ async function importAllData(event) {
                     if (!importDream.content) importDream.content = '';
                     
                     // Generate ID with content salting if missing
-                    if (!importDream.id) {
+                    if (!isSafeEntityId(importDream.id)) {
                         importDream.id = generateUniqueId({
                             title: importDream.title,
                             timestamp: importDream.timestamp,
@@ -1023,7 +1025,7 @@ async function importAllData(event) {
                     if (!importGoal.createdAt) importGoal.createdAt = new Date().toISOString();
                     
                     // Generate ID with content salting if missing
-                    if (!importGoal.id) {
+                    if (!isSafeEntityId(importGoal.id)) {
                         importGoal.id = generateUniqueId({
                             title: importGoal.title,
                             timestamp: importGoal.createdAt,
@@ -1910,4 +1912,4 @@ export {
     showImportPasswordDialog,
     confirmImportPassword,
     cancelImportPassword
-};
+};

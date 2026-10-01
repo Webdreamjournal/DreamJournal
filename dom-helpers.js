@@ -388,7 +388,7 @@ function escapeHtml(text) {
  */
 function escapeAttr(text) {
     if (text == null) return '';
-    return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -3304,12 +3304,12 @@ function createGoalElement(goal, progress, isCompleted = false) {
             <h4>${escapeHtml(goal.icon)} ${escapeHtml(goal.title)}</h4>
             <div class="goal-actions">
                 ${!isCompleted ? `
-                    <button data-action="edit-goal" data-goal-id="${goal.id}" class="btn btn-outline btn-small">Edit</button>
-                    <button data-action="complete-goal" data-goal-id="${goal.id}" class="btn btn-success btn-small">Complete</button>
+                    <button data-action="edit-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small">Edit</button>
+                    <button data-action="complete-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-success btn-small">Complete</button>
                 ` : `
-                    <button data-action="reactivate-goal" data-goal-id="${goal.id}" class="btn btn-warning btn-small">Reactivate</button>
+                    <button data-action="reactivate-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-warning btn-small">Reactivate</button>
                 `}
-                <button data-action="delete-goal" data-goal-id="${goal.id}" class="btn btn-error btn-small">Delete</button>
+                <button data-action="delete-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-error btn-small">Delete</button>
             </div>
         </div>
         <p class="text-secondary mb-md">${escapeHtml(goal.description)}</p>
@@ -3330,9 +3330,9 @@ function createGoalElement(goal, progress, isCompleted = false) {
             ${goal.type === 'custom' && !isCompleted ? `
                 <div class="custom-goal-controls mt-md">
                     <div class="flex-center gap-md">
-                        <button data-action="decrease-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small" ${progress.current <= 0 ? 'disabled' : ''}>➖</button>
+                        <button data-action="decrease-goal-progress" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small" ${progress.current <= 0 ? 'disabled' : ''}>➖</button>
                         <span class="font-semibold">Manual Tracking</span>
-                        <button data-action="increase-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small">➕</button>
+                        <button data-action="increase-goal-progress" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small">➕</button>
                     </div>
                 </div>
             ` : ''}

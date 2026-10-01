@@ -473,7 +473,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                     successMsg.className = 'message-success mt-md';
                     successMsg.innerHTML = `
                         Voice note saved with transcription! (${formatDuration(duration)})<br>
-                        <button data-action="create-from-transcription" data-voice-note-id="${voiceNote.id}" class="btn btn-primary btn-small mt-sm">
+                        <button data-action="create-from-transcription" data-voice-note-id="${escapeAttr(voiceNote.id)}" class="btn btn-primary btn-small mt-sm">
                             📝 Create Dream Entry
                         </button>
                     `;
@@ -1909,9 +1909,9 @@ function deleteVoiceNote(voiceNoteId) {
             voiceNoteElement.classList.add('delete-pending');
             
             // Find and replace delete button with confirm button
-            const deleteBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="delete-voice"]`);
+            const deleteBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${CSS.escape(voiceNoteId)}"][data-action="delete-voice"]`);
             if (deleteBtn) {
-                deleteBtn.outerHTML = `<button data-action="confirm-delete-voice" data-voice-note-id="${voiceNoteId}" class="voice-btn-base voice-btn-delete" style="animation: pulse 0.5s ease-in-out;">Confirm Delete</button>`;
+                deleteBtn.outerHTML = `<button data-action="confirm-delete-voice" data-voice-note-id="${escapeAttr(voiceNoteId)}" class="voice-btn-base voice-btn-delete" style="animation: pulse 0.5s ease-in-out;">Confirm Delete</button>`;
             }
             
             // Set timeout to revert after specified time
@@ -2007,9 +2007,9 @@ function cancelDeleteVoiceNote(voiceNoteId) {
                 voiceNoteElement.classList.remove('delete-pending');
                 
                 // Replace confirm button with original delete button
-                const confirmBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${voiceNoteId}"][data-action="confirm-delete-voice"]`);
+                const confirmBtn = voiceNoteElement.querySelector(`button[data-voice-note-id="${CSS.escape(voiceNoteId)}"][data-action="confirm-delete-voice"]`);
                 if (confirmBtn) {
-                    confirmBtn.outerHTML = `<button data-action="delete-voice" data-voice-note-id="${voiceNoteId}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`;
+                    confirmBtn.outerHTML = `<button data-action="delete-voice" data-voice-note-id="${escapeAttr(voiceNoteId)}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`;
                 }
             }
         }

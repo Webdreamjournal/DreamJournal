@@ -527,6 +527,48 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * // Returns something like: '1640995200123abc7def89'
      */
     /**
+     * Pattern for IDs that are safe to embed in HTML attributes and CSS selectors.
+     * Generated IDs ("timestamp-hash-random") always match; imported data may not.
+     *
+     * @constant {RegExp}
+     */
+    const SAFE_ENTITY_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+
+    /**
+     * Checks whether an ID is a string made only of safe characters.
+     *
+     * @param {*} id - Value to check
+     * @returns {boolean} True if the ID is safe to use in markup and selectors
+     */
+    function isSafeEntityId(id) {
+        return typeof id === 'string' && SAFE_ENTITY_ID_PATTERN.test(id);
+    }
+
+    /**
+     * Replaces any unsafe or missing ID on imported records with a freshly generated one.
+     *
+     * Imported and cloud-synced files are untrusted: an ID such as `"><img onerror=...>`
+     * would otherwise be re-injected into the DOM by UI code. Mutates and returns the array.
+     *
+     * @param {Object[]} items - Imported dreams or goals
+     * @param {string} type - Entity type used when generating replacement IDs ('dream' or 'goal')
+     * @returns {Object[]} The same array, with every item carrying a safe ID
+     */
+    function sanitizeEntityIds(items, type) {
+        if (!Array.isArray(items)) return items;
+        items.forEach(item => {
+            if (item && typeof item === 'object' && !isSafeEntityId(item.id)) {
+                item.id = generateUniqueId({
+                    title: item.title || item.description || 'untitled',
+                    timestamp: item.timestamp || item.createdAt,
+                    type
+                });
+            }
+        });
+        return items;
+    }
+
+    /**
      * Generates a robust, content-aware unique ID for dreams and other entities.
      * 
      * Creates IDs that are cryptographically strong and content-bound to prevent
@@ -2675,6 +2717,8 @@ export {
     initDB,
     closeDB,
     generateUniqueId,
+    isSafeEntityId,
+    sanitizeEntityIds,
     
     // Storage availability checks
     isLocalStorageAvailable,
@@ -2749,4 +2793,4 @@ export {
     
     // Warning functions
     showStorageWarning
-};
+};
