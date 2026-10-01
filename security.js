@@ -45,6 +45,8 @@ import {
     isUnlocked,
     getFailedPinAttempts,
     setFailedPinAttempts,
+    getPinLockoutUntil,
+    setPinLockoutUntil,
     preLockActiveTab,
     setPreLockActiveTab,
     activeAppTab,
@@ -182,7 +184,7 @@ async function deriveKey(password, salt) {
         {
             name: 'PBKDF2',
             salt: salt,
-            iterations: 100000,
+            iterations: CONSTANTS.CRYPTO_PBKDF2_ITERATIONS,
             hash: 'SHA-256'
         },
         keyMaterial,
@@ -488,35 +490,6 @@ function showPasswordDialog(config) {
 // ================================
 
 /**
- * Legacy PIN hashing function using simple character code accumulation.
- * 
- * @deprecated Since version 2.0.0 - kept only for backwards compatibility with existing PIN hashes.
- * This function uses a weak hashing algorithm and should not be used for new PIN storage.
- * New PINs should use hashPinSecure() which implements PBKDF2 with salt.
- * 
- * This function is only used during PIN verification to support users who set their
- * PIN before the security upgrade. After successful verification, the PIN should be
- * migrated to the secure format.
- * 
- * @param {string} pin - PIN string to hash (typically 4-6 digits)
- * @returns {string} Simple hash as string (not cryptographically secure)
- * @since 1.0.0
- * @example
- * // Only used internally for legacy PIN verification
- * const legacyHash = hashPinLegacy('123456');
- * console.log(typeof legacyHash); // 'string'
- */
-function hashPinLegacy(pin) {
-    let hash = 0;
-    for (let i = 0; i < pin.length; i++) {
-        const char = pin.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString();
-}
-
-/**
  * Securely hashes a PIN using PBKDF2 with salt and configurable iterations.
  * 
  * This function implements secure PIN storage using industry-standard PBKDF2
@@ -585,51 +558,6 @@ async function hashPinSecure(pin, salt = null) {
     }
 }
 
-/**
- * Detects whether stored PIN data uses legacy or secure format for backwards compatibility.
- * 
- * Determines the format of stored PIN data to handle migration from legacy (simple hash string)
- * to secure format (JSON object with hash and salt). This enables seamless upgrade of existing
- * user PINs without requiring re-entry.
- * 
- * Format detection rules:
- * - Legacy: Plain string (simple hash) or non-JSON data
- * - Secure: Valid JSON string containing 'hash' and 'salt' properties
- * 
- * @param {string} storedData - Stored PIN data from storage system
- * @returns {boolean} True if data uses legacy format, false if secure format
- * @since 2.0.0
- * @example
- * // Legacy format detection
- * console.log(isLegacyPinFormat('12345678')); // true (plain hash string)
- * 
- * @example
- * // Secure format detection
- * const secureData = JSON.stringify({ hash: 'abc123...', salt: 'def456...' });
- * console.log(isLegacyPinFormat(secureData)); // false (JSON with hash/salt)
- * 
- * @example
- * // Usage in PIN verification
- * if (isLegacyPinFormat(storedData)) {
- *   // Use legacy verification method
- *   return hashPinLegacy(enteredPin) === storedData;
- * } else {
- *   // Use secure verification method
- *   const { hash, salt } = JSON.parse(storedData);
- *   return await verifySecurePin(enteredPin, hash, salt);
- * }
- */
-function isLegacyPinFormat(storedData) {
-    if (typeof storedData === 'string') {
-        try {
-            const parsed = JSON.parse(storedData);
-            return !(parsed && parsed.hash && parsed.salt);
-        } catch (e) {
-            return true; // Not JSON, so it's legacy
-        }
-    }
-    return true;
-}
     
 // ================================
 // 4. PIN STORAGE & MANAGEMENT
@@ -720,6 +648,74 @@ function isLegacyPinFormat(storedData) {
      */
     
 /**
+ * Compares two hex strings in time independent of where they first differ.
+ *
+ * @param {string} a - First hex string
+ * @param {string} b - Second hex string
+ * @returns {boolean} True when both strings are identical
+ */
+function timingSafeEqualHex(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+/**
+ * Computes how long entry is locked after a number of consecutive failures.
+ *
+ * No lockout up to FAILED_PIN_ATTEMPT_LIMIT failures; after that the delay starts at
+ * PIN_LOCKOUT_BASE_MS and doubles with each further failure, capped at PIN_LOCKOUT_MAX_MS.
+ *
+ * @param {number} attempts - Consecutive failed attempts
+ * @returns {number} Lockout duration in milliseconds (0 for none)
+ */
+function computePinLockoutMs(attempts) {
+    const over = attempts - CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT;
+    if (!(over >= 0)) return 0;
+    return Math.min(CONSTANTS.PIN_LOCKOUT_BASE_MS * Math.pow(2, over), CONSTANTS.PIN_LOCKOUT_MAX_MS);
+}
+
+/**
+ * Records a failed PIN/password attempt and starts a persisted lockout when due.
+ * The counter and lockout survive page reloads.
+ *
+ * @returns {number} Total failed attempts so far
+ */
+function registerFailedPinAttempt() {
+    const attempts = getFailedPinAttempts() + 1;
+    setFailedPinAttempts(attempts);
+    const lockoutMs = computePinLockoutMs(attempts);
+    if (lockoutMs > 0) {
+        setPinLockoutUntil(Date.now() + lockoutMs);
+    }
+    return attempts;
+}
+
+/**
+ * Gets the remaining lockout time, in milliseconds.
+ *
+ * @returns {number} Milliseconds until entry is allowed again (0 when not locked out)
+ */
+function getPinLockoutRemainingMs() {
+    return Math.max(0, getPinLockoutUntil() - Date.now());
+}
+
+/**
+ * Formats a lockout message such as "Too many attempts. Try again in 30 seconds."
+ *
+ * @param {number} ms - Remaining lockout in milliseconds
+ * @returns {string} User-facing message
+ */
+function formatPinLockoutMessage(ms) {
+    const seconds = Math.ceil(ms / 1000);
+    const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute(s)` : `${seconds} second(s)`;
+    return `Too many incorrect attempts. Try again in ${wait}.`;
+}
+
+/**
      * Removes stored PIN hash data from all storage systems.
      * 
      * Completely removes PIN protection by deleting the stored hash and version
@@ -739,27 +735,20 @@ async function verifyPinHash(enteredPin, storedData) {
     if (!storedData || !enteredPin) return false;
     
     try {
-        // Check for legacy format first
-        if (isLegacyPinFormat(storedData)) {
-            const legacyHash = hashPinLegacy(enteredPin);
-            return legacyHash === storedData;
-        }
-        
-        // Handle secure format
         const stored = JSON.parse(storedData);
         if (!stored.hash || !stored.salt) return false;
-        
+
         // Convert hex salt back to Uint8Array
         const saltArray = [];
         for (let i = 0; i < stored.salt.length; i += 2) {
             saltArray.push(parseInt(stored.salt.substr(i, 2), 16));
         }
         const salt = new Uint8Array(saltArray);
-        
-        // Hash the entered PIN with the stored salt
+
+        // Hash the entered PIN with the stored salt and compare without early exit
         const hashedEntered = await hashPinSecure(enteredPin, salt);
-        return hashedEntered.hash === stored.hash;
-        
+        return timingSafeEqualHex(hashedEntered.hash, stored.hash);
+
     } catch (error) {
         console.error('PIN verification error:', error);
         return false;
@@ -1300,6 +1289,13 @@ async function verifyLockScreenPin() {
             showLockScreenMessage('error', 'Please enter a PIN');
             return;
         }
+
+        const lockoutMs = getPinLockoutRemainingMs();
+        if (lockoutMs > 0) {
+            pinInput.value = '';
+            showLockScreenMessage('error', formatPinLockoutMessage(lockoutMs));
+            return;
+        }
         
         try {
             const storedData = getStoredPinData();
@@ -1328,7 +1324,7 @@ async function verifyLockScreenPin() {
                 }, 200);
                 
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                registerFailedPinAttempt();
                 pinInput.value = '';
                 if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                     showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
@@ -1366,6 +1362,13 @@ async function verifyLockScreenPin() {
             return;
         }
 
+        const lockoutMs = getPinLockoutRemainingMs();
+        if (lockoutMs > 0) {
+            feedback.textContent = formatPinLockoutMessage(lockoutMs);
+            document.getElementById('pinInput').value = '';
+            return;
+        }
+
         try {
             const storedData = getStoredPinData();
             if (!storedData) {
@@ -1399,11 +1402,11 @@ async function verifyLockScreenPin() {
                     });
                 }, 100);
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                registerFailedPinAttempt();
                 feedback.innerHTML = '<span style="color: var(--error-color);">Incorrect PIN. Please try again.</span>';
                 document.getElementById('pinInput').value = '';
 
-                if (getFailedPinAttempts() >= CONSTANTS.PIN_MAX_ATTEMPTS) {
+                if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                     setTimeout(() => showForgotPin(), 100);
                 }
             }
@@ -3341,6 +3344,12 @@ async function verifyEncryptionPassword() {
         return;
     }
 
+    const lockoutMs = getPinLockoutRemainingMs();
+    if (lockoutMs > 0) {
+        showMessage('error', formatPinLockoutMessage(lockoutMs));
+        return;
+    }
+
     // Disable unlock button to prevent multiple attempts
     setUnlockButtonState(false);
 
@@ -3403,7 +3412,7 @@ async function verifyEncryptionPassword() {
             // Re-enable button for retry
             setUnlockButtonState(true);
 
-            setFailedPinAttempts(getFailedPinAttempts() + 1);
+            registerFailedPinAttempt();
             const attempts = getFailedPinAttempts();
 
             // Enhanced error feedback with attempt tracking
@@ -4232,9 +4241,11 @@ export {
     decryptData,
     
     // PIN management functions
-    hashPinLegacy,
     hashPinSecure,
-    isLegacyPinFormat,
+    timingSafeEqualHex,
+    computePinLockoutMs,
+    registerFailedPinAttempt,
+    getPinLockoutRemainingMs,
     isPinSetup,
     verifyPinHash,
     verifyPin,

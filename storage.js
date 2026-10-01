@@ -599,15 +599,16 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         // High-precision timestamp (milliseconds since epoch)
         const timestamp = Date.now();
         
-        // Generate multiple high-entropy random components
-        const random1 = Math.random().toString(36).substr(2, 4);
-        const random2 = Math.random().toString(36).substr(2, 4);
-        const random3 = Math.random().toString(36).substr(2, 4);
-        
+        // Cryptographically secure random components (Math.random is predictable)
+        const randomBytes = crypto.getRandomValues(new Uint32Array(3));
+        const random1 = randomBytes[0].toString(36).padStart(4, '0').slice(-4);
+        const random2 = randomBytes[1].toString(36).padStart(4, '0').slice(-4);
+        const random3 = randomBytes[2].toString(36).padStart(8, '0').slice(-8);
+
         // Add microsecond-level precision using performance.now() if available
         const microTime = (typeof performance !== 'undefined' && performance.now) 
             ? performance.now().toString().replace('.', '')
-            : Math.random().toString().slice(2, 8);
+            : crypto.getRandomValues(new Uint32Array(1))[0].toString().slice(0, 6);
         
         let hashComponent = '';
         
@@ -621,7 +622,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 microTime, // High-precision timing
                 random1, // First random component
                 random2, // Second random component
-                Math.random().toString() // Additional entropy per call
+                crypto.getRandomValues(new Uint32Array(1))[0].toString() // Additional entropy per call
             ].join('|');
             
             // Enhanced hash function with better distribution

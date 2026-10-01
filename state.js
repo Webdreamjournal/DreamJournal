@@ -475,6 +475,8 @@ let isUnlocked = false;
  * @since 1.0.0
  */
 let failedPinAttempts = 0;
+const FAILED_PIN_ATTEMPTS_KEY = 'dreamJournalFailedPinAttempts';
+const PIN_LOCKOUT_UNTIL_KEY = 'dreamJournalPinLockoutUntil';
     
 // ===================================================================================
 // FORM & TAB STATE MANAGEMENT
@@ -1384,6 +1386,17 @@ function getCurrentTipIndex() {
  */
 function setFailedPinAttempts(attempts) {
     failedPinAttempts = attempts;
+    // Persist so reloading the page cannot be used to reset the counter
+    try {
+        if (attempts > 0) {
+            localStorage.setItem(FAILED_PIN_ATTEMPTS_KEY, String(attempts));
+        } else {
+            localStorage.removeItem(FAILED_PIN_ATTEMPTS_KEY);
+            localStorage.removeItem(PIN_LOCKOUT_UNTIL_KEY);
+        }
+    } catch (e) {
+        // Storage unavailable: fall back to in-memory counting only
+    }
 }
 
 /**
@@ -1393,7 +1406,46 @@ function setFailedPinAttempts(attempts) {
  * @since 2.02.06
  */
 function getFailedPinAttempts() {
+    try {
+        const stored = parseInt(localStorage.getItem(FAILED_PIN_ATTEMPTS_KEY), 10);
+        if (Number.isFinite(stored) && stored > failedPinAttempts) {
+            failedPinAttempts = stored;
+        }
+    } catch (e) {
+        // Storage unavailable: use in-memory value
+    }
     return failedPinAttempts;
+}
+
+/**
+ * Gets the timestamp (ms since epoch) until which PIN/password entry is locked out.
+ *
+ * @returns {number} Lockout end time, or 0 when not locked out
+ */
+function getPinLockoutUntil() {
+    try {
+        const until = parseInt(localStorage.getItem(PIN_LOCKOUT_UNTIL_KEY), 10);
+        return Number.isFinite(until) ? until : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+/**
+ * Sets (or with 0 clears) the PIN/password lockout end time.
+ *
+ * @param {number} until - Lockout end time in ms since epoch, or 0 to clear
+ */
+function setPinLockoutUntil(until) {
+    try {
+        if (until > 0) {
+            localStorage.setItem(PIN_LOCKOUT_UNTIL_KEY, String(until));
+        } else {
+            localStorage.removeItem(PIN_LOCKOUT_UNTIL_KEY);
+        }
+    } catch (e) {
+        // Storage unavailable: lockout cannot be persisted
+    }
 }
 
 /**
@@ -2140,6 +2192,8 @@ export {
     getCurrentTipIndex,
     setFailedPinAttempts,
     getFailedPinAttempts,
+    getPinLockoutUntil,
+    setPinLockoutUntil,
     getEncryptionPassword,
     setEncryptionPassword,
     getEncryptionEnabled,

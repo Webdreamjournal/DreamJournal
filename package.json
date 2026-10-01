@@ -1,0 +1,13 @@
+{
+  "name": "dream-journal",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-focused client-side dream journal PWA",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
