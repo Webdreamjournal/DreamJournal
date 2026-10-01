@@ -376,6 +376,16 @@ let scrollDebounceTimer = null;
 let memoryStorage = [];
 
 /**
+ * Replaces the in-memory dream fallback storage.
+ * (ES module imports are read-only, so other modules must use this setter.)
+ *
+ * @param {Array} dreams - Dreams to hold in memory
+ */
+function setMemoryStorage(dreams) {
+    memoryStorage = dreams;
+}
+
+/**
  * In-memory fallback storage array for voice notes when IndexedDB is unavailable.
  * 
  * Stores voice note objects temporarily when persistent storage fails.
@@ -2237,6 +2247,7 @@ export {
     
     // Fallback Storage State
     memoryStorage,
+    setMemoryStorage,
     memoryVoiceNotes,
     
     // UI State Management

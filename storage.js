@@ -22,6 +22,7 @@ import { debugLog } from './logger.js';
 import { CONSTANTS, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
 import { 
     memoryStorage, 
+    setMemoryStorage,
     memoryVoiceNotes,
     withMutex
 } from './state.js';
@@ -873,7 +874,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             }
             
             // Fallback to memory only if IndexedDB fails
-            memoryStorage = [...dreams];
+            setMemoryStorage([...dreams]);
             debugLog('IndexedDB unavailable, dreams saved to memory fallback');
             
             if (storageType !== 'memory') {

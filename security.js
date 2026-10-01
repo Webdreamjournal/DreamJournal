@@ -49,6 +49,7 @@ import {
     getPinLockoutUntil,
     setPinLockoutUntil,
     preLockActiveTab,
+    getPreLockActiveTab,
     setPreLockActiveTab,
     activeAppTab,
     setUnlocked,
@@ -2248,6 +2249,34 @@ async function confirmDataWipe() {
     }
 
 /**
+     * Shows the running PIN reset timer on the PIN overlay.
+     *
+     * Displayed when the user starts the 72-hour timer, or opens "Forgot PIN?" while a
+     * timer is already counting down. Offers cancelling the timer or closing the overlay.
+     *
+     * @param {number} remainingMs - Milliseconds left on the reset timer
+     * @since 2.05.06
+     */
+    function showTimerRecovery(remainingMs) {
+        const totalHours = Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)));
+        const days = Math.floor(totalHours / 24);
+        const hours = totalHours % 24;
+        const remaining = days > 0 ? `${days} day(s) ${hours} hour(s)` : `${hours} hour(s)`;
+        const pinContainer = document.querySelector('#pinOverlay .pin-container');
+        renderPinScreen(pinContainer, {
+            title: 'PIN Reset Timer Active',
+            icon: '⏳',
+            message: `Your PIN will be removed automatically in about <strong>${remaining}</strong>.<br><br>` +
+                '<span style="color: var(--text-secondary);">Your dreams will remain safe and will not be deleted. ' +
+                'You can cancel the timer at any time.</span>',
+            buttons: [
+                { text: 'Cancel Timer', action: 'cancel-timer', class: 'btn-secondary' },
+                { text: 'Close', action: 'hide-pin-overlay', class: 'btn-primary' }
+            ]
+        });
+    }
+
+/**
      * Initiates the timer-based PIN recovery process.
      * 
      * Displays a confirmation dialog explaining the 72-hour timer recovery method.
@@ -4281,6 +4310,8 @@ export {
     startTitleRecovery,
     verifyDreamTitles,
     startTimerRecovery,
+    showTimerRecovery,
+    showLockScreenMessage,
     startLockScreenTimerRecovery,
     startLockScreenTitleRecovery,
     verifyLockScreenDreamTitles,

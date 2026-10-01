@@ -44,7 +44,7 @@
 
 import { CONSTANTS } from './constants.js';
 import { calendarState } from './state.js';
-import { loadDreams, loadGoals } from './storage.js';
+import { loadDreams, loadGoals, loadVoiceNotes } from './storage.js';
 import {
     createInlineMessage,
     escapeHtml,

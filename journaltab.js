@@ -19,6 +19,7 @@ import { debugLog } from './logger.js';
 import { setIsDreamFormCollapsed, getIsJournalControlsCollapsed, setIsJournalControlsCollapsed } from './state.js';
 import { DREAM_FORM_COLLAPSE_KEY, JOURNAL_CONTROLS_COLLAPSE_KEY } from './constants.js';
 import { getCurrentPaginationPreference } from './dom-helpers.js';
+import { initializeFormValidation } from './form-validation.js';
 
 /**
  * Generates the pagination limit dropdown options with the correct selection.
@@ -392,6 +393,9 @@ function renderJournalTab(tabPanel) {
     // This prevents timing race condition where user sees both forms hidden
     applyDreamFormStateAfterRender();
     applyJournalControlsStateAfterRender();
+
+    // The dream form now exists: attach real-time validation to it
+    initializeFormValidation();
 }
 
 /**

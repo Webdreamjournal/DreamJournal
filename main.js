@@ -49,7 +49,7 @@
 import { debugLog } from './logger.js';
 import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, commonEmotions, DREAM_FORM_COLLAPSE_KEY, cacheDailyTip } from './constants.js';
 import {
-    getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
+    getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, setFailedPinAttempts,
     deleteTimeouts, voiceDeleteTimeouts, goalDeleteTimeouts, searchDebounceTimer, filterDebounceTimer,
     scrollDebounceTimer, recordingTimer, currentPlayingAudio, mediaRecorder,
     isDreamFormCollapsed, setIsDreamFormCollapsed, setUnlocked, setAppLocked, setPreLockActiveTab, getActiveAppTab,
@@ -99,6 +99,7 @@ import { installPWA, setupPWAInstall } from './pwa.js';
 
 // Cloud sync system
 import { initializeCloudSync } from './cloud-sync.js';
+
 
 // ================================
 // MAIN APPLICATION INITIALIZATION MODULE
@@ -769,7 +770,7 @@ async function initializeApp() {
         removePinHash();
         setUnlocked(true);
         setAppLocked(false);
-        failedPinAttempts = 0;
+        setFailedPinAttempts(0);
         timerExpiredAndRemovedPin = true;
     }
 
@@ -862,10 +863,6 @@ async function initializeApp() {
             await initializeJournalTab();
         }
 
-        // Initialize form validation system
-        if (typeof initializeFormValidation === 'function') {
-            initializeFormValidation();
-        }
     }
 
     // Restore dream form collapse state preference

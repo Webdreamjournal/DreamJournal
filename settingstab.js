@@ -86,7 +86,7 @@ import {
     getIsSettingsCloudSyncCollapsed,
     setIsSettingsCloudSyncCollapsed
 } from './state.js';
-import { isPinSetup } from './security.js';
+import { isPinSetup, showEncryptionProgress, showDecryptionProgress, updateSecurityControls } from './security.js';
 import { getVoiceCapabilities } from './voice-notes.js';
 
 // Import PWA functions from pwa.js
@@ -1882,9 +1882,7 @@ function initializeSettingsTab() {
         // Use setTimeout to allow DOM to fully render first
         setTimeout(() => {
             // Update security controls and PIN button states
-            if (typeof updateSecurityControls === 'function') {
-                updateSecurityControls();
-            }
+            updateSecurityControls();
             
             // Always update theme select - this fixes the tab switching issue
             const themeSelect = document.getElementById('themeSelect');

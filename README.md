@@ -66,12 +66,23 @@ You need a modern web browser and a way to run a local web server. Python is an 
     *   If you have Python 2: `python -m SimpleHTTPServer`
 4.  Open your browser and navigate to `http://localhost:8000` (or the port specified by your server).
 
+**Tests and linting** (Node 20 or newer):
+```sh
+npm install
+npm run lint   # catches undefined identifiers and other runtime errors
+npm test       # crypto, PIN lockout, import sanitising, CSP and consistency checks
+```
+
+**Debug logging:** diagnostics are silent by default. To see them, run `localStorage.setItem('dreamJournalDebug', 'true')` in the browser console and reload. `console.warn` and `console.error` always print.
+
+**Releasing:** bump `APP_VERSION` in `version.js`, then update the README badge, the `index.html` footer and the `CACHE_NAME` in `sw.js` to match (`npm test` fails if they drift).
+
 ## Key Features
 
 *   **📝  Complete Dream Journaling:** Record your dreams with titles, descriptions, dates, emotions, tags, and dream signs.
-*   **🔒 Privacy First:** All data is stored locally on your device. Nothing is ever sent to a server.
+*   **🔒 Privacy First:** All data is stored locally on your device. Nothing is sent anywhere unless you connect the optional Dropbox sync.
 *   **🔐 Robust Security:**
-    *   **PIN Protection:** Secure your journal with a 4-6 digit PIN.
+    *   **PIN Protection:** Hide your journal behind a 4-6 digit PIN, with escalating lockouts after repeated wrong attempts. The PIN is a screen lock, not encryption: turn on client-side encryption to protect the stored data itself.
     *   **Client-Side Encryption:** Opt-in to encrypt your entire journal with a password using the Web Crypto API (AES-256-GCM).
     *   **Secure Recovery:** Multiple PIN recovery options (dream title verification, 72-hour timer) and a secure data-wipe option for forgotten encryption passwords.
 *   **📱 Progressive Web App (PWA):** Installable on desktop and mobile devices for a native-app-like experience.

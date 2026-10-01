@@ -472,10 +472,6 @@ function showFormSubmissionFeedback(type, message, options = {}) {
         }, duration);
     }
 
-    // Use existing createInlineMessage system as fallback
-    if (typeof createInlineMessage === 'function') {
-        createInlineMessage(message, type, duration);
-    }
 }
 
 /**
@@ -517,6 +513,12 @@ function setupRealtimeValidation(formType, fieldIds, options = {}) {
             console.warn(`Field ${fieldId} not found for real-time validation setup`);
             return;
         }
+
+        // Skip fields that already have validation attached
+        if (field.dataset.validationAttached === 'true') {
+            return;
+        }
+        field.dataset.validationAttached = 'true';
 
         // Input event with debouncing
         field.addEventListener('input', (event) => {
@@ -656,8 +658,7 @@ function initializeFormValidation() {
 // EXPORTS
 // ================================
 
-// Export functions for use by other modules
-window.FormValidation = {
+export {
     validateField,
     validateForm,
     showFieldError,
@@ -666,10 +667,3 @@ window.FormValidation = {
     focusFirstError,
     initializeFormValidation
 };
-
-// Auto-initialize if DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeFormValidation);
-} else {
-    initializeFormValidation();
-}

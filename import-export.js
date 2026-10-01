@@ -44,12 +44,14 @@ import {
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
-import { announceLiveMessage, createInlineMessage, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, switchAppTab, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
 import {
     encryptData,
     decryptData,
-    isPinSetup
+    isPinSetup,
+    showLockScreenMessage
 } from './security.js';
+import { ACTION_MAP } from './action-router.js';
 import { 
     displayDreams, 
     filterDreams,

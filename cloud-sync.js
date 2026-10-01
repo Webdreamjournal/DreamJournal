@@ -47,6 +47,7 @@ if (typeof window === 'undefined') {
 
 // Import required dependencies
 import { debugLog } from './logger.js';
+import { encryptWithDeviceKey, decryptWithDeviceKey, DEVICE_KEY_PREFIX } from './device-key.js';
 import { APP_VERSION } from './version.js';
 import {
     CONSTANTS,
@@ -492,9 +493,8 @@ async function handleOAuthCallback() {
 async function storeTokensSecurely(tokenData) {
     try {
         // Encrypt with the user's encryption password when the security system is active;
-        // otherwise fall back to plaintext so the OAuth flow still works for users who
-        // haven't enabled encryption. Existing plaintext tokens remain readable because
-        // decryptTokenIfNeeded() only runs when the ENCRYPTED_TOKEN_PREFIX sentinel is present.
+        // otherwise wrap with the per-device non-extractable key (see device-key.js).
+        // Values without a known prefix are treated as legacy plaintext by decryptTokenIfNeeded().
         setDropboxAccessToken(await encryptTokenIfEnabled(tokenData.access_token));
         if (tokenData.refresh_token) {
             setDropboxRefreshToken(await encryptTokenIfEnabled(tokenData.refresh_token));
@@ -515,16 +515,17 @@ async function storeTokensSecurely(tokenData) {
 
 /**
  * Sentinel prefix marking a token stored in encrypted form. Lets us
- * distinguish encrypted payloads from legacy plaintext tokens written
- * before real encryption was wired up, so both can coexist during upgrade.
+ * distinguish password-encrypted payloads from device-key ("dev:v1:") and
+ * legacy plaintext tokens.
  * @type {string}
  * @private
  */
 const ENCRYPTED_TOKEN_PREFIX = 'enc:v1:';
 
 /**
- * Encrypts a token with the user's encryption password when the security
- * system is active, otherwise returns the plaintext token unchanged.
+ * Encrypts a token with the user's encryption password when encryption is enabled and
+ * the password is available; otherwise wraps it with the per-device non-extractable key.
+ * Never returns a readable token for a non-empty input.
  *
  * Returns `null`/empty passthrough unchanged so callers can pass raw
  * tokenData fields without null-checking first.
@@ -538,34 +539,27 @@ const ENCRYPTED_TOKEN_PREFIX = 'enc:v1:';
  */
 async function encryptTokenIfEnabled(plainToken) {
     if (!plainToken) return plainToken;
-    if (!getEncryptionEnabled()) return plainToken;
-    const password = getEncryptionPassword();
-    if (!password) {
-        console.warn('Encryption enabled but password unavailable; storing Dropbox token in plaintext');
-        return plainToken;
+    if (getEncryptionEnabled()) {
+        const password = getEncryptionPassword();
+        if (password) {
+            const encrypted = await encryptData(plainToken, password);
+            return ENCRYPTED_TOKEN_PREFIX + btoa(String.fromCharCode(...encrypted));
+        }
     }
-    const encrypted = await encryptData(plainToken, password);
-    return ENCRYPTED_TOKEN_PREFIX + btoa(String.fromCharCode(...encrypted));
+    // No encryption password available: wrap with the per-device non-extractable key so the
+    // token is never stored readable. Throws if secure storage is unavailable rather than
+    // silently falling back to plaintext.
+    try {
+        return await encryptWithDeviceKey(plainToken);
+    } catch (error) {
+        console.error('Device key unavailable:', error);
+        throw new Error('Secure token storage is unavailable in this browser, so Dropbox sync cannot be enabled.');
+    }
 }
 
-/**
- * Decrypts a token previously written by encryptTokenIfEnabled().
- *
- * Returns plaintext unchanged when the sentinel prefix is absent so
- * legacy tokens stored before encryption was enabled keep working.
- * Returns null when the token is encrypted but the password is
- * unavailable (e.g. app is locked) so callers can re-prompt instead
- * of receiving ciphertext.
- *
- * @async
- * @function
- * @param {string|null|undefined} storedValue - Raw value from state.js token getter
- * @returns {Promise<string|null>} Plaintext token, or null if unavailable/undecryptable
- * @since 2.05.02
- * @private
- */
 async function decryptTokenIfNeeded(storedValue) {
     if (!storedValue) return null;
+    if (storedValue.startsWith(DEVICE_KEY_PREFIX)) return decryptWithDeviceKey(storedValue);
     if (!storedValue.startsWith(ENCRYPTED_TOKEN_PREFIX)) return storedValue;
     const password = getEncryptionPassword();
     if (!password) {
