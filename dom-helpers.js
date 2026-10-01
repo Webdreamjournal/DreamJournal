@@ -6,7 +6,7 @@
  * HSL-based theme system and centralized event handling via data-action attributes.
  * 
  * @module DOMHelpers
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -22,6 +22,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
+import { debugLog } from './logger.js';
 import {
     CONSTANTS,
     DREAM_FORM_COLLAPSE_KEY,
@@ -83,7 +84,7 @@ import {
     getActiveVoiceTab,
     setActiveVoiceTab
 } from './state.js';
-import { isLocalStorageAvailable, getAutocompleteSuggestions } from './storage.js';
+import { isLocalStorageAvailable, getAutocompleteSuggestions, storageType } from './storage.js';
 import { getResetTime, updateSecurityControls, isPinSetup } from './security.js';
 import { initGoals, renderGoalsTab, initializeGoalsTab } from './goalstab.js';
 import { renderJournalTab, initializeJournalTab } from './journaltab.js';
@@ -388,7 +389,7 @@ function escapeHtml(text) {
  */
 function escapeAttr(text) {
     if (text == null) return '';
-    return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -849,7 +850,7 @@ function ensureTabInfrastructure() {
             `;
 
             appTabs.parentNode.insertBefore(tabContainer, appTabs.nextSibling);
-            console.log('Tab container created successfully');
+            debugLog('Tab container created successfully');
         } else {
             console.error('Cannot create tab container - missing DOM elements');
             return null;
@@ -978,7 +979,7 @@ function createTabPanel(tabId, tabContainer) {
         tabPanel.innerHTML = `
             <div class="message-error">
                 Error loading ${friendlyName} tab. Please refresh the page.
-                <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                <button data-action="reload-app" class="btn btn-primary mt-sm">Refresh</button>
             </div>
         `;
     }
@@ -1237,7 +1238,7 @@ function switchAppTab(tabName, isInitialLoad = false) {
             existingJournalTab.innerHTML = `
                 <div class="message-error">
                     Error loading Journal tab. Please refresh the page.
-                    <button onclick="location.reload()" class="btn btn-primary mt-sm">Refresh</button>
+                    <button data-action="reload-app" class="btn btn-primary mt-sm">Refresh</button>
                 </div>
             `;
         }
@@ -1276,7 +1277,7 @@ function hideAllTabButtons() {
             button.style.display = 'none';
         }
     });
-    console.log('Hid all tab buttons except lock tab');
+    debugLog('Hid all tab buttons except lock tab');
 }
         
 /**
@@ -1300,7 +1301,7 @@ function showAllTabButtons() {
             button.style.display = 'block';
         }
     });
-    console.log('Showed all tab buttons');
+    debugLog('Showed all tab buttons');
 }
 
 // ===================================================================================
@@ -1373,7 +1374,7 @@ function syncSettingsDisplay() {
             
             // Double-check the value was set correctly
             if (themeSelect.value !== currentTheme) {
-                console.log('Theme select sync issue, forcing update');
+                debugLog('Theme select sync issue, forcing update');
                 setTimeout(() => {
                     const themeSelectDelayed = document.getElementById('themeSelect');
                     if (themeSelectDelayed) {
@@ -3304,12 +3305,12 @@ function createGoalElement(goal, progress, isCompleted = false) {
             <h4>${escapeHtml(goal.icon)} ${escapeHtml(goal.title)}</h4>
             <div class="goal-actions">
                 ${!isCompleted ? `
-                    <button data-action="edit-goal" data-goal-id="${goal.id}" class="btn btn-outline btn-small">Edit</button>
-                    <button data-action="complete-goal" data-goal-id="${goal.id}" class="btn btn-success btn-small">Complete</button>
+                    <button data-action="edit-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small">Edit</button>
+                    <button data-action="complete-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-success btn-small">Complete</button>
                 ` : `
-                    <button data-action="reactivate-goal" data-goal-id="${goal.id}" class="btn btn-warning btn-small">Reactivate</button>
+                    <button data-action="reactivate-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-warning btn-small">Reactivate</button>
                 `}
-                <button data-action="delete-goal" data-goal-id="${goal.id}" class="btn btn-error btn-small">Delete</button>
+                <button data-action="delete-goal" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-error btn-small">Delete</button>
             </div>
         </div>
         <p class="text-secondary mb-md">${escapeHtml(goal.description)}</p>
@@ -3330,9 +3331,9 @@ function createGoalElement(goal, progress, isCompleted = false) {
             ${goal.type === 'custom' && !isCompleted ? `
                 <div class="custom-goal-controls mt-md">
                     <div class="flex-center gap-md">
-                        <button data-action="decrease-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small" ${progress.current <= 0 ? 'disabled' : ''}>➖</button>
+                        <button data-action="decrease-goal-progress" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small" ${progress.current <= 0 ? 'disabled' : ''}>➖</button>
                         <span class="font-semibold">Manual Tracking</span>
-                        <button data-action="increase-goal-progress" data-goal-id="${goal.id}" class="btn btn-outline btn-small">➕</button>
+                        <button data-action="increase-goal-progress" data-goal-id="${escapeAttr(goal.id)}" class="btn btn-outline btn-small">➕</button>
                     </div>
                 </div>
             ` : ''}

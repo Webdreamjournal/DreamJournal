@@ -20,7 +20,7 @@
  * 11. Dream Signs Analysis - Dream sign frequency and lucidity effectiveness
  * 
  * @module StatisticsModule
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires storage
@@ -44,7 +44,7 @@
 
 import { CONSTANTS } from './constants.js';
 import { calendarState } from './state.js';
-import { loadDreams, loadGoals } from './storage.js';
+import { loadDreams, loadGoals, loadVoiceNotes } from './storage.js';
 import {
     createInlineMessage,
     escapeHtml,

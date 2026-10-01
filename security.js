@@ -17,7 +17,7 @@
  * - Password dialog system for import/export operations
  * 
  * @module Security
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -39,13 +39,17 @@
 // ES MODULE IMPORTS
 // ================================
 
+import { debugLog } from './logger.js';
 import { CONSTANTS } from './constants.js';
 import {
     isAppLocked,
     isUnlocked,
     getFailedPinAttempts,
     setFailedPinAttempts,
+    getPinLockoutUntil,
+    setPinLockoutUntil,
     preLockActiveTab,
+    getPreLockActiveTab,
     setPreLockActiveTab,
     activeAppTab,
     setUnlocked,
@@ -182,7 +186,7 @@ async function deriveKey(password, salt) {
         {
             name: 'PBKDF2',
             salt: salt,
-            iterations: 100000,
+            iterations: CONSTANTS.CRYPTO_PBKDF2_ITERATIONS,
             hash: 'SHA-256'
         },
         keyMaterial,
@@ -488,35 +492,6 @@ function showPasswordDialog(config) {
 // ================================
 
 /**
- * Legacy PIN hashing function using simple character code accumulation.
- * 
- * @deprecated Since version 2.0.0 - kept only for backwards compatibility with existing PIN hashes.
- * This function uses a weak hashing algorithm and should not be used for new PIN storage.
- * New PINs should use hashPinSecure() which implements PBKDF2 with salt.
- * 
- * This function is only used during PIN verification to support users who set their
- * PIN before the security upgrade. After successful verification, the PIN should be
- * migrated to the secure format.
- * 
- * @param {string} pin - PIN string to hash (typically 4-6 digits)
- * @returns {string} Simple hash as string (not cryptographically secure)
- * @since 1.0.0
- * @example
- * // Only used internally for legacy PIN verification
- * const legacyHash = hashPinLegacy('123456');
- * console.log(typeof legacyHash); // 'string'
- */
-function hashPinLegacy(pin) {
-    let hash = 0;
-    for (let i = 0; i < pin.length; i++) {
-        const char = pin.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString();
-}
-
-/**
  * Securely hashes a PIN using PBKDF2 with salt and configurable iterations.
  * 
  * This function implements secure PIN storage using industry-standard PBKDF2
@@ -585,51 +560,6 @@ async function hashPinSecure(pin, salt = null) {
     }
 }
 
-/**
- * Detects whether stored PIN data uses legacy or secure format for backwards compatibility.
- * 
- * Determines the format of stored PIN data to handle migration from legacy (simple hash string)
- * to secure format (JSON object with hash and salt). This enables seamless upgrade of existing
- * user PINs without requiring re-entry.
- * 
- * Format detection rules:
- * - Legacy: Plain string (simple hash) or non-JSON data
- * - Secure: Valid JSON string containing 'hash' and 'salt' properties
- * 
- * @param {string} storedData - Stored PIN data from storage system
- * @returns {boolean} True if data uses legacy format, false if secure format
- * @since 2.0.0
- * @example
- * // Legacy format detection
- * console.log(isLegacyPinFormat('12345678')); // true (plain hash string)
- * 
- * @example
- * // Secure format detection
- * const secureData = JSON.stringify({ hash: 'abc123...', salt: 'def456...' });
- * console.log(isLegacyPinFormat(secureData)); // false (JSON with hash/salt)
- * 
- * @example
- * // Usage in PIN verification
- * if (isLegacyPinFormat(storedData)) {
- *   // Use legacy verification method
- *   return hashPinLegacy(enteredPin) === storedData;
- * } else {
- *   // Use secure verification method
- *   const { hash, salt } = JSON.parse(storedData);
- *   return await verifySecurePin(enteredPin, hash, salt);
- * }
- */
-function isLegacyPinFormat(storedData) {
-    if (typeof storedData === 'string') {
-        try {
-            const parsed = JSON.parse(storedData);
-            return !(parsed && parsed.hash && parsed.salt);
-        } catch (e) {
-            return true; // Not JSON, so it's legacy
-        }
-    }
-    return true;
-}
     
 // ================================
 // 4. PIN STORAGE & MANAGEMENT
@@ -720,6 +650,74 @@ function isLegacyPinFormat(storedData) {
      */
     
 /**
+ * Compares two hex strings in time independent of where they first differ.
+ *
+ * @param {string} a - First hex string
+ * @param {string} b - Second hex string
+ * @returns {boolean} True when both strings are identical
+ */
+function timingSafeEqualHex(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diff === 0;
+}
+
+/**
+ * Computes how long entry is locked after a number of consecutive failures.
+ *
+ * No lockout up to FAILED_PIN_ATTEMPT_LIMIT failures; after that the delay starts at
+ * PIN_LOCKOUT_BASE_MS and doubles with each further failure, capped at PIN_LOCKOUT_MAX_MS.
+ *
+ * @param {number} attempts - Consecutive failed attempts
+ * @returns {number} Lockout duration in milliseconds (0 for none)
+ */
+function computePinLockoutMs(attempts) {
+    const over = attempts - CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT;
+    if (!(over >= 0)) return 0;
+    return Math.min(CONSTANTS.PIN_LOCKOUT_BASE_MS * Math.pow(2, over), CONSTANTS.PIN_LOCKOUT_MAX_MS);
+}
+
+/**
+ * Records a failed PIN/password attempt and starts a persisted lockout when due.
+ * The counter and lockout survive page reloads.
+ *
+ * @returns {number} Total failed attempts so far
+ */
+function registerFailedPinAttempt() {
+    const attempts = getFailedPinAttempts() + 1;
+    setFailedPinAttempts(attempts);
+    const lockoutMs = computePinLockoutMs(attempts);
+    if (lockoutMs > 0) {
+        setPinLockoutUntil(Date.now() + lockoutMs);
+    }
+    return attempts;
+}
+
+/**
+ * Gets the remaining lockout time, in milliseconds.
+ *
+ * @returns {number} Milliseconds until entry is allowed again (0 when not locked out)
+ */
+function getPinLockoutRemainingMs() {
+    return Math.max(0, getPinLockoutUntil() - Date.now());
+}
+
+/**
+ * Formats a lockout message such as "Too many attempts. Try again in 30 seconds."
+ *
+ * @param {number} ms - Remaining lockout in milliseconds
+ * @returns {string} User-facing message
+ */
+function formatPinLockoutMessage(ms) {
+    const seconds = Math.ceil(ms / 1000);
+    const wait = seconds >= 60 ? `${Math.ceil(seconds / 60)} minute(s)` : `${seconds} second(s)`;
+    return `Too many incorrect attempts. Try again in ${wait}.`;
+}
+
+/**
      * Removes stored PIN hash data from all storage systems.
      * 
      * Completely removes PIN protection by deleting the stored hash and version
@@ -739,27 +737,20 @@ async function verifyPinHash(enteredPin, storedData) {
     if (!storedData || !enteredPin) return false;
     
     try {
-        // Check for legacy format first
-        if (isLegacyPinFormat(storedData)) {
-            const legacyHash = hashPinLegacy(enteredPin);
-            return legacyHash === storedData;
-        }
-        
-        // Handle secure format
         const stored = JSON.parse(storedData);
         if (!stored.hash || !stored.salt) return false;
-        
+
         // Convert hex salt back to Uint8Array
         const saltArray = [];
         for (let i = 0; i < stored.salt.length; i += 2) {
             saltArray.push(parseInt(stored.salt.substr(i, 2), 16));
         }
         const salt = new Uint8Array(saltArray);
-        
-        // Hash the entered PIN with the stored salt
+
+        // Hash the entered PIN with the stored salt and compare without early exit
         const hashedEntered = await hashPinSecure(enteredPin, salt);
-        return hashedEntered.hash === stored.hash;
-        
+        return timingSafeEqualHex(hashedEntered.hash, stored.hash);
+
     } catch (error) {
         console.error('PIN verification error:', error);
         return false;
@@ -1209,7 +1200,7 @@ function updateSecurityControls() {
         setUnlocked(true);
         setAppLocked(false);
         
-        console.log('PIN removal complete - ensuring tabs are visible');
+        debugLog('PIN removal complete - ensuring tabs are visible');
         
         // Ensure all tabs are visible (PIN is removed, no need to hide)
         showAllTabButtons();
@@ -1300,6 +1291,13 @@ async function verifyLockScreenPin() {
             showLockScreenMessage('error', 'Please enter a PIN');
             return;
         }
+
+        const lockoutMs = getPinLockoutRemainingMs();
+        if (lockoutMs > 0) {
+            pinInput.value = '';
+            showLockScreenMessage('error', formatPinLockoutMessage(lockoutMs));
+            return;
+        }
         
         try {
             const storedData = getStoredPinData();
@@ -1312,7 +1310,7 @@ async function verifyLockScreenPin() {
                 setUnlocked(true);
                 setAppLocked(false);
                 
-                console.log('Lock screen unlock successful - showing all tabs');
+                debugLog('Lock screen unlock successful - showing all tabs');
                 
                 pinInput.value = '';
                 
@@ -1328,7 +1326,7 @@ async function verifyLockScreenPin() {
                 }, 200);
                 
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                registerFailedPinAttempt();
                 pinInput.value = '';
                 if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                     showLockScreenMessage('error', 'Incorrect PIN. Use "Forgot PIN?" if needed.');
@@ -1366,6 +1364,13 @@ async function verifyLockScreenPin() {
             return;
         }
 
+        const lockoutMs = getPinLockoutRemainingMs();
+        if (lockoutMs > 0) {
+            feedback.textContent = formatPinLockoutMessage(lockoutMs);
+            document.getElementById('pinInput').value = '';
+            return;
+        }
+
         try {
             const storedData = getStoredPinData();
             if (!storedData) {
@@ -1399,11 +1404,11 @@ async function verifyLockScreenPin() {
                     });
                 }, 100);
             } else {
-                setFailedPinAttempts(getFailedPinAttempts() + 1);
+                registerFailedPinAttempt();
                 feedback.innerHTML = '<span style="color: var(--error-color);">Incorrect PIN. Please try again.</span>';
                 document.getElementById('pinInput').value = '';
 
-                if (getFailedPinAttempts() >= CONSTANTS.PIN_MAX_ATTEMPTS) {
+                if (getFailedPinAttempts() >= CONSTANTS.FAILED_PIN_ATTEMPT_LIMIT) {
                     setTimeout(() => showForgotPin(), 100);
                 }
             }
@@ -1869,13 +1874,13 @@ async function wipeAllData() {
  * await confirmDataWipe();
  */
 async function confirmDataWipe() {
-    console.log('confirmDataWipe: Function called');
+    debugLog('confirmDataWipe: Function called');
     const confirmInput = document.getElementById('wipeConfirmationInput');
     const feedback = document.getElementById('lockScreenFeedback');
     const hasPinProtection = isPinSetup();
 
     if (!confirmInput || !feedback) {
-        console.log('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
+        debugLog('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
         return;
     }
 
@@ -1883,7 +1888,7 @@ async function confirmDataWipe() {
         // Enhanced validation for PIN-protected accounts
         const pinInput = document.getElementById('wipePinInput');
         if (!pinInput) {
-            console.log('confirmDataWipe: Missing PIN input element');
+            debugLog('confirmDataWipe: Missing PIN input element');
             feedback.innerHTML = '<div class="message-base message-error">PIN input not found. Please refresh and try again.</div>';
             return;
         }
@@ -1891,11 +1896,11 @@ async function confirmDataWipe() {
         const enteredPin = pinInput.value.trim();
         const confirmText = confirmInput.value.trim();
 
-        console.log('confirmDataWipe: PIN-protected validation - PIN length:', enteredPin.length, 'text:', JSON.stringify(confirmText));
+        debugLog('confirmDataWipe: PIN-protected validation - PIN length:', enteredPin.length, 'text:', JSON.stringify(confirmText));
 
         // Validate PIN first
         if (!enteredPin || enteredPin.length < 4) {
-            console.log('confirmDataWipe: PIN validation failed - insufficient length');
+            debugLog('confirmDataWipe: PIN validation failed - insufficient length');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please enter your PIN to verify your identity.</div>';
             pinInput.focus();
             return;
@@ -1907,14 +1912,14 @@ async function confirmDataWipe() {
             const isPinValid = await verifyPinHash(enteredPin, storedData);
 
             if (!isPinValid) {
-                console.log('confirmDataWipe: PIN verification failed');
+                debugLog('confirmDataWipe: PIN verification failed');
                 feedback.innerHTML = '<div class="message-base message-error" role="alert">Incorrect PIN. Please verify your PIN and try again.</div>';
                 pinInput.value = '';
                 pinInput.focus();
                 return;
             }
 
-            console.log('confirmDataWipe: PIN verification successful');
+            debugLog('confirmDataWipe: PIN verification successful');
         } catch (error) {
             console.error('confirmDataWipe: PIN verification error:', error);
             feedback.innerHTML = '<div class="message-base message-error" role="alert">PIN verification failed. Please try again.</div>';
@@ -1924,36 +1929,36 @@ async function confirmDataWipe() {
 
         // Validate confirmation text
         if (confirmText !== 'DELETE EVERYTHING') {
-            console.log('confirmDataWipe: Text validation failed for PIN-protected account');
+            debugLog('confirmDataWipe: Text validation failed for PIN-protected account');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
             confirmInput.focus();
             return;
         }
 
-        console.log('confirmDataWipe: Both PIN and text validation passed for PIN-protected account');
+        debugLog('confirmDataWipe: Both PIN and text validation passed for PIN-protected account');
     } else {
         // Standard validation for non-PIN accounts (backward compatibility)
         const confirmText = confirmInput.value.trim();
-        console.log('confirmDataWipe: Non-PIN validation - text:', JSON.stringify(confirmText));
+        debugLog('confirmDataWipe: Non-PIN validation - text:', JSON.stringify(confirmText));
 
         if (confirmText !== 'DELETE EVERYTHING') {
-            console.log('confirmDataWipe: Text validation failed for non-PIN account');
+            debugLog('confirmDataWipe: Text validation failed for non-PIN account');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
             confirmInput.focus();
             return;
         }
 
-        console.log('confirmDataWipe: Text validation passed for non-PIN account');
+        debugLog('confirmDataWipe: Text validation passed for non-PIN account');
     }
 
-    console.log('confirmDataWipe: All validations passed, proceeding with wipe');
+    debugLog('confirmDataWipe: All validations passed, proceeding with wipe');
 
     try {
-        console.log('confirmDataWipe: Starting data wipe process');
+        debugLog('confirmDataWipe: Starting data wipe process');
         feedback.innerHTML = '<div class="message-base message-info">Wiping all data...</div>';
 
         // Import required functions
-        console.log('confirmDataWipe: Importing state functions');
+        debugLog('confirmDataWipe: Importing state functions');
         const {
             setEncryptionEnabled,
             setEncryptionPassword,
@@ -1963,22 +1968,22 @@ async function confirmDataWipe() {
         } = await import('./state.js');
 
         // Clear IndexedDB databases
-        console.log('confirmDataWipe: Getting database list');
+        debugLog('confirmDataWipe: Getting database list');
         const databases = await indexedDB.databases();
-        console.log('confirmDataWipe: Found databases:', databases.map(db => db.name));
+        debugLog('confirmDataWipe: Found databases:', databases.map(db => db.name));
 
         // First, close any existing database connections
-        console.log('confirmDataWipe: Closing any open database connections');
+        debugLog('confirmDataWipe: Closing any open database connections');
         const { closeDB } = await import('./storage.js');
         closeDB();
 
         for (const db of databases) {
             if (db.name && db.name.includes('Dream')) {
-                console.log('confirmDataWipe: Deleting database:', db.name);
+                debugLog('confirmDataWipe: Deleting database:', db.name);
                 const deleteReq = indexedDB.deleteDatabase(db.name);
                 await new Promise((resolve, reject) => {
                     deleteReq.onsuccess = () => {
-                        console.log('confirmDataWipe: Successfully deleted database:', db.name);
+                        debugLog('confirmDataWipe: Successfully deleted database:', db.name);
                         resolve();
                     };
                     deleteReq.onerror = () => {
@@ -1989,7 +1994,7 @@ async function confirmDataWipe() {
                         console.warn('confirmDataWipe: Database deletion blocked, retrying:', db.name);
                         // Database deletion is blocked, try to force close and retry
                         setTimeout(() => {
-                            console.log('confirmDataWipe: Retrying database deletion after block:', db.name);
+                            debugLog('confirmDataWipe: Retrying database deletion after block:', db.name);
                         }, 1000);
                     };
                 });
@@ -1997,14 +2002,14 @@ async function confirmDataWipe() {
         }
 
         // Clear all localStorage
-        console.log('confirmDataWipe: Clearing localStorage');
+        debugLog('confirmDataWipe: Clearing localStorage');
         if (typeof(Storage) !== "undefined" && localStorage) {
             localStorage.clear();
-            console.log('confirmDataWipe: localStorage cleared');
+            debugLog('confirmDataWipe: localStorage cleared');
         }
 
         // Clear all session state
-        console.log('confirmDataWipe: Clearing session state');
+        debugLog('confirmDataWipe: Clearing session state');
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDecryptedDataCache();
@@ -2012,12 +2017,12 @@ async function confirmDataWipe() {
         setAppLocked(false);
 
         // Clear any PIN settings
-        console.log('confirmDataWipe: Clearing PIN settings');
+        debugLog('confirmDataWipe: Clearing PIN settings');
         removePinHash();
         removeResetTime();
 
         // Show success message and redirect
-        console.log('confirmDataWipe: Showing success message');
+        debugLog('confirmDataWipe: Showing success message');
         const lockTab = document.getElementById('lockTab');
         if (lockTab) {
             lockTab.innerHTML = `
@@ -2028,7 +2033,7 @@ async function confirmDataWipe() {
                         <p class="text-secondary mb-lg line-height-relaxed">
                             All application data has been permanently deleted. The app will reload with a fresh start.
                         </p>
-                        <button onclick="window.location.reload()" class="btn btn-primary">🔄 Reload Application</button>
+                        <button data-action="reload-app" class="btn btn-primary">🔄 Reload Application</button>
                     </div>
                 </div>
             `;
@@ -2244,6 +2249,34 @@ async function confirmDataWipe() {
     }
 
 /**
+     * Shows the running PIN reset timer on the PIN overlay.
+     *
+     * Displayed when the user starts the 72-hour timer, or opens "Forgot PIN?" while a
+     * timer is already counting down. Offers cancelling the timer or closing the overlay.
+     *
+     * @param {number} remainingMs - Milliseconds left on the reset timer
+     * @since 2.05.06
+     */
+    function showTimerRecovery(remainingMs) {
+        const totalHours = Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)));
+        const days = Math.floor(totalHours / 24);
+        const hours = totalHours % 24;
+        const remaining = days > 0 ? `${days} day(s) ${hours} hour(s)` : `${hours} hour(s)`;
+        const pinContainer = document.querySelector('#pinOverlay .pin-container');
+        renderPinScreen(pinContainer, {
+            title: 'PIN Reset Timer Active',
+            icon: '⏳',
+            message: `Your PIN will be removed automatically in about <strong>${remaining}</strong>.<br><br>` +
+                '<span style="color: var(--text-secondary);">Your dreams will remain safe and will not be deleted. ' +
+                'You can cancel the timer at any time.</span>',
+            buttons: [
+                { text: 'Cancel Timer', action: 'cancel-timer', class: 'btn-secondary' },
+                { text: 'Close', action: 'hide-pin-overlay', class: 'btn-primary' }
+            ]
+        });
+    }
+
+/**
      * Initiates the timer-based PIN recovery process.
      * 
      * Displays a confirmation dialog explaining the 72-hour timer recovery method.
@@ -2349,7 +2382,7 @@ async function confirmDataWipe() {
         setUnlocked(true);
         setAppLocked(false);
         
-        console.log('PIN overlay recovery complete - showing all tabs');
+        debugLog('PIN overlay recovery complete - showing all tabs');
         
         showAllTabButtons();
         
@@ -2969,7 +3002,7 @@ async function setupPin() {
         setFailedPinAttempts(0);
         setUnlocked(true);
         setAppLocked(false);
-        console.log('PIN setup complete - ensuring tabs are visible');
+        debugLog('PIN setup complete - ensuring tabs are visible');
         showAllTabButtons();
         updateSecurityControls();
 
@@ -3058,7 +3091,7 @@ async function setupPin() {
             setUnlocked(false);
             setAppLocked(true);
             setPreLockActiveTab(activeAppTab);
-            console.log('Locking app - hiding other tabs');
+            debugLog('Locking app - hiding other tabs');
             hideAllTabButtons();
             switchAppTab('lock');
             updateSecurityControls();
@@ -3341,6 +3374,12 @@ async function verifyEncryptionPassword() {
         return;
     }
 
+    const lockoutMs = getPinLockoutRemainingMs();
+    if (lockoutMs > 0) {
+        showMessage('error', formatPinLockoutMessage(lockoutMs));
+        return;
+    }
+
     // Disable unlock button to prevent multiple attempts
     setUnlockButtonState(false);
 
@@ -3403,7 +3442,7 @@ async function verifyEncryptionPassword() {
             // Re-enable button for retry
             setUnlockButtonState(true);
 
-            setFailedPinAttempts(getFailedPinAttempts() + 1);
+            registerFailedPinAttempt();
             const attempts = getFailedPinAttempts();
 
             // Enhanced error feedback with attempt tracking
@@ -4232,9 +4271,11 @@ export {
     decryptData,
     
     // PIN management functions
-    hashPinLegacy,
     hashPinSecure,
-    isLegacyPinFormat,
+    timingSafeEqualHex,
+    computePinLockoutMs,
+    registerFailedPinAttempt,
+    getPinLockoutRemainingMs,
     isPinSetup,
     verifyPinHash,
     verifyPin,
@@ -4269,6 +4310,8 @@ export {
     startTitleRecovery,
     verifyDreamTitles,
     startTimerRecovery,
+    showTimerRecovery,
+    showLockScreenMessage,
     startLockScreenTimerRecovery,
     startLockScreenTitleRecovery,
     verifyLockScreenDreamTitles,

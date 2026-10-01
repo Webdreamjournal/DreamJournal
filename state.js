@@ -7,7 +7,7 @@
  * concurrency control, and UI state management.
  * 
  * @module State
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires none
@@ -376,6 +376,16 @@ let scrollDebounceTimer = null;
 let memoryStorage = [];
 
 /**
+ * Replaces the in-memory dream fallback storage.
+ * (ES module imports are read-only, so other modules must use this setter.)
+ *
+ * @param {Array} dreams - Dreams to hold in memory
+ */
+function setMemoryStorage(dreams) {
+    memoryStorage = dreams;
+}
+
+/**
  * In-memory fallback storage array for voice notes when IndexedDB is unavailable.
  * 
  * Stores voice note objects temporarily when persistent storage fails.
@@ -475,6 +485,8 @@ let isUnlocked = false;
  * @since 1.0.0
  */
 let failedPinAttempts = 0;
+const FAILED_PIN_ATTEMPTS_KEY = 'dreamJournalFailedPinAttempts';
+const PIN_LOCKOUT_UNTIL_KEY = 'dreamJournalPinLockoutUntil';
     
 // ===================================================================================
 // FORM & TAB STATE MANAGEMENT
@@ -1384,6 +1396,17 @@ function getCurrentTipIndex() {
  */
 function setFailedPinAttempts(attempts) {
     failedPinAttempts = attempts;
+    // Persist so reloading the page cannot be used to reset the counter
+    try {
+        if (attempts > 0) {
+            localStorage.setItem(FAILED_PIN_ATTEMPTS_KEY, String(attempts));
+        } else {
+            localStorage.removeItem(FAILED_PIN_ATTEMPTS_KEY);
+            localStorage.removeItem(PIN_LOCKOUT_UNTIL_KEY);
+        }
+    } catch (e) {
+        // Storage unavailable: fall back to in-memory counting only
+    }
 }
 
 /**
@@ -1393,7 +1416,46 @@ function setFailedPinAttempts(attempts) {
  * @since 2.02.06
  */
 function getFailedPinAttempts() {
+    try {
+        const stored = parseInt(localStorage.getItem(FAILED_PIN_ATTEMPTS_KEY), 10);
+        if (Number.isFinite(stored) && stored > failedPinAttempts) {
+            failedPinAttempts = stored;
+        }
+    } catch (e) {
+        // Storage unavailable: use in-memory value
+    }
     return failedPinAttempts;
+}
+
+/**
+ * Gets the timestamp (ms since epoch) until which PIN/password entry is locked out.
+ *
+ * @returns {number} Lockout end time, or 0 when not locked out
+ */
+function getPinLockoutUntil() {
+    try {
+        const until = parseInt(localStorage.getItem(PIN_LOCKOUT_UNTIL_KEY), 10);
+        return Number.isFinite(until) ? until : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+/**
+ * Sets (or with 0 clears) the PIN/password lockout end time.
+ *
+ * @param {number} until - Lockout end time in ms since epoch, or 0 to clear
+ */
+function setPinLockoutUntil(until) {
+    try {
+        if (until > 0) {
+            localStorage.setItem(PIN_LOCKOUT_UNTIL_KEY, String(until));
+        } else {
+            localStorage.removeItem(PIN_LOCKOUT_UNTIL_KEY);
+        }
+    } catch (e) {
+        // Storage unavailable: lockout cannot be persisted
+    }
 }
 
 /**
@@ -2140,6 +2202,8 @@ export {
     getCurrentTipIndex,
     setFailedPinAttempts,
     getFailedPinAttempts,
+    getPinLockoutUntil,
+    setPinLockoutUntil,
     getEncryptionPassword,
     setEncryptionPassword,
     getEncryptionEnabled,
@@ -2183,6 +2247,7 @@ export {
     
     // Fallback Storage State
     memoryStorage,
+    setMemoryStorage,
     memoryVoiceNotes,
     
     // UI State Management

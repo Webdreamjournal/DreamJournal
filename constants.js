@@ -5,7 +5,7 @@
  * Maintains single source of truth for consistent behavior across modules.
  * 
  * @module constants
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  */
@@ -13,6 +13,8 @@
 // ===================================================================================
 // DREAM JOURNAL CONSTANTS & CONFIGURATION
 // ===================================================================================
+
+import { debugLog } from './logger.js';
 
 /**
  * Storage key for dream form collapse state.
@@ -404,12 +406,14 @@ const CONSTANTS = {
         PIN_MIN_LENGTH: 4, // Minimum PIN length
         PIN_MAX_LENGTH: 6, // Maximum PIN length
         PASSWORD_MIN_LENGTH: 4, // Minimum password length for encryption
-        FAILED_PIN_ATTEMPT_LIMIT: 3, // Max failed attempts before lockout
+        FAILED_PIN_ATTEMPT_LIMIT: 3, // Failed attempts allowed before throttling starts
+        PIN_LOCKOUT_BASE_MS: 30000, // First lockout duration (doubles with each further failure)
+        PIN_LOCKOUT_MAX_MS: 900000, // Lockout duration cap (15 minutes)
         
         // Cryptographic Parameters for Encryption/Export
         CRYPTO_SALT_SIZE: 16, // Salt size in bytes for PBKDF2
         CRYPTO_IV_SIZE: 12, // Initialization vector size for AES-GCM
-        CRYPTO_PBKDF2_ITERATIONS: 100000, // Key derivation iterations (security)
+        CRYPTO_PBKDF2_ITERATIONS: 600000, // Key derivation iterations (OWASP 2023 guidance for PBKDF2-SHA256)
         CRYPTO_KEY_LENGTH: 256, // AES key length in bits
         
         // Performance Optimization & Debouncing
@@ -674,7 +678,7 @@ async function cacheDailyTip(dreams = []) {
                 totalTips: tipCount,
                 cachedAt: Date.now()
             };
-            console.log(`Daily tip cached: Tip ${tipOfTheDayIndex + 1} of ${tipCount}`);
+            debugLog(`Daily tip cached: Tip ${tipOfTheDayIndex + 1} of ${tipCount}`);
             return _dailyTipCache;
         }
 

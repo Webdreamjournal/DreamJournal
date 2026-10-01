@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.05.05
+ * @version 2.05.06
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -46,6 +46,9 @@ if (typeof window === 'undefined') {
 // ================================
 
 // Import required dependencies
+import { debugLog } from './logger.js';
+import { encryptWithDeviceKey, decryptWithDeviceKey, DEVICE_KEY_PREFIX } from './device-key.js';
+import { APP_VERSION } from './version.js';
 import {
     CONSTANTS,
     DEFAULT_DROPBOX_CLIENT_ID,
@@ -85,7 +88,8 @@ import {
     getAutocompleteSuggestions,
     storageType,
     saveToStore,
-    saveAutocompleteSuggestions
+    saveAutocompleteSuggestions,
+    sanitizeEntityIds
 } from './storage.js';
 
 import {
@@ -117,7 +121,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.05.05');
+debugLog(`Loading Cloud Sync Module v${APP_VERSION}`);
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -212,7 +216,7 @@ function initializeDropboxAuth() {
             fetch: fetch.bind(window) // Bind fetch to window context
         });
 
-        console.log('Dropbox authentication initialized successfully');
+        debugLog('Dropbox authentication initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Dropbox authentication:', error);
         throw error;
@@ -382,7 +386,7 @@ async function handleOAuthCallback() {
         const authCode = urlParams.get('code');
 
         if (!authCode) {
-            console.log('No authorization code found in URL');
+            debugLog('No authorization code found in URL');
             return false;
         }
 
@@ -416,7 +420,7 @@ async function handleOAuthCallback() {
         const userInfo = await fetchDropboxUserInfo();
         if (userInfo) {
             setDropboxUserInfo(userInfo);
-            console.log('Dropbox user info stored:', userInfo.email);
+            debugLog('Dropbox user info stored:', userInfo.email);
         }
 
         // Update authentication state
@@ -436,7 +440,7 @@ async function handleOAuthCallback() {
         createInlineMessage('success', '🎉 Successfully connected to Dropbox! You can now sync your dreams to the cloud.');
         announceLiveMessage('Successfully connected to Dropbox');
 
-        console.log('Dropbox authentication completed successfully');
+        debugLog('Dropbox authentication completed successfully');
         return true;
 
     } catch (error) {
@@ -489,9 +493,8 @@ async function handleOAuthCallback() {
 async function storeTokensSecurely(tokenData) {
     try {
         // Encrypt with the user's encryption password when the security system is active;
-        // otherwise fall back to plaintext so the OAuth flow still works for users who
-        // haven't enabled encryption. Existing plaintext tokens remain readable because
-        // decryptTokenIfNeeded() only runs when the ENCRYPTED_TOKEN_PREFIX sentinel is present.
+        // otherwise wrap with the per-device non-extractable key (see device-key.js).
+        // Values without a known prefix are treated as legacy plaintext by decryptTokenIfNeeded().
         setDropboxAccessToken(await encryptTokenIfEnabled(tokenData.access_token));
         if (tokenData.refresh_token) {
             setDropboxRefreshToken(await encryptTokenIfEnabled(tokenData.refresh_token));
@@ -503,7 +506,7 @@ async function storeTokensSecurely(tokenData) {
             localStorage.setItem(DROPBOX_TOKEN_EXPIRES_KEY, expiresAt.toString());
         }
 
-        console.log('Tokens stored securely');
+        debugLog('Tokens stored securely');
     } catch (error) {
         console.error('Error storing tokens:', error);
         throw error;
@@ -512,16 +515,17 @@ async function storeTokensSecurely(tokenData) {
 
 /**
  * Sentinel prefix marking a token stored in encrypted form. Lets us
- * distinguish encrypted payloads from legacy plaintext tokens written
- * before real encryption was wired up, so both can coexist during upgrade.
+ * distinguish password-encrypted payloads from device-key ("dev:v1:") and
+ * legacy plaintext tokens.
  * @type {string}
  * @private
  */
 const ENCRYPTED_TOKEN_PREFIX = 'enc:v1:';
 
 /**
- * Encrypts a token with the user's encryption password when the security
- * system is active, otherwise returns the plaintext token unchanged.
+ * Encrypts a token with the user's encryption password when encryption is enabled and
+ * the password is available; otherwise wraps it with the per-device non-extractable key.
+ * Never returns a readable token for a non-empty input.
  *
  * Returns `null`/empty passthrough unchanged so callers can pass raw
  * tokenData fields without null-checking first.
@@ -535,34 +539,27 @@ const ENCRYPTED_TOKEN_PREFIX = 'enc:v1:';
  */
 async function encryptTokenIfEnabled(plainToken) {
     if (!plainToken) return plainToken;
-    if (!getEncryptionEnabled()) return plainToken;
-    const password = getEncryptionPassword();
-    if (!password) {
-        console.warn('Encryption enabled but password unavailable; storing Dropbox token in plaintext');
-        return plainToken;
+    if (getEncryptionEnabled()) {
+        const password = getEncryptionPassword();
+        if (password) {
+            const encrypted = await encryptData(plainToken, password);
+            return ENCRYPTED_TOKEN_PREFIX + btoa(String.fromCharCode(...encrypted));
+        }
     }
-    const encrypted = await encryptData(plainToken, password);
-    return ENCRYPTED_TOKEN_PREFIX + btoa(String.fromCharCode(...encrypted));
+    // No encryption password available: wrap with the per-device non-extractable key so the
+    // token is never stored readable. Throws if secure storage is unavailable rather than
+    // silently falling back to plaintext.
+    try {
+        return await encryptWithDeviceKey(plainToken);
+    } catch (error) {
+        console.error('Device key unavailable:', error);
+        throw new Error('Secure token storage is unavailable in this browser, so Dropbox sync cannot be enabled.');
+    }
 }
 
-/**
- * Decrypts a token previously written by encryptTokenIfEnabled().
- *
- * Returns plaintext unchanged when the sentinel prefix is absent so
- * legacy tokens stored before encryption was enabled keep working.
- * Returns null when the token is encrypted but the password is
- * unavailable (e.g. app is locked) so callers can re-prompt instead
- * of receiving ciphertext.
- *
- * @async
- * @function
- * @param {string|null|undefined} storedValue - Raw value from state.js token getter
- * @returns {Promise<string|null>} Plaintext token, or null if unavailable/undecryptable
- * @since 2.05.02
- * @private
- */
 async function decryptTokenIfNeeded(storedValue) {
     if (!storedValue) return null;
+    if (storedValue.startsWith(DEVICE_KEY_PREFIX)) return decryptWithDeviceKey(storedValue);
     if (!storedValue.startsWith(ENCRYPTED_TOKEN_PREFIX)) return storedValue;
     const password = getEncryptionPassword();
     if (!password) {
@@ -646,7 +643,7 @@ async function refreshAccessToken() {
     try {
         const refreshToken = await getDecryptedRefreshToken();
         if (!refreshToken) {
-            console.log('No refresh token available');
+            debugLog('No refresh token available');
             return false;
         }
 
@@ -668,7 +665,7 @@ async function refreshAccessToken() {
         // Update Dropbox API instance
         await initializeDropboxAPI();
 
-        console.log('Access token refreshed successfully');
+        debugLog('Access token refreshed successfully');
         return true;
 
     } catch (error) {
@@ -718,7 +715,7 @@ async function initializeDropboxAPI() {
             fetch: fetch.bind(window)
         });
 
-        console.log('Dropbox API initialized successfully');
+        debugLog('Dropbox API initialized successfully');
     } catch (error) {
         console.error('Error initializing Dropbox API:', error);
         throw error;
@@ -842,12 +839,12 @@ async function importCloudData(backupData) {
             // Clear existing dreams first
             await saveToStore('dreams', []);
             // Import new dreams directly to storage (saveDream expects form inputs, not objects)
-            await saveToStore('dreams', data.dreams);
+            await saveToStore('dreams', sanitizeEntityIds(data.dreams, 'dream'));
         }
 
         // Import goals
         if (data.goals && Array.isArray(data.goals)) {
-            await saveToStore('goals', data.goals);
+            await saveToStore('goals', sanitizeEntityIds(data.goals, 'goal'));
         }
 
         // Import autocomplete data
@@ -1047,14 +1044,14 @@ async function checkForLocalChanges() {
     try {
         const lastSyncTime = getLastCloudSyncTime();
 
-        console.log('Local changes check:', {
+        debugLog('Local changes check:', {
             lastSyncTime,
             lastSyncTimeISO: lastSyncTime ? new Date(lastSyncTime).toISOString() : 'Never synced'
         });
 
         if (!lastSyncTime) {
             // No previous sync, assume local changes exist
-            console.log('No previous sync time found - assuming local changes exist');
+            debugLog('No previous sync time found - assuming local changes exist');
             return true;
         }
 
@@ -1096,7 +1093,7 @@ async function checkForLocalChanges() {
 
                 // Also check if dream has no timestamp (treat as potentially modified)
                 if (dreamTimestamp === 0) {
-                    console.log('Dream with no valid timestamp found - assuming modified:', {
+                    debugLog('Dream with no valid timestamp found - assuming modified:', {
                         dreamId: dream.id,
                         dreamTitle: dream.title,
                         lastModified: dream.lastModified,
@@ -1108,7 +1105,7 @@ async function checkForLocalChanges() {
                 }
 
                 // Enhanced debugging for timing analysis
-                console.log('Dream timing analysis:', {
+                debugLog('Dream timing analysis:', {
                     dreamId: dream.id,
                     dreamTitle: dream.title,
                     dreamTimestamp,
@@ -1124,7 +1121,7 @@ async function checkForLocalChanges() {
                 });
 
                 if (isModified) {
-                    console.log('✓ Local dream modification detected - will show conflict warning');
+                    debugLog('✓ Local dream modification detected - will show conflict warning');
                     hasChanges = true;
                 }
             }
@@ -1160,7 +1157,7 @@ async function checkForLocalChanges() {
                 const isModified = timeDifference > 1000; // 1 second tolerance (fixed)
 
                 if (isModified) {
-                    console.log('Local goal modification detected:', {
+                    debugLog('Local goal modification detected:', {
                         goalId: goal.id,
                         goalTitle: goal.title,
                         goalTimestamp,
@@ -1176,7 +1173,7 @@ async function checkForLocalChanges() {
         }
 
         // Log summary of findings
-        console.log('Local changes check complete:', {
+        debugLog('Local changes check complete:', {
             hasChanges,
             newestItemTime,
             newestItemTimeISO: newestItemTime ? new Date(newestItemTime).toISOString() : 'No items',
@@ -1403,7 +1400,7 @@ async function checkForCloudConflicts() {
         const timeDifference = cloudExportDate - localSyncTime;
 
         // Add improved logging for debugging timing issues
-        console.log('Cloud conflict check:', {
+        debugLog('Cloud conflict check:', {
             cloudExportDate,
             localSyncTime,
             timeDifference,
@@ -1417,9 +1414,9 @@ async function checkForCloudConflicts() {
         const isCloudNewer = timeDifference > CLOUD_CONFLICT_TOLERANCE_MS;
 
         if (isCloudNewer) {
-            console.log('Cloud conflict detected: Cloud data is', Math.round(timeDifference / 1000), 'seconds newer than local sync');
+            debugLog('Cloud conflict detected: Cloud data is', Math.round(timeDifference / 1000), 'seconds newer than local sync');
         } else {
-            console.log('No cloud conflict: Time difference within tolerance window');
+            debugLog('No cloud conflict: Time difference within tolerance window');
         }
 
         return isCloudNewer;
@@ -2185,7 +2182,7 @@ async function disconnectDropbox() {
         if (dropboxInstance) {
             try {
                 await dropboxInstance.authTokenRevoke();
-                console.log('Dropbox token revoked successfully');
+                debugLog('Dropbox token revoked successfully');
             } catch (revokeError) {
                 console.warn('Could not revoke token:', revokeError.message);
                 // Continue with local cleanup even if revoke fails
@@ -2253,7 +2250,7 @@ async function initializeCloudSync() {
         // Update UI to reflect current state
         updateCloudSyncUI();
 
-        console.log('Cloud sync module initialized');
+        debugLog('Cloud sync module initialized');
     } catch (error) {
         console.error('Error initializing cloud sync:', error);
     }
@@ -2341,7 +2338,7 @@ function updateCloudSyncUI() {
             }
         }
 
-        console.log('Cloud sync UI updated, authenticated:', isAuthenticated);
+        debugLog('Cloud sync UI updated, authenticated:', isAuthenticated);
     } catch (error) {
         console.error('Error updating cloud sync UI:', error);
     }
@@ -2379,10 +2376,10 @@ window.CloudSync = {
     syncFrom: syncFromCloud,
     isAuthenticated: isAuthenticated,
     getStatus: getCloudSyncStatus,
-    version: '2.04.01'
+    version: APP_VERSION
 };
 
 // ================================
 // MODULE LOADING COMPLETE
 // ================================
-console.log('Cloud Sync Module loaded successfully - Available as ES module exports and window.CloudSync');
+debugLog('Cloud Sync Module loaded successfully - Available as ES module exports and window.CloudSync');
