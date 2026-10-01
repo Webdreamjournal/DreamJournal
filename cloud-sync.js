@@ -28,7 +28,7 @@
  * - dom-helpers.js: UI utilities and messaging
  *
  * @module CloudSync
- * @version 2.05.05
+ * @version 2.05.06
  * @since 2.04.01
  * @author Dream Journal Application
  * @requires Dropbox JavaScript SDK (loaded via CDN)
@@ -46,6 +46,8 @@ if (typeof window === 'undefined') {
 // ================================
 
 // Import required dependencies
+import { debugLog } from './logger.js';
+import { APP_VERSION } from './version.js';
 import {
     CONSTANTS,
     DEFAULT_DROPBOX_CLIENT_ID,
@@ -118,7 +120,7 @@ import {
     storePaginationPreference
 } from './dom-helpers.js';
 
-console.log('Loading Cloud Sync Module v2.05.05');
+debugLog(`Loading Cloud Sync Module v${APP_VERSION}`);
 
 // ================================
 // DROPBOX CLIENT ID MANAGEMENT
@@ -213,7 +215,7 @@ function initializeDropboxAuth() {
             fetch: fetch.bind(window) // Bind fetch to window context
         });
 
-        console.log('Dropbox authentication initialized successfully');
+        debugLog('Dropbox authentication initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Dropbox authentication:', error);
         throw error;
@@ -383,7 +385,7 @@ async function handleOAuthCallback() {
         const authCode = urlParams.get('code');
 
         if (!authCode) {
-            console.log('No authorization code found in URL');
+            debugLog('No authorization code found in URL');
             return false;
         }
 
@@ -417,7 +419,7 @@ async function handleOAuthCallback() {
         const userInfo = await fetchDropboxUserInfo();
         if (userInfo) {
             setDropboxUserInfo(userInfo);
-            console.log('Dropbox user info stored:', userInfo.email);
+            debugLog('Dropbox user info stored:', userInfo.email);
         }
 
         // Update authentication state
@@ -437,7 +439,7 @@ async function handleOAuthCallback() {
         createInlineMessage('success', '🎉 Successfully connected to Dropbox! You can now sync your dreams to the cloud.');
         announceLiveMessage('Successfully connected to Dropbox');
 
-        console.log('Dropbox authentication completed successfully');
+        debugLog('Dropbox authentication completed successfully');
         return true;
 
     } catch (error) {
@@ -504,7 +506,7 @@ async function storeTokensSecurely(tokenData) {
             localStorage.setItem(DROPBOX_TOKEN_EXPIRES_KEY, expiresAt.toString());
         }
 
-        console.log('Tokens stored securely');
+        debugLog('Tokens stored securely');
     } catch (error) {
         console.error('Error storing tokens:', error);
         throw error;
@@ -647,7 +649,7 @@ async function refreshAccessToken() {
     try {
         const refreshToken = await getDecryptedRefreshToken();
         if (!refreshToken) {
-            console.log('No refresh token available');
+            debugLog('No refresh token available');
             return false;
         }
 
@@ -669,7 +671,7 @@ async function refreshAccessToken() {
         // Update Dropbox API instance
         await initializeDropboxAPI();
 
-        console.log('Access token refreshed successfully');
+        debugLog('Access token refreshed successfully');
         return true;
 
     } catch (error) {
@@ -719,7 +721,7 @@ async function initializeDropboxAPI() {
             fetch: fetch.bind(window)
         });
 
-        console.log('Dropbox API initialized successfully');
+        debugLog('Dropbox API initialized successfully');
     } catch (error) {
         console.error('Error initializing Dropbox API:', error);
         throw error;
@@ -1048,14 +1050,14 @@ async function checkForLocalChanges() {
     try {
         const lastSyncTime = getLastCloudSyncTime();
 
-        console.log('Local changes check:', {
+        debugLog('Local changes check:', {
             lastSyncTime,
             lastSyncTimeISO: lastSyncTime ? new Date(lastSyncTime).toISOString() : 'Never synced'
         });
 
         if (!lastSyncTime) {
             // No previous sync, assume local changes exist
-            console.log('No previous sync time found - assuming local changes exist');
+            debugLog('No previous sync time found - assuming local changes exist');
             return true;
         }
 
@@ -1097,7 +1099,7 @@ async function checkForLocalChanges() {
 
                 // Also check if dream has no timestamp (treat as potentially modified)
                 if (dreamTimestamp === 0) {
-                    console.log('Dream with no valid timestamp found - assuming modified:', {
+                    debugLog('Dream with no valid timestamp found - assuming modified:', {
                         dreamId: dream.id,
                         dreamTitle: dream.title,
                         lastModified: dream.lastModified,
@@ -1109,7 +1111,7 @@ async function checkForLocalChanges() {
                 }
 
                 // Enhanced debugging for timing analysis
-                console.log('Dream timing analysis:', {
+                debugLog('Dream timing analysis:', {
                     dreamId: dream.id,
                     dreamTitle: dream.title,
                     dreamTimestamp,
@@ -1125,7 +1127,7 @@ async function checkForLocalChanges() {
                 });
 
                 if (isModified) {
-                    console.log('✓ Local dream modification detected - will show conflict warning');
+                    debugLog('✓ Local dream modification detected - will show conflict warning');
                     hasChanges = true;
                 }
             }
@@ -1161,7 +1163,7 @@ async function checkForLocalChanges() {
                 const isModified = timeDifference > 1000; // 1 second tolerance (fixed)
 
                 if (isModified) {
-                    console.log('Local goal modification detected:', {
+                    debugLog('Local goal modification detected:', {
                         goalId: goal.id,
                         goalTitle: goal.title,
                         goalTimestamp,
@@ -1177,7 +1179,7 @@ async function checkForLocalChanges() {
         }
 
         // Log summary of findings
-        console.log('Local changes check complete:', {
+        debugLog('Local changes check complete:', {
             hasChanges,
             newestItemTime,
             newestItemTimeISO: newestItemTime ? new Date(newestItemTime).toISOString() : 'No items',
@@ -1404,7 +1406,7 @@ async function checkForCloudConflicts() {
         const timeDifference = cloudExportDate - localSyncTime;
 
         // Add improved logging for debugging timing issues
-        console.log('Cloud conflict check:', {
+        debugLog('Cloud conflict check:', {
             cloudExportDate,
             localSyncTime,
             timeDifference,
@@ -1418,9 +1420,9 @@ async function checkForCloudConflicts() {
         const isCloudNewer = timeDifference > CLOUD_CONFLICT_TOLERANCE_MS;
 
         if (isCloudNewer) {
-            console.log('Cloud conflict detected: Cloud data is', Math.round(timeDifference / 1000), 'seconds newer than local sync');
+            debugLog('Cloud conflict detected: Cloud data is', Math.round(timeDifference / 1000), 'seconds newer than local sync');
         } else {
-            console.log('No cloud conflict: Time difference within tolerance window');
+            debugLog('No cloud conflict: Time difference within tolerance window');
         }
 
         return isCloudNewer;
@@ -2186,7 +2188,7 @@ async function disconnectDropbox() {
         if (dropboxInstance) {
             try {
                 await dropboxInstance.authTokenRevoke();
-                console.log('Dropbox token revoked successfully');
+                debugLog('Dropbox token revoked successfully');
             } catch (revokeError) {
                 console.warn('Could not revoke token:', revokeError.message);
                 // Continue with local cleanup even if revoke fails
@@ -2254,7 +2256,7 @@ async function initializeCloudSync() {
         // Update UI to reflect current state
         updateCloudSyncUI();
 
-        console.log('Cloud sync module initialized');
+        debugLog('Cloud sync module initialized');
     } catch (error) {
         console.error('Error initializing cloud sync:', error);
     }
@@ -2342,7 +2344,7 @@ function updateCloudSyncUI() {
             }
         }
 
-        console.log('Cloud sync UI updated, authenticated:', isAuthenticated);
+        debugLog('Cloud sync UI updated, authenticated:', isAuthenticated);
     } catch (error) {
         console.error('Error updating cloud sync UI:', error);
     }
@@ -2380,10 +2382,10 @@ window.CloudSync = {
     syncFrom: syncFromCloud,
     isAuthenticated: isAuthenticated,
     getStatus: getCloudSyncStatus,
-    version: '2.04.01'
+    version: APP_VERSION
 };
 
 // ================================
 // MODULE LOADING COMPLETE
 // ================================
-console.log('Cloud Sync Module loaded successfully - Available as ES module exports and window.CloudSync');
+debugLog('Cloud Sync Module loaded successfully - Available as ES module exports and window.CloudSync');

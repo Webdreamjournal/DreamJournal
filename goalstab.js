@@ -7,7 +7,7 @@
  * and pagination for both active and completed goals.
  * 
  * @module Goals
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Team
  * @since 1.0.0
  * @requires constants
@@ -30,6 +30,7 @@
 // ES MODULE IMPORTS
 // ================================
 
+import { debugLog } from './logger.js';
 import { CONSTANTS, GOAL_TEMPLATES, GOALS_ACTIVE_COLLAPSE_KEY, GOALS_TEMPLATES_COLLAPSE_KEY, GOALS_COMPLETED_COLLAPSE_KEY } from './constants.js';
 import {
     getAllGoals,
@@ -156,7 +157,7 @@ async function validateGoalsDataIntegrity() {
         try {
             currentGoals = await loadGoals();
             setAllGoals(currentGoals);
-            console.log('Successfully recovered goals from storage:', currentGoals.length, 'goals');
+            debugLog('Successfully recovered goals from storage:', currentGoals.length, 'goals');
         } catch (error) {
             console.error('Failed to recover goals from storage:', error);
             currentGoals = [];
@@ -425,24 +426,24 @@ async function createNewGoal(formData) {
             // Encrypt for storage
             const encryptedData = await encryptItemForStorage(goalData, password);
             await saveItemToStore('goals', encryptedData);
-            console.log('Goal encrypted and saved to storage');
+            debugLog('Goal encrypted and saved to storage');
 
             // Update memory state with unencrypted data (for immediate UI operations)
             const currentGoals = getAllGoals();
             currentGoals.push(goalData);
             setAllGoals(currentGoals);
-            console.log('Goal added to memory state, total goals:', currentGoals.length);
+            debugLog('Goal added to memory state, total goals:', currentGoals.length);
         } else {
             // Save unencrypted using existing mechanism
             const currentGoals = getAllGoals();
             currentGoals.push(goalData);
             setAllGoals(currentGoals);
             await saveGoals(currentGoals);
-            console.log('Goal saved to storage (unencrypted)');
+            debugLog('Goal saved to storage (unencrypted)');
         }
 
         await displayGoals();
-        console.log('Goals display updated');
+        debugLog('Goals display updated');
 
         cancelGoalDialog();
         showGoalMessage('success', 'Goal created successfully!');
@@ -536,13 +537,13 @@ async function updateExistingGoal(goalId, formData) {
             // Encrypt for storage
             const encryptedData = await encryptItemForStorage(updatedGoalData, password);
             await saveItemToStore('goals', encryptedData);
-            console.log('Goal encrypted and updated in storage');
+            debugLog('Goal encrypted and updated in storage');
         } else {
             // Save unencrypted using existing mechanism
             currentGoals[goalIndex] = updatedGoalData;
             setAllGoals(currentGoals);
             await saveGoals(currentGoals);
-            console.log('Goal updated in storage (unencrypted)');
+            debugLog('Goal updated in storage (unencrypted)');
         }
 
         // Update memory state with unencrypted data (for immediate UI operations)
@@ -1248,7 +1249,7 @@ function populateGoalEditForm(goal) {
  * showCreateGoalDialog('lucid_beginner');
  */
 function showCreateGoalDialog(template = null) {
-    console.log('showCreateGoalDialog called with template:', template);
+    debugLog('showCreateGoalDialog called with template:', template);
 
     const templateData = template ? GOAL_TEMPLATES[template] : null;
     const formHTML = buildGoalFormHTML(templateData, false);
@@ -1301,7 +1302,7 @@ function createTemplateGoal(templateKey) {
  * await saveGoal();
  */
 async function saveGoal() {
-    console.log('saveGoal function called');
+    debugLog('saveGoal function called');
 
     try {
         // Validate goals data integrity
@@ -1316,7 +1317,7 @@ async function saveGoal() {
             return;
         }
 
-        console.log('Goal form values:', validation.formData);
+        debugLog('Goal form values:', validation.formData);
 
         // Delegate to appropriate CRUD operation
         if (window.editingGoalId) {

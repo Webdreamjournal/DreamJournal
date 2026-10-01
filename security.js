@@ -17,7 +17,7 @@
  * - Password dialog system for import/export operations
  * 
  * @module Security
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -39,6 +39,7 @@
 // ES MODULE IMPORTS
 // ================================
 
+import { debugLog } from './logger.js';
 import { CONSTANTS } from './constants.js';
 import {
     isAppLocked,
@@ -1198,7 +1199,7 @@ function updateSecurityControls() {
         setUnlocked(true);
         setAppLocked(false);
         
-        console.log('PIN removal complete - ensuring tabs are visible');
+        debugLog('PIN removal complete - ensuring tabs are visible');
         
         // Ensure all tabs are visible (PIN is removed, no need to hide)
         showAllTabButtons();
@@ -1308,7 +1309,7 @@ async function verifyLockScreenPin() {
                 setUnlocked(true);
                 setAppLocked(false);
                 
-                console.log('Lock screen unlock successful - showing all tabs');
+                debugLog('Lock screen unlock successful - showing all tabs');
                 
                 pinInput.value = '';
                 
@@ -1872,13 +1873,13 @@ async function wipeAllData() {
  * await confirmDataWipe();
  */
 async function confirmDataWipe() {
-    console.log('confirmDataWipe: Function called');
+    debugLog('confirmDataWipe: Function called');
     const confirmInput = document.getElementById('wipeConfirmationInput');
     const feedback = document.getElementById('lockScreenFeedback');
     const hasPinProtection = isPinSetup();
 
     if (!confirmInput || !feedback) {
-        console.log('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
+        debugLog('confirmDataWipe: Missing elements - confirmInput:', !!confirmInput, 'feedback:', !!feedback);
         return;
     }
 
@@ -1886,7 +1887,7 @@ async function confirmDataWipe() {
         // Enhanced validation for PIN-protected accounts
         const pinInput = document.getElementById('wipePinInput');
         if (!pinInput) {
-            console.log('confirmDataWipe: Missing PIN input element');
+            debugLog('confirmDataWipe: Missing PIN input element');
             feedback.innerHTML = '<div class="message-base message-error">PIN input not found. Please refresh and try again.</div>';
             return;
         }
@@ -1894,11 +1895,11 @@ async function confirmDataWipe() {
         const enteredPin = pinInput.value.trim();
         const confirmText = confirmInput.value.trim();
 
-        console.log('confirmDataWipe: PIN-protected validation - PIN length:', enteredPin.length, 'text:', JSON.stringify(confirmText));
+        debugLog('confirmDataWipe: PIN-protected validation - PIN length:', enteredPin.length, 'text:', JSON.stringify(confirmText));
 
         // Validate PIN first
         if (!enteredPin || enteredPin.length < 4) {
-            console.log('confirmDataWipe: PIN validation failed - insufficient length');
+            debugLog('confirmDataWipe: PIN validation failed - insufficient length');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please enter your PIN to verify your identity.</div>';
             pinInput.focus();
             return;
@@ -1910,14 +1911,14 @@ async function confirmDataWipe() {
             const isPinValid = await verifyPinHash(enteredPin, storedData);
 
             if (!isPinValid) {
-                console.log('confirmDataWipe: PIN verification failed');
+                debugLog('confirmDataWipe: PIN verification failed');
                 feedback.innerHTML = '<div class="message-base message-error" role="alert">Incorrect PIN. Please verify your PIN and try again.</div>';
                 pinInput.value = '';
                 pinInput.focus();
                 return;
             }
 
-            console.log('confirmDataWipe: PIN verification successful');
+            debugLog('confirmDataWipe: PIN verification successful');
         } catch (error) {
             console.error('confirmDataWipe: PIN verification error:', error);
             feedback.innerHTML = '<div class="message-base message-error" role="alert">PIN verification failed. Please try again.</div>';
@@ -1927,36 +1928,36 @@ async function confirmDataWipe() {
 
         // Validate confirmation text
         if (confirmText !== 'DELETE EVERYTHING') {
-            console.log('confirmDataWipe: Text validation failed for PIN-protected account');
+            debugLog('confirmDataWipe: Text validation failed for PIN-protected account');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
             confirmInput.focus();
             return;
         }
 
-        console.log('confirmDataWipe: Both PIN and text validation passed for PIN-protected account');
+        debugLog('confirmDataWipe: Both PIN and text validation passed for PIN-protected account');
     } else {
         // Standard validation for non-PIN accounts (backward compatibility)
         const confirmText = confirmInput.value.trim();
-        console.log('confirmDataWipe: Non-PIN validation - text:', JSON.stringify(confirmText));
+        debugLog('confirmDataWipe: Non-PIN validation - text:', JSON.stringify(confirmText));
 
         if (confirmText !== 'DELETE EVERYTHING') {
-            console.log('confirmDataWipe: Text validation failed for non-PIN account');
+            debugLog('confirmDataWipe: Text validation failed for non-PIN account');
             feedback.innerHTML = '<div class="message-base message-error" role="alert">Please type exactly: DELETE EVERYTHING</div>';
             confirmInput.focus();
             return;
         }
 
-        console.log('confirmDataWipe: Text validation passed for non-PIN account');
+        debugLog('confirmDataWipe: Text validation passed for non-PIN account');
     }
 
-    console.log('confirmDataWipe: All validations passed, proceeding with wipe');
+    debugLog('confirmDataWipe: All validations passed, proceeding with wipe');
 
     try {
-        console.log('confirmDataWipe: Starting data wipe process');
+        debugLog('confirmDataWipe: Starting data wipe process');
         feedback.innerHTML = '<div class="message-base message-info">Wiping all data...</div>';
 
         // Import required functions
-        console.log('confirmDataWipe: Importing state functions');
+        debugLog('confirmDataWipe: Importing state functions');
         const {
             setEncryptionEnabled,
             setEncryptionPassword,
@@ -1966,22 +1967,22 @@ async function confirmDataWipe() {
         } = await import('./state.js');
 
         // Clear IndexedDB databases
-        console.log('confirmDataWipe: Getting database list');
+        debugLog('confirmDataWipe: Getting database list');
         const databases = await indexedDB.databases();
-        console.log('confirmDataWipe: Found databases:', databases.map(db => db.name));
+        debugLog('confirmDataWipe: Found databases:', databases.map(db => db.name));
 
         // First, close any existing database connections
-        console.log('confirmDataWipe: Closing any open database connections');
+        debugLog('confirmDataWipe: Closing any open database connections');
         const { closeDB } = await import('./storage.js');
         closeDB();
 
         for (const db of databases) {
             if (db.name && db.name.includes('Dream')) {
-                console.log('confirmDataWipe: Deleting database:', db.name);
+                debugLog('confirmDataWipe: Deleting database:', db.name);
                 const deleteReq = indexedDB.deleteDatabase(db.name);
                 await new Promise((resolve, reject) => {
                     deleteReq.onsuccess = () => {
-                        console.log('confirmDataWipe: Successfully deleted database:', db.name);
+                        debugLog('confirmDataWipe: Successfully deleted database:', db.name);
                         resolve();
                     };
                     deleteReq.onerror = () => {
@@ -1992,7 +1993,7 @@ async function confirmDataWipe() {
                         console.warn('confirmDataWipe: Database deletion blocked, retrying:', db.name);
                         // Database deletion is blocked, try to force close and retry
                         setTimeout(() => {
-                            console.log('confirmDataWipe: Retrying database deletion after block:', db.name);
+                            debugLog('confirmDataWipe: Retrying database deletion after block:', db.name);
                         }, 1000);
                     };
                 });
@@ -2000,14 +2001,14 @@ async function confirmDataWipe() {
         }
 
         // Clear all localStorage
-        console.log('confirmDataWipe: Clearing localStorage');
+        debugLog('confirmDataWipe: Clearing localStorage');
         if (typeof(Storage) !== "undefined" && localStorage) {
             localStorage.clear();
-            console.log('confirmDataWipe: localStorage cleared');
+            debugLog('confirmDataWipe: localStorage cleared');
         }
 
         // Clear all session state
-        console.log('confirmDataWipe: Clearing session state');
+        debugLog('confirmDataWipe: Clearing session state');
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDecryptedDataCache();
@@ -2015,12 +2016,12 @@ async function confirmDataWipe() {
         setAppLocked(false);
 
         // Clear any PIN settings
-        console.log('confirmDataWipe: Clearing PIN settings');
+        debugLog('confirmDataWipe: Clearing PIN settings');
         removePinHash();
         removeResetTime();
 
         // Show success message and redirect
-        console.log('confirmDataWipe: Showing success message');
+        debugLog('confirmDataWipe: Showing success message');
         const lockTab = document.getElementById('lockTab');
         if (lockTab) {
             lockTab.innerHTML = `
@@ -2352,7 +2353,7 @@ async function confirmDataWipe() {
         setUnlocked(true);
         setAppLocked(false);
         
-        console.log('PIN overlay recovery complete - showing all tabs');
+        debugLog('PIN overlay recovery complete - showing all tabs');
         
         showAllTabButtons();
         
@@ -2972,7 +2973,7 @@ async function setupPin() {
         setFailedPinAttempts(0);
         setUnlocked(true);
         setAppLocked(false);
-        console.log('PIN setup complete - ensuring tabs are visible');
+        debugLog('PIN setup complete - ensuring tabs are visible');
         showAllTabButtons();
         updateSecurityControls();
 
@@ -3061,7 +3062,7 @@ async function setupPin() {
             setUnlocked(false);
             setAppLocked(true);
             setPreLockActiveTab(activeAppTab);
-            console.log('Locking app - hiding other tabs');
+            debugLog('Locking app - hiding other tabs');
             hideAllTabButtons();
             switchAppTab('lock');
             updateSecurityControls();

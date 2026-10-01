@@ -650,7 +650,6 @@ function initializeFormValidation() {
         });
     }
 
-    console.log('Form validation system initialized');
 }
 
 // ================================

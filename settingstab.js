@@ -33,7 +33,7 @@
  * - PWA installation integration
  * 
  * @module settingstab
- * @version 2.05.01
+ * @version 2.05.06
  * @since 2.02.05
  * @author Dream Journal Application
  */
@@ -50,6 +50,8 @@ if (typeof window === 'undefined') {
 // ================================
 
 // Import required dependencies
+import { debugLog } from './logger.js';
+import { APP_VERSION } from './version.js';
 import {
     CONSTANTS,
     SETTINGS_APPEARANCE_COLLAPSE_KEY,
@@ -102,7 +104,7 @@ import {
     renderAutocompleteManagementList
 } from './dom-helpers.js';
 
-console.log('Loading Settings Tab Module v2.02.06');
+debugLog(`Loading Settings Tab Module v${APP_VERSION}`);
 
 // ================================
 // SETTINGS TAB UI GENERATION
@@ -1929,7 +1931,7 @@ function initializeSettingsTab() {
             // Synchronize all settings display elements
             syncSettingsDisplay();
             
-            console.log('Settings tab initialized successfully');
+            debugLog('Settings tab initialized successfully');
             
         }, CONSTANTS.FOCUS_DELAY_MS || 100);
         
@@ -2010,7 +2012,7 @@ function initializeCloudSyncConfig() {
             advancedToggle.addEventListener('change', toggleAdvancedCloudConfig);
         }
 
-        console.log('Cloud sync configuration initialized');
+        debugLog('Cloud sync configuration initialized');
     } catch (error) {
         console.error('Error initializing cloud sync config:', error);
     }
@@ -2084,7 +2086,7 @@ function setCustomDropboxClientId(clientId) {
             appKeyInput.value = getCurrentDropboxClientId();
         }
 
-        console.log('Custom Dropbox client ID updated');
+        debugLog('Custom Dropbox client ID updated');
     } catch (error) {
         console.error('Error setting custom Dropbox client ID:', error);
     }
@@ -2129,10 +2131,10 @@ window.SettingsTab = {
     addAutocompleteItem: addCustomAutocompleteItem,
     deleteAutocompleteItem: deleteAutocompleteItem,
     managePWASection: managePWASettingsSection,
-    version: '2.02.06'
+    version: APP_VERSION
 };
 
 // ================================
 // MODULE LOADING COMPLETE
 // ================================
-console.log('Settings Tab Module loaded successfully - Available as ES module exports and window.SettingsTab');
+debugLog('Settings Tab Module loaded successfully - Available as ES module exports and window.SettingsTab');

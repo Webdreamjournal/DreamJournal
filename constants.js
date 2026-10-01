@@ -5,7 +5,7 @@
  * Maintains single source of truth for consistent behavior across modules.
  * 
  * @module constants
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  */
@@ -13,6 +13,8 @@
 // ===================================================================================
 // DREAM JOURNAL CONSTANTS & CONFIGURATION
 // ===================================================================================
+
+import { debugLog } from './logger.js';
 
 /**
  * Storage key for dream form collapse state.
@@ -676,7 +678,7 @@ async function cacheDailyTip(dreams = []) {
                 totalTips: tipCount,
                 cachedAt: Date.now()
             };
-            console.log(`Daily tip cached: Tip ${tipOfTheDayIndex + 1} of ${tipCount}`);
+            debugLog(`Daily tip cached: Tip ${tipOfTheDayIndex + 1} of ${tipCount}`);
             return _dailyTipCache;
         }
 

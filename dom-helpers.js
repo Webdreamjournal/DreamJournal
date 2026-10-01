@@ -6,7 +6,7 @@
  * HSL-based theme system and centralized event handling via data-action attributes.
  * 
  * @module DOMHelpers
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -22,6 +22,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
+import { debugLog } from './logger.js';
 import {
     CONSTANTS,
     DREAM_FORM_COLLAPSE_KEY,
@@ -849,7 +850,7 @@ function ensureTabInfrastructure() {
             `;
 
             appTabs.parentNode.insertBefore(tabContainer, appTabs.nextSibling);
-            console.log('Tab container created successfully');
+            debugLog('Tab container created successfully');
         } else {
             console.error('Cannot create tab container - missing DOM elements');
             return null;
@@ -1276,7 +1277,7 @@ function hideAllTabButtons() {
             button.style.display = 'none';
         }
     });
-    console.log('Hid all tab buttons except lock tab');
+    debugLog('Hid all tab buttons except lock tab');
 }
         
 /**
@@ -1300,7 +1301,7 @@ function showAllTabButtons() {
             button.style.display = 'block';
         }
     });
-    console.log('Showed all tab buttons');
+    debugLog('Showed all tab buttons');
 }
 
 // ===================================================================================
@@ -1373,7 +1374,7 @@ function syncSettingsDisplay() {
             
             // Double-check the value was set correctly
             if (themeSelect.value !== currentTheme) {
-                console.log('Theme select sync issue, forcing update');
+                debugLog('Theme select sync issue, forcing update');
                 setTimeout(() => {
                     const themeSelectDelayed = document.getElementById('themeSelect');
                     if (themeSelectDelayed) {

@@ -33,7 +33,7 @@
  * - Coordinates with main app initialization sequence
  * 
  * @module advicetab
- * @version 2.05.01
+ * @version 2.05.06
  * @since 2.02.44
  * @author Dream Journal Application
  */
@@ -41,6 +41,8 @@
 // ================================
 // ES MODULE IMPORTS
 // ================================
+import { debugLog } from './logger.js';
+import { APP_VERSION } from './version.js';
 import { getTipsCount, loadTipByIndex, getCachedDailyTip, ADVICE_DAILY_TIP_COLLAPSE_KEY, ADVICE_TECHNIQUES_COLLAPSE_KEY, ADVICE_GENERAL_COLLAPSE_KEY } from './constants.js';
 import {
     setDailyTips,
@@ -60,7 +62,7 @@ import { loadDreams } from './storage.js';
 // ================================
 // MODULE INITIALIZATION CHECK
 // ================================
-console.log('Loading Advice Tab Module v2.04.00');
+debugLog(`Loading Advice Tab Module v${APP_VERSION}`);
 
 // ================================
 // ADVICE TAB UI GENERATION
@@ -250,12 +252,12 @@ async function initializeAdviceTab() {
         // Check for cached daily tip first for instant loading
         const cachedTip = getCachedDailyTip();
         if (cachedTip) {
-            console.log('Using cached daily tip for instant loading');
+            debugLog('Using cached daily tip for instant loading');
             await displayCachedTip(cachedTip);
             return;
         }
 
-        console.log('No cached tip available, falling back to lazy loading');
+        debugLog('No cached tip available, falling back to lazy loading');
 
         // Fallback to original lazy loading if cache is not available
         const tipCount = await getTipsCount();
@@ -350,7 +352,7 @@ async function displayCachedTip(cachedTip) {
         const placeholderArray = new Array(cachedTip.totalTips).fill(null);
         setDailyTips(placeholderArray);
 
-        console.log(`Displayed cached tip: ${cachedTip.index + 1} of ${cachedTip.totalTips}`);
+        debugLog(`Displayed cached tip: ${cachedTip.index + 1} of ${cachedTip.totalTips}`);
     } catch (error) {
         console.error('Error displaying cached tip:', error);
 
@@ -475,7 +477,7 @@ async function displayTipLazy(tipIndex, totalTips) {
 async function initializeAdviceTabComplete() {
     try {
         await initializeAdviceTab();
-        console.log('Advice tab initialized successfully');
+        debugLog('Advice tab initialized successfully');
     } catch (error) {
         console.error('Error initializing advice tab:', error);
         // Show user-friendly error message
@@ -650,4 +652,4 @@ export {
 // ================================
 // MODULE LOADING COMPLETE
 // ================================
-console.log('Advice Tab Module loaded successfully - functions available via ES module imports');
+debugLog('Advice Tab Module loaded successfully - functions available via ES module imports');

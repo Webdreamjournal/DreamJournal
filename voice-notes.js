@@ -11,7 +11,7 @@
  * - Cross-browser compatibility handling
  * 
  * @module VoiceNotes
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -34,6 +34,7 @@
 // ES MODULE IMPORTS
 // ================================
 
+import { debugLog } from './logger.js';
 import { CONSTANTS } from './constants.js';
 import { 
     getMediaRecorder,
@@ -196,7 +197,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                     try {
                         setIsTranscribing(true);
                         getSpeechRecognition().start();
-                        console.log('Speech recognition started successfully');
+                        debugLog('Speech recognition started successfully');
                     } catch (speechError) {
                         console.error('Failed to start speech recognition:', speechError);
                         setIsTranscribing(false);
@@ -382,7 +383,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
  * button.onclick = () => toggleRecording();
  */
     async function toggleRecording() {
-        console.log('Toggle recording called'); // Debug log
+        debugLog('Toggle recording called'); // Debug log
         if (getMediaRecorder() && getMediaRecorder().state === 'recording') {
             stopRecording();
         } else {
@@ -417,7 +418,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
             
             const now = new Date();
             const duration = getRecordingStartTime() ? (Date.now() - getRecordingStartTime()) / 1000 : 0;
-            console.log(`saveRecording: recordingStartTime=${getRecordingStartTime()}, calculated duration=${duration}s`);
+            debugLog(`saveRecording: recordingStartTime=${getRecordingStartTime()}, calculated duration=${duration}s`);
             
             // Reset recordingStartTime now that we've calculated the duration
             setRecordingStartTime(null);
@@ -564,7 +565,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                 // Use existing audio element that may have been seeked
                 audio = audioElements[voiceNoteId].audio;
                 audioURL = audioElements[voiceNoteId].url;
-                console.log(`Using pre-loaded audio for ${voiceNoteId}, current time: ${formatDuration(audio.currentTime)}`);
+                debugLog(`Using pre-loaded audio for ${voiceNoteId}, current time: ${formatDuration(audio.currentTime)}`);
             } else {
                 // Create new audio element
                 audio = new Audio();
@@ -593,7 +594,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                         actualDuration = audio.duration;
                         durationDetected = true;
                         totalTimeEl.textContent = formatDuration(audio.duration);
-                        console.log(`Audio duration loaded via metadata: ${audio.duration}s for ${voiceNoteId}`);
+                        debugLog(`Audio duration loaded via metadata: ${audio.duration}s for ${voiceNoteId}`);
                     }
                 }
             };
@@ -606,7 +607,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                         actualDuration = audio.duration;
                         durationDetected = true;
                         totalTimeEl.textContent = formatDuration(audio.duration);
-                        console.log(`Audio duration loaded via canplaythrough: ${audio.duration}s for ${voiceNoteId}`);
+                        debugLog(`Audio duration loaded via canplaythrough: ${audio.duration}s for ${voiceNoteId}`);
                     }
                 }
             };
@@ -619,7 +620,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                         actualDuration = audio.duration;
                         durationDetected = true;
                         totalTimeEl.textContent = formatDuration(audio.duration);
-                        console.log(`Audio duration loaded via loadeddata: ${audio.duration}s for ${voiceNoteId}`);
+                        debugLog(`Audio duration loaded via loadeddata: ${audio.duration}s for ${voiceNoteId}`);
                     }
                 }
             };
@@ -633,12 +634,12 @@ import { formatDatetimeLocal } from './dream-crud.js';
                             actualDuration = audio.duration;
                             durationDetected = true;
                             totalTimeEl.textContent = formatDuration(audio.duration);
-                            console.log(`Audio duration loaded after play: ${audio.duration}s for ${voiceNoteId}`);
+                            debugLog(`Audio duration loaded after play: ${audio.duration}s for ${voiceNoteId}`);
                         } else if (totalTimeEl && voiceNote.duration) {
                             // Final fallback: use stored duration
                             actualDuration = voiceNote.duration;
                             totalTimeEl.textContent = formatDuration(voiceNote.duration);
-                            console.log(`Using stored duration as fallback: ${voiceNote.duration}s for ${voiceNoteId}`);
+                            debugLog(`Using stored duration as fallback: ${voiceNote.duration}s for ${voiceNoteId}`);
                         }
                     }, 100);
                 }
@@ -648,7 +649,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
             audio.ontimeupdate = () => {
                 const browserInfo = getVoiceCapabilities().browser;
                 if (browserInfo.isFirefox) {
-                    console.log(`Firefox ontimeupdate: ${audio.currentTime.toFixed(2)}s / ${audio.duration}s`);
+                    debugLog(`Firefox ontimeupdate: ${audio.currentTime.toFixed(2)}s / ${audio.duration}s`);
                 }
                 
                 // Detect real duration during playback (Firefox often provides it after starting)
@@ -662,7 +663,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                         const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
                         if (totalTimeEl) {
                             totalTimeEl.textContent = formatDuration(audio.duration);
-                            console.log(`Firefox: Real duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
+                            debugLog(`Firefox: Real duration detected during playback: ${audio.duration}s for ${voiceNoteId}`);
                         }
                     } else if (audio.seekable && audio.seekable.length > 0) {
                         // Try to get duration from seekable range
@@ -674,7 +675,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                             const totalTimeEl = document.getElementById(`time-total-${voiceNoteId}`);
                             if (totalTimeEl) {
                                 totalTimeEl.textContent = formatDuration(seekableDuration);
-                                console.log(`Firefox: Duration from seekable range: ${seekableDuration}s for ${voiceNoteId}`);
+                                debugLog(`Firefox: Duration from seekable range: ${seekableDuration}s for ${voiceNoteId}`);
                             }
                         }
                     }
@@ -686,7 +687,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                     if (headerDurationEl) {
                         const displayDuration = actualDuration || voiceNote.duration || 5;
                         headerDurationEl.textContent = formatDuration(displayDuration);
-                        console.log(`Firefox: Updated header duration to ${formatDuration(displayDuration)} for ${voiceNoteId}`);
+                        debugLog(`Firefox: Updated header duration to ${formatDuration(displayDuration)} for ${voiceNoteId}`);
                     }
                 }
                 
@@ -976,7 +977,7 @@ async function setupSpeechRecognition() {
                 };
                 
                 recognition.onstart = () => {
-                    console.log('Speech recognition started');
+                    debugLog('Speech recognition started');
                     isRecognitionRunning = true;
                     setupRecognitionTimeout();
                     retryCount = 0; // Reset retry count on successful start
@@ -1056,7 +1057,7 @@ async function setupSpeechRecognition() {
                             // Only restart after a longer delay and fewer retries to avoid spam
                             if (getIsTranscribing() && retryCount === 0) {
                                 retryCount = maxRetries; // Prevent further no-speech restarts
-                                console.log('No speech detected, waiting for user to speak...');
+                                debugLog('No speech detected, waiting for user to speak...');
                                 setTimeout(() => {
                                     if (getIsTranscribing() && !isRecognitionRunning) {
                                         try {
@@ -1067,7 +1068,7 @@ async function setupSpeechRecognition() {
                                     }
                                 }, 3000); // Longer delay for no-speech
                             } else {
-                                console.log('No speech detected, transcription will continue listening during recording');
+                                debugLog('No speech detected, transcription will continue listening during recording');
                             }
                             break;
                         default:
@@ -1076,7 +1077,7 @@ async function setupSpeechRecognition() {
                 };
                 
                 recognition.onend = () => {
-                    console.log('Speech recognition ended');
+                    debugLog('Speech recognition ended');
                     isRecognitionRunning = false;
                     if (recognitionTimeout) {
                         clearTimeout(recognitionTimeout);
@@ -1086,7 +1087,7 @@ async function setupSpeechRecognition() {
                     // Only restart if recognition ended unexpectedly (not due to an error we're handling)
                     if (!errorHandlerTriggered && getIsTranscribing() && retryCount < maxRetries) {
                         retryCount++;
-                        console.log('Recognition ended unexpectedly, restarting...');
+                        debugLog('Recognition ended unexpectedly, restarting...');
                         setTimeout(() => {
                             if (getIsTranscribing() && !isRecognitionRunning) {
                                 try {
@@ -1098,7 +1099,7 @@ async function setupSpeechRecognition() {
                             }
                         }, 100);
                     } else if (errorHandlerTriggered) {
-                        console.log('Recognition ended due to handled error - not auto-restarting');
+                        debugLog('Recognition ended due to handled error - not auto-restarting');
                     } else {
                         setIsTranscribing(false);
                     }
@@ -1183,39 +1184,39 @@ function formatDuration(seconds) {
 async function getAudioDuration(audioBlob, storedDuration = null) {
             return new Promise((resolve) => {
                 if (!audioBlob || !(audioBlob instanceof Blob)) {
-                    console.log('getAudioDuration: Invalid audioBlob');
+                    debugLog('getAudioDuration: Invalid audioBlob');
                     resolve(0);
                     return;
                 }
                 
-                console.log(`getAudioDuration: Starting for blob type: ${audioBlob.type}, size: ${audioBlob.size}`);
+                debugLog(`getAudioDuration: Starting for blob type: ${audioBlob.type}, size: ${audioBlob.size}`);
                 const audio = new Audio();
                 const url = URL.createObjectURL(audioBlob);
                 let resolved = false;
                 
                 // Try multiple events to get duration
                 const attemptDurationDetection = () => {
-                    console.log(`getAudioDuration: Checking - duration: ${audio.duration}, seekable: ${audio.seekable.length}`);
+                    debugLog(`getAudioDuration: Checking - duration: ${audio.duration}, seekable: ${audio.seekable.length}`);
                     if (!resolved) {
                         if (isFinite(audio.duration) && audio.duration > 0) {
-                            console.log(`getAudioDuration: Valid duration detected: ${audio.duration}s`);
+                            debugLog(`getAudioDuration: Valid duration detected: ${audio.duration}s`);
                             resolved = true;
                             URL.revokeObjectURL(url);
                             resolve(audio.duration);
                         } else if (audio.seekable && audio.seekable.length > 0) {
                             try {
                                 const seekableDuration = audio.seekable.end(0);
-                                console.log(`getAudioDuration: Raw seekable duration: ${seekableDuration}, finite: ${isFinite(seekableDuration)}`);
+                                debugLog(`getAudioDuration: Raw seekable duration: ${seekableDuration}, finite: ${isFinite(seekableDuration)}`);
                                 if (isFinite(seekableDuration) && seekableDuration > 0) {
-                                    console.log(`getAudioDuration: ✅ Duration from seekable range: ${seekableDuration}s`);
+                                    debugLog(`getAudioDuration: ✅ Duration from seekable range: ${seekableDuration}s`);
                                     resolved = true;
                                     URL.revokeObjectURL(url);
                                     resolve(seekableDuration);
                                 } else {
-                                    console.log(`getAudioDuration: ❌ Seekable duration invalid: ${seekableDuration}`);
+                                    debugLog(`getAudioDuration: ❌ Seekable duration invalid: ${seekableDuration}`);
                                 }
                             } catch (e) {
-                                console.log(`getAudioDuration: ❌ Error getting seekable duration: ${e.message}`);
+                                debugLog(`getAudioDuration: ❌ Error getting seekable duration: ${e.message}`);
                             }
                         }
                     }
@@ -1229,7 +1230,7 @@ async function getAudioDuration(audioBlob, storedDuration = null) {
                 setTimeout(() => {
                     if (!resolved) {
                         const fallbackDuration = storedDuration || 5999;
-                        console.log(`getAudioDuration: Timeout - using ${fallbackDuration}s fallback (stored: ${storedDuration || 'none'})`);
+                        debugLog(`getAudioDuration: Timeout - using ${fallbackDuration}s fallback (stored: ${storedDuration || 'none'})`);
                         resolved = true;
                         URL.revokeObjectURL(url);
                         resolve(fallbackDuration); // Use stored duration or 5s default for problematic WebM files
@@ -1253,7 +1254,7 @@ async function getAudioDuration(audioBlob, storedDuration = null) {
                 // Try playing very briefly to force duration detection
                 setTimeout(() => {
                     if (!resolved) {
-                        console.log('getAudioDuration: Trying brief play to detect duration');
+                        debugLog('getAudioDuration: Trying brief play to detect duration');
                         audio.currentTime = 0;
                         audio.play().then(() => {
                             setTimeout(() => {
@@ -1261,7 +1262,7 @@ async function getAudioDuration(audioBlob, storedDuration = null) {
                                 attemptDurationDetection();
                             }, 100);
                         }).catch(() => {
-                            console.log('getAudioDuration: Brief play failed, continuing with other methods');
+                            debugLog('getAudioDuration: Brief play failed, continuing with other methods');
                         });
                     }
                 }, 500);
@@ -1521,9 +1522,9 @@ async function displayVoiceNotes() {
                 // Update durations asynchronously with actual audio durations
                 voiceNotes.forEach(async (note) => {
                     try {
-                        console.log(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
+                        debugLog(`Getting duration for note ${note.id}, stored duration: ${note.duration}, blob type: ${note.audioBlob?.type}, blob size: ${note.audioBlob?.size}`);
                         const actualDuration = await getAudioDuration(note.audioBlob, note.duration);
-                        console.log(`Detected duration for note ${note.id}: ${actualDuration}s`);
+                        debugLog(`Detected duration for note ${note.id}: ${actualDuration}s`);
                         
                         // Use detected duration or fall back to stored duration
                         const effectiveDuration = actualDuration > 0 ? actualDuration : note.duration;
@@ -1533,7 +1534,7 @@ async function displayVoiceNotes() {
                             const headerDurationEl = document.getElementById(`header-duration-${note.id}`);
                             if (headerDurationEl) {
                                 headerDurationEl.textContent = formatDuration(effectiveDuration);
-                                console.log(`Updated header duration for ${note.id} to ${formatDuration(effectiveDuration)} (source: ${actualDuration > 0 ? 'detected' : 'stored'})`);
+                                debugLog(`Updated header duration for ${note.id} to ${formatDuration(effectiveDuration)} (source: ${actualDuration > 0 ? 'detected' : 'stored'})`);
                             } else {
                                 console.warn(`Could not find header duration element for ${note.id}`);
                             }
@@ -1638,7 +1639,7 @@ function updateAudioProgress(voiceNoteId, currentTime, duration) {
                 const browserInfo = getVoiceCapabilities().browser;
                 if (browserInfo.isFirefox) {
                     // Firefox: Use transform instead of width for better rendering
-                    console.log(`Firefox progress update: ${(progressRatio * 100).toFixed(1)}%`);
+                    debugLog(`Firefox progress update: ${(progressRatio * 100).toFixed(1)}%`);
                     progressFill.style.transition = 'none';
                     progressFill.style.width = '100%';
                     progressFill.style.transform = `scaleX(${progressRatio})`;
@@ -1799,7 +1800,7 @@ async function seekAudio(voiceNoteId, event) {
                                 // Update progress bar to show seek position with smooth transition
                                 updateAudioProgressWithTransition(voiceNoteId, seekTime, effectiveDuration);
                                 
-                                console.log(`Seeked to ${formatDuration(seekTime)} (paused) in voice note ${voiceNoteId}`);
+                                debugLog(`Seeked to ${formatDuration(seekTime)} (paused) in voice note ${voiceNoteId}`);
                             }
                         };
                         

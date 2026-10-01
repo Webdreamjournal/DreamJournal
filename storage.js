@@ -7,7 +7,7 @@
      * suggestions with proper error handling, validation, and migration support.
      * 
      * @module storage
-     * @version 2.05.01
+     * @version 2.05.06
      * @author Development Team
      * @since 1.0.0
      * @requires constants
@@ -18,6 +18,7 @@
 // ES MODULE IMPORTS
 // ===================================================================================
 
+import { debugLog } from './logger.js';
 import { CONSTANTS, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
 import { 
     memoryStorage, 
@@ -458,7 +459,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             request.onsuccess = () => {
                 db = request.result;
                 storageType = 'indexeddb';
-                console.log('IndexedDB initialized successfully');
+                debugLog('IndexedDB initialized successfully');
                 
                 // Handle unexpected database closure
                 db.onclose = () => {
@@ -470,21 +471,21 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
 
             request.onupgradeneeded = (event) => {
                 db = event.target.result;
-                console.log('Upgrading IndexedDB schema to version', db.version);
+                debugLog('Upgrading IndexedDB schema to version', db.version);
 
                 // Create dreams store if it doesn't exist
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     const dreamStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
                     dreamStore.createIndex('timestamp', 'timestamp', { unique: false });
                     dreamStore.createIndex('isLucid', 'isLucid', { unique: false });
-                    console.log('Created dreams object store');
+                    debugLog('Created dreams object store');
                 }
 
                 // Create voice notes store if it doesn't exist
                 if (!db.objectStoreNames.contains(VOICE_STORE_NAME)) {
                     const voiceStore = db.createObjectStore(VOICE_STORE_NAME, { keyPath: 'id' });
                     voiceStore.createIndex('timestamp', 'timestamp', { unique: false });
-                    console.log('Created voice notes object store');
+                    debugLog('Created voice notes object store');
                 }
 
                 // Create goals store if it doesn't exist
@@ -492,13 +493,13 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                     const goalStore = db.createObjectStore('goals', { keyPath: 'id' });
                     goalStore.createIndex('timestamp', 'timestamp', { unique: false });
                     goalStore.createIndex('completed', 'completed', { unique: false });
-                    console.log('Created goals object store');
+                    debugLog('Created goals object store');
                 }
 
                 // Create autocomplete store for unified tag/dream sign storage
                 if (!db.objectStoreNames.contains('autocomplete')) {
                     const autocompleteStore = db.createObjectStore('autocomplete', { keyPath: 'id' });
-                    console.log('Created autocomplete object store');
+                    debugLog('Created autocomplete object store');
                 }
 
                 // Legacy migration from older versions
@@ -740,7 +741,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         }
 
         // Fallback to memory only if IndexedDB fails
-        console.log('IndexedDB unavailable, using memory storage fallback');
+        debugLog('IndexedDB unavailable, using memory storage fallback');
         return memoryStorage;
     }
 
@@ -866,14 +867,14 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             if (isIndexedDBAvailable()) {
                 const saved = await saveToIndexedDB(dreams);
                 if (saved) {
-                    console.log('Dreams saved to IndexedDB');
+                    debugLog('Dreams saved to IndexedDB');
                     return;
                 }
             }
             
             // Fallback to memory only if IndexedDB fails
             memoryStorage = [...dreams];
-            console.log('IndexedDB unavailable, dreams saved to memory fallback');
+            debugLog('IndexedDB unavailable, dreams saved to memory fallback');
             
             if (storageType !== 'memory') {
                 showStorageWarning();
@@ -959,7 +960,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             if (isIndexedDBAvailable()) {
                 const saved = await saveAllVoiceNotesToIndexedDB(notes);
                 if (saved) {
-                    console.log('All voice notes saved to IndexedDB');
+                    debugLog('All voice notes saved to IndexedDB');
                 }
             }
         });
@@ -1645,7 +1646,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 const dreams = JSON.parse(dreamData);
                 if (dreams.length > 0) {
                     await saveToIndexedDB(dreams);
-                    console.log('Migrated dreams from localStorage to IndexedDB');
+                    debugLog('Migrated dreams from localStorage to IndexedDB');
                 }
             }
             
@@ -1655,7 +1656,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 const goals = JSON.parse(goalData);
                 if (goals.length > 0) {
                     await saveGoalsToIndexedDB(goals);
-                    console.log('Migrated goals from localStorage to IndexedDB');
+                    debugLog('Migrated goals from localStorage to IndexedDB');
                 }
             }
             
@@ -1666,21 +1667,21 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 for (const note of voiceNotes) {
                     await saveVoiceNoteToIndexedDB(note);
                 }
-                console.log('Migrated voice notes from localStorage to IndexedDB');
+                debugLog('Migrated voice notes from localStorage to IndexedDB');
             }
             
             // Clear localStorage data after successful migration to prevent re-migration
             if (dreamData) {
                 localStorage.removeItem('dreamJournal');
-                console.log('Cleared localStorage dreams after migration');
+                debugLog('Cleared localStorage dreams after migration');
             }
             if (goalData) {
                 localStorage.removeItem('dreamJournalGoals');
-                console.log('Cleared localStorage goals after migration');
+                debugLog('Cleared localStorage goals after migration');
             }
             if (voiceData) {
                 localStorage.removeItem('dreamJournalVoiceNotes');
-                console.log('Cleared localStorage voice notes after migration');
+                debugLog('Cleared localStorage voice notes after migration');
             }
         } catch (error) {
             console.error('Error during migration:', error);
@@ -2036,7 +2037,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             await saveItemToStore('autocomplete', autocompleteData);
         }
 
-        console.log(`Learned ${newItems.length} new ${type}: ${newItems.join(', ')}`);
+        debugLog(`Learned ${newItems.length} new ${type}: ${newItems.join(', ')}`);
     }
 
     /**
@@ -2153,7 +2154,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                     };
 
                     await saveItemToStore('autocomplete', correctedData);
-                    console.log('Emotions data has been reset to correct default emotions');
+                    debugLog('Emotions data has been reset to correct default emotions');
                     return true;
                 }
             }
@@ -2700,11 +2701,11 @@ async function decryptItemFromStorage(encryptedItem, password) {
  */
 function closeDB() {
     if (db) {
-        console.log('closeDB: Closing database connection');
+        debugLog('closeDB: Closing database connection');
         db.close();
         db = null;
     } else {
-        console.log('closeDB: No active database connection to close');
+        debugLog('closeDB: No active database connection to close');
     }
 }
 

@@ -7,7 +7,7 @@
  * creating circular dependencies.
  * 
  * @module PWA
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 2.02.22
  * @example
@@ -23,6 +23,8 @@
 // ================================
 // PWA INSTALLATION SYSTEM
 // ================================
+
+import { debugLog } from './logger.js';
 
 /**
  * Global variable to store the browser's beforeinstallprompt event.
@@ -52,7 +54,7 @@ let deferredPrompt;
  */
 async function installPWA() {
     if (!deferredPrompt) {
-        console.log('No install prompt available');
+        debugLog('No install prompt available');
         return;
     }
 
@@ -62,7 +64,7 @@ async function installPWA() {
 
         // Wait for the user to respond to the prompt
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
+        debugLog(`User response to the install prompt: ${outcome}`);
 
         // Clear the deferredPrompt
         deferredPrompt = null;
@@ -187,7 +189,7 @@ function setupPWAInstall() {
 
     // Handle successful PWA installation
     window.addEventListener('appinstalled', () => {
-        console.log('PWA was installed');
+        debugLog('PWA was installed');
         
         // Show success message for a few seconds then remove the section
         const statusDiv = document.querySelector('#pwaInstallStatus');

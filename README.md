@@ -14,7 +14,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL v3.0">
-  <img src="https://img.shields.io/badge/version-2.04.28-blue.svg" alt="Version 2.04.28">
+  <img src="https://img.shields.io/badge/version-2.05.06-blue.svg" alt="Version 2.05.06">
 </p>
 
 ---

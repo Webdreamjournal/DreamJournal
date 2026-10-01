@@ -17,7 +17,7 @@
  * - Tab container management and dynamic content
  * 
  * @module MainApplication
- * @version 2.05.01
+ * @version 2.05.06
  * @author Dream Journal Development Team
  * @since 1.0.0
  * @requires constants
@@ -46,6 +46,7 @@
 // ================================
 
 // Foundation modules
+import { debugLog } from './logger.js';
 import { CONSTANTS, loadDailyTips, commonTags, commonDreamSigns, commonEmotions, DREAM_FORM_COLLAPSE_KEY, cacheDailyTip } from './constants.js';
 import {
     getDailyTips, setDailyTips, isUnlocked, isAppLocked, preLockActiveTab, failedPinAttempts,
@@ -312,7 +313,7 @@ async function registerServiceWorker() {
         
         try {
             const registration = await navigator.serviceWorker.register(`${basePath}/sw.js`);
-            console.log('ServiceWorker registered successfully:', registration.scope);
+            debugLog('ServiceWorker registered successfully:', registration.scope);
             
             // Handle service worker updates
             registration.addEventListener('updatefound', () => {
@@ -321,7 +322,7 @@ async function registerServiceWorker() {
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             // New service worker available, could show update notice
-                            console.log('New service worker available');
+                            debugLog('New service worker available');
                         }
                     });
                 }
@@ -330,13 +331,13 @@ async function registerServiceWorker() {
             // Listen for messages from service worker
             navigator.serviceWorker.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'BACK_ONLINE') {
-                    console.log('App is back online');
+                    debugLog('App is back online');
                     // Could show online status or refresh data
                 }
             });
             
         } catch (error) {
-            console.log('ServiceWorker registration failed:', error);
+            debugLog('ServiceWorker registration failed:', error);
         }
     }
 }
@@ -492,7 +493,7 @@ function setupCleanupHandlers(timerWarningInterval) {
             if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
             removeEndlessScroll();
         } catch (error) {
-            console.log('Cleanup error during page unload:', error);
+            debugLog('Cleanup error during page unload:', error);
         }
     });
 }
@@ -732,7 +733,7 @@ function restoreDreamFormState() {
  * @async
  * @function
  * @since 1.0.0
- * @version 2.05.01
+ * @version 2.05.06
  * @todo Consider splitting into initializeImmediateSetup() and initializeDelayedSetup() functions for better separation of fast startup vs slower initialization tasks
  * @example
  * // Called by app entry point:
