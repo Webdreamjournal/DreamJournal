@@ -23,25 +23,65 @@ export function startServer() {
     })));
 }
 
-/** Launches Chromium (set CHROMIUM_PATH to use a preinstalled browser). */
+/**
+ * Launches Chromium (set CHROMIUM_PATH to use a preinstalled browser).
+ * The fake-media flags let voice-note tests record without a real microphone.
+ */
 export function launchBrowser() {
-    return chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
+    return chromium.launch({
+        executablePath: process.env.CHROMIUM_PATH || undefined,
+        args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+    });
 }
 
 /**
  * Opens a fresh page, blocking the external Dropbox SDK so runs do not depend on the network.
- * Collects uncaught errors and CSP violations in `problems`.
+ * Collects uncaught errors, CSP violations and console errors in `problems`.
+ * Options: width/height/mobile for the viewport, permissions for the browser context.
  */
-export async function openApp(browser, url) {
-    const context = await browser.newContext({ serviceWorkers: 'block', acceptDownloads: true });
+export async function openApp(browser, url, { width = 1280, height = 800, mobile = false, permissions = [] } = {}) {
+    const context = await browser.newContext({
+        viewport: { width, height }, isMobile: mobile, hasTouch: mobile, permissions,
+        serviceWorkers: 'block', acceptDownloads: true
+    });
     const page = await context.newPage();
     const problems = [];
     await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
     page.on('pageerror', e => problems.push(`pageerror: ${e.message}`));
     page.on('console', m => {
-        if (/Content Security Policy|violates the following/i.test(m.text())) problems.push(`csp: ${m.text().slice(0, 160)}`);
+        const text = m.text();
+        if (/Content Security Policy|violates the following/i.test(text)) problems.push(`csp: ${text.slice(0, 160)}`);
+        // Headless Chromium has no speech service; the app logs this when recording
+        else if (m.type() === 'error' && !/net::ERR_FAILED|Speech recognition error/.test(text)) problems.push(`console.error: ${text.slice(0, 160)}`);
     });
     await page.goto(url, { waitUntil: 'load' });
     await page.waitForFunction(() => getComputedStyle(document.querySelector('.container')).visibility === 'visible');
     return { page, context, problems };
+}
+
+export const openTab = async (page, tab) => {
+    await page.click(`[data-action="switch-app-tab"][data-tab="${tab}"]`);
+    await page.waitForTimeout(300);
+};
+
+/** All dreams currently in storage (read through the app's own loader). */
+export const storedDreams = (page) => page.evaluate(async () => (await import('/storage.js')).loadDreams());
+
+/**
+ * Imports a "complete data" JSON backup through the Settings tab and waits until the data has
+ * been written to IndexedDB (loadDreams() answers from memory before the write finishes).
+ */
+export async function importBackup(page, backup, expectedDreams = backup.data.dreams?.length ?? 0) {
+    await openTab(page, 'settings');
+    await page.setInputFiles('#importAllDataFile', { name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+    await page.waitForFunction(async (n) => (await (await import('/storage.js')).loadDreams()).length >= n, expectedDreams, { timeout: 30000 });
+    await page.waitForFunction(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const count = open.result.transaction('dreams').objectStore('dreams').count();
+            count.onsuccess = () => { open.result.close(); resolve(count.result > 0); };
+        };
+    }), null, { timeout: 30000 });
+    await page.waitForTimeout(500);
+    await openTab(page, 'journal');
 }
