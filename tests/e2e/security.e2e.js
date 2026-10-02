@@ -56,6 +56,12 @@ test('PIN protection', async (t) => {
         assert.equal(salt.length, 32);
     });
 
+    await t.test('the setup confirmation says the PIN is a screen lock and does not encrypt', async () => {
+        const text = await page.innerText('#pinOverlay');
+        assert.match(text, /does not encrypt/);
+        assert.doesNotMatch(text, /advanced encryption|now protected/);
+    });
+
     await t.test('after a reload only the lock screen is shown and no dreams are in the page', async () => {
         await page.reload({ waitUntil: 'load' });
         await page.waitForSelector('#lockScreenPinInput');
@@ -134,6 +140,23 @@ test('data encryption', async (t) => {
         };
     }));
 
+    // First 16 bytes of each stored item are its salt
+    const storedSalts = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const all = open.result.transaction('dreams').objectStore('dreams').getAll();
+            all.onsuccess = () => {
+                open.result.close();
+                resolve(all.result.map(d => Array.from(d.data.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('')));
+            };
+        };
+    }));
+    const unlockWithPassword = async (password) => {
+        await page.waitForSelector('#lockScreenPasswordInput');
+        await page.fill('#lockScreenPasswordInput', password);
+        await page.click('[data-action="verify-encryption-password"]');
+    };
+
     await t.test('mismatched passwords are rejected and nothing is encrypted', async () => {
         await page.click('[data-action="toggle-encryption"]');
         await page.fill('#passwordInput', 'correct horse');
@@ -153,6 +176,12 @@ test('data encryption', async (t) => {
         const raw = await rawDreams();
         assert.match(raw, /"encrypted":true/);
         assert.ok(!/Flying over a lake|Back at school|corridor/.test(raw), 'plaintext found in IndexedDB');
+    });
+
+    await t.test('the stored dreams share one salt, so one key derivation covers the journal', async () => {
+        const salts = await storedSalts();
+        assert.equal(salts.length, 3);
+        assert.equal(new Set(salts).size, 1);
     });
 
     await t.test('after a reload the journal stays locked until the right password is given', async () => {
@@ -181,6 +210,68 @@ test('data encryption', async (t) => {
         await page.waitForSelector('.entry-title:has-text("Encrypted era dream")');
         await page.waitForTimeout(1500);
         assert.ok(!(await rawDreams()).includes('Encrypted era dream'));
+    });
+
+    await t.test('a dream saved in a later session reuses the journal salt', async () => {
+        const salts = await storedSalts();
+        assert.equal(salts.length, 4);
+        assert.equal(new Set(salts).size, 1);
+    });
+
+    await t.test('changing the password re-encrypts under a new salt; only the new password unlocks', async () => {
+        const [oldSalt] = await storedSalts();
+        await openTab(page, 'settings');
+        await page.click('[data-action="change-encryption-password"]');
+        const verifyDialog = page.locator('.pin-overlay:has-text("Verify Encryption Password")');
+        await verifyDialog.waitFor();
+        assert.doesNotMatch(await verifyDialog.innerText(), /disable encryption/);
+        await page.fill('#passwordInput', 'correct horse');
+        await page.click('#confirmPasswordBtn');
+        await page.waitForSelector('.pin-overlay:has-text("Set New Encryption Password")');
+        await page.fill('#passwordInput', 'battery staple');
+        await page.fill('#confirmPasswordInput', 'battery staple');
+        await page.click('#confirmPasswordBtn');
+        await page.waitForSelector('.security-dialog-overlay:has-text("password changed")', { timeout: 60000 });
+        await page.click('.security-dialog-overlay button');
+
+        const salts = await storedSalts();
+        assert.equal(salts.length, 4);
+        assert.equal(new Set(salts).size, 1);
+        assert.notEqual(salts[0], oldSalt);
+        assert.ok(!(await rawDreams()).includes('Encrypted era dream'));
+
+        await page.reload({ waitUntil: 'load' });
+        await unlockWithPassword('correct horse');
+        await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
+        await page.click('.security-dialog-overlay button');
+        await unlockWithPassword('battery staple');
+        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
+        await page.click('#decryption-progress-dialog button');
+        await page.waitForSelector('.entry');
+        const titles = (await storedDreams(page)).map(d => d.title);
+        assert.equal(titles.length, 4);
+        assert.ok(titles.includes('Encrypted era dream'));
+    });
+
+    await t.test('disabling encryption stores the dreams as readable data again', async () => {
+        await openTab(page, 'settings');
+        await page.click('[data-action="toggle-encryption"]');
+        await page.waitForSelector('.pin-overlay:has-text("Verify Encryption Password")');
+        await page.fill('#passwordInput', 'battery staple');
+        await page.click('#confirmPasswordBtn');
+        const confirmDialog = page.locator('.pin-overlay:has-text("Disable Data Encryption?")');
+        await confirmDialog.waitFor();
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'cancelBtn', 'the confirmation dialog should start on its safer Cancel button');
+        await confirmDialog.getByText('Yes, Disable Encryption').click();
+        await page.waitForSelector('.security-dialog-overlay:has-text("Decryption Successful")', { timeout: 60000 });
+        await page.click('.security-dialog-overlay button');
+        const raw = await rawDreams();
+        assert.ok(raw.includes('Encrypted era dream'), 'dreams are still encrypted');
+        assert.ok(!/"encrypted":true/.test(raw));
+        assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), 'false');
+        await page.reload({ waitUntil: 'load' });
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 4);
     });
 
     // The app logs a console error for the deliberate wrong-password attempt above

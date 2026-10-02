@@ -106,17 +106,14 @@ debugLog(`Loading Advice Tab Module v${APP_VERSION}`);
  */
 function renderAdviceTab(tabPanel) {
     tabPanel.innerHTML = `
-        <h3 id="advice-main-heading" tabindex="-1">💡 Lucid Dreaming Advice</h3><br>
+        <h2 id="advice-main-heading" class="tab-title" tabindex="-1">💡 Lucid Dreaming Advice</h2><br>
         <div class="settings-section" data-advice-section="daily-tip">
-            <h3 data-action="toggle-advice-daily-tip"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Daily Lucid Dreaming Tip section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                💡 Daily Lucid Dreaming Tip
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-advice-daily-tip" aria-expanded="true" aria-label="Daily Lucid Dreaming Tip section - currently expanded. Press Enter or Space to collapse">
+                    💡 Daily Lucid Dreaming Tip
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div id="dailyTipContainer" class="card-elevated card-lg text-center">
@@ -131,15 +128,12 @@ function renderAdviceTab(tabPanel) {
         </div>
 
         <div class="settings-section" data-advice-section="techniques">
-            <h3 data-action="toggle-advice-techniques"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Lucid Dreaming Techniques section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                📚 Lucid Dreaming Techniques
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-advice-techniques" aria-expanded="true" aria-label="Lucid Dreaming Techniques section - currently expanded. Press Enter or Space to collapse">
+                    📚 Lucid Dreaming Techniques
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">
@@ -160,15 +154,12 @@ function renderAdviceTab(tabPanel) {
         </div>
 
         <div class="settings-section" data-advice-section="general">
-            <h3 data-action="toggle-advice-general"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="General Advice section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                💡 General Advice
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-advice-general" aria-expanded="true" aria-label="General Advice section - currently expanded. Press Enter or Space to collapse">
+                    💡 General Advice
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">

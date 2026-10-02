@@ -45,20 +45,20 @@ test('the chosen theme is applied and survives a reload', async () => {
 });
 
 for (const vp of VIEWPORTS) {
-    test(`${vp.name}: long unbroken text stays inside its dream card`,
-        { todo: 'Known bug: titles and content without spaces overflow the card on both desktop and phone (needs overflow-wrap in app.css)' },
-        async () => {
-            const { page, context } = await openApp(browser, server.url, vp);
-            await importBackup(page, sampleBackup(2));
-            // Text that overflows does not enlarge its box, so compare scrollWidth with clientWidth
-            const overflow = await page.evaluate(() => {
-                const card = document.querySelector('#entry-seed-1000');
-                const limit = card.getBoundingClientRect().right;
-                return [card, ...card.querySelectorAll('*')]
-                    .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > limit + 1)
-                    .map(e => `${e.tagName}.${String(e.className).split(' ')[0]}`);
-            });
-            assert.deepEqual(overflow, []);
-            await context.close();
+    test(`${vp.name}: long unbroken text stays inside its dream card`, async () => {
+        const { page, context } = await openApp(browser, server.url, vp);
+        const backup = sampleBackup(2);
+        backup.data.dreams[0].emotions = 'e'.repeat(150);
+        await importBackup(page, backup);
+        // Text that overflows does not enlarge its box, so compare scrollWidth with clientWidth
+        const overflow = await page.evaluate(() => {
+            const card = document.querySelector('#entry-seed-1000');
+            const limit = card.getBoundingClientRect().right;
+            return [card, ...card.querySelectorAll('*')]
+                .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > limit + 1)
+                .map(e => `${e.tagName}.${String(e.className).split(' ')[0]}`);
         });
+        assert.deepEqual(overflow, []);
+        await context.close();
+    });
 }

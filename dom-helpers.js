@@ -1142,6 +1142,9 @@ function handleTabSpecificLogic(tabName, isInitialLoad = false) {
     // ARIA: Move focus to main heading of new tab (skip during initial load)
     if (!isInitialLoad) {
         setTimeout(() => {
+            // When the tab bar itself has focus (arrow keys, Enter, click) it keeps it, so the
+            // next arrow press moves to the next tab; Tab then enters the panel
+            if (document.activeElement?.matches('[role="tab"]')) return;
             const headingId = `${tabName}-main-heading`;
             const mainHeading = document.getElementById(headingId);
             if (mainHeading) {
@@ -1670,8 +1673,10 @@ function toggleDreamForm(shouldMoveFocus = false) {
  *
  * @example
  * // Toggle appearance section (typically called via data-action)
- * <h3 data-action="toggle-settings-appearance" role="button" tabindex="0">
- *   🎨 Appearance <span class="collapse-indicator">🔽</span>
+ * <h3 class="collapsible-heading">
+ *   <button type="button" class="collapse-toggle" data-action="toggle-settings-appearance">
+ *     🎨 Appearance <span class="collapse-indicator">🔽</span>
+ *   </button>
  * </h3>
  */
 async function toggleSettingsSection(sectionName) {

@@ -79,15 +79,15 @@ GNU Affero General Public License for more details.
         </div>
         
         <!-- Application Header - Logo and tagline -->
-        <div class="header">
+        <header class="header">
             <h1><img src="icons/logo.png" alt="🌙 " style="height: 1.2em; vertical-align: text-bottom;">Dream Journal</h1>
             <p>Capture your dreams and discover patterns for lucid dreaming</p>
-        </div>
+        </header>
         
         <!-- ================================ -->
         <!-- MAIN APPLICATION TABS NAVIGATION -->
         <!-- ================================ -->
-        <div class="tab-scroll-container" id="tabScrollContainer">
+        <nav class="tab-scroll-container" id="tabScrollContainer" aria-label="Main">
             <div class="app-tabs" role="tablist" aria-label="Dream Journal Navigation">
             <!-- Journal Tab - Main dream entry and viewing interface (default active) -->
             <button class="app-tab active" 
@@ -153,12 +153,12 @@ GNU Affero General Public License for more details.
                 🔒 Locked
             </button>
             </div>
-        </div>
+        </nav>
         
         <!-- ================================ -->
         <!-- TAB CONTENT CONTAINER            -->
         <!-- ================================ -->
-        <div class="tab-content-container">
+        <main class="tab-content-container" id="main-content">
             
             <!-- ================================ -->
             <!-- JOURNAL TAB - DREAM ENTRY FORM  -->
@@ -169,7 +169,7 @@ GNU Affero General Public License for more details.
                     <div>Loading your journal...</div>
                 </div>
             </div>
-        </div>
+        </main>
         <!-- ================================ -->
         <!-- APPLICATION FOOTER               -->
         <!-- ================================ -->
@@ -213,7 +213,7 @@ GNU Affero General Public License for more details.
             <h2 id="pinTitle">🔒 Enter PIN</h2>
             
             <!-- PIN Dialog Message - Context-specific instructions -->
-            <p id="pinMessage">Your dreams are protected. Enter your PIN to access them.</p>
+            <p id="pinMessage">The journal is locked. Enter your PIN to open it.</p>
             
             <!-- PIN Input Field - Password input with 6-character limit -->
             <input type="password" id="pinInput" class="pin-input" placeholder="Enter PIN" maxlength="6">

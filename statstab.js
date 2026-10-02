@@ -525,10 +525,10 @@ import {
             <div class="calendar-header">
                 <button data-action="prev-month" class="calendar-nav-btn prev" title="Previous Month"></button>
                 <div class="calendar-nav">
-                    <select id="monthSelect" class="filter-select" data-action="select-month">
+                    <select id="monthSelect" class="filter-select" data-action="select-month" aria-label="Month">
                         ${monthNames.map((m, i) => `<option value="${i}" ${i === month ? 'selected' : ''}>${m}</option>`).join('')}
                     </select>
-                    <select id="yearSelect" class="filter-select" data-action="select-year">
+                    <select id="yearSelect" class="filter-select" data-action="select-year" aria-label="Year">
                         ${getYearOptions(year)}
                     </select>
                 </div>
@@ -1652,7 +1652,7 @@ function renderStatsTab(tabPanel) {
     
     tabPanel.innerHTML = `
         <div id="statsContainer">
-            <h3 id="stats-main-heading" tabindex="-1">📊 Dream Statistics</h3>
+            <h2 id="stats-main-heading" class="tab-title" tabindex="-1">📊 Dream Statistics</h2>
             <div id="calendarContainer" class="card-md mb-lg">
                 <!-- Calendar will be generated here -->
                 <div class="loading-state"></div>

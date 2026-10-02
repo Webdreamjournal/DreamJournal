@@ -34,6 +34,7 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 | `cloud-sync.js` | Optional Dropbox sync (OAuth PKCE). Needs the Dropbox SDK loaded from the CDN in `index.html`. |
 | `device-key.js` | Non-extractable per-device key (IndexedDB) used to wrap Dropbox tokens at rest. |
 | `form-validation.js` | Real-time field validation. Initialised from `renderJournalTab`. |
+| `dialog-focus.js` | Watches for `.pin-overlay` / `.security-dialog-overlay` elements and gives them modal behaviour (focus, Tab trap, Escape, inert background). New dialogs get it by using one of those classes. |
 | `constants.js` | `CONSTANTS`, storage keys, tips loading. `tips.json` holds the tip text. |
 | `logger.js`, `version.js` | `debugLog` (silent unless `localStorage.dreamJournalDebug === 'true'`); `APP_VERSION`. |
 | `sw.js`, `pwa.js`, `manifest.json` | Service worker, install prompt, manifest. |
@@ -47,6 +48,8 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 - **No inline scripts or inline event handlers.** `index.html` has a Content-Security-Policy that forbids them (`tests/csp.test.js` checks this). Add a `data-action` and a handler in `ACTION_MAP` instead of `onclick`.
 - **No `console.log`.** Use `debugLog` from `logger.js`. `console.warn` and `console.error` are fine.
 - **Key derivation settings live in `CONSTANTS`** (`CRYPTO_PBKDF2_ITERATIONS`). The PIN lockout settings are there too. The PIN is a screen lock, not encryption. Stored data is protected only when the user enables encryption.
+- **Stored items share one derived key.** One PBKDF2 derivation takes about 100 ms, so dreams, goals and autocomplete data go through `encryptStoredData` / `decryptStoredData` (`security.js`), which keep a derived key per password and salt in memory. Calling `encryptData` per item (a new salt each time) makes unlocking cost about 100 ms per dream; `encryptData` is for exported files and tokens. Call `clearDerivedKeys()` when the session password is cleared or replaced. `tests/security.test.js` counts derivations.
+- **Collapsible sections use a button inside a heading**, not `role="button"` on the heading: `<h3 class="collapsible-heading"><button class="collapse-toggle" data-action="...">`. Tab titles are `<h2 id="<tab>-main-heading">`, which receives focus after a tab switch from outside the tab bar. `tests/e2e/a11y.e2e.js` runs axe on every tab in both themes and expects no violations.
 - **`form-validation.js` must run after the dream form exists.** It is called at the end of `renderJournalTab`, because the form is created by JS after startup.
 
 ## Versioning and the service worker

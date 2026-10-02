@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONSTANTS } from '../constants.js';
 import {
-    encryptData, decryptData, hashPinSecure, verifyPinHash,
+    encryptData, decryptData, encryptStoredData, decryptStoredData, clearDerivedKeys, hashPinSecure, verifyPinHash,
     timingSafeEqualHex, computePinLockoutMs, registerFailedPinAttempt
 } from '../security.js';
 import { setFailedPinAttempts, getFailedPinAttempts, getPinLockoutUntil } from '../state.js';
@@ -26,6 +26,111 @@ test('encryption uses a fresh salt/IV each time', async () => {
     const a = await encryptData('same', 'pw');
     const b = await encryptData('same', 'pw');
     assert.notDeepEqual(a, b);
+});
+
+/** Counts PBKDF2 derivations made while `fn` runs. */
+async function countDerivations(fn) {
+    const original = crypto.subtle.deriveKey;
+    let count = 0;
+    crypto.subtle.deriveKey = function (...args) { count++; return original.apply(this, args); };
+    try {
+        await fn();
+    } finally {
+        crypto.subtle.deriveKey = original;
+    }
+    return count;
+}
+
+test('stored items round-trip and use the same layout as encryptData', async () => {
+    clearDerivedKeys();
+    const enc = await encryptStoredData('a dream about flying', 'pw-stored');
+    assert.equal(await decryptStoredData(enc, 'pw-stored'), 'a dream about flying');
+    assert.equal(await decryptData(enc, 'pw-stored'), 'a dream about flying');
+    const fromFile = await encryptData('exported text', 'pw-stored');
+    assert.equal(await decryptStoredData(fromFile, 'pw-stored'), 'exported text');
+});
+
+test('stored items for one password share a salt but not an IV', async () => {
+    clearDerivedKeys();
+    const items = await Promise.all([1, 2, 3].map(n => encryptStoredData(`dream ${n}`, 'pw-shared')));
+    const salts = new Set(items.map(i => Buffer.from(i.slice(0, 16)).toString('hex')));
+    const ivs = new Set(items.map(i => Buffer.from(i.slice(16, 28)).toString('hex')));
+    assert.equal(salts.size, 1);
+    assert.equal(ivs.size, 3);
+});
+
+test('a journal of stored items is encrypted and decrypted with one key derivation', async () => {
+    clearDerivedKeys();
+    let items;
+    const encryptCount = await countDerivations(async () => {
+        items = [];
+        for (let n = 0; n < 20; n++) items.push(await encryptStoredData(`dream ${n}`, 'pw-count'));
+    });
+    assert.equal(encryptCount, 1);
+
+    clearDerivedKeys(); // a new session starts with an empty cache
+    const decryptCount = await countDerivations(async () => {
+        for (const item of items) await decryptStoredData(item, 'pw-count');
+    });
+    assert.equal(decryptCount, 1);
+});
+
+test('concurrent stored-item calls derive once and agree on the salt', async () => {
+    clearDerivedKeys();
+    let items;
+    const count = await countDerivations(async () => {
+        items = await Promise.all(Array.from({ length: 10 }, (_, n) => encryptStoredData(`dream ${n}`, 'pw-concurrent')));
+    });
+    assert.equal(count, 1);
+    assert.equal(new Set(items.map(i => Buffer.from(i.slice(0, 16)).toString('hex'))).size, 1);
+});
+
+test('items written with different salts each cost one derivation to read', async () => {
+    clearDerivedKeys();
+    const a = await encryptData('from one salt', 'pw-salts');
+    const b = await encryptData('from another salt', 'pw-salts');
+    const count = await countDerivations(async () => {
+        assert.equal(await decryptStoredData(a, 'pw-salts'), 'from one salt');
+        assert.equal(await decryptStoredData(b, 'pw-salts'), 'from another salt');
+        assert.equal(await decryptStoredData(a, 'pw-salts'), 'from one salt');
+    });
+    assert.equal(count, 2);
+});
+
+test('a wrong password fails, does not poison the right one, and different passwords do not share keys', async () => {
+    clearDerivedKeys();
+    const enc = await encryptStoredData('private', 'pw-right');
+    await assert.rejects(() => decryptStoredData(enc, 'pw-wrong'));
+    await assert.rejects(() => decryptStoredData(enc, 'pw-wrong'));
+    assert.equal(await decryptStoredData(enc, 'pw-right'), 'private');
+    const other = await encryptStoredData('private', 'pw-other');
+    assert.notDeepEqual(other.slice(0, 16), enc.slice(0, 16));
+});
+
+test('changing the password re-encrypts under a new salt without thrashing the cache', async () => {
+    clearDerivedKeys();
+    const old = [];
+    for (let n = 0; n < 5; n++) old.push(await encryptStoredData(`dream ${n}`, 'pw-old'));
+    const count = await countDerivations(async () => {
+        for (const item of old) {
+            const plain = await decryptStoredData(item, 'pw-old');
+            const next = await encryptStoredData(plain, 'pw-new');
+            assert.equal(await decryptStoredData(next, 'pw-new'), plain);
+        }
+    });
+    // One derivation for the old key (already cached) is free; only the new password derives, once
+    assert.equal(count, 1);
+    clearDerivedKeys('pw-old');
+    const reread = await countDerivations(() => decryptStoredData(old[0], 'pw-old'));
+    assert.equal(reread, 1);
+});
+
+test('tampered stored data is rejected', async () => {
+    clearDerivedKeys();
+    const enc = await encryptStoredData('secret', 'pw-tamper');
+    const tampered = enc.slice();
+    tampered[tampered.length - 1] ^= 1;
+    await assert.rejects(() => decryptStoredData(tampered, 'pw-tamper'));
 });
 
 test('PBKDF2 iterations meet the OWASP minimum', () => {

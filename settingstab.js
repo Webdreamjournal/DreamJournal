@@ -213,17 +213,14 @@ function renderSettingsTab(tabPanel) {
     const darkSelected = currentTheme === 'dark' ? 'selected' : '';
     
     tabPanel.innerHTML = `
-        <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3><br>
+        <h2 id="settings-main-heading" class="tab-title" tabindex="-1">⚙️ Settings</h2><br>
         <div class="settings-section" data-settings-section="appearance">
-            <h3 data-action="toggle-settings-appearance"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Appearance section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🎨 Appearance
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-appearance" aria-expanded="true" aria-label="Appearance section - currently expanded. Press Enter or Space to collapse">
+                    🎨 Appearance
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="settings-row">
@@ -232,7 +229,7 @@ function renderSettingsTab(tabPanel) {
                         <div class="settings-description">Choose your preferred color theme</div>
                     </div>
                     <div class="settings-controls">
-                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-keyshortcuts="Control+T">
+                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-label="Theme" aria-keyshortcuts="Control+T">
                             <option value="light" ${lightSelected}>🌞 Light</option>
                             <option value="dark" ${darkSelected}>🌙 Dark</option>
                         </select>
@@ -241,15 +238,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="security">
-            <h3 data-action="toggle-settings-security"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Security section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🔐 Security
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-security" aria-expanded="true" aria-label="Security section - currently expanded. Press Enter or Space to collapse">
+                    🔐 Security
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <!-- PIN Protection -->
@@ -315,15 +309,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="data">
-            <h3 data-action="toggle-settings-data"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Data Management section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                💾 Data Management
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-data" aria-expanded="true" aria-label="Data Management section - currently expanded. Press Enter or Space to collapse">
+                    💾 Data Management
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <!-- Dreams Only Export/Import -->
@@ -360,15 +351,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="autocomplete">
-            <h3 data-action="toggle-settings-autocomplete"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🏷️ Autocomplete Management
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-autocomplete" aria-expanded="true" aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse">
+                    🏷️ Autocomplete Management
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
@@ -429,15 +417,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="cloud-sync">
-            <h3 data-action="toggle-settings-cloud-sync"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Cloud Sync section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                ☁️ Cloud Sync
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-cloud-sync" aria-expanded="true" aria-label="Cloud Sync section - currently expanded. Press Enter or Space to collapse">
+                    ☁️ Cloud Sync
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>
@@ -1277,23 +1262,24 @@ async function showConfirmationDialog(config) {
  * @param {Function} showPasswordDialog - Password dialog function
  * @param {Function} testEncryptionPassword - Password testing function
  * @param {number} maxAttempts - Maximum number of retry attempts (default: 3)
+ * @param {string} purpose - What the password is needed for, shown in the dialog text
  * @returns {Promise<string|null>} Verified password or null if cancelled/failed
  * @throws {Error} When password testing encounters technical errors
  * @since 2.03.01
  * @private
  */
-async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, maxAttempts = 3) {
+async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, maxAttempts = 3, purpose = 'disable encryption and decrypt your data') {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
         let title = 'Verify Encryption Password';
-        let description = 'Enter your current encryption password to disable encryption and decrypt your data.';
+        let description = `Enter your current encryption password to ${purpose}.`;
 
         // Show error context for retry attempts
         if (attempts > 0) {
             const remaining = maxAttempts - attempts;
             title = 'Incorrect Password - Try Again';
-            description = `The password you entered is incorrect. You have ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.\n\nEnter your current encryption password to disable encryption and decrypt your data.`;
+            description = `The password you entered is incorrect. You have ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.\n\nEnter your current encryption password to ${purpose}.`;
         }
 
         const passwordConfig = {
@@ -1343,7 +1329,7 @@ async function performEncryptionDisabling(password) {
     try {
         // Import required functions
         const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress } = await import('./security.js');
+        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
@@ -1410,6 +1396,7 @@ async function performEncryptionDisabling(password) {
         await saveEncryptionSettings(false);
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
+        clearDerivedKeys();
 
         // Clear cache and reload data
         updateDecryptionProgress('Updating application data...');
@@ -1497,7 +1484,7 @@ async function changeEncryptionPassword() {
         const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
 
         // Step 1: Verify current password with retry logic
-        const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword);
+        const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, 3, 'change it');
 
         if (!currentPassword) {
             // User cancelled or failed verification
@@ -1603,7 +1590,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
             saveItemToStore
         } = await import('./storage.js');
         const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { updateEncryptionProgress } = await import('./security.js');
+        const { updateEncryptionProgress, clearDerivedKeys } = await import('./security.js');
 
         let reEncryptedCount = 0;
 
@@ -1652,6 +1639,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
         // Update session password and finalize
         updateEncryptionProgress('Updating session and finalizing...');
         setEncryptionPassword(newPassword);
+        clearDerivedKeys(oldPassword);
 
         // Clear cache to force reload with new password
         clearDecryptedDataCache();

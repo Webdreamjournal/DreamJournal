@@ -981,8 +981,10 @@ async function decreaseGoalProgress(goalId) {
  * 
  * @example
  * // HTML structure that triggers this handler
- * <h3 data-action="toggle-settings-dream" role="button" tabindex="0">
- *   Record Your Dream (Press Enter to expand)
+ * <h3 class="collapsible-heading">
+ *   <button type="button" class="collapse-toggle" data-action="toggle-settings-dream">
+ *     Record Your Dream (Press Enter to expand)
+ *   </button>
  * </h3>
  */
 function handleUnifiedKeydown(event) {
