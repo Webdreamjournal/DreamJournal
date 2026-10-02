@@ -506,13 +506,21 @@ async function importEntries(event) {
             const dreams = await loadDreams();
             
             // Simple parsing - this could be enhanced based on export format
-            const entriesRaw = text.split('='.repeat(50));
+            const entriesRaw = text.replace(/\r\n/g, '\n').split('='.repeat(50));
             let importedCount = 0;
             let skippedCount = 0;
             
             entriesRaw.forEach((entry, index) => {
                 try {
-                    const lines = entry.trim().split('\n').filter(line => line.trim()); // Remove empty lines
+                    // Header lines are matched by position, so blank lines are dropped for them.
+                    // The raw lines are kept so blank lines inside the dream content survive.
+                    const rawLines = entry.trim().split('\n');
+                    const rawIndexOfLine = [];
+                    const lines = rawLines.filter((line, rawIndex) => {
+                        if (!line.trim()) return false;
+                        rawIndexOfLine.push(rawIndex);
+                        return true;
+                    });
                     if (lines.length < 3) return; // Not enough data
                     
                     const title = lines[0].replace('Title: ', '').trim();
@@ -598,7 +606,10 @@ async function importEntries(event) {
                         contentStartIndex = contentStartIndex + 1;
                     }
                     
-                    const content = lines.slice(contentStartIndex)
+                    const contentRawStart = contentStartIndex < lines.length
+                        ? rawIndexOfLine[contentStartIndex]
+                        : rawLines.length;
+                    const content = rawLines.slice(contentRawStart)
                         .join('\n')
                         .replace(/^Content:\s*/, '') // Remove "Content:" prefix
                         .trim();

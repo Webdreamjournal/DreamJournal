@@ -58,14 +58,27 @@ test('text export and import', async (t) => {
         t.textPath = file.path;
     });
 
-    await t.test('re-importing a text export does not duplicate dreams',
-        { todo: 'Known bug: the text importer drops blank lines inside dream content (import-export.js, importEntries), so dreams with paragraph breaks no longer match and are added again' },
-        async () => {
-            const before = (await storedDreams(page)).length;
-            await page.setInputFiles('#importFile', t.textPath);
-            await page.waitForTimeout(1500);
-            assert.equal((await storedDreams(page)).length, before);
-        });
+    await t.test('re-importing a text export does not duplicate dreams', async () => {
+        const before = (await storedDreams(page)).length;
+        await page.setInputFiles('#importFile', t.textPath);
+        await page.waitForTimeout(1500);
+        assert.equal((await storedDreams(page)).length, before);
+    });
+
+    await t.test('a text export with Windows line endings imports with paragraph breaks intact', async () => {
+        const before = await storedDreams(page);
+        const original = before.find(d => d.id === 'seed-1000');
+        const crlf = fs.readFileSync(t.textPath, 'utf8').replace(/\n/g, '\r\n');
+        const changed = crlf.replace('Title: ' + original.title, 'Title: ' + original.title + ' (copy)')
+            .replace('ID: seed-1000', 'ID: seed-1000-copy');
+        const copyPath = t.textPath + '.copy.txt';
+        fs.writeFileSync(copyPath, changed);
+        await page.setInputFiles('#importFile', copyPath);
+        await page.waitForTimeout(1500);
+        const copy = (await storedDreams(page)).find(d => d.title === original.title + ' (copy)');
+        assert.ok(copy, 'the changed dream was not imported');
+        assert.equal(copy.content, original.content);
+    });
 
     await context.close();
 });
