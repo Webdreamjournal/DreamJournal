@@ -290,7 +290,7 @@ async function isAuthenticated() {
  * **PKCE Security:**
  * - Uses S256 code challenge method
  * - Generates cryptographically secure code verifier
- * - Stores verifier securely in session storage
+ * - Stores the verifier in sessionStorage for the redirect round trip
  * - Includes offline access for refresh tokens
  *
  * @async

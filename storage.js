@@ -515,20 +515,6 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Generates a unique identifier string using timestamp and random characters.
-     * 
-     * Creates a collision-resistant ID by combining current timestamp with
-     * a random alphanumeric string. Suitable for use as primary keys in
-     * database operations where UUID is not required.
-     * 
-     * @function
-     * @returns {string} Unique identifier string
-     * @since 1.0.0
-     * @example
-     * const id = generateUniqueId();
-     * // Returns something like: '1640995200123abc7def89'
-     */
-    /**
      * Pattern for IDs that are safe to embed in HTML attributes and CSS selectors.
      * Generated IDs ("timestamp-hash-random") always match; imported data may not.
      *
@@ -571,12 +557,15 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Generates a robust, content-aware unique ID for dreams and other entities.
-     * 
-     * Creates IDs that are cryptographically strong and content-bound to prevent
-     * collisions even with rapid creation or identical timestamps. Uses multiple
-     * entropy sources including timestamp, random data, and optional content salt.
-     * 
+     * Generates an ID for dreams, goals and other entities.
+     *
+     * Format: `<ms timestamp>-<4 chars>-<8 chars>` (base-36). The last part comes from
+     * crypto.getRandomValues (about 32 random bits). The middle part is a 32-bit DJB2 hash
+     * of the timestamp, timing, random values and the optional contentSalt fields; it is
+     * not cryptographic and adds no uniqueness beyond those inputs. Two calls in the same
+     * millisecond can in principle collide, so callers that must not overwrite existing
+     * records check for collisions (see detectIdCollision in import-export.js).
+     *
      * @param {Object} [contentSalt] - Optional content to salt the ID with
      * @param {string} [contentSalt.title] - Dream title for content binding
      * @param {string} [contentSalt.timestamp] - Dream timestamp for uniqueness
@@ -615,7 +604,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         let hashComponent = '';
         
         if (contentSalt) {
-            // Create content-based hash with guaranteed uniqueness per call
+            // Hash of the content fields plus per-call values (timestamp, timing, random)
             const saltString = [
                 contentSalt.title || 'untitled',
                 contentSalt.timestamp || timestamp.toString(),
@@ -627,7 +616,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 crypto.getRandomValues(new Uint32Array(1))[0].toString() // Additional entropy per call
             ].join('|');
             
-            // Enhanced hash function with better distribution
+            // DJB2 hash (32-bit, non-cryptographic)
             let hash = 5381; // DJB2 hash algorithm starting value
             for (let i = 0; i < saltString.length; i++) {
                 const char = saltString.charCodeAt(i);
