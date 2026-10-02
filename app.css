@@ -324,7 +324,7 @@
         
         /* === DREAM ENTRY UTILITIES === */
         /* Dream entry emotion display */
-        .entry-emotions { margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem; }
+        .entry-emotions { margin-top: 8px; color: var(--text-secondary); font-size: 0.9rem; overflow-wrap: anywhere; }
         .entry-emotions span { font-weight: var(--font-weight-semibold); }
         
         /* === FINAL OPTIMIZATION UTILITIES === */
@@ -1404,6 +1404,8 @@
             font-weight: var(--font-weight-semibold);
             color: var(--text-primary);
             flex: 1;
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
         .entry-meta {
             display: flex;
@@ -1461,6 +1463,7 @@
             color: var(--text-primary);
             line-height: 1.7;
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
 
         .entry-form {
