@@ -891,42 +891,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      */
     async function saveAllVoiceNotesToIndexedDB(voiceNotes) {
         if (!isIndexedDBAvailable()) return false;
-
-        return new Promise((resolve) => {
-            try {
-                const transaction = db.transaction([VOICE_STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(VOICE_STORE_NAME);
-
-                const clearRequest = store.clear();
-                clearRequest.onsuccess = () => {
-                    let completed = 0;
-                    const total = voiceNotes.length;
-                    if (total === 0) {
-                        resolve(true);
-                        return;
-                    }
-                    voiceNotes.forEach(note => {
-                        const addRequest = store.add(note);
-                        addRequest.onsuccess = () => {
-                            completed++;
-                            if (completed === total) {
-                                resolve(true);
-                            }
-                        };
-                        addRequest.onerror = (e) => {
-                            console.error('Error adding voice note during save all:', e.target.error);
-                        };
-                    });
-                };
-                clearRequest.onerror = (e) => {
-                    console.error('Error clearing voice notes store:', e.target.error);
-                    resolve(false);
-                };
-            } catch (error) {
-                console.error('Error in saveAllVoiceNotesToIndexedDB transaction:', error);
-                resolve(false);
-            }
-        });
+        return replaceStoreContents(VOICE_STORE_NAME, voiceNotes);
     }
 
     /**
@@ -1180,6 +1145,41 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
+     * Replaces the contents of an object store with the given items in one transaction.
+     *
+     * Resolves true only after the transaction has committed (`oncomplete`), not when
+     * the last request succeeds, so callers that report success afterwards are not
+     * ahead of what is stored. Resolves false if any request fails; the transaction
+     * is then rolled back and the store keeps its previous contents.
+     *
+     * @param {string} storeName - Name of the object store to replace
+     * @param {Array<Object>} items - Items to store
+     * @returns {Promise<boolean>} True once the data is committed
+     */
+    function replaceStoreContents(storeName, items) {
+        return new Promise((resolve) => {
+            try {
+                const transaction = db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                transaction.oncomplete = () => resolve(true);
+                transaction.onerror = () => {
+                    console.error(`Error writing to ${storeName} store:`, transaction.error);
+                    resolve(false);
+                };
+                transaction.onabort = () => {
+                    console.error(`Write to ${storeName} store was aborted:`, transaction.error);
+                    resolve(false);
+                };
+                store.clear();
+                items.forEach(item => store.add(item));
+            } catch (error) {
+                console.error(`Error saving to ${storeName} store:`, error);
+                resolve(false);
+            }
+        });
+    }
+
+    /**
      * Saves all dream entries directly to IndexedDB dreams store.
      * 
      * This is a low-level function that performs a complete replacement of the
@@ -1200,48 +1200,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      */
     async function saveToIndexedDB(dreams) {
         if (!isIndexedDBAvailable()) return false;
-        
-        return new Promise((resolve) => {
-            try {
-                const transaction = db.transaction([STORE_NAME], 'readwrite');
-                const store = transaction.objectStore(STORE_NAME);
-                
-                // Clear existing data
-                const clearRequest = store.clear();
-                clearRequest.onsuccess = () => {
-                    // Add all dreams
-                    let completed = 0;
-                    const total = dreams.length;
-                    
-                    if (total === 0) {
-                        resolve(true);
-                        return;
-                    }
-                    
-                    dreams.forEach(dream => {
-                        const addRequest = store.add(dream);
-                        addRequest.onsuccess = () => {
-                            completed++;
-                            if (completed === total) {
-                                resolve(true);
-                            }
-                        };
-                        addRequest.onerror = () => {
-                            console.error('Error adding dream:', addRequest.error);
-                            resolve(false);
-                        };
-                    });
-                };
-                
-                clearRequest.onerror = () => {
-                    console.error('Error clearing dreams store:', clearRequest.error);
-                    resolve(false);
-                };
-            } catch (error) {
-                console.error('Error saving to IndexedDB:', error);
-                resolve(false);
-            }
-        });
+        return replaceStoreContents(STORE_NAME, dreams);
     }
 
     /**
@@ -1314,54 +1273,11 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      */
     async function saveGoalsToIndexedDB(goals) {
         if (!isIndexedDBAvailable()) return false;
-        
-        return new Promise((resolve) => {
-            try {
-                if (!db.objectStoreNames.contains('goals')) {
-                    console.error('Goals store not found');
-                    resolve(false);
-                    return;
-                }
-                
-                const transaction = db.transaction(['goals'], 'readwrite');
-                const store = transaction.objectStore('goals');
-                
-                // Clear existing goals
-                const clearRequest = store.clear();
-                clearRequest.onsuccess = () => {
-                    // Add all goals
-                    let completed = 0;
-                    const total = goals.length;
-                    
-                    if (total === 0) {
-                        resolve(true);
-                        return;
-                    }
-                    
-                    goals.forEach(goal => {
-                        const addRequest = store.add(goal);
-                        addRequest.onsuccess = () => {
-                            completed++;
-                            if (completed === total) {
-                                resolve(true);
-                            }
-                        };
-                        addRequest.onerror = () => {
-                            console.error('Error adding goal:', addRequest.error);
-                            resolve(false);
-                        };
-                    });
-                };
-                
-                clearRequest.onerror = () => {
-                    console.error('Error clearing goals store:', clearRequest.error);
-                    resolve(false);
-                };
-            } catch (error) {
-                console.error('Error in saveGoalsToIndexedDB:', error);
-                resolve(false);
-            }
-        });
+        if (!db.objectStoreNames.contains('goals')) {
+            console.error('Goals store not found');
+            return false;
+        }
+        return replaceStoreContents('goals', goals);
     }
 
     // Voice Notes Storage Functions

@@ -1119,7 +1119,7 @@ function updateSecurityControls() {
             renderPinScreen(pinContainer, {
                 title: 'PIN Removed',
                 icon: '✅',
-                message: 'PIN protection has been removed. Your dreams are no longer secured.',
+                message: 'The PIN has been removed. The journal no longer asks for a PIN.',
                 buttons: [
                     { text: 'Close', action: 'complete-pin-removal', class: 'btn-primary' }
                 ]
@@ -2717,7 +2717,7 @@ function handlePinOverlayEscape(e) {
         renderPinScreen(pinContainer, {
             title: isChangingPin ? 'Change/Remove PIN' : 'Setup PIN',
             icon: '⚙️',
-            message: isChangingPin ? 'Enter your current PIN to change it.' : 'Create a 4-6 digit PIN to protect your dreams.',
+            message: isChangingPin ? 'Enter your current PIN to change it.' : 'Create a 4-6 digit PIN to lock your journal.',
             inputs: [
                 { id: 'pinInput', type: 'password', placeholder: isChangingPin ? 'Current PIN' : 'New PIN (4-6 digits)', class: 'pin-input', maxLength: 6 }
             ],
@@ -2964,7 +2964,7 @@ async function setupPin() {
                 renderPinScreen(pinContainer, {
                     title: 'PIN Setup Complete',
                     icon: '✅',
-                    message: `Secure PIN has been set successfully! Your dreams are now protected${isLocalStorageAvailable() ? ' with advanced encryption' : ' using memory storage (PIN will reset on refresh)'}.`,
+                    message: `PIN set. The journal will ask for it when it is locked or reopened. The PIN is a screen lock and does not encrypt your dreams; turn on encryption in Settings for that.${isLocalStorageAvailable() ? '' : ' Local storage is unavailable, so the PIN is kept in memory only and resets on refresh.'}`,
                     buttons: [
                         { text: 'Close', action: 'complete-pin-setup', class: 'btn-primary' }
                     ]
@@ -3037,7 +3037,7 @@ async function setupPin() {
         renderPinScreen(pinContainer, {
             title: 'Enter PIN',
             icon: '🔒',
-            message: 'Your dreams are protected. Enter your PIN to access them.',
+            message: 'The journal is locked. Enter your PIN to open it.',
             inputs: [ { id: 'pinInput', type: 'password', placeholder: 'Enter PIN', class: 'pin-input', maxLength: 6 } ],
             buttons: [
                 { text: 'Unlock', action: 'verify-pin', class: 'btn-primary', id: 'pinMainBtn' },
@@ -3076,7 +3076,7 @@ async function setupPin() {
         if (!isPinSetup()) {
             const container = document.querySelector('.main-content');
             if (container) {
-                createInlineMessage('info', 'First, set up a PIN to protect your dreams, then you can lock your journal.', {
+                createInlineMessage('info', 'First, set up a PIN, then you can lock your journal.', {
                     container: container,
                     position: 'top',
                     duration: 4000

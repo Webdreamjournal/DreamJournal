@@ -56,6 +56,12 @@ test('PIN protection', async (t) => {
         assert.equal(salt.length, 32);
     });
 
+    await t.test('the setup confirmation says the PIN is a screen lock and does not encrypt', async () => {
+        const text = await page.innerText('#pinOverlay');
+        assert.match(text, /does not encrypt/);
+        assert.doesNotMatch(text, /advanced encryption|now protected/);
+    });
+
     await t.test('after a reload only the lock screen is shown and no dreams are in the page', async () => {
         await page.reload({ waitUntil: 'load' });
         await page.waitForSelector('#lockScreenPinInput');
