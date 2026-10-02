@@ -267,7 +267,7 @@ async function exportEntries() {
                 const safeTags = Array.isArray(dream.tags) && dream.tags.length > 0 ? dream.tags.join(', ') : '';
                 const safeDreamSigns = Array.isArray(dream.dreamSigns) && dream.dreamSigns.length > 0 ? dream.dreamSigns.join(', ') : '';
                 
-                // Include the original ID for robust import/export
+                // Include the original ID so re-imports can detect duplicates
                 const safeId = dream && dream.id ? dream.id : generateUniqueId();
                 
                 let exportEntry = `Title: ${safeTitle}\n` +
@@ -518,7 +518,7 @@ async function importEntries(event) {
                     const title = lines[0].replace('Title: ', '').trim();
                     if (!title) return; // Skip entries without titles
                     
-                    // Extract ID if present (new export format includes ID for robust import)
+                    // Extract ID if present (new export format includes the ID)
                     let dreamId = null;
                     let nextLineIndex = 1;
                     
@@ -956,7 +956,7 @@ async function importAllData(event) {
                 const currentDreams = await loadDreams();
                 const importDreams = importData.data.dreams;
                 
-                // Process dreams with robust duplicate detection and ID collision handling
+                // Process dreams with duplicate detection and ID collision handling
                 const newDreams = [];
                 
                 importDreams.forEach(importDream => {
@@ -989,7 +989,7 @@ async function importAllData(event) {
                         });
                     }
                     
-                    // Use robust duplicate detection
+                    // Skip duplicates
                     if (isDreamDuplicate(currentDreams, importDream)) {
                         stats.skippedDreams++;
                     } else {
@@ -1017,7 +1017,7 @@ async function importAllData(event) {
                 const currentGoals = await loadGoals();
                 const importGoals = importData.data.goals;
                 
-                // Process goals with robust duplicate detection and ID collision handling
+                // Process goals with duplicate detection and ID collision handling
                 const newGoals = [];
                 
                 importGoals.forEach(importGoal => {

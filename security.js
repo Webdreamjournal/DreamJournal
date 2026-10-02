@@ -1,10 +1,10 @@
 /**
  * @fileoverview Security module for Dream Journal application cryptography and PIN management.
  * 
- * This module provides comprehensive security functionality for the Dream Journal application,
+ * This module provides security functionality for the Dream Journal application,
  * including data encryption/decryption, PIN-based authentication, recovery systems, and
- * secure storage management. All cryptographic operations use the Web Crypto API with
- * industry-standard algorithms (AES-GCM for encryption, PBKDF2 for key derivation).
+ * storage management. All cryptographic operations use the Web Crypto API
+ * (AES-GCM for encryption, PBKDF2 with SHA-256 for key derivation).
  * 
  * Key Features:
  * - AES-GCM data encryption with password-based key derivation
@@ -494,8 +494,7 @@ function showPasswordDialog(config) {
 /**
  * Securely hashes a PIN using PBKDF2 with salt and configurable iterations.
  * 
- * This function implements secure PIN storage using industry-standard PBKDF2
- * key derivation with SHA-256 hash function. Uses a random salt to prevent
+ * This function stores a PIN as a PBKDF2 (SHA-256) hash. Uses a random salt to prevent
  * rainbow table attacks and configurable iteration count for adjustable security.
  * The result includes both the derived hash and salt in hexadecimal format
  * for easy storage and retrieval.

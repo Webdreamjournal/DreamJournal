@@ -809,8 +809,8 @@ function storePaginationPreference(preference) {
 /**
  * Ensures the tab container infrastructure exists in the DOM.
  *
- * Creates the main tab content container element if it doesn't already exist,
- * providing a robust fallback for cases where the DOM structure is incomplete.
+ * Creates the main tab content container element if it doesn't already exist
+ * (for cases where the DOM structure is incomplete).
  * This function handles the foundational tab infrastructure setup.
  *
  * @returns {Element|null} The tab container element, or null if creation failed
@@ -832,7 +832,7 @@ function storePaginationPreference(preference) {
  * }
  */
 function ensureTabInfrastructure() {
-    // CRITICAL FIX: Ensure tab container exists with robust fallback
+    // Create the tab container if it is missing
     let tabContainer = document.querySelector('.tab-content-container');
     if (!tabContainer) {
         console.warn('Tab container not found, attempting to create it');
@@ -1214,7 +1214,7 @@ function switchAppTab(tabName, isInitialLoad = false) {
     }
 
     // 2. INFRASTRUCTURE SETUP
-    // Ensure tab container exists with robust error handling
+    // Ensure the tab container exists
     const tabContainer = ensureTabInfrastructure();
     if (!tabContainer) {
         console.error('switchAppTab: Failed to create tab infrastructure');
@@ -3013,8 +3013,7 @@ function formatDateTimeDisplay(dateInput, customOptions = {}) {
 /**
  * Safely parse date strings during import with UTC handling and fallback.
  * 
- * Designed for robust import processing that handles various date formats
- * and gracefully falls back to current date for invalid inputs. Ensures
+ * Handles various date formats and falls back to the current date for invalid input. Ensures
  * consistent UTC timestamp handling across different import sources.
  * 
  * @param {string} dateStr - Date string to parse (preferably ISO format)
@@ -3154,7 +3153,7 @@ function createPieChartHTML(title, totalDreams, lucidDreams, regularDreams, grad
  * 
  * Updates both the tip content display and counter information in the advice tab.
  * Uses modulo arithmetic to handle negative indices and out-of-bounds values safely,
- * ensuring the tip system is robust against invalid input.
+ * so invalid input does not throw.
  * 
  * @async
  * @param {number} index - Tip index to display (can be negative or out of bounds)

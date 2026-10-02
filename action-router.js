@@ -555,12 +555,11 @@ const ACTION_MAP = {
 // ================================
 
 /**
- * Routes action context to appropriate handler function with comprehensive error handling.
+ * Routes action context to the matching handler function.
  * 
  * This central dispatcher function takes an action context and routes it to the
- * corresponding handler in ACTION_MAP. It provides robust error handling for both
- * synchronous and asynchronous operations, ensuring that errors don't crash the
- * entire application.
+ * corresponding handler in ACTION_MAP. Errors thrown by a handler, or rejected by an
+ * async handler, are caught and logged instead of propagating to the event listener.
  * 
  * The function handles special cases like the 'seek-audio' action which requires
  * the original event object. It also properly catches and logs errors from both
