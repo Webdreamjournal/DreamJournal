@@ -1474,7 +1474,7 @@ async function performEncryptionDisabling(password) {
 async function changeEncryptionPassword() {
     try {
         // Import required functions
-        const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
+        const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword, showEncryptionProgress, updateEncryptionProgress, reEncryptAllData } = await import('./security.js');
 
         // Step 1: Verify current password with retry logic
         const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, 3, 'change it');
@@ -1505,7 +1505,7 @@ async function changeEncryptionPassword() {
         showEncryptionProgress('encrypting');
         updateEncryptionProgress('Re-encrypting all data with new password...');
 
-        // Step 4: Re-encrypt all data with new password
+        // Step 4: Re-encrypt all data with new password (also replaces the session password)
         const reEncryptedCount = await reEncryptAllData(currentPassword, newPassword);
 
         // Step 5: Re-enable controls
@@ -1535,114 +1535,6 @@ async function changeEncryptionPassword() {
 
         // Show error dialog
         await showEncryptionProgress('error', 'Failed to change encryption password. Please try again.');
-    }
-}
-
-/**
- * Re-encrypts all encrypted data with a new password.
- *
- * This function handles the complete data re-encryption process when changing
- * encryption passwords. It safely transitions all encrypted data from the old
- * password to the new password without data loss or corruption.
- *
- * **Re-encryption Process:**
- * 1. Load all raw dreams and goals from storage
- * 2. Identify encrypted items using isEncryptedItem()
- * 3. Decrypt each item with the old password
- * 4. Re-encrypt each item with the new password
- * 5. Save re-encrypted items back to storage
- * 6. Update session password and clear cache
- *
- * **Data Safety:**
- * - Processes items individually to prevent partial corruption
- * - Maintains data integrity throughout the process
- * - Handles mixed encrypted/unencrypted data scenarios
- * - Provides detailed progress feedback
- *
- * @async
- * @function
- * @param {string} oldPassword - Current encryption password
- * @param {string} newPassword - New encryption password
- * @returns {Promise<void>} Resolves when all data is successfully re-encrypted
- * @throws {Error} When decryption or re-encryption operations fail
- * @since 2.03.01
- * @example
- * // Re-encrypt all data with new password
- * await reEncryptAllData('old-password', 'new-secure-password');
- * // All encrypted items updated with new password
- */
-async function reEncryptAllData(oldPassword, newPassword) {
-    try {
-        // Import required functions
-        const {
-            loadDreamsRaw,
-            loadGoalsRaw,
-            isEncryptedItem,
-            decryptItemFromStorage,
-            encryptItemForStorage,
-            saveItemToStore
-        } = await import('./storage.js');
-        const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { updateEncryptionProgress, clearDerivedKeys } = await import('./security.js');
-
-        let reEncryptedCount = 0;
-
-        // Re-encrypt dreams
-        updateEncryptionProgress('Re-encrypting dreams...');
-        const dreams = await loadDreamsRaw();
-        for (const dream of dreams) {
-            if (isEncryptedItem(dream)) {
-                const decrypted = await decryptItemFromStorage(dream, oldPassword);
-                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
-                await saveItemToStore('dreams', reEncrypted);
-                reEncryptedCount++;
-            }
-        }
-
-        // Re-encrypt goals
-        updateEncryptionProgress('Re-encrypting goals...');
-        const goals = await loadGoalsRaw();
-        for (const goal of goals) {
-            if (isEncryptedItem(goal)) {
-                const decrypted = await decryptItemFromStorage(goal, oldPassword);
-                const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
-                await saveItemToStore('goals', reEncrypted);
-            }
-        }
-
-        // Re-encrypt autocomplete data (tags, dreamSigns, emotions)
-        updateEncryptionProgress('Re-encrypting autocomplete data...');
-        const { getAutocompleteSuggestionsRawData } = await import('./storage.js');
-        const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
-
-        for (const type of autocompleteTypes) {
-            try {
-                const autocompleteData = await getAutocompleteSuggestionsRawData(type);
-                if (autocompleteData && isEncryptedItem(autocompleteData)) {
-                    const decrypted = await decryptItemFromStorage(autocompleteData, oldPassword);
-                    const reEncrypted = await encryptItemForStorage(decrypted, newPassword);
-                    await saveItemToStore('autocomplete', reEncrypted);
-                }
-            } catch (error) {
-                // Autocomplete may not exist for this type, continue with other types
-                console.warn(`Autocomplete ${type} re-encryption skipped:`, error.message);
-            }
-        }
-
-        // Update session password and finalize
-        updateEncryptionProgress('Updating session and finalizing...');
-        setEncryptionPassword(newPassword);
-        clearDerivedKeys(oldPassword);
-
-        // Clear cache to force reload with new password
-        clearDecryptedDataCache();
-
-        // Return count for success message in calling function
-        return reEncryptedCount;
-
-    } catch (error) {
-        console.error('Error re-encrypting data:', error);
-        throw error;
     }
 }
 

@@ -293,6 +293,53 @@ test('data encryption', async (t) => {
         assert.deepEqual(readable.tags, ['seededtagalpha', 'seededtagbeta']);
     });
 
+    await t.test('a re-encryption that fails part way changes nothing in storage', async () => {
+        const snapshot = async () => JSON.stringify([await rawDreams(), await rawStore('goals'), await rawStore('autocomplete')]);
+        // Damage the stored goal so decrypting it fails after the dreams have been processed
+        const damageGoal = (restore) => page.evaluate((shouldRestore) => new Promise(resolve => {
+            const open = indexedDB.open('DreamJournal');
+            open.onsuccess = () => {
+                const tx = open.result.transaction('goals', 'readwrite');
+                const store = tx.objectStore('goals');
+                const get = store.getAll();
+                get.onsuccess = () => {
+                    const goal = get.result[0];
+                    if (shouldRestore) {
+                        store.put(window.__originalGoal);
+                    } else {
+                        window.__originalGoal = goal;
+                        const data = new Uint8Array(goal.data);
+                        data[data.length - 1] ^= 0xff;
+                        store.put({ ...goal, data });
+                    }
+                };
+                tx.oncomplete = () => { open.result.close(); resolve(); };
+            };
+        }), restore);
+
+        await damageGoal(false);
+        const before = await snapshot();
+        const outcome = await page.evaluate(async () => {
+            const { reEncryptAllData } = await import('/security.js');
+            try {
+                await reEncryptAllData('battery staple', 'another new password');
+                return 'resolved';
+            } catch (error) {
+                return 'rejected';
+            }
+        });
+        assert.equal(outcome, 'rejected');
+        assert.equal(await snapshot(), before, 'stored data changed although the re-encryption failed');
+        await damageGoal(true);
+        // The journal still opens with the real password
+        await page.reload({ waitUntil: 'load' });
+        await unlockWithPassword('battery staple');
+        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
+        await page.click('#decryption-progress-dialog button');
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 4);
+    });
+
     await t.test('pressing Enter on Cancel in the disable-encryption confirmation keeps encryption on', async () => {
         await openTab(page, 'settings');
         await page.click('[data-action="toggle-encryption"]');
@@ -335,6 +382,6 @@ test('data encryption', async (t) => {
     });
 
     // The app logs a console error for the deliberate wrong-password attempt above
-    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError/.test(p)), []);
+    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError|Re-encryption error/.test(p)), []);
     await context.close();
 });

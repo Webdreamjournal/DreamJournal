@@ -59,8 +59,8 @@ import {
 } from './state.js';
 import { createInlineMessage, switchAppTab, showAllTabButtons, hideAllTabButtons, renderPinScreen } from './dom-helpers.js';
 import {
-    isLocalStorageAvailable, loadDreams, saveItemToStore,
-    loadDreamsRaw, loadGoalsRaw,
+    isLocalStorageAvailable, loadDreams,
+    loadDreamsRaw, loadGoalsRaw, getAutocompleteSuggestionsRawData, putItemsInStores,
     isEncryptedItem, decryptItemFromStorage, encryptItemForStorage
 } from './storage.js';
 import { displayDreams } from './dream-crud.js';
@@ -3907,6 +3907,69 @@ function updateEncryptionProgress(message) {
 }
 
 /**
+ * Re-encrypts all encrypted dreams, goals and autocomplete data under a new password.
+ *
+ * Every encrypted item is decrypted with the old password and encrypted with the new one
+ * in memory first, so a wrong password or a damaged item throws before anything is written.
+ * The results are then written in one IndexedDB transaction, so the stores end up either
+ * entirely under the old password or entirely under the new one. Items that are not
+ * encrypted are left as they are. On success the session password is replaced, the old
+ * password's cached key is dropped and the decrypted-data cache is cleared.
+ *
+ * @async
+ * @function
+ * @param {string} oldPassword - Current encryption password
+ * @param {string} newPassword - New encryption password
+ * @returns {Promise<number>} Number of items re-encrypted (dreams, goals and autocomplete lists)
+ * @throws {Error} When an item cannot be decrypted or the write does not commit; stored data is unchanged
+ * @since 2.03.05
+ * @example
+ * const count = await reEncryptAllData('old-password', 'new-password');
+ */
+async function reEncryptAllData(oldPassword, newPassword) {
+    try {
+        const pending = { dreams: [], goals: [], autocomplete: [] };
+
+        const reEncryptItems = async (items, target) => {
+            for (const item of items) {
+                if (!isEncryptedItem(item)) continue;
+                const decrypted = await decryptItemFromStorage(item, oldPassword);
+                target.push(await encryptItemForStorage(decrypted, newPassword));
+            }
+        };
+
+        updateEncryptionProgress('Re-encrypting dreams...');
+        await reEncryptItems(await loadDreamsRaw(), pending.dreams);
+
+        updateEncryptionProgress('Re-encrypting goals...');
+        await reEncryptItems(await loadGoalsRaw(), pending.goals);
+
+        updateEncryptionProgress('Re-encrypting autocomplete data...');
+        for (const type of ['tags', 'dreamSigns', 'emotions']) {
+            const stored = await getAutocompleteSuggestionsRawData(type);
+            if (stored) await reEncryptItems([stored], pending.autocomplete);
+        }
+
+        updateEncryptionProgress('Saving re-encrypted data...');
+        const stores = Object.fromEntries(Object.entries(pending).filter(([, items]) => items.length > 0));
+        if (Object.keys(stores).length > 0 && !(await putItemsInStores(stores))) {
+            throw new Error('The re-encrypted data could not be saved');
+        }
+
+        setEncryptionPassword(newPassword);
+        clearDerivedKeys(oldPassword);
+        clearDecryptedDataCache();
+
+        return pending.dreams.length + pending.goals.length + pending.autocomplete.length;
+    } catch (error) {
+        // Nothing was written, so the stored data still uses the old password
+        clearDerivedKeys(newPassword);
+        console.error('Re-encryption error:', error);
+        throw error;
+    }
+}
+
+/**
  * Updates the message in an active decryption progress dialog.
  *
  * This helper function allows updating the progress message while
@@ -4003,6 +4066,7 @@ export {
     loadEncryptionSettings,
     saveEncryptionSettings,
     validateEncryptionPassword,
+    reEncryptAllData,
 
     // Authentication flow integration
     getAuthenticationRequirements,
