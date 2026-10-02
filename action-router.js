@@ -28,7 +28,7 @@
  * @example
  * // HTML elements with data-action attributes are automatically handled
  * <button data-action="save-dream">Save Dream</button>
- * <select data-action="switch-theme">...</select>
+ * <select data-action="select-month">...</select>
  * 
  * // Event delegation is set up in main.js
  * document.addEventListener('click', handleUnifiedClick);
@@ -44,7 +44,7 @@ import { CONSTANTS } from './constants.js';
 import { calendarState, getAllGoals, setActiveGoalsPage, setCompletedGoalsPage, getActiveGoalsPage, getCompletedGoalsPage } from './state.js';
 
 // Core utilities
-import { switchAppTab, switchTheme, switchVoiceTab, toggleDreamForm, toggleSettingsSection, toggleGoalsSection, toggleAdviceSection, toggleJournalSection, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
+import { switchAppTab, switchVoiceTab, toggleDreamForm, toggleSettingsSection, toggleGoalsSection, toggleAdviceSection, toggleJournalSection, handleTipNavigation, setDateFilter, showExportFormatInfo, closeExportFormatInfo, showEmotionsHelp, showTagsHelp, showDreamSignsHelp, showSmartSearchHelp, closeInfoTooltip } from './dom-helpers.js';
 
 // Autocomplete functions (now in settingstab module)
 import {
@@ -61,7 +61,7 @@ import {
     verifyPin, verifyEncryptionPassword, showRemovePin, showForgotPin,
     confirmRemovePin, executePinRemoval, completePinRemoval, startTitleRecovery,
     verifyDreamTitles, startTimerRecovery, confirmStartTimer, confirmCancelTimer,
-    restoreWarningBanner, completeRecovery, completePinSetup, showSetNewPinScreen,
+    completeRecovery, completePinSetup, showSetNewPinScreen,
     setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
     startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
     verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer,
@@ -78,7 +78,7 @@ import {
 import {
     toggleRecording, playVoiceNote, pauseVoiceNote,
     transcribeVoiceNote, downloadVoiceNote, deleteVoiceNote,
-    confirmDeleteVoiceNote, cancelDeleteVoiceNote, seekAudio,
+    confirmDeleteVoiceNote, seekAudio,
     createDreamFromTranscription, toggleTranscriptionDisplay
 } from './voice-notes.js';
 
@@ -350,8 +350,6 @@ const ACTION_MAP = {
         'install-pwa': () => installPWA(),                                  // Install Progressive Web App
         'switch-voice-tab': (ctx) => switchVoiceTab(ctx.element.dataset.tab), // Switch between voice recording tabs
         'switch-app-tab': (ctx) => switchAppTab(ctx.element.dataset.tab),   // Switch main application tabs
-        'switch-theme': (ctx) => switchTheme(ctx.element.value),            // Switch application theme (light/dark)
-        'show-pin-overlay': () => showPinOverlay(),                         // Show PIN entry overlay
         'reload-app': () => window.location.reload(),                      // Reload the page (error/wipe screens)
         'cancel-timer': () => cancelResetTimer(),                           // Cancel active PIN reset timer
         
@@ -416,7 +414,6 @@ const ACTION_MAP = {
         'download-voice': (ctx) => downloadVoiceNote(ctx.voiceNoteId),       // Download voice note as audio file
         'delete-voice': (ctx) => deleteVoiceNote(ctx.voiceNoteId),           // Delete voice note with confirmation
         'confirm-delete-voice': (ctx) => confirmDeleteVoiceNote(ctx.voiceNoteId), // Confirm voice note deletion
-        'cancel-delete-voice': (ctx) => cancelDeleteVoiceNote(ctx.voiceNoteId),   // Cancel voice note deletion
         'seek-audio': (ctx) => seekAudio(ctx.voiceNoteId, ctx.event),        // Seek to position in audio playback
         'toggle-transcription': (ctx) => toggleTranscriptionDisplay(ctx.voiceNoteId), // Toggle transcription text display (show more/less)
         
@@ -480,7 +477,6 @@ const ACTION_MAP = {
         'start-timer-recovery': () => startTimerRecovery(),                 // Start 72-hour timer recovery
         'confirm-start-timer': () => confirmStartTimer(),                   // Confirm timer recovery start
         'confirm-cancel-timer': () => confirmCancelTimer(),                 // Confirm timer cancellation
-        'restore-warning-banner': () => restoreWarningBanner(),             // Restore timer warning banner
         'complete-recovery': () => completeRecovery(),                      // Complete recovery process
         'complete-pin-setup': () => completePinSetup(),                     // Complete PIN setup process
         'show-set-new-pin-screen': () => showSetNewPinScreen(),             // Show new PIN entry screen
@@ -640,9 +636,9 @@ function routeAction(context, event = null) {
  * 
  * @example
  * // SELECT elements are ignored (use change events instead)
- * <select data-action="switch-theme">
- *   <option value="light">Light</option>
- *   <option value="dark">Dark</option>
+ * <select data-action="select-month">
+ *   <option value="0">January</option>
+ *   <option value="1">February</option>
  * </select>
  */
 function handleUnifiedClick(event) {
@@ -679,9 +675,9 @@ function handleUnifiedClick(event) {
  * 
  * @example
  * // HTML elements that trigger this handler
- * <select data-action="switch-theme">
- *   <option value="light">Light Theme</option>
- *   <option value="dark">Dark Theme</option>
+ * <select data-action="select-month">
+ *   <option value="0">January</option>
+ *   <option value="1">February</option>
  * </select>
  * 
  * <input type="checkbox" data-action="toggle-option" data-option="notifications">
@@ -691,9 +687,9 @@ function handleUnifiedClick(event) {
  * @example
  * // Context extraction works the same as click events
  * // Change on select will extract action and element.value
- * function handleThemeChange(context) {
- *   const newTheme = context.element.value; // "light" or "dark"
- *   switchTheme(newTheme);
+ * function handleMonthChange(context) {
+ *   const month = Number(context.element.value); // 0 to 11
+ *   showMonth(month);
  * }
  */
 function handleUnifiedChange(event) {

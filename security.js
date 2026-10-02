@@ -2667,23 +2667,6 @@ function cancelResetTimer() {
         updateTimerWarning(); // Show warning banner
     }
 
-/**
-     * Restores and refreshes the timer warning banner display.
-     * 
-     * Simple wrapper function that calls updateTimerWarning() to restore or refresh
-     * the timer warning banner state. Used when the banner needs to be shown again
-     * after being hidden or when the timer state needs to be refreshed.
-     * 
-     * @since 2.0.0
-     * @example
-     * // Restore timer warning banner after user action
-     * restoreWarningBanner();
-     * // Refreshes banner display with current timer status
-     */
-    function restoreWarningBanner() {
-        updateTimerWarning();
-    }
-
 // ================================
 // 10. PIN OVERLAY MANAGEMENT
 // ================================
@@ -4054,7 +4037,6 @@ export {
     startLockScreenTimerRecovery,
     startLockScreenTitleRecovery,
     verifyLockScreenDreamTitles,
-    restoreWarningBanner,
     completeRecovery,
     
     // Utility functions
