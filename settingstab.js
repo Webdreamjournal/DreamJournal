@@ -213,17 +213,14 @@ function renderSettingsTab(tabPanel) {
     const darkSelected = currentTheme === 'dark' ? 'selected' : '';
     
     tabPanel.innerHTML = `
-        <h3 id="settings-main-heading" tabindex="-1">⚙️ Settings</h3><br>
+        <h2 id="settings-main-heading" class="tab-title" tabindex="-1">⚙️ Settings</h2><br>
         <div class="settings-section" data-settings-section="appearance">
-            <h3 data-action="toggle-settings-appearance"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Appearance section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🎨 Appearance
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-appearance" aria-expanded="true" aria-label="Appearance section - currently expanded. Press Enter or Space to collapse">
+                    🎨 Appearance
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="settings-row">
@@ -241,15 +238,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="security">
-            <h3 data-action="toggle-settings-security"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Security section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🔐 Security
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-security" aria-expanded="true" aria-label="Security section - currently expanded. Press Enter or Space to collapse">
+                    🔐 Security
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <!-- PIN Protection -->
@@ -315,15 +309,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="data">
-            <h3 data-action="toggle-settings-data"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Data Management section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                💾 Data Management
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-data" aria-expanded="true" aria-label="Data Management section - currently expanded. Press Enter or Space to collapse">
+                    💾 Data Management
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <!-- Dreams Only Export/Import -->
@@ -360,15 +351,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="autocomplete">
-            <h3 data-action="toggle-settings-autocomplete"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🏷️ Autocomplete Management
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-autocomplete" aria-expanded="true" aria-label="Autocomplete Management section - currently expanded. Press Enter or Space to collapse">
+                    🏷️ Autocomplete Management
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Manage the suggestions that appear when you type tags and dream signs. Add your own items, or delete any you don't use.</p>
@@ -429,15 +417,12 @@ function renderSettingsTab(tabPanel) {
             </div>
         </div>
         <div class="settings-section" data-settings-section="cloud-sync">
-            <h3 data-action="toggle-settings-cloud-sync"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Cloud Sync section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                ☁️ Cloud Sync
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-settings-cloud-sync" aria-expanded="true" aria-label="Cloud Sync section - currently expanded. Press Enter or Space to collapse">
+                    ☁️ Cloud Sync
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>

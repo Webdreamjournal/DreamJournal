@@ -93,7 +93,7 @@ function renderJournalTab(tabPanel) {
             <!-- DREAMS SECTION HEADER            -->
             <!-- ================================ -->
             <div class="dreams-section-header">
-                <h3>📚 Your Dreams</h3>
+                <h2 id="journal-main-heading" tabindex="-1">📚 Your Dreams</h2>
             </div>
             
             <!-- ================================ -->
@@ -101,16 +101,12 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="settings-section" id="dreamFormFull">
                 <!-- Collapsible form header with toggle functionality -->
-                <h3 id="journal-main-heading"
-                    tabindex="0"
-                    data-action="toggle-settings-dream"
-                    role="button"
-                    aria-expanded="true"
-                    aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse"
-                    style="cursor: pointer; user-select: none;">
-                    📝 Record Your Dream
-                    <span class="collapse-indicator" title="Click to collapse"></span>
-                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                <h3 class="collapsible-heading">
+                    <button type="button" id="journal-form-toggle" class="collapse-toggle" data-action="toggle-settings-dream" aria-expanded="true" aria-label="Record Your Dream form - currently expanded. Press Enter or Space to collapse">
+                        📝 Record Your Dream
+                        <span class="collapse-indicator" title="Click to collapse"></span>
+                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                    </button>
                 </h3>
                 
                 <!-- Dream Date & Time Input - Pre-populated with current datetime by main.js -->
@@ -204,15 +200,12 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="settings-section" id="dreamFormCollapsed">
                 <!-- Collapsed form header with expand functionality -->
-                <h3 data-action="toggle-settings-dream"
-                    role="button"
-                    tabindex="0"
-                    aria-expanded="false"
-                    aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand"
-                    style="cursor: pointer; user-select: none;">
-                    📝 Record Your Dream
-                    <span class="collapse-indicator" title="Click to expand"></span>
-                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to expand)</span>
+                <h3 class="collapsible-heading">
+                    <button type="button" class="collapse-toggle" data-action="toggle-settings-dream" aria-expanded="false" aria-label="Record Your Dream form - currently collapsed. Press Enter or Space to expand">
+                        📝 Record Your Dream
+                        <span class="collapse-indicator" title="Click to expand"></span>
+                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to expand)</span>
+                    </button>
                 </h3>
             </div>
             
@@ -273,16 +266,12 @@ function renderJournalTab(tabPanel) {
             <!-- ================================ -->
             <div class="settings-section" data-journal-section="controls">
                 <div class="section-header-with-action">
-                    <h3 data-action="toggle-journal-controls"
-                        role="button"
-                        tabindex="0"
-                        aria-expanded="true"
-                        aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse"
-                        style="cursor: pointer; user-select: none;">
-                        🔍 Search & Filter
-                        <span class="collapse-indicator" title="Click to collapse"></span>
-                        <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
-                        
+                    <h3 class="collapsible-heading">
+                        <button type="button" class="collapse-toggle" data-action="toggle-journal-controls" aria-expanded="true" aria-label="Search & Filter Controls section - currently expanded. Press Enter or Space to collapse">
+                            🔍 Search & Filter
+                            <span class="collapse-indicator" title="Click to collapse"></span>
+                            <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                        </button>
                     </h3>
                   
                 </div>

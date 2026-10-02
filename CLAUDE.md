@@ -49,6 +49,7 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 - **No `console.log`.** Use `debugLog` from `logger.js`. `console.warn` and `console.error` are fine.
 - **Key derivation settings live in `CONSTANTS`** (`CRYPTO_PBKDF2_ITERATIONS`). The PIN lockout settings are there too. The PIN is a screen lock, not encryption. Stored data is protected only when the user enables encryption.
 - **Stored items share one derived key.** One PBKDF2 derivation takes about 100 ms, so dreams, goals and autocomplete data go through `encryptStoredData` / `decryptStoredData` (`security.js`), which keep a derived key per password and salt in memory. Calling `encryptData` per item (a new salt each time) makes unlocking cost about 100 ms per dream; `encryptData` is for exported files and tokens. Call `clearDerivedKeys()` when the session password is cleared or replaced. `tests/security.test.js` counts derivations.
+- **Collapsible sections use a button inside a heading**, not `role="button"` on the heading: `<h3 class="collapsible-heading"><button class="collapse-toggle" data-action="...">`. Tab titles are `<h2 id="<tab>-main-heading">`, which receives focus after a tab switch from outside the tab bar. `tests/e2e/a11y.e2e.js` runs axe on every tab in both themes and expects no violations.
 - **`form-validation.js` must run after the dream form exists.** It is called at the end of `renderJournalTab`, because the form is created by JS after startup.
 
 ## Versioning and the service worker

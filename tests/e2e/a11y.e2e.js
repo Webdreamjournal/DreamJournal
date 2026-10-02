@@ -13,13 +13,6 @@ after(async () => { await browser?.close(); await server?.close(); });
 
 const TABS = ['journal', 'goals', 'stats', 'advice', 'settings'];
 
-/** Accessibility problems that are already known. A new rule id appearing in a scan fails the suite. */
-const KNOWN_RULES = {
-    'heading-order': 'headings skip levels',
-    'aria-allowed-role': 'role="button" on <h3> section headers',
-    'scrollable-region-focusable': 'scrollable autocomplete lists cannot be reached by keyboard'
-};
-
 async function scan(page) {
     await page.evaluate(axeSource);
     return page.evaluate(async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.length })));
@@ -40,18 +33,20 @@ async function scanAll(theme) {
 }
 
 for (const theme of ['dark', 'light']) {
-    test(`${theme} theme: no new kinds of accessibility violation`, async () => {
-        const found = await scanAll(theme);
-        const unknown = Object.keys(found).filter(id => !(id in KNOWN_RULES));
-        assert.deepEqual(unknown, [], `new axe rules failing: ${unknown.map(id => `${id} on ${found[id].join(', ')}`).join('; ')}`);
+    test(`${theme} theme: no axe violations on any tab`, async () => {
+        assert.deepEqual(await scanAll(theme), {});
     });
-
-    test(`${theme} theme: no accessibility violations at all`,
-        { todo: `Known issues: ${Object.entries(KNOWN_RULES).map(([k, v]) => `${k} (${v})`).join('; ')}` },
-        async () => {
-            assert.deepEqual(await scanAll(theme), {});
-        });
 }
+
+test('no axe violations with an autocomplete list open', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(12));
+    await page.click('#dreamTags');
+    await page.keyboard.type('fl');
+    await page.waitForSelector('.tag-autocomplete-dropdown .autocomplete-item', { state: 'visible' });
+    assert.deepEqual(await scan(page), []);
+    await context.close();
+});
 
 const insideDialog = (page) => page.evaluate(() => !!document.activeElement.closest('.pin-overlay, .security-dialog-overlay'));
 const backgroundInert = (page) => page.evaluate(() => document.querySelector('.container').inert);
@@ -137,5 +132,25 @@ test('arrow keys move between tabs while focus stays on the tab bar', async () =
     await page.keyboard.press('Home');
     await page.waitForTimeout(400);
     assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-journal');
+    await context.close();
+});
+
+test('collapsible section headers are buttons inside headings and toggle once per Enter or Space', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await openTab(page, 'settings');
+    const toggle = page.locator('[data-action="toggle-settings-appearance"]');
+    assert.equal(await toggle.evaluate(el => el.tagName), 'BUTTON');
+    assert.equal(await toggle.evaluate(el => el.parentElement.tagName), 'H3');
+    await toggle.focus();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
     await context.close();
 });

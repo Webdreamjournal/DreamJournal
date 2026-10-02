@@ -1638,17 +1638,14 @@ function renderGoalsTab(tabPanel) {
     }
     
     tabPanel.innerHTML = `
-        <h3 id="goals-main-heading" tabindex="-1">🎯 Your Dream Goals</h3><br>
+        <h2 id="goals-main-heading" class="tab-title" tabindex="-1">🎯 Your Dream Goals</h2><br>
         <div class="settings-section" data-goals-section="active">
-            <h3 data-action="toggle-goals-active"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Active Goals section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🎯 Active Goals
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-goals-active" aria-expanded="true" aria-label="Active Goals section - currently expanded. Press Enter or Space to collapse">
+                    🎯 Active Goals
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="flex-between mb-lg">
@@ -1670,15 +1667,12 @@ function renderGoalsTab(tabPanel) {
         </div>
 
         <div class="settings-section" data-goals-section="templates">
-            <h3 data-action="toggle-goals-templates"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Quick Goal Templates section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                📈 Quick Goal Templates
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-goals-templates" aria-expanded="true" aria-label="Quick Goal Templates section - currently expanded. Press Enter or Space to collapse">
+                    📈 Quick Goal Templates
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div class="grid-auto">
@@ -1711,15 +1705,12 @@ function renderGoalsTab(tabPanel) {
         </div>
 
         <div class="settings-section" data-goals-section="completed">
-            <h3 data-action="toggle-goals-completed"
-                role="button"
-                tabindex="0"
-                aria-expanded="true"
-                aria-label="Completed Goals section - currently expanded. Press Enter or Space to collapse"
-                style="cursor: pointer; user-select: none;">
-                🏆 Completed Goals
-                <span class="collapse-indicator" title="Click to collapse"></span>
-                <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+            <h3 class="collapsible-heading">
+                <button type="button" class="collapse-toggle" data-action="toggle-goals-completed" aria-expanded="true" aria-label="Completed Goals section - currently expanded. Press Enter or Space to collapse">
+                    🏆 Completed Goals
+                    <span class="collapse-indicator" title="Click to collapse"></span>
+                    <span class="collapse-hint text-xxs text-secondary font-normal">(Click to collapse)</span>
+                </button>
             </h3>
             <div class="settings-section-content">
                 <div id="completedGoalsContainer">

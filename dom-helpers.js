@@ -1673,8 +1673,10 @@ function toggleDreamForm(shouldMoveFocus = false) {
  *
  * @example
  * // Toggle appearance section (typically called via data-action)
- * <h3 data-action="toggle-settings-appearance" role="button" tabindex="0">
- *   🎨 Appearance <span class="collapse-indicator">🔽</span>
+ * <h3 class="collapsible-heading">
+ *   <button type="button" class="collapse-toggle" data-action="toggle-settings-appearance">
+ *     🎨 Appearance <span class="collapse-indicator">🔽</span>
+ *   </button>
  * </h3>
  */
 async function toggleSettingsSection(sectionName) {
