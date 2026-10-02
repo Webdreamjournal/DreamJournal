@@ -100,6 +100,7 @@ const urlsToCache = [
   './version.js',          // App version
   './logger.js',           // Debug logging gate
   './device-key.js',       // Device key for token storage
+  './dialog-focus.js',     // Focus handling for modal dialogs
   './state.js',            // Global state management
   './storage.js',          // IndexedDB operations
   './dom-helpers.js',      // DOM utilities

@@ -30,7 +30,7 @@ test('every precached file exists and new modules are precached', () => {
     const list = [...sw.matchAll(/^\s*'\.\/([^']+)',?\s*(?:\/\/.*)?$/gm)].map(m => m[1]).filter(f => f && !f.endsWith('/'));
     assert.ok(list.length > 20);
     for (const f of list) assert.ok(fs.existsSync(path.join(root, f)), `missing precache file ${f}`);
-    for (const f of ['version.js', 'logger.js', 'theme-init.js']) assert.ok(list.includes(f), `${f} not precached`);
+    for (const f of ['version.js', 'logger.js', 'device-key.js', 'dialog-focus.js', 'theme-init.js']) assert.ok(list.includes(f), `${f} not precached`);
 });
 
 test('modules do not call console.log directly (use debugLog)', () => {

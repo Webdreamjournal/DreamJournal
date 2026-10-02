@@ -308,7 +308,7 @@ function renderJournalTab(tabPanel) {
 
                         <!-- Dream Type Filter -->
                         <div class="filter-group">
-                            <select id="filterSelect" class="filter-select">
+                            <select id="filterSelect" class="filter-select" aria-label="Filter by dream type">
                                 <option value="all">All Dreams</option>
                                 <option value="lucid">Lucid Dreams</option>
                                 <option value="non-lucid">Non-Lucid Dreams</option>
@@ -326,14 +326,14 @@ function renderJournalTab(tabPanel) {
 
                         <!-- Sort and Display Controls -->
                         <div class="display-sort-group">
-                            <select id="sortSelect" class="filter-select">
+                            <select id="sortSelect" class="filter-select" aria-label="Sort dreams">
                                 <option value="newest">Newest First</option>
                                 <option value="oldest">Oldest First</option>
                                 <option value="lucid-first">Lucid First</option>
                                 <option value="longest">Longest First</option>
                             </select>
 
-                            <select id="limitSelect" class="filter-select">
+                            <select id="limitSelect" class="filter-select" aria-label="Dreams per page">
                                 ${generatePaginationDropdownOptions()}
                             </select>
                         </div>

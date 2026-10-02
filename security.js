@@ -2714,69 +2714,13 @@ function showPinOverlay() {
         setFailedPinAttempts(0);
         resetPinOverlay(); // Reset to default state
         document.getElementById('pinOverlay').style.display = 'flex';
-        
-        // ARIA: Add focus trapping and escape key support
-        const cleanupFocusTrap = trapFocusInPinOverlay();
-        const overlay = document.getElementById('pinOverlay');
-        overlay._cleanupFocusTrap = cleanupFocusTrap;
-        document.addEventListener('keydown', handlePinOverlayEscape);
-        
+        // Focus trapping, Escape and focus return are handled by dialog-focus.js
+
         setTimeout(() => {
             const pinInput = document.getElementById('pinInput');
             if (pinInput) pinInput.focus();
         }, CONSTANTS.FOCUS_DELAY_MS);
     }
-
-/**
- * Simple focus trap for PIN dialogs
- * @returns {Function} Cleanup function to remove event listeners
- * @since 2.02.53
- */
-function trapFocusInPinOverlay() {
-    const overlay = document.getElementById('pinOverlay');
-    if (!overlay || overlay.style.display === 'none') return;
-    
-    const focusableElements = overlay.querySelectorAll(
-        'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    
-    function handleTabKey(e) {
-        if (e.key !== 'Tab') return;
-        
-        if (e.shiftKey) {
-            if (document.activeElement === firstElement) {
-                e.preventDefault();
-                lastElement.focus();
-            }
-        } else {
-            if (document.activeElement === lastElement) {
-                e.preventDefault();
-                firstElement.focus();
-            }
-        }
-    }
-    
-    overlay.addEventListener('keydown', handleTabKey);
-    
-    // Return cleanup function
-    return () => overlay.removeEventListener('keydown', handleTabKey);
-}
-
-/**
- * Handle escape key for PIN overlay
- * @param {KeyboardEvent} e - The keyboard event
- * @since 2.02.53
- */
-function handlePinOverlayEscape(e) {
-    if (e.key === 'Escape') {
-        const overlay = document.getElementById('pinOverlay');
-        if (overlay && overlay.style.display !== 'none') {
-            hidePinOverlay();
-        }
-    }
-}
 
 /**
      * Hides the PIN overlay modal interface.
@@ -2800,14 +2744,7 @@ function handlePinOverlayEscape(e) {
      */
     function hidePinOverlay() {
         const overlay = document.getElementById('pinOverlay');
-        
-        // ARIA: Clean up focus trap and escape key listener
-        if (overlay._cleanupFocusTrap) {
-            overlay._cleanupFocusTrap();
-            overlay._cleanupFocusTrap = null;
-        }
-        document.removeEventListener('keydown', handlePinOverlayEscape);
-        
+
         overlay.style.display = 'none';
         resetPinOverlay();
     }

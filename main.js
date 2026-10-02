@@ -100,6 +100,9 @@ import { installPWA, setupPWAInstall } from './pwa.js';
 // Cloud sync system
 import { initializeCloudSync } from './cloud-sync.js';
 
+// Modal dialog focus handling
+import { initializeDialogFocus } from './dialog-focus.js';
+
 
 // ================================
 // MAIN APPLICATION INITIALIZATION MODULE
@@ -757,6 +760,7 @@ async function initializeApp() {
 
     checkBrowserCompatibility();
     initializeTheme();
+    initializeDialogFocus();
 
     // Load encryption settings and update global state
     const encryptionEnabled = loadEncryptionSettings();

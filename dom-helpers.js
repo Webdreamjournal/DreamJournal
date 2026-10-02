@@ -1142,6 +1142,9 @@ function handleTabSpecificLogic(tabName, isInitialLoad = false) {
     // ARIA: Move focus to main heading of new tab (skip during initial load)
     if (!isInitialLoad) {
         setTimeout(() => {
+            // When the tab bar itself has focus (arrow keys, Enter, click) it keeps it, so the
+            // next arrow press moves to the next tab; Tab then enters the panel
+            if (document.activeElement?.matches('[role="tab"]')) return;
             const headingId = `${tabName}-main-heading`;
             const mainHeading = document.getElementById(headingId);
             if (mainHeading) {

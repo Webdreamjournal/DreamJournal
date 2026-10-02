@@ -34,6 +34,7 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 | `cloud-sync.js` | Optional Dropbox sync (OAuth PKCE). Needs the Dropbox SDK loaded from the CDN in `index.html`. |
 | `device-key.js` | Non-extractable per-device key (IndexedDB) used to wrap Dropbox tokens at rest. |
 | `form-validation.js` | Real-time field validation. Initialised from `renderJournalTab`. |
+| `dialog-focus.js` | Watches for `.pin-overlay` / `.security-dialog-overlay` elements and gives them modal behaviour (focus, Tab trap, Escape, inert background). New dialogs get it by using one of those classes. |
 | `constants.js` | `CONSTANTS`, storage keys, tips loading. `tips.json` holds the tip text. |
 | `logger.js`, `version.js` | `debugLog` (silent unless `localStorage.dreamJournalDebug === 'true'`); `APP_VERSION`. |
 | `sw.js`, `pwa.js`, `manifest.json` | Service worker, install prompt, manifest. |

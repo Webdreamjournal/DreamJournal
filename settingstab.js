@@ -232,7 +232,7 @@ function renderSettingsTab(tabPanel) {
                         <div class="settings-description">Choose your preferred color theme</div>
                     </div>
                     <div class="settings-controls">
-                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-keyshortcuts="Control+T">
+                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-label="Theme" aria-keyshortcuts="Control+T">
                             <option value="light" ${lightSelected}>🌞 Light</option>
                             <option value="dark" ${darkSelected}>🌙 Dark</option>
                         </select>

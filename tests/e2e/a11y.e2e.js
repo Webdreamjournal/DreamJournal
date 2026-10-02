@@ -15,11 +15,7 @@ const TABS = ['journal', 'goals', 'stats', 'advice', 'settings'];
 
 /** Accessibility problems that are already known. A new rule id appearing in a scan fails the suite. */
 const KNOWN_RULES = {
-    'select-name': 'filter, sort, month and theme <select> elements have no accessible label',
-    'color-contrast': 'white on #6469f2 buttons (4.33:1) and the light-theme "(Click to collapse)" hint (3.31:1)',
     'heading-order': 'headings skip levels',
-    'landmark-one-main': 'the page has no <main> landmark',
-    'region': 'content outside landmarks',
     'aria-allowed-role': 'role="button" on <h3> section headers',
     'scrollable-region-focusable': 'scrollable autocomplete lists cannot be reached by keyboard'
 };
@@ -57,35 +53,89 @@ for (const theme of ['dark', 'light']) {
         });
 }
 
-test('dialogs move focus inside, keep it there and close with Escape',
-    { todo: 'Known gap: the PIN overlay does not take focus, Tab leaves it and Escape does nothing' },
-    async () => {
-        const { page, context } = await openApp(browser, server.url);
-        await openTab(page, 'settings');
-        await page.click('[data-action="setup-pin"]');
+const insideDialog = (page) => page.evaluate(() => !!document.activeElement.closest('.pin-overlay, .security-dialog-overlay'));
+const backgroundInert = (page) => page.evaluate(() => document.querySelector('.container').inert);
+const activeAction = (page) => page.evaluate(() => document.activeElement.dataset.action || document.activeElement.id || document.activeElement.tagName);
+
+test('dialogs take focus, keep Tab inside, close with Escape and return focus', async (t) => {
+    const { page, context } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(3));
+    await openTab(page, 'settings');
+
+    await t.test('the PIN dialog', async () => {
+        await page.focus('[data-action="setup-pin"]');
+        await page.keyboard.press('Enter');
         await page.waitForSelector('#pinInput');
-        const inDialog = () => page.evaluate(() => !!document.activeElement.closest('.pin-overlay'));
-        assert.ok(await inDialog(), 'focus did not move into the dialog');
-        for (let i = 0; i < 6; i++) {
+        assert.ok(await insideDialog(page), 'focus did not move into the dialog');
+        assert.equal(await page.getAttribute('#pinOverlay', 'aria-modal'), 'true');
+        assert.equal(await backgroundInert(page), true, 'the page behind the dialog is still reachable');
+        for (let i = 0; i < 8; i++) {
             await page.keyboard.press('Tab');
-            assert.ok(await inDialog(), `focus left the dialog after ${i + 1} Tab presses`);
+            assert.ok(await insideDialog(page), `focus left the dialog after ${i + 1} Tab presses`);
+        }
+        for (let i = 0; i < 8; i++) {
+            await page.keyboard.press('Shift+Tab');
+            assert.ok(await insideDialog(page), `focus left the dialog after ${i + 1} Shift+Tab presses`);
         }
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
-        assert.ok(!(await page.locator('.pin-overlay').first().isVisible()), 'Escape did not close the dialog');
-        await context.close();
+        assert.ok(!(await page.locator('#pinOverlay').isVisible()), 'Escape did not close the dialog');
+        assert.equal(await backgroundInert(page), false, 'the page is still inert after the dialog closed');
+        assert.equal(await activeAction(page), 'setup-pin', 'focus did not return to the button that opened the dialog');
     });
 
-test('arrow keys move between tabs while focus stays on the tab bar',
-    { todo: 'Known gap: after ArrowRight, focus jumps into the new panel heading, so a second arrow press does nothing' },
-    async () => {
-        const { page, context } = await openApp(browser, server.url);
-        await page.focus('#tab-journal');
-        await page.keyboard.press('ArrowRight');
+    await t.test('a script-created password dialog is labelled, focused and closes with Escape', async () => {
+        await page.focus('[data-action="toggle-encryption"]');
+        await page.keyboard.press('Enter');
+        await page.waitForSelector('#passwordInput');
+        assert.equal(await activeAction(page), 'passwordInput');
+        const dialog = await page.evaluate(() => {
+            const overlay = document.querySelector('.pin-overlay[data-dialog="password"]');
+            const labelId = overlay.getAttribute('aria-labelledby');
+            return { role: overlay.getAttribute('role'), modal: overlay.getAttribute('aria-modal'), label: document.getElementById(labelId)?.textContent ?? '', title: overlay.querySelector('h2').textContent };
+        });
+        assert.equal(dialog.role, 'dialog');
+        assert.equal(dialog.modal, 'true');
+        assert.ok(dialog.label.trim().length > 0, 'the dialog has no accessible name');
+        assert.equal(dialog.label, dialog.title);
+        await page.keyboard.press('Shift+Tab');
+        assert.ok(await insideDialog(page), 'Shift+Tab left the dialog');
+        await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
-        assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-goals');
-        await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(300);
-        assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-stats');
-        await context.close();
+        assert.equal(await page.locator('.pin-overlay[data-dialog="password"]').count(), 0, 'Escape did not close the password dialog');
+        assert.equal(await backgroundInert(page), false);
+        assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), null, 'Escape must not enable encryption');
+        assert.equal(await activeAction(page), 'toggle-encryption');
     });
+
+    await t.test('a dialog with only an OK button takes focus and Escape presses OK', async () => {
+        await page.click('[data-action="toggle-encryption"]');
+        await page.fill('#passwordInput', 'correct horse');
+        await page.fill('#confirmPasswordInput', 'correct horse');
+        await page.click('#confirmPasswordBtn');
+        await page.waitForSelector('.security-dialog-overlay:has-text("Encryption Successful")', { timeout: 60000 });
+        assert.ok(await insideDialog(page), 'focus is not inside the result dialog');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+        assert.equal(await page.locator('.security-dialog-overlay').count(), 0, 'Escape did not close the result dialog');
+        assert.equal(await backgroundInert(page), false);
+    });
+
+    await context.close();
+});
+
+test('arrow keys move between tabs while focus stays on the tab bar', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await page.focus('#tab-journal');
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-goals');
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-stats');
+    assert.equal(await page.getAttribute('#tab-stats', 'aria-selected'), 'true');
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'tab-journal');
+    await context.close();
+});

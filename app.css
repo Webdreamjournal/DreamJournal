@@ -62,18 +62,19 @@
             
             /* Semantic color lightness values */
             --primary-l: 59%;          --primary-hover-l: 52%;      /* Primary action colors */
+            --primary-solid-l: 59%;                                 /* Primary as a button background under white text */
             --success-l: 30%;          --success-hover-l: 26%;      /* Success state colors */
-            --error-l: 51%;            --error-hover-l: 44%;        /* Error state colors */
+            --error-l: 46%;            --error-hover-l: 40%;        /* Error state colors */
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
-            --info-l: 39%;             --info-hover-l: 33%;         /* Info and info hover colors */
+            --info-l: 35%;             --info-hover-l: 30%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
             --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
             
             /* Component-specific lightness values */
             --shadow-opacity: 0.1;     --modal-backdrop-opacity: 0.9;
-            --voice-bg-l: 97%;         --voice-border-l: 86%;       --voice-text-l: 39%;
-            --tag-bg-l: 97%;           --tag-text-l: 39%;           --tag-border-l: 86%;
-            --dream-sign-bg-l: 95%;    --dream-sign-text-l: 44%;    --dream-sign-border-l: 88%;
+            --voice-bg-l: 97%;         --voice-border-l: 86%;       --voice-text-l: 35%;
+            --tag-bg-l: 97%;           --tag-text-l: 35%;           --tag-border-l: 86%;
+            --dream-sign-bg-l: 95%;    --dream-sign-text-l: 32%;    --dream-sign-border-l: 88%;
             --notification-error-l: 93%;   --notification-success-l: 89%;
             --notification-warning-l: 95%; --notification-info-l: 97%;
             
@@ -348,7 +349,7 @@
                       border-top-right-radius: 0;
                       border-bottom-left-radius: var(--border-radius); 
                       border-bottom-right-radius: var(--border-radius); }
-        .app-footer p { margin: 0; font-size: 12px; opacity: 0.8; }
+        .app-footer p { margin: 0; font-size: 12px; }
         
         /* Feedback and autocomplete */
         .feedback-container { border-radius: var(--border-radius); display: none; }
@@ -414,7 +415,8 @@
             --border-dark-l: 52%;      --border-hover-l: 59%;
             
             /* Semantic colors - adjusted for dark backgrounds */
-            --primary-l: 67%;          --primary-hover-l: 53%;
+            --primary-l: 70%;          --primary-hover-l: 53%;
+            --primary-solid-l: 62%;    /* Darker than --primary-l so white button text reaches 4.5:1 */
             --success-l: 70%;          --success-hover-l: 30%;
             --error-l: 72%;            --error-hover-l: 51%;
             --warning-l: 71%;          --warning-hover-l: 65%;
@@ -456,6 +458,7 @@
             /* Core Theme Colors */
             --primary-color: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
             --primary-hover: hsl(var(--primary-h), var(--primary-s), var(--primary-hover-l));
+            --primary-solid: hsl(var(--primary-h), var(--primary-s), var(--primary-solid-l));
             --secondary-color: hsl(var(--slate-h), var(--slate-s), var(--secondary-l));
             --secondary-hover: hsl(var(--slate-h), var(--slate-s), var(--secondary-hover-l));
             --success-color: hsl(var(--success-h), var(--success-s), var(--success-l));
@@ -894,7 +897,7 @@
         }
         
         .btn-primary {
-            background: var(--primary-color);
+            background: var(--primary-solid);
         }
         .btn-primary:hover {
             background: var(--primary-hover);
@@ -2432,8 +2435,9 @@
             font-weight: var(--font-weight-semibold);
             font-size: 14px;
         }
-        .calendar-day.other-month {
-            opacity: 0.5;
+        .calendar-day.other-month .day-number {
+            color: var(--text-tertiary);
+            font-weight: var(--font-weight-normal, 400);
         }
         .calendar-day.today .day-number {
             color: var(--primary-color);
@@ -2507,7 +2511,6 @@
         }
 
         .collapse-hint {
-            opacity: 0.7;
             margin-left: 8px;
             font-size: 0.75em;
             font-weight: normal;
@@ -2700,7 +2703,7 @@
             padding: 12px 15px;
             border-radius: var(--border-radius);
             font-size: 14px;
-            color: hsl(var(--warning-h), var(--warning-s), 30%);
+            color: hsl(var(--warning-h), var(--warning-s), 26%);
         }
 
         .border-l-warning {
@@ -3377,7 +3380,6 @@
         footer p:last-child {
             margin: 0;
             font-size: 12px;
-            opacity: 0.8;
         }
 
 /* ============================
@@ -3451,7 +3453,7 @@
 }
 
 .security-dialog-content .btn-primary {
-    background-color: var(--primary-color);
+    background-color: var(--primary-solid);
     color: white;
 }
 
