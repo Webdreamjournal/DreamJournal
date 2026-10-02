@@ -1231,19 +1231,12 @@ async function showConfirmationDialog(config) {
             resolve(false);
         });
 
-        // Handle Escape key
+        // Escape cancels. Enter is not handled here: a focused button already activates on Enter,
+        // so Enter on the Cancel button cancels and Enter on the confirm button confirms.
         overlay.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 cleanup();
                 resolve(false);
-            }
-        });
-
-        // Handle Enter key (confirm action)
-        overlay.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                cleanup();
-                resolve(true);
             }
         });
     });
