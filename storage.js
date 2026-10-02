@@ -2543,10 +2543,10 @@ function isEncryptedItem(item) {
  */
 async function encryptItemForStorage(item, password) {
     // Import encryption functions from security.js
-    const { encryptData } = await import('./security.js');
+    const { encryptStoredData } = await import('./security.js');
 
     const plaintext = JSON.stringify(item);
-    const encryptedData = await encryptData(plaintext, password);
+    const encryptedData = await encryptStoredData(plaintext, password);
 
     return {
         id: item.id,
@@ -2579,9 +2579,9 @@ async function encryptItemForStorage(item, password) {
  */
 async function decryptItemFromStorage(encryptedItem, password) {
     // Import decryption functions from security.js
-    const { decryptData } = await import('./security.js');
+    const { decryptStoredData } = await import('./security.js');
 
-    const decryptedText = await decryptData(encryptedItem.data, password);
+    const decryptedText = await decryptStoredData(encryptedItem.data, password);
     const item = JSON.parse(decryptedText);
 
     // Restore original timestamps from wrapper metadata

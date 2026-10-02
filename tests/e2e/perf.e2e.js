@@ -47,25 +47,27 @@ test('a 1,500-dream journal stays responsive', async () => {
     await context.close();
 });
 
-test('unlocking an encrypted journal of 60 dreams takes under 3 seconds',
-    { todo: 'Known issue: every dream is encrypted with its own key derivation (PBKDF2 at 600,000 iterations, about 85ms each on a fast machine), so unlock time grows linearly: about 100ms per dream' },
-    async () => {
-        const { page, context } = await openApp(browser, server.url);
-        await importBackup(page, bigBackup(60));
-        await openTab(page, 'settings');
-        await page.click('[data-action="toggle-encryption"]');
-        await page.fill('#passwordInput', 'correct horse');
-        await page.fill('#confirmPasswordInput', 'correct horse');
-        await page.click('#confirmPasswordBtn');
-        await page.waitForSelector('.security-dialog-overlay:has-text("Encryption Successful")', { timeout: 120000 });
-        await page.click('.security-dialog-overlay button');
-        await page.reload({ waitUntil: 'load' });
-        await page.waitForSelector('#lockScreenPasswordInput');
-        await page.fill('#lockScreenPasswordInput', 'correct horse');
-        const start = Date.now();
-        await page.click('[data-action="verify-encryption-password"]');
-        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 120000 });
-        const elapsed = Date.now() - start;
-        await context.close();
-        assert.ok(elapsed < 3000, `unlock took ${elapsed}ms`);
-    });
+test('enabling encryption and unlocking a journal of 200 dreams stays under 5 seconds each', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await importBackup(page, bigBackup(200));
+    await openTab(page, 'settings');
+    await page.click('[data-action="toggle-encryption"]');
+    await page.fill('#passwordInput', 'correct horse');
+    await page.fill('#confirmPasswordInput', 'correct horse');
+    let start = Date.now();
+    await page.click('#confirmPasswordBtn');
+    await page.waitForSelector('.security-dialog-overlay:has-text("Encryption Successful")', { timeout: 120000 });
+    const enableMs = Date.now() - start;
+    await page.click('.security-dialog-overlay button');
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('#lockScreenPasswordInput');
+    await page.fill('#lockScreenPasswordInput', 'correct horse');
+    start = Date.now();
+    await page.click('[data-action="verify-encryption-password"]');
+    await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 120000 });
+    const unlockMs = Date.now() - start;
+    await context.close();
+    // One key derivation (about 100ms) serves the whole journal; before, each dream cost about 100ms
+    assert.ok(enableMs < 5000, `enabling encryption took ${enableMs}ms`);
+    assert.ok(unlockMs < 5000, `unlock took ${unlockMs}ms`);
+});

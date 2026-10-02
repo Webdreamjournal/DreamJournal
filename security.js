@@ -157,9 +157,10 @@ function generateIV() {
 /**
  * Derives an AES-256-GCM encryption key from a password using PBKDF2.
  * 
- * Uses Password-Based Key Derivation Function 2 (PBKDF2) with SHA-256 hash function
- * and 100,000 iterations to derive a 256-bit AES key from the provided password and salt.
- * The high iteration count provides protection against brute-force attacks.
+ * Uses Password-Based Key Derivation Function 2 (PBKDF2) with SHA-256 and
+ * `CONSTANTS.CRYPTO_PBKDF2_ITERATIONS` iterations to derive a 256-bit AES key from the
+ * provided password and salt. Each call costs about 100 ms, which is why stored items
+ * go through the key cache below instead of deriving a key per item.
  * 
  * @async
  * @param {string} password - User-provided password for key derivation
@@ -202,7 +203,7 @@ async function deriveKey(password, salt) {
  * This function provides authenticated encryption of string data using a user-provided password.
  * The encryption process:
  * 1. Generates a random 16-byte salt and 12-byte IV
- * 2. Derives an AES-256 key using PBKDF2 with 100,000 iterations
+ * 2. Derives an AES-256 key using PBKDF2 (`CONSTANTS.CRYPTO_PBKDF2_ITERATIONS` iterations)
  * 3. Encrypts the data using AES-GCM (provides both confidentiality and authenticity)
  * 4. Concatenates salt + IV + encrypted data into a single Uint8Array
  * 
@@ -221,28 +222,55 @@ async function deriveKey(password, salt) {
  */
 async function encryptData(data, password) {
     try {
-        const encoder = new TextEncoder();
         const salt = generateSalt();
-        const iv = generateIV();
         const key = await deriveKey(password, salt);
-        
-        const encrypted = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv: iv },
-            key,
-            encoder.encode(data)
-        );
-        
-        // Combine salt, iv, and encrypted data
-        const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
-        result.set(salt, 0);
-        result.set(iv, salt.length);
-        result.set(new Uint8Array(encrypted), salt.length + iv.length);
-        
-        return result;
+        return await sealWithKey(key, salt, data);
     } catch (error) {
         console.error('Encryption error:', error);
         throw new Error('Failed to encrypt data');
     }
+}
+
+/**
+ * Encrypts a string with an already derived key and packs the result as
+ * [16-byte salt][12-byte IV][ciphertext + auth tag]. A new IV is generated per call.
+ *
+ * @param {CryptoKey} key - AES-GCM key derived from the password and `salt`
+ * @param {Uint8Array} salt - The salt the key was derived with (stored with the data)
+ * @param {string} data - Plain text to encrypt
+ * @returns {Promise<Uint8Array>} Combined salt, IV and ciphertext
+ */
+async function sealWithKey(key, salt, data) {
+    const iv = generateIV();
+    const encrypted = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        new TextEncoder().encode(data)
+    );
+
+    const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+    result.set(salt, 0);
+    result.set(iv, salt.length);
+    result.set(new Uint8Array(encrypted), salt.length + iv.length);
+    return result;
+}
+
+/**
+ * Decrypts the [salt][IV][ciphertext] layout written by `sealWithKey` with a derived key.
+ *
+ * @param {CryptoKey} key - AES-GCM key derived from the password and the data's salt
+ * @param {Uint8Array} encryptedData - Combined salt, IV and ciphertext
+ * @returns {Promise<string>} Plain text
+ */
+async function openWithKey(key, encryptedData) {
+    const iv = encryptedData.slice(16, 28);
+    const encrypted = encryptedData.slice(28);
+    const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encrypted
+    );
+    return new TextDecoder().decode(decrypted);
 }
     
 /**
@@ -280,19 +308,109 @@ async function encryptData(data, password) {
 async function decryptData(encryptedData, password) {
     try {
         const salt = encryptedData.slice(0, 16);
-        const iv = encryptedData.slice(16, 28);
-        const encrypted = encryptedData.slice(28);
-        
         const key = await deriveKey(password, salt);
-        
-        const decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv: iv },
-            key,
-            encrypted
-        );
-        
-        const decoder = new TextDecoder();
-        return decoder.decode(decrypted);
+        return await openWithKey(key, encryptedData);
+    } catch (error) {
+        console.error('Decryption error:', error);
+        throw new Error('Failed to decrypt data - incorrect password or corrupted file');
+    }
+}
+
+// ---- Stored items: one derived key per password and salt ----
+//
+// Deriving a key costs about 100 ms, so deriving one per stored dream made unlocking a
+// journal take about 100 ms per dream. Stored items instead share a salt: the first salt
+// used for a password becomes that password's "current" salt (generated when the first
+// item is encrypted, or adopted from the first item decrypted), later items are encrypted
+// under it, and the derived key is kept in memory. Each item still carries its own copy
+// of the salt and a fresh IV, so items written with a different salt, and files made by
+// encryptData, can still be decrypted, at one derivation per distinct salt.
+
+const KEY_CACHE_MAX_PASSWORDS = 2; // old and new password during a password change
+
+/** password -> { keys: Map<saltHex, Promise<CryptoKey>>, currentSalt: Uint8Array|null } */
+const derivedKeyCache = new Map();
+
+function saltToHex(salt) {
+    return Array.from(salt, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function getKeyCacheEntry(password) {
+    let entry = derivedKeyCache.get(password);
+    if (entry) {
+        derivedKeyCache.delete(password); // re-insert below so the most recently used stays last
+    } else {
+        entry = { keys: new Map(), currentSalt: null };
+    }
+    derivedKeyCache.set(password, entry);
+    if (derivedKeyCache.size > KEY_CACHE_MAX_PASSWORDS) {
+        derivedKeyCache.delete(derivedKeyCache.keys().next().value);
+    }
+    return entry;
+}
+
+/** Returns the derived key for this password and salt, deriving it only the first time. */
+function getDerivedKey(password, salt) {
+    const entry = getKeyCacheEntry(password);
+    const id = saltToHex(salt);
+    let pending = entry.keys.get(id);
+    if (!pending) {
+        pending = deriveKey(password, salt);
+        entry.keys.set(id, pending);
+        // A failed derivation is not kept, so the next call tries again
+        pending.catch(() => {
+            if (entry.keys.get(id) === pending) entry.keys.delete(id);
+        });
+        if (!entry.currentSalt) entry.currentSalt = salt.slice();
+    }
+    return pending;
+}
+
+/**
+ * Forgets cached derived keys. Call when the session password is cleared or replaced.
+ *
+ * @param {string} [password] - Forget only this password's keys; omit to forget all
+ */
+function clearDerivedKeys(password) {
+    if (password === undefined) {
+        derivedKeyCache.clear();
+    } else {
+        derivedKeyCache.delete(password);
+    }
+}
+
+/**
+ * Encrypts a stored item (dream, goal, autocomplete data) under the shared key for `password`.
+ * Produces the same layout as `encryptData`.
+ *
+ * @param {string} data - Plain text to encrypt
+ * @param {string} password - Encryption password
+ * @returns {Promise<Uint8Array>} Combined salt, IV and ciphertext
+ */
+async function encryptStoredData(data, password) {
+    try {
+        // No await between reading currentSalt and getDerivedKey, so concurrent calls agree on one salt
+        const salt = getKeyCacheEntry(password).currentSalt || generateSalt();
+        const key = await getDerivedKey(password, salt);
+        return await sealWithKey(key, salt, data);
+    } catch (error) {
+        console.error('Encryption error:', error);
+        throw new Error('Failed to encrypt data');
+    }
+}
+
+/**
+ * Decrypts a stored item written by `encryptStoredData` or `encryptData`, reusing the
+ * derived key when the salt has been seen before.
+ *
+ * @param {Uint8Array} encryptedData - Combined salt, IV and ciphertext
+ * @param {string} password - Encryption password
+ * @returns {Promise<string>} Plain text
+ */
+async function decryptStoredData(encryptedData, password) {
+    try {
+        const key = await getDerivedKey(password, encryptedData.slice(0, 16));
+        return await openWithKey(key, encryptedData);
     } catch (error) {
         console.error('Decryption error:', error);
         throw new Error('Failed to decrypt data - incorrect password or corrupted file');
@@ -2011,6 +2129,7 @@ async function confirmDataWipe() {
         debugLog('confirmDataWipe: Clearing session state');
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
+        clearDerivedKeys();
         clearDecryptedDataCache();
         setUnlocked(false);
         setAppLocked(false);
@@ -3927,6 +4046,8 @@ async function reEncryptAllData(oldPassword, newPassword) {
             }
         }
 
+        clearDerivedKeys(oldPassword);
+
         // Clear cache to force reload with new password
         clearDecryptedDataCache();
 
@@ -4268,6 +4389,9 @@ export {
     deriveKey,
     encryptData,
     decryptData,
+    encryptStoredData,
+    decryptStoredData,
+    clearDerivedKeys,
     
     // PIN management functions
     hashPinSecure,

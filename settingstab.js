@@ -1277,23 +1277,24 @@ async function showConfirmationDialog(config) {
  * @param {Function} showPasswordDialog - Password dialog function
  * @param {Function} testEncryptionPassword - Password testing function
  * @param {number} maxAttempts - Maximum number of retry attempts (default: 3)
+ * @param {string} purpose - What the password is needed for, shown in the dialog text
  * @returns {Promise<string|null>} Verified password or null if cancelled/failed
  * @throws {Error} When password testing encounters technical errors
  * @since 2.03.01
  * @private
  */
-async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, maxAttempts = 3) {
+async function verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, maxAttempts = 3, purpose = 'disable encryption and decrypt your data') {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
         let title = 'Verify Encryption Password';
-        let description = 'Enter your current encryption password to disable encryption and decrypt your data.';
+        let description = `Enter your current encryption password to ${purpose}.`;
 
         // Show error context for retry attempts
         if (attempts > 0) {
             const remaining = maxAttempts - attempts;
             title = 'Incorrect Password - Try Again';
-            description = `The password you entered is incorrect. You have ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.\n\nEnter your current encryption password to disable encryption and decrypt your data.`;
+            description = `The password you entered is incorrect. You have ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.\n\nEnter your current encryption password to ${purpose}.`;
         }
 
         const passwordConfig = {
@@ -1343,7 +1344,7 @@ async function performEncryptionDisabling(password) {
     try {
         // Import required functions
         const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress } = await import('./security.js');
+        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
@@ -1410,6 +1411,7 @@ async function performEncryptionDisabling(password) {
         await saveEncryptionSettings(false);
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
+        clearDerivedKeys();
 
         // Clear cache and reload data
         updateDecryptionProgress('Updating application data...');
@@ -1497,7 +1499,7 @@ async function changeEncryptionPassword() {
         const { showPasswordDialog, testEncryptionPassword, validateEncryptionPassword, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
 
         // Step 1: Verify current password with retry logic
-        const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword);
+        const currentPassword = await verifyEncryptionPasswordWithRetry(showPasswordDialog, testEncryptionPassword, 3, 'change it');
 
         if (!currentPassword) {
             // User cancelled or failed verification
@@ -1603,7 +1605,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
             saveItemToStore
         } = await import('./storage.js');
         const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { updateEncryptionProgress } = await import('./security.js');
+        const { updateEncryptionProgress, clearDerivedKeys } = await import('./security.js');
 
         let reEncryptedCount = 0;
 
@@ -1652,6 +1654,7 @@ async function reEncryptAllData(oldPassword, newPassword) {
         // Update session password and finalize
         updateEncryptionProgress('Updating session and finalizing...');
         setEncryptionPassword(newPassword);
+        clearDerivedKeys(oldPassword);
 
         // Clear cache to force reload with new password
         clearDecryptedDataCache();

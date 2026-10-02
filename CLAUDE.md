@@ -47,6 +47,7 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 - **No inline scripts or inline event handlers.** `index.html` has a Content-Security-Policy that forbids them (`tests/csp.test.js` checks this). Add a `data-action` and a handler in `ACTION_MAP` instead of `onclick`.
 - **No `console.log`.** Use `debugLog` from `logger.js`. `console.warn` and `console.error` are fine.
 - **Key derivation settings live in `CONSTANTS`** (`CRYPTO_PBKDF2_ITERATIONS`). The PIN lockout settings are there too. The PIN is a screen lock, not encryption. Stored data is protected only when the user enables encryption.
+- **Stored items share one derived key.** One PBKDF2 derivation takes about 100 ms, so dreams, goals and autocomplete data go through `encryptStoredData` / `decryptStoredData` (`security.js`), which keep a derived key per password and salt in memory. Calling `encryptData` per item (a new salt each time) makes unlocking cost about 100 ms per dream; `encryptData` is for exported files and tokens. Call `clearDerivedKeys()` when the session password is cleared or replaced. `tests/security.test.js` counts derivations.
 - **`form-validation.js` must run after the dream form exists.** It is called at the end of `renderJournalTab`, because the form is created by JS after startup.
 
 ## Versioning and the service worker
