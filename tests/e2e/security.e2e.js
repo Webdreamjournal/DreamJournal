@@ -259,7 +259,10 @@ test('data encryption', async (t) => {
         await page.waitForSelector('.pin-overlay:has-text("Verify Encryption Password")');
         await page.fill('#passwordInput', 'battery staple');
         await page.click('#confirmPasswordBtn');
-        await page.locator('.pin-overlay:has-text("Disable Data Encryption?")').getByText('Yes, Disable Encryption').click();
+        const confirmDialog = page.locator('.pin-overlay:has-text("Disable Data Encryption?")');
+        await confirmDialog.waitFor();
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'cancelBtn', 'the confirmation dialog should start on its safer Cancel button');
+        await confirmDialog.getByText('Yes, Disable Encryption').click();
         await page.waitForSelector('.security-dialog-overlay:has-text("Decryption Successful")', { timeout: 60000 });
         await page.click('.security-dialog-overlay button');
         const raw = await rawDreams();

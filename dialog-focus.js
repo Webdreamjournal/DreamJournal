@@ -96,7 +96,9 @@ function syncDialogState() {
         describeAsDialog(top);
         setBackgroundInert(true);
         currentOverlay = top;
-        focusInside(top);
+        // A dialog that has already focused one of its own controls keeps it (for example a
+        // confirmation dialog that starts on its safer Cancel button)
+        if (!top.contains(document.activeElement)) focusInside(top);
     } else {
         setBackgroundInert(false);
         currentOverlay = null;
