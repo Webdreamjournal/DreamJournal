@@ -253,6 +253,23 @@ test('data encryption', async (t) => {
         assert.ok(titles.includes('Encrypted era dream'));
     });
 
+    await t.test('pressing Enter on Cancel in the disable-encryption confirmation keeps encryption on', async () => {
+        await openTab(page, 'settings');
+        await page.click('[data-action="toggle-encryption"]');
+        await page.waitForSelector('.pin-overlay:has-text("Verify Encryption Password")');
+        await page.fill('#passwordInput', 'battery staple');
+        await page.click('#confirmPasswordBtn');
+        const confirmDialog = page.locator('.pin-overlay:has-text("Disable Data Encryption?")');
+        await confirmDialog.waitFor();
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'cancelBtn', 'the confirmation dialog should start on its safer Cancel button');
+        await page.keyboard.press('Enter');
+        await confirmDialog.waitFor({ state: 'detached' });
+        await page.waitForTimeout(500);
+        assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), 'true');
+        assert.ok(!(await rawDreams()).includes('Encrypted era dream'), 'dreams were decrypted by pressing Enter on Cancel');
+        assert.equal(await page.locator('.security-dialog-overlay').count(), 0, 'no decryption progress dialog should appear');
+    });
+
     await t.test('disabling encryption stores the dreams as readable data again', async () => {
         await openTab(page, 'settings');
         await page.click('[data-action="toggle-encryption"]');
@@ -262,7 +279,10 @@ test('data encryption', async (t) => {
         const confirmDialog = page.locator('.pin-overlay:has-text("Disable Data Encryption?")');
         await confirmDialog.waitFor();
         assert.equal(await page.evaluate(() => document.activeElement.id), 'cancelBtn', 'the confirmation dialog should start on its safer Cancel button');
-        await confirmDialog.getByText('Yes, Disable Encryption').click();
+        // Shift+Tab from Cancel reaches the confirm button; Enter on it confirms
+        await page.keyboard.press('Shift+Tab');
+        assert.equal(await page.evaluate(() => document.activeElement.id), 'confirmBtn');
+        await page.keyboard.press('Enter');
         await page.waitForSelector('.security-dialog-overlay:has-text("Decryption Successful")', { timeout: 60000 });
         await page.click('.security-dialog-overlay button');
         const raw = await rawDreams();
