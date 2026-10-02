@@ -1180,6 +1180,44 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
+     * Writes items into several object stores in a single transaction.
+     *
+     * Each item is stored with `put`, so existing items with the same key are replaced and
+     * other items are left alone. The transaction commits as a whole or not at all, and the
+     * promise resolves only after the commit (`oncomplete`). Resolves false if any write
+     * fails or the transaction aborts; nothing is changed in that case.
+     *
+     * @param {Object<string, Array<Object>>} itemsByStore - Items to write, keyed by store name
+     * @returns {Promise<boolean>} True once all items are committed
+     * @example
+     * await putItemsInStores({ dreams: [dreamA, dreamB], goals: [goalA] });
+     */
+    function putItemsInStores(itemsByStore) {
+        return new Promise((resolve) => {
+            try {
+                const storeNames = Object.keys(itemsByStore);
+                const transaction = db.transaction(storeNames, 'readwrite');
+                transaction.oncomplete = () => resolve(true);
+                transaction.onerror = () => {
+                    console.error('Error writing to stores:', transaction.error);
+                    resolve(false);
+                };
+                transaction.onabort = () => {
+                    console.error('Write to stores was aborted:', transaction.error);
+                    resolve(false);
+                };
+                for (const storeName of storeNames) {
+                    const store = transaction.objectStore(storeName);
+                    itemsByStore[storeName].forEach(item => store.put(item));
+                }
+            } catch (error) {
+                console.error('Error saving to stores:', error);
+                resolve(false);
+            }
+        });
+    }
+
+    /**
      * Saves all dream entries directly to IndexedDB dreams store.
      * 
      * This is a low-level function that performs a complete replacement of the
@@ -2639,6 +2677,7 @@ export {
     loadItemFromStoreRaw,
     loadFromStore,
     saveItemToStore,
+    putItemsInStores,
     saveToStore,
 
     // Encryption utilities

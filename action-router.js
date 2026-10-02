@@ -65,7 +65,6 @@ import {
     setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
     startLockScreenTitleRecovery, startLockScreenTimerRecovery, returnToLockScreen,
     verifyLockScreenDreamTitles, confirmLockScreenTimer, cancelResetTimer,
-    showChangeEncryptionPasswordDialog, confirmChangeEncryptionPassword, cancelPasswordDialog,
     showForgotEncryptionPassword, wipeAllData, confirmDataWipe
 } from './security.js';
 
@@ -507,13 +506,6 @@ const ACTION_MAP = {
         'confirm-dropbox-app-key': () => handleConfirmDropboxAppKey(),      // Confirm Dropbox app key changes
         'enable-app-key-editing': () => enableAppKeyEditing(),              // Enable app key editing after confirmation
         'close-app-key-dialog': () => closeAppKeyDialog(),                  // Close app key explanation dialog
-
-        // ================================
-        // ENHANCED PASSWORD SCREENS (Phase 5.2)
-        // ================================
-        'show-change-encryption-password-dialog': () => showChangeEncryptionPasswordDialog(), // Show enhanced password change dialog
-        'confirm-change-encryption-password': () => confirmChangeEncryptionPassword(),        // Process password change from dialog
-        'cancel-password-dialog': () => cancelPasswordDialog(),                               // Cancel password dialog operation
 
         // ================================
         // LOCK SCREEN INTERFACE SYSTEM

@@ -141,14 +141,35 @@ test('data encryption', async (t) => {
     }));
 
     // First 16 bytes of each stored item are its salt
-    const storedSalts = () => page.evaluate(() => new Promise(resolve => {
+    const storedSalts = (store = 'dreams') => page.evaluate((storeName) => new Promise(resolve => {
         const open = indexedDB.open('DreamJournal');
         open.onsuccess = () => {
-            const all = open.result.transaction('dreams').objectStore('dreams').getAll();
+            const all = open.result.transaction(storeName).objectStore(storeName).getAll();
             all.onsuccess = () => {
                 open.result.close();
                 resolve(all.result.map(d => Array.from(d.data.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('')));
             };
+        };
+    }), store);
+    const rawStore = (store) => page.evaluate((storeName) => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const all = open.result.transaction(storeName).objectStore(storeName).getAll();
+            all.onsuccess = () => { open.result.close(); resolve(JSON.stringify(all.result)); };
+        };
+    }), store);
+
+    // The sample backup has no goals or autocomplete data, so store some directly
+    await page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction(['goals', 'autocomplete'], 'readwrite');
+            tx.objectStore('goals').put({
+                id: 'goal_seeded_1', title: 'Seeded goal title', description: 'seeded goal text',
+                type: 'custom', status: 'active', createdAt: new Date().toISOString()
+            });
+            tx.objectStore('autocomplete').put({ id: 'tags', items: ['seededtagalpha', 'seededtagbeta'] });
+            tx.oncomplete = () => { open.result.close(); resolve(); };
         };
     }));
     const unlockWithPassword = async (password) => {
@@ -176,6 +197,9 @@ test('data encryption', async (t) => {
         const raw = await rawDreams();
         assert.match(raw, /"encrypted":true/);
         assert.ok(!/Flying over a lake|Back at school|corridor/.test(raw), 'plaintext found in IndexedDB');
+        assert.ok(!(await rawStore('goals')).includes('Seeded goal title'), 'goal stored as plaintext');
+        assert.match(await rawStore('goals'), /"encrypted":true/);
+        assert.ok(!(await rawStore('autocomplete')).includes('seededtagalpha'), 'autocomplete stored as plaintext');
     });
 
     await t.test('the stored dreams share one salt, so one key derivation covers the journal', async () => {
@@ -240,6 +264,14 @@ test('data encryption', async (t) => {
         assert.notEqual(salts[0], oldSalt);
         assert.ok(!(await rawDreams()).includes('Encrypted era dream'));
 
+        // Goals and autocomplete data move to the new key as well: still ciphertext, same new salt
+        const [dreamSalt] = salts;
+        assert.ok(!(await rawStore('goals')).includes('Seeded goal title'));
+        assert.ok(!(await rawStore('autocomplete')).includes('seededtagalpha'));
+        assert.deepEqual(await storedSalts('goals'), [dreamSalt]);
+        assert.ok((await storedSalts('autocomplete')).length >= 1);
+        assert.deepEqual([...new Set(await storedSalts('autocomplete'))], [dreamSalt]);
+
         await page.reload({ waitUntil: 'load' });
         await unlockWithPassword('correct horse');
         await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
@@ -251,6 +283,61 @@ test('data encryption', async (t) => {
         const titles = (await storedDreams(page)).map(d => d.title);
         assert.equal(titles.length, 4);
         assert.ok(titles.includes('Encrypted era dream'));
+        const readable = await page.evaluate(async () => {
+            const storage = await import('/storage.js');
+            const goals = await storage.loadGoals();
+            const tags = await storage.getAutocompleteSuggestions('tags');
+            return { goals: goals.map(g => g.title), tags: tags.filter(t => t.startsWith('seededtag')) };
+        });
+        assert.deepEqual(readable.goals, ['Seeded goal title']);
+        assert.deepEqual(readable.tags, ['seededtagalpha', 'seededtagbeta']);
+    });
+
+    await t.test('a re-encryption that fails part way changes nothing in storage', async () => {
+        const snapshot = async () => JSON.stringify([await rawDreams(), await rawStore('goals'), await rawStore('autocomplete')]);
+        // Damage the stored goal so decrypting it fails after the dreams have been processed
+        const damageGoal = (restore) => page.evaluate((shouldRestore) => new Promise(resolve => {
+            const open = indexedDB.open('DreamJournal');
+            open.onsuccess = () => {
+                const tx = open.result.transaction('goals', 'readwrite');
+                const store = tx.objectStore('goals');
+                const get = store.getAll();
+                get.onsuccess = () => {
+                    const goal = get.result[0];
+                    if (shouldRestore) {
+                        store.put(window.__originalGoal);
+                    } else {
+                        window.__originalGoal = goal;
+                        const data = new Uint8Array(goal.data);
+                        data[data.length - 1] ^= 0xff;
+                        store.put({ ...goal, data });
+                    }
+                };
+                tx.oncomplete = () => { open.result.close(); resolve(); };
+            };
+        }), restore);
+
+        await damageGoal(false);
+        const before = await snapshot();
+        const outcome = await page.evaluate(async () => {
+            const { reEncryptAllData } = await import('/security.js');
+            try {
+                await reEncryptAllData('battery staple', 'another new password');
+                return 'resolved';
+            } catch (error) {
+                return 'rejected';
+            }
+        });
+        assert.equal(outcome, 'rejected');
+        assert.equal(await snapshot(), before, 'stored data changed although the re-encryption failed');
+        await damageGoal(true);
+        // The journal still opens with the real password
+        await page.reload({ waitUntil: 'load' });
+        await unlockWithPassword('battery staple');
+        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
+        await page.click('#decryption-progress-dialog button');
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 4);
     });
 
     await t.test('pressing Enter on Cancel in the disable-encryption confirmation keeps encryption on', async () => {
@@ -295,6 +382,6 @@ test('data encryption', async (t) => {
     });
 
     // The app logs a console error for the deliberate wrong-password attempt above
-    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError/.test(p)), []);
+    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError|Re-encryption error/.test(p)), []);
     await context.close();
 });
