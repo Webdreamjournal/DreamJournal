@@ -34,6 +34,9 @@ const BANNERS = {
     }
 };
 
+/** Shown in place of a save while this tab's database connection is closed. */
+const SAVE_REFUSED_MESSAGE = 'The app was updated in another tab, so this could not be saved. Reload the page first. What you typed is still here until you reload, so copy it if you need it.';
+
 let currentKind = null;
 
 /**
@@ -87,4 +90,4 @@ function hideStorageBanner(kind) {
     currentKind = null;
 }
 
-export { showStorageBanner, hideStorageBanner };
+export { showStorageBanner, hideStorageBanner, SAVE_REFUSED_MESSAGE };

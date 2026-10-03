@@ -41,10 +41,12 @@ import {
     addDreamToIndexedDB, 
     updateDreamInIndexedDB, 
     deleteDreamFromIndexedDB, 
+    isDatabaseClosedForUpgrade,
     learnAutocompleteItems,
     generateUniqueId,
     isIndexedDBAvailable
 } from './storage.js';
+import { SAVE_REFUSED_MESSAGE } from './storage-banner.js';
 import { announceLiveMessage, createInlineMessage, showSearchLoading, hideSearchLoading, escapeHtml, escapeAttr, createActionButton, initializeAutocomplete, formatDisplayDate, formatDateTimeDisplay } from './dom-helpers.js';
 
 /**
@@ -159,6 +161,16 @@ async function shouldEncryptDream() {
  * // and prevent saving until user enters content
  */
        async function saveDream() {
+        // After another tab upgraded the database a save would only reach memory: refuse and keep the form as it is
+        if (isDatabaseClosedForUpgrade()) {
+            createInlineMessage('error', SAVE_REFUSED_MESSAGE, {
+                container: document.getElementById('dreamFormFull'),
+                position: 'bottom',
+                autoHide: false
+            });
+            return;
+        }
+
         const titleElement = document.getElementById('dreamTitle');
         const contentElement = document.getElementById('dreamContent');
         const dreamDateElement = document.getElementById('dreamDate');
@@ -898,6 +910,14 @@ function parseSmartSearchQuery(searchInput) {
      */
     async function saveDreamEdit(dreamId) {
         const newContentElement = document.getElementById(`edit-content-${dreamId}`);
+        if (isDatabaseClosedForUpgrade()) {
+            createInlineMessage('error', SAVE_REFUSED_MESSAGE, {
+                container: newContentElement?.closest('.entry') ?? null,
+                position: 'bottom',
+                autoHide: false
+            });
+            return;
+        }
         if (!newContentElement?.value.trim()) {
             newContentElement.style.borderColor = 'var(--error-color)';
             return;
