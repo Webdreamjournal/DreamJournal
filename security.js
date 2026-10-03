@@ -16,6 +16,11 @@
  * - Lock screen interface with PIN verification
  * - Password dialog system for import/export operations
  * 
+ * This file only re-exports the security modules, so existing imports of './security.js'
+ * (including dynamic import() calls) keep working: security-crypto.js, pin-core.js,
+ * encryption-settings.js, pin-controls.js, lock-screen.js, pin-recovery.js, pin-overlay.js
+ * and encryption-auth.js.
+ * 
  * @module Security
  * @version 2.05.06
  * @author Dream Journal Development Team

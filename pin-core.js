@@ -26,6 +26,7 @@ import { generateSalt } from './security-crypto.js';
  * @property {string} salt - Hexadecimal string representation of random salt
  * @since 2.0.0
  */
+
 /**
  * PIN storage object for fallback memory storage system.
  * 
