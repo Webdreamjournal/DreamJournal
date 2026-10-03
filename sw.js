@@ -118,6 +118,8 @@ const urlsToCache = [
   './autocomplete-ui.js',     // Autocomplete interface
 
   './tips-and-goals-ui.js',   // Tips and goal elements
+
+  './pin-screen.js',          // PIN screen rendering
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
