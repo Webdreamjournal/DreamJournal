@@ -1184,37 +1184,6 @@ function updateSecurityControls() {
     }
 
 /**
-     * Displays the PIN removal interface within the overlay.
-     * 
-     * Shows a confirmation screen for removing PIN protection. Requires current PIN
-     * verification before allowing removal. Warns user that dreams will no longer
-     * be secured after PIN removal.
-     * 
-     * @since 1.0.0
-     * @example
-     * // Called when user clicks "Remove PIN" button
-     * showRemovePin();
-     * // Shows PIN entry form with removal warning
-     */
-    function showRemovePin() {
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        renderPinScreen(pinContainer, {
-            title: 'Remove PIN Protection',
-            icon: '⚠️',
-            message: 'Enter your current PIN to remove protection. Your dreams will no longer be secured.',
-            inputs: [
-                { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
-            ],
-            buttons: [
-                { text: 'Remove PIN', action: 'confirm-remove-pin', class: 'btn-primary' },
-                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ],
-            feedbackContainer: true
-        });
-        document.getElementById('pinOverlay').style.display = 'flex';
-    }
-
-/**
      * Executes PIN removal after successful verification.
      * 
      * Actually removes the PIN hash from storage and shows success confirmation.
@@ -1244,48 +1213,6 @@ function updateSecurityControls() {
             });
 
             setUnlocked(true);
-        } catch (error) {
-            console.error('Error removing PIN:', error);
-            showMessage('error', 'Error removing PIN. Please try again.');
-        }
-    }
-
-/**
-     * Confirms PIN removal by verifying the entered current PIN.
-     * 
-     * Validates the user's current PIN before allowing removal. Supports both
-     * legacy and secure PIN formats. Proceeds to executePinRemoval() if verification
-     * succeeds, shows error message if PIN is incorrect.
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user submits PIN for removal confirmation
-     * await confirmRemovePin();
-     * // Verifies PIN and removes if correct, shows error if not
-     */
-    async function confirmRemovePin() {
-        const enteredPin = document.getElementById('pinInput').value;
-        
-        if (!enteredPin) {
-            showMessage('error', 'Please enter your current PIN');
-            return;
-        }
-        
-        try {
-            const storedData = getStoredPinData();
-            const isValid = await verifyPinHash(enteredPin, storedData);
-            
-            if (!isValid) {
-                const message = document.getElementById('pinMessage');
-                message.textContent = 'Incorrect PIN. Please try again.';
-                message.style.color = 'var(--error-color)';
-                document.getElementById('pinInput').value = '';
-                return;
-            }
-            
-            await executePinRemoval();
-            
         } catch (error) {
             console.error('Error removing PIN:', error);
             showMessage('error', 'Error removing PIN. Please try again.');
@@ -3092,7 +3019,6 @@ async function setupPin() {
             ],
             links: [
                 { text: 'Setup new PIN', action: 'show-pin-setup', id: 'pinSetupLink', style: isPinSetup() ? 'display:none' : '' },
-                { text: 'Remove PIN protection', action: 'show-remove-pin', id: 'removePinLink', style: !isPinSetup() || !isUnlocked ? 'display:none' : '' },
                 { text: 'Forgot PIN?', action: 'show-forgot-pin', id: 'forgotPinLink', style: 'display:none' }
             ],
             feedbackContainer: true
@@ -3944,7 +3870,6 @@ export {
     setupPin,
     setupNewPin,
     confirmNewPin,
-    confirmRemovePin,
     executePinRemoval,
     completePinRemoval,
     
@@ -3952,7 +3877,6 @@ export {
     showPasswordDialog,
     showPinSetup,
     showSetNewPinScreen,
-    showRemovePin,
     showForgotPin,
     showLockScreenForgotPin,
     updateSecurityControls,

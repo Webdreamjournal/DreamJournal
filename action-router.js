@@ -58,8 +58,8 @@ import {
 // Security module
 import {
     toggleLock, showPinSetup, setupPin, hidePinOverlay,
-    verifyPin, verifyEncryptionPassword, showRemovePin, showForgotPin,
-    confirmRemovePin, executePinRemoval, completePinRemoval, startTitleRecovery,
+    verifyPin, verifyEncryptionPassword, showForgotPin,
+    executePinRemoval, completePinRemoval, startTitleRecovery,
     verifyDreamTitles, startTimerRecovery, confirmStartTimer, confirmCancelTimer,
     completeRecovery, completePinSetup, showSetNewPinScreen,
     setupNewPin, confirmNewPin, verifyLockScreenPin, showLockScreenForgotPin,
@@ -466,9 +466,7 @@ const ACTION_MAP = {
         // 'confirm-password': () => confirmPassword(),                        // Confirm password entry - FUNCTION REMOVED, using showPasswordDialog instead
         // 'cancel-password': () => cancelPassword(),                          // Cancel password entry - FUNCTION REMOVED, using showPasswordDialog instead
         'show-pin-setup': () => showPinSetup(),                             // Show PIN setup interface
-        'show-remove-pin': () => showRemovePin(),                           // Show PIN removal interface
         'show-forgot-pin': () => showForgotPin(),                           // Show PIN recovery options
-        'confirm-remove-pin': () => confirmRemovePin(),                     // Confirm PIN removal
         'execute-pin-removal': () => executePinRemoval(),                   // Execute PIN removal process
         'complete-pin-removal': () => completePinRemoval(),                 // Complete PIN removal cleanup
         'start-title-recovery': () => startTitleRecovery(),                 // Start dream title recovery process
