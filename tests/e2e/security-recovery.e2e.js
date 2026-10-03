@@ -36,6 +36,8 @@ async function openAtOverlay() {
 /** The overlay's Forgot PIN link is hidden; the recovery screen opens after three wrong PINs. */
 async function failPinThreeTimes(page) {
     for (let i = 0; i < 3; i++) {
+        // Clear the previous message so the wait below sees this attempt's answer, not the last one's
+        await page.evaluate(() => { const f = document.querySelector('#pinFeedback'); if (f) f.textContent = ''; });
         await page.fill('#pinInput', '0000');
         await page.click('[data-action="verify-pin"]');
         await page.waitForFunction(() => /Incorrect PIN/.test(document.querySelector('#pinFeedback')?.innerText ?? '') || /PIN Recovery/.test(document.querySelector('#pinOverlay')?.innerText ?? ''), null, { timeout: 10000 });
