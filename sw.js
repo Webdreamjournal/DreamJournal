@@ -120,6 +120,8 @@ const urlsToCache = [
   './tips-and-goals-ui.js',   // Tips and goal elements
 
   './pin-screen.js',          // PIN screen rendering
+
+  './tab-navigation.js',      // Tab navigation
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
