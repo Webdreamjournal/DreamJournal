@@ -112,6 +112,8 @@ const urlsToCache = [
   './format-helpers.js',      // Date and chart formatting
 
   './info-tooltips.js',       // Info and help tooltips
+
+  './collapsible-sections.js',// Collapsible sections
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
