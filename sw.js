@@ -108,6 +108,8 @@ const urlsToCache = [
   './security.js',         // PIN protection and encryption
 
   './security-crypto.js',     // AES-GCM and PBKDF2 helpers
+
+  './pin-core.js',            // PIN hashing, lockout and storage
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
   './pwa.js',              // PWA installation system
