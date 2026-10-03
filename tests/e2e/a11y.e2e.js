@@ -15,7 +15,12 @@ const TABS = ['journal', 'goals', 'stats', 'advice', 'settings'];
 
 async function scan(page) {
     await page.evaluate(axeSource);
-    return page.evaluate(async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.length })));
+    // `where` names the first offending element and, for contrast failures, its colours, so a failure is diagnosable from the log
+    return page.evaluate(async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => {
+        const data = v.nodes[0].any[0]?.data;
+        const colours = data && data.fgColor ? ` ${data.fgColor} on ${data.bgColor}, ratio ${data.contrastRatio}` : '';
+        return { id: v.id, impact: v.impact, nodes: v.nodes.length, where: `${v.nodes[0].target.join(' ')}${colours}` };
+    }));
 }
 
 async function scanAll(theme) {
@@ -26,7 +31,7 @@ async function scanAll(theme) {
     const found = {};
     for (const tab of TABS) {
         await openTab(page, tab);
-        for (const v of await scan(page)) (found[v.id] ??= []).push(`${tab} (${v.nodes})`);
+        for (const v of await scan(page)) (found[v.id] ??= []).push(`${tab} (${v.nodes}): ${v.where}`);
     }
     await context.close();
     return found;
