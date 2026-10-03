@@ -66,6 +66,7 @@
             --success-l: 28%;          --success-hover-l: 26%;      /* Success state colors */
             --error-l: 42%;            --error-hover-l: 40%;        /* Error state colors */
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
+            --warning-text-l: 33%;                                  /* Warning text on warning backgrounds; the base orange is only 2.9:1 there */
             --info-l: 35%;             --info-hover-l: 30%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
             --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
@@ -125,7 +126,7 @@
                         font-weight: var(--font-weight-semibold); text-align: center; }
         .message-success { background: var(--notification-success-bg); color: var(--success-color); }
         .message-error { background: var(--notification-error-bg); color: var(--error-color); }
-        .message-warning { background: var(--notification-warning-bg); color: var(--warning-color); }
+        .message-warning { background: var(--notification-warning-bg); color: var(--warning-text); }
         .message-info { background: var(--notification-info-bg); color: var(--info-color); }
         
         /* Input utilities */
@@ -420,6 +421,7 @@
             --success-l: 70%;          --success-hover-l: 30%;
             --error-l: 72%;            --error-hover-l: 51%;
             --warning-l: 71%;          --warning-hover-l: 65%;
+            --warning-text-l: 71%;
             --info-l: 67%;             --info-hover-l: 61%;
             --purple-l: 72%;           --purple-hover-l: 66%;
             --secondary-l: 68%;        --secondary-hover-l: 83%;
@@ -467,6 +469,7 @@
             --error-hover: hsl(var(--error-h), var(--error-s), var(--error-hover-l));
             --warning-color: hsl(var(--warning-h), var(--warning-s), var(--warning-l));
             --warning-hover: hsl(var(--warning-h), var(--warning-s), var(--warning-hover-l));
+            --warning-text: hsl(var(--warning-h), var(--warning-s), var(--warning-text-l));
             --info-color: hsl(var(--info-h), var(--info-s), var(--info-l));
             --info-hover: hsl(var(--info-h), var(--info-s), var(--info-hover-l));
             --purple-color: hsl(var(--purple-h), var(--purple-s), var(--purple-l));
@@ -1016,7 +1019,7 @@
             background: var(--notification-info-bg);
         }
         .notification-message.warning {
-            color: var(--warning-color);
+            color: var(--warning-text);
             background: var(--notification-warning-bg);
         }
         
@@ -1721,7 +1724,7 @@
         }
         .voice-status.warning {
             background: var(--notification-warning-bg);
-            color: var(--warning-color);
+            color: var(--warning-text);
         }
         .voice-status.error {
             background: var(--notification-error-bg);
@@ -1990,7 +1993,7 @@
             background: var(--notification-info-bg);
         }
         .notification-message.warning {
-            color: var(--warning-color);
+            color: var(--warning-text);
             background: var(--notification-warning-bg);
         }
         
@@ -2993,7 +2996,7 @@
         }
         .voice-status.warning {
             background: var(--notification-warning-bg);
-            color: var(--warning-color);
+            color: var(--warning-text);
         }
         
         /* Multiple high-specificity selectors needed to override voice status 
