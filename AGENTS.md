@@ -25,6 +25,7 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 | `main.js` | Startup order, lock/unlock state, `initializeApplicationData`, global event listeners. |
 | `action-router.js` | Event delegation. Elements carry `data-action="..."`; `ACTION_MAP` maps each name to a handler. |
 | `state.js` | All shared mutable state, behind getters and setters. |
+| `storage-banner.js` | Page banner for storage problems (database blocked by another tab, closed by an upgrade in another tab, or not available so data is memory only). |
 | `storage.js` | IndexedDB (database `DreamJournal`, stores `dreams`, `goals`, `voiceNotes`), localStorage fallbacks, ID generation, autocomplete data. |
 | `security.js` | Re-exports the security modules below, so `import ... from './security.js'` keeps working. Its export list is pinned by `tests/module-exports.test.js`. |
 | `security-crypto.js` | AES-GCM and PBKDF2 helpers, the per-password derived-key cache. |

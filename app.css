@@ -3818,3 +3818,15 @@
 @media (max-width: 768px) {
     /* All tooltip positioning handled by JavaScript for proper bounds checking */
 }
+
+/* Storage problem banner (storage-banner.js) */
+.storage-banner {
+    position: sticky; top: 0; z-index: 2000;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 16px;
+    background: var(--bg-elevated); color: var(--text-primary);
+    border-bottom: 4px solid var(--error-color);
+    font-size: 15px; line-height: 1.4;
+}
+.storage-banner[data-kind="blocked"] { border-bottom-color: var(--warning-color); }
+@media (max-width: 560px) { .storage-banner { flex-direction: column; align-items: stretch; } }
