@@ -19,6 +19,7 @@
 // ===================================================================================
 
 import { debugLog } from './logger.js';
+import { showStorageBanner, hideStorageBanner } from './storage-banner.js';
 import { CONSTANTS, commonTags, commonDreamSigns, commonEmotions } from './constants.js';
 import { 
     memoryStorage, 
@@ -134,9 +135,8 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     /**
      * Displays a warning message when storage is not persistent.
      * 
-     * Shows a visual warning to users that their dreams are only stored temporarily
-     * in memory and will be lost when the browser tab is closed. Encourages users
-     * to export their dreams regularly and access the app through a web server.
+     * Shows a banner at the top of the page saying that entries are held in memory
+     * only and will be lost when the page is reloaded or closed (see storage-banner.js).
      * 
      * @function
      * @since 1.0.0
@@ -145,17 +145,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * showStorageWarning();
      */
     function showStorageWarning() {
-        const warning = document.createElement('div');
-        warning.id = 'storageWarning';
-        warning.className = 'message-warning mb-lg mx-lg';
-        warning.innerHTML = `
-            ⚠️ <strong>Storage Warning:</strong> Your dreams are stored temporarily in memory only. 
-            <br>They will be lost when you close this tab. Please export your dreams regularly!
-            <br><small>To enable permanent storage, access this page through a web server.</small>
-        `;
-        
-        const container = document.querySelector('.container');
-        container.insertBefore(warning, container.children[2]);
+        showStorageBanner('memory');
     }
 
     // TAG & DREAM SIGN MANAGEMENT FUNCTIONS
@@ -461,6 +451,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         if (!isIndexedDBAvailable()) {
             console.warn('IndexedDB not available, using memory storage');
             storageType = 'memory';
+            showStorageBanner('memory');
             return;
         }
 
@@ -470,17 +461,34 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             request.onerror = () => {
                 console.error('IndexedDB failed to open:', request.error);
                 storageType = 'memory';
+                hideStorageBanner('blocked');
+                showStorageBanner('memory');
                 resolve();
             };
 
+            // Another tab holds an older connection open, so the upgrade waits until it closes
+            request.onblocked = () => {
+                console.warn('IndexedDB upgrade is blocked by another open tab');
+                showStorageBanner('blocked');
+            };
+
             request.onsuccess = () => {
-                db = request.result;
+                const connection = request.result;
+                db = connection;
                 storageType = 'indexeddb';
+                hideStorageBanner('blocked');
                 debugLog('IndexedDB initialized successfully');
                 
                 // Handle unexpected database closure
-                db.onclose = () => {
+                connection.onclose = () => {
                     console.warn('IndexedDB connection closed unexpectedly');
+                };
+
+                // Another tab is upgrading the database: close so that its upgrade is not blocked
+                connection.onversionchange = () => {
+                    connection.close();
+                    if (db === connection) db = null;
+                    showStorageBanner('updated');
                 };
                 
                 resolve();
@@ -892,9 +900,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
             setMemoryStorage([...dreams]);
             debugLog('IndexedDB unavailable, dreams saved to memory fallback');
             
-            if (storageType !== 'memory') {
-                showStorageWarning();
-            }
+            showStorageWarning();
         });
     }
 
@@ -1823,7 +1829,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
         // For new users or migrated users, use the new unified 'autocomplete' store
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             const autocompleteData = await loadItemFromStoreRaw('autocomplete', storeId);
             if (autocompleteData && autocompleteData.items) {
                 // Sort alphabetically for consistent display
@@ -1870,7 +1876,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
 
         // For new users or migrated users, use the new unified 'autocomplete' store
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             let autocompleteData;
 
             // Check if encryption is enabled and we have a password
@@ -2183,7 +2189,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     async function getAutocompleteSuggestionsRawData(type) {
         const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             return await loadItemFromStoreRaw('autocomplete', storeId);
         }
 

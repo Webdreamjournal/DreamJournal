@@ -130,3 +130,99 @@ test('startup asks the browser for persistent storage once, and the app works wh
         });
     }
 });
+
+test('when IndexedDB cannot be opened, the app falls back to memory storage and the autocomplete lists still show', async () => {
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
+    // A database newer than the app expects makes indexedDB.open(name, 6) fail with a VersionError
+    await page.goto(`${server.url}manifest.json`);
+    await page.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 99);
+        open.onupgradeneeded = () => open.result.createObjectStore('dreams', { keyPath: 'id' });
+        open.onsuccess = () => { open.result.close(); resolve(); };
+        open.onerror = () => reject(open.error);
+    }));
+    await page.goto(server.url, { waitUntil: 'load' });
+    await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
+    await page.click('#tab-settings');
+    await page.waitForSelector('#tagsManagementList .autocomplete-list-item');
+    const lists = await page.evaluate(() => ['tagsManagementList', 'dreamSignsManagementList', 'emotionsManagementList']
+        .map(id => ({ id, items: document.querySelectorAll(`#${id} .autocomplete-list-item`).length, error: !!document.querySelector(`#${id} .message-error`) })));
+    for (const list of lists) {
+        assert.equal(list.error, false, `${list.id} shows an error`);
+        assert.ok(list.items > 0, `${list.id} is empty`);
+    }
+    const banner = page.locator('#storageBanner');
+    assert.equal(await banner.getAttribute('role'), 'alert');
+    assert.match(await banner.innerText(), /Nothing you save will be kept/);
+    assert.deepEqual(pageErrors, []);
+    await context.close();
+});
+
+// A same-origin page that is not the app, used to hold or upgrade the database from "another tab"
+const openOtherTab = async (context, url) => {
+    const other = await context.newPage();
+    await other.goto(`${url}manifest.json`);
+    return other;
+};
+
+test('a database upgrade in another tab closes this tab\'s connection and asks for a reload', async () => {
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+    await page.goto(server.url, { waitUntil: 'load' });
+    await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
+    await page.waitForSelector('#tab-journal');
+    assert.equal(await page.locator('#storageBanner').count(), 0, 'banner shown before anything went wrong');
+
+    // The upgrade only completes if the app tab closes its connection when it gets versionchange
+    const other = await openOtherTab(context, server.url);
+    const upgraded = await other.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 7);
+        let blocked = false;
+        open.onblocked = () => { blocked = true; };
+        open.onsuccess = () => { open.result.close(); resolve({ blocked }); };
+        open.onerror = () => reject(open.error);
+    }));
+    assert.equal(upgraded.blocked, false, 'the app tab kept its connection open');
+    await page.waitForSelector('#storageBanner[data-kind="updated"]');
+    assert.match(await page.innerText('#storageBanner'), /updated in another tab/);
+
+    // The reload button reloads; the app is older than the database, so it falls back to the memory banner
+    await Promise.all([page.waitForNavigation(), page.click('#storageBanner button')]);
+    await page.waitForSelector('#storageBanner[data-kind="memory"]');
+    await context.close();
+});
+
+test('an open connection to an older database blocks the upgrade: the banner says so and clears once it closes', async () => {
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const other = await openOtherTab(context, server.url);
+    // Version 5 database held open without a versionchange handler, like a tab running older code
+    await other.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 5);
+        open.onupgradeneeded = () => {
+            const db = open.result;
+            db.createObjectStore('dreams', { keyPath: 'id' }).createIndex('timestamp', 'timestamp');
+            db.createObjectStore('voiceNotes', { keyPath: 'id' });
+            db.createObjectStore('goals', { keyPath: 'id' });
+            db.createObjectStore('autocomplete', { keyPath: 'id' });
+        };
+        open.onsuccess = () => { window.__heldConnection = open.result; resolve(); };
+        open.onerror = () => reject(open.error);
+    }));
+    const page = await context.newPage();
+    await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+    await page.goto(server.url, { waitUntil: 'load' });
+    await page.waitForSelector('#storageBanner[data-kind="blocked"]');
+    assert.match(await page.innerText('#storageBanner'), /Close the other Dream Journal tabs/);
+
+    await other.evaluate(() => window.__heldConnection.close());
+    await page.waitForSelector('#storageBanner', { state: 'detached', timeout: 10000 });
+    await page.waitForSelector('#tagsManagementList, #tab-settings');
+    await page.click('#tab-settings');
+    await page.waitForSelector('#tagsManagementList .autocomplete-list-item');
+    await context.close();
+});
