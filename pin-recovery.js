@@ -15,7 +15,6 @@ import { setFailedPinAttempts, preLockActiveTab, setUnlocked, setAppLocked } fro
 import { renderPinScreen, switchAppTab, showAllTabButtons, createInlineMessage } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
 import { displayDreams } from './dream-crud.js';
-import { hidePinOverlay, resetPinOverlay } from './security.js';
 import {
     removePinHash,
     removeResetTime,
@@ -26,6 +25,7 @@ import {
 } from './pin-core.js';
 import { updateSecurityControls, showMessage } from './pin-controls.js';
 import { showLockScreenMessage, returnToLockScreen } from './lock-screen.js';
+import { hidePinOverlay, resetPinOverlay } from './pin-overlay.js';
 
 /**
      * Initiates dream title recovery specifically on the lock screen.

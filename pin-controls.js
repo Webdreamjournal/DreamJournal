@@ -14,8 +14,8 @@ import { CONSTANTS } from './constants.js';
 import { isAppLocked, isUnlocked, setUnlocked, setAppLocked, setFailedPinAttempts } from './state.js';
 import { renderPinScreen, showAllTabButtons } from './dom-helpers.js';
 import { displayDreams } from './dream-crud.js';
-import { hidePinOverlay, resetPinOverlay } from './security.js';
 import { isPinSetup, removePinHash } from './pin-core.js';
+import { hidePinOverlay, resetPinOverlay } from './pin-overlay.js';
 
 // ================================
 // 8. UI CONTROLS & STATE MANAGEMENT 
