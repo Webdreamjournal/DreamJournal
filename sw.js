@@ -104,6 +104,24 @@ const urlsToCache = [
   './state.js',            // Global state management
   './storage.js',          // IndexedDB operations
   './dom-helpers.js',      // DOM utilities
+
+  './ui-basics.js',           // UI building blocks and escaping
+
+  './preferences.js',         // Theme and pagination preferences
+
+  './format-helpers.js',      // Date and chart formatting
+
+  './info-tooltips.js',       // Info and help tooltips
+
+  './collapsible-sections.js',// Collapsible sections
+
+  './autocomplete-ui.js',     // Autocomplete interface
+
+  './tips-and-goals-ui.js',   // Tips and goal elements
+
+  './pin-screen.js',          // PIN screen rendering
+
+  './tab-navigation.js',      // Tab navigation
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
