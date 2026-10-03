@@ -68,11 +68,10 @@ const reloadAndSeeDreams = async (page) => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.entry');
 };
-/** Opens the three-title recovery screen and waits for its first field to take the focus the app gives it after 100 ms. */
+/** Opens the three-title recovery screen. */
 const openTitleRecovery = async (page, action) => {
     await page.click(`[data-action="${action}"]`);
     await page.waitForSelector('#recovery1');
-    await page.waitForFunction(() => document.activeElement?.id === 'recovery1', null, { timeout: 5000 });
 };
 const fillTitles = async (page, [a, b, c]) => {
     await page.fill('#recovery1', a);
@@ -128,6 +127,22 @@ test('lock screen: dreams are listed straight after PIN recovery by titles', asy
     await waitForPinRemoved(page);
     await page.waitForSelector('.entry', { state: 'visible', timeout: 10000 });
     assert.equal(await visibleTabCount(page), 5);
+    assert.deepEqual(problems, []);
+    await context.close();
+});
+
+test('the first field takes focus when a PIN screen renders and focus is not moved afterwards', async () => {
+    const { page, context, problems } = await openLocked();
+    const names = await titles(page);
+    await page.click('[data-action="show-lock-screen-forgot-pin"]');
+    await openTitleRecovery(page, 'start-lock-screen-title-recovery');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'recovery1', 'first field is focused as soon as the screen is rendered');
+    // Type into the second field straight away; a late focus() on the first field would take over
+    await page.fill('#recovery2', names[1]);
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'recovery2');
+    assert.equal(await page.inputValue('#recovery2'), names[1]);
+    assert.equal(await page.inputValue('#recovery1'), '');
     assert.deepEqual(problems, []);
     await context.close();
 });
