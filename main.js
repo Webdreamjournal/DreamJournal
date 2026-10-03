@@ -59,7 +59,7 @@ import {
 // Core utilities
 import { 
     initDB, loadDreams, getIndexedDBCount, migrateFromLocalStorage,
-    isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions
+    isIndexedDBAvailable, isLocalStorageAvailable, getAutocompleteSuggestions, requestPersistentStorage
 } from './storage.js';
 import {
     getCurrentTheme, applyTheme, switchAppTab, hideAllTabButtons,
@@ -824,6 +824,9 @@ async function initializeApp() {
     setupEventDelegation();
 
     await initDB();
+
+    // Ask the browser to keep the journal's storage when space runs low (not awaited; the answer is only logged)
+    requestPersistentStorage();
 
     // Ensure tab container exists for dynamic tab content creation
     await ensureTabContainerExists();
