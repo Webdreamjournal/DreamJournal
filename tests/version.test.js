@@ -38,3 +38,22 @@ test('modules do not call console.log directly (use debugLog)', () => {
         .filter(f => /^\s*console\.(log|debug|info)\(/m.test(read(f)));
     assert.deepEqual(offenders, []);
 });
+
+test('every module the app can load is in the precache list', () => {
+    const sw = read('sw.js');
+    const precached = new Set([...sw.matchAll(/^\s*'\.\/([^']+)',?\s*(?:\/\/.*)?$/gm)].map(m => m[1]));
+    const seen = new Set();
+    const visit = (rel) => {
+        if (seen.has(rel) || !fs.existsSync(path.join(root, rel))) return;
+        seen.add(rel);
+        const source = read(rel);
+        // Static imports/exports-from and import('...') calls with a string literal
+        for (const m of source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"](\.{1,2}\/[^'"]+)['"]/g)) {
+            visit(path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1])));
+        }
+    };
+    visit('src/app.js');
+    assert.ok(seen.size > 20, `only ${seen.size} modules found from src/app.js`);
+    const missing = [...seen].filter(f => !precached.has(f));
+    assert.deepEqual(missing, [], 'modules reachable from src/app.js but missing from urlsToCache in sw.js');
+});
