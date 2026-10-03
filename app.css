@@ -115,7 +115,7 @@
         .text-xl { font-size: 1.6rem; } .text-2xl { font-size: 1.8rem; } .text-4xl { font-size: 4rem; }
         .font-normal { font-weight: normal; } .font-semibold { font-weight: var(--font-weight-semibold); }
         .text-primary { color: var(--text-primary); } .text-secondary { color: var(--text-secondary); }
-        .text-warning { color: var(--warning-color); }
+        .text-warning { color: var(--warning-text); }
         .line-height-relaxed { line-height: 1.5; } .line-height-loose { line-height: 1.6; }
         
         /* Width and sizing utilities */
@@ -365,7 +365,7 @@
         
         /* Status indicators */
         .status-success { color: var(--success-color); font-weight: var(--font-weight-semibold); }
-        .status-warning { color: var(--warning-color); font-weight: var(--font-weight-semibold); }
+        .status-warning { color: var(--warning-text); font-weight: var(--font-weight-semibold); }
         .status-primary { color: var(--primary-color); font-weight: var(--font-weight-semibold); }
         .status-info { color: var(--info-color); font-weight: var(--font-weight-semibold); }
         

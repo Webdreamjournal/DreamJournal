@@ -228,6 +228,38 @@ test('warning text on warning backgrounds reaches 4.5:1 in both themes', async (
     await context.close();
 });
 
+test('warning text on page and card backgrounds reaches 4.5:1 in both themes', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const ratios = await page.evaluate(() => {
+        const luminance = (css) => {
+            const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const out = {};
+        for (const theme of ['light', 'dark']) {
+            document.documentElement.setAttribute('data-theme', theme);
+            for (const className of ['text-warning', 'status-warning']) {
+                for (const background of ['--bg-primary', '--bg-secondary', '--bg-elevated']) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.background = `var(${background})`;
+                    const el = document.createElement('span');
+                    el.className = className;
+                    el.textContent = 'sample';
+                    wrapper.append(el);
+                    document.body.append(wrapper);
+                    const [a, b] = [luminance(getComputedStyle(el).color), luminance(getComputedStyle(wrapper).backgroundColor)];
+                    wrapper.remove();
+                    out[`${theme} .${className} on ${background}`] = Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+                }
+            }
+        }
+        return out;
+    });
+    const low = Object.entries(ratios).filter(([, ratio]) => ratio < 4.5);
+    assert.deepEqual(low, [], `ratios: ${JSON.stringify(ratios)}`);
+    await context.close();
+});
+
 test('prefers-reduced-motion turns the colour transitions off', async () => {
     const { page, context } = await openApp(browser, server.url);
     const durations = () => page.evaluate(() => ({
