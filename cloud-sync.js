@@ -174,6 +174,17 @@ let dropboxInstance = null;
  */
 let dropboxAuth = null;
 
+/**
+ * Promises for the token exchanges that are running now. A second call while one is running gets the
+ * same promise instead of sending another request: refresh tokens may be rotated, and an OAuth
+ * authorization code can be exchanged only once, so a repeated request fails or invalidates the first.
+ * Each slot is cleared when its exchange finishes, whether it succeeded or failed.
+ * @type {Promise<boolean>|null}
+ */
+let refreshTokenInFlight = null;
+/** @type {Promise<boolean>|null} */
+let oauthCallbackInFlight = null;
+
 // ================================
 // AUTHENTICATION MANAGEMENT
 // ================================
@@ -379,7 +390,15 @@ async function startDropboxAuth() {
  *   showErrorMessage('Authentication failed. Please try again.');
  * }
  */
-async function handleOAuthCallback() {
+function handleOAuthCallback() {
+    if (!oauthCallbackInFlight) {
+        oauthCallbackInFlight = exchangeAuthorizationCode().finally(() => { oauthCallbackInFlight = null; });
+    }
+    return oauthCallbackInFlight;
+}
+
+/** Exchanges the authorization code in the URL for tokens (called through handleOAuthCallback). */
+async function exchangeAuthorizationCode() {
     try {
         // Check if we have an authorization code in the URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -639,7 +658,15 @@ async function getDecryptedAccessToken() {
  *   prompt for re-authentication;
  * }
  */
-async function refreshAccessToken() {
+function refreshAccessToken() {
+    if (!refreshTokenInFlight) {
+        refreshTokenInFlight = requestNewAccessToken().finally(() => { refreshTokenInFlight = null; });
+    }
+    return refreshTokenInFlight;
+}
+
+/** Exchanges the stored refresh token for a new access token (called through refreshAccessToken). */
+async function requestNewAccessToken() {
     try {
         const refreshToken = await getDecryptedRefreshToken();
         if (!refreshToken) {
