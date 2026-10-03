@@ -108,6 +108,8 @@ const urlsToCache = [
   './ui-basics.js',           // UI building blocks and escaping
 
   './preferences.js',         // Theme and pagination preferences
+
+  './format-helpers.js',      // Date and chart formatting
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
