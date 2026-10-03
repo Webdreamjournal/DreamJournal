@@ -1184,37 +1184,6 @@ function updateSecurityControls() {
     }
 
 /**
-     * Displays the PIN removal interface within the overlay.
-     * 
-     * Shows a confirmation screen for removing PIN protection. Requires current PIN
-     * verification before allowing removal. Warns user that dreams will no longer
-     * be secured after PIN removal.
-     * 
-     * @since 1.0.0
-     * @example
-     * // Called when user clicks "Remove PIN" button
-     * showRemovePin();
-     * // Shows PIN entry form with removal warning
-     */
-    function showRemovePin() {
-        const pinContainer = document.querySelector('#pinOverlay .pin-container');
-        renderPinScreen(pinContainer, {
-            title: 'Remove PIN Protection',
-            icon: '⚠️',
-            message: 'Enter your current PIN to remove protection. Your dreams will no longer be secured.',
-            inputs: [
-                { id: 'pinInput', type: 'password', placeholder: 'Enter current PIN', class: 'pin-input', maxLength: 6 }
-            ],
-            buttons: [
-                { text: 'Remove PIN', action: 'confirm-remove-pin', class: 'btn-primary' },
-                { text: 'Cancel', action: 'hide-pin-overlay', class: 'btn-secondary' }
-            ],
-            feedbackContainer: true
-        });
-        document.getElementById('pinOverlay').style.display = 'flex';
-    }
-
-/**
      * Executes PIN removal after successful verification.
      * 
      * Actually removes the PIN hash from storage and shows success confirmation.
@@ -1244,48 +1213,6 @@ function updateSecurityControls() {
             });
 
             setUnlocked(true);
-        } catch (error) {
-            console.error('Error removing PIN:', error);
-            showMessage('error', 'Error removing PIN. Please try again.');
-        }
-    }
-
-/**
-     * Confirms PIN removal by verifying the entered current PIN.
-     * 
-     * Validates the user's current PIN before allowing removal. Supports both
-     * legacy and secure PIN formats. Proceeds to executePinRemoval() if verification
-     * succeeds, shows error message if PIN is incorrect.
-     * 
-     * @async
-     * @since 2.0.0
-     * @example
-     * // Called when user submits PIN for removal confirmation
-     * await confirmRemovePin();
-     * // Verifies PIN and removes if correct, shows error if not
-     */
-    async function confirmRemovePin() {
-        const enteredPin = document.getElementById('pinInput').value;
-        
-        if (!enteredPin) {
-            showMessage('error', 'Please enter your current PIN');
-            return;
-        }
-        
-        try {
-            const storedData = getStoredPinData();
-            const isValid = await verifyPinHash(enteredPin, storedData);
-            
-            if (!isValid) {
-                const message = document.getElementById('pinMessage');
-                message.textContent = 'Incorrect PIN. Please try again.';
-                message.style.color = 'var(--error-color)';
-                document.getElementById('pinInput').value = '';
-                return;
-            }
-            
-            await executePinRemoval();
-            
         } catch (error) {
             console.error('Error removing PIN:', error);
             showMessage('error', 'Error removing PIN. Please try again.');
@@ -1564,8 +1491,12 @@ async function verifyLockScreenPin() {
                 removePinHash();
                 setUnlocked(true);
                 setAppLocked(false);
-                switchAppTab(preLockActiveTab);
+                showAllTabButtons();
+                switchAppTab(preLockActiveTab === 'lock' ? 'journal' : preLockActiveTab);
                 updateSecurityControls();
+                // Load and display the data, as after a successful PIN entry
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData(false);
             }
             return;
         }
@@ -2240,11 +2171,15 @@ async function confirmDataWipe() {
             setFailedPinAttempts(0);
             updateTimerWarning();
             
-            setTimeout(() => {
+            setTimeout(async () => {
                 showAllTabButtons();
                 const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                 switchAppTab(targetTab);
                 updateSecurityControls();
+
+                // Load and display the data, as after a successful PIN entry
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData(false);
             }, 2000);
         } else {
             showLockScreenMessage('error', 'One or more titles did not match. Please try again.');
@@ -3084,7 +3019,6 @@ async function setupPin() {
             ],
             links: [
                 { text: 'Setup new PIN', action: 'show-pin-setup', id: 'pinSetupLink', style: isPinSetup() ? 'display:none' : '' },
-                { text: 'Remove PIN protection', action: 'show-remove-pin', id: 'removePinLink', style: !isPinSetup() || !isUnlocked ? 'display:none' : '' },
                 { text: 'Forgot PIN?', action: 'show-forgot-pin', id: 'forgotPinLink', style: 'display:none' }
             ],
             feedbackContainer: true
@@ -3293,12 +3227,11 @@ async function getAuthenticationRequirements() {
 }
 
 /**
- * Shows appropriate authentication screen based on enabled features.
+ * Shows the authentication screen.
  *
- * Smart authentication dispatcher that determines which authentication screen
- * to display based on the current security configuration. Prioritizes encryption
- * password entry when both PIN and encryption are enabled, as encryption password
- * can bypass PIN protection.
+ * Authentication happens on the lock screen, which renders the encryption
+ * password form when encryption is enabled and the PIN form otherwise (see
+ * renderUnifiedAuthenticationScreen). This delegates to returnToLockScreen.
  *
  * @async
  * @function
@@ -3306,79 +3239,11 @@ async function getAuthenticationRequirements() {
  * @example
  * // Called during app initialization when authentication is required
  * await showAuthenticationScreen();
- * // Shows encryption password screen, PIN screen, or appropriate combination
+ * // Shows the lock screen
  */
 async function showAuthenticationScreen() {
     // All authentication now happens on the lock screen for consistency
     await returnToLockScreen();
-}
-
-/**
- * Shows the encryption password entry screen.
- *
- * Displays the password entry interface for accessing encrypted data. Supports
- * dual authentication scenarios where both PIN and encryption are enabled,
- * providing appropriate context and alternative authentication options.
- *
- * @async
- * @function
- * @since 2.03.01
- * @example
- * // Show encryption password screen
- * showEncryptionPasswordScreen();
- * // Displays password entry with appropriate context and options
- */
-async function showEncryptionPasswordScreen() {
-    const requirements = await getAuthenticationRequirements();
-
-    let title, message;
-    if (requirements.bothEnabled) {
-        title = 'Enter Encryption Password';
-        message = 'Your encryption password will bypass PIN protection and decrypt your data.';
-    } else {
-        title = 'Enter Password';
-        message = 'Enter your password to access your encrypted data.';
-    }
-
-    const pinContainer = document.querySelector('#pinOverlay .pin-container');
-    const config = {
-        title,
-        icon: '🔒',
-        message,
-        inputs: [
-            {
-                id: 'encryptionPassword',
-                type: 'password',
-                placeholder: 'Enter password',
-                class: 'pin-input',
-                autocomplete: 'current-password'
-            }
-        ],
-        buttons: [
-            {
-                text: 'Unlock',
-                action: 'verify-encryption-password',
-                class: 'btn-primary'
-            }
-        ],
-        links: requirements.bothEnabled ? [
-            {
-                text: 'Use PIN instead',
-                action: 'switch-to-pin-entry',
-                class: 'forgot-pin-link'
-            }
-        ] : [],
-        feedbackContainer: true
-    };
-
-    renderPinScreen(pinContainer, config);
-    document.getElementById('pinOverlay').style.display = 'flex';
-
-    // Focus the password input
-    setTimeout(() => {
-        const passwordInput = document.getElementById('encryptionPassword');
-        if (passwordInput) passwordInput.focus();
-    }, CONSTANTS.FOCUS_DELAY_MS);
 }
 
 /**
@@ -4005,7 +3870,6 @@ export {
     setupPin,
     setupNewPin,
     confirmNewPin,
-    confirmRemovePin,
     executePinRemoval,
     completePinRemoval,
     
@@ -4013,7 +3877,6 @@ export {
     showPasswordDialog,
     showPinSetup,
     showSetNewPinScreen,
-    showRemovePin,
     showForgotPin,
     showLockScreenForgotPin,
     updateSecurityControls,
@@ -4053,7 +3916,6 @@ export {
     // Authentication flow integration
     getAuthenticationRequirements,
     showAuthenticationScreen,
-    showEncryptionPasswordScreen,
     verifyEncryptionPassword,
     testEncryptionPassword,
 

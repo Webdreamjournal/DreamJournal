@@ -36,6 +36,8 @@ async function openAtOverlay() {
 /** The overlay's Forgot PIN link is hidden; the recovery screen opens after three wrong PINs. */
 async function failPinThreeTimes(page) {
     for (let i = 0; i < 3; i++) {
+        // Clear the previous message so the wait below sees this attempt's answer, not the last one's
+        await page.evaluate(() => { const f = document.querySelector('#pinFeedback'); if (f) f.textContent = ''; });
         await page.fill('#pinInput', '0000');
         await page.click('[data-action="verify-pin"]');
         await page.waitForFunction(() => /Incorrect PIN/.test(document.querySelector('#pinFeedback')?.innerText ?? '') || /PIN Recovery/.test(document.querySelector('#pinOverlay')?.innerText ?? ''), null, { timeout: 10000 });
@@ -99,19 +101,19 @@ test('lock screen: PIN recovery with dream titles', async (t) => {
     await context.close();
 });
 
-test('lock screen: dreams are listed straight after PIN recovery by titles',
-    { todo: 'Known bug: verifyLockScreenDreamTitles (security.js) opens the Journal tab without loading the dreams, so the list is empty until the page is reloaded' },
-    async () => {
-        const { page, context } = await openLocked();
-        const names = await titles(page);
-        await page.click('[data-action="show-lock-screen-forgot-pin"]');
-        await page.click('[data-action="start-lock-screen-title-recovery"]');
-        await fillTitles(page, names.slice(0, 3));
-        await page.click('[data-action="verify-lock-screen-dream-titles"]');
-        await waitForPinRemoved(page);
-        await page.waitForSelector('.entry', { state: 'visible', timeout: 5000 });
-        await context.close();
-    });
+test('lock screen: dreams are listed straight after PIN recovery by titles', async () => {
+    const { page, context, problems } = await openLocked();
+    const names = await titles(page);
+    await page.click('[data-action="show-lock-screen-forgot-pin"]');
+    await page.click('[data-action="start-lock-screen-title-recovery"]');
+    await fillTitles(page, names.slice(0, 3));
+    await page.click('[data-action="verify-lock-screen-dream-titles"]');
+    await waitForPinRemoved(page);
+    await page.waitForSelector('.entry', { state: 'visible', timeout: 10000 });
+    assert.equal(await visibleTabCount(page), 5);
+    assert.deepEqual(problems, []);
+    await context.close();
+});
 
 test('lock screen: the 72-hour timer', async (t) => {
     const { page, context, problems } = await openLocked();
@@ -136,9 +138,9 @@ test('lock screen: the 72-hour timer', async (t) => {
         await page.evaluate(() => localStorage.setItem('dreamJournalPinResetTime', String(Date.now() - 1000)));
         await page.click('[data-action="show-lock-screen-forgot-pin"]');
         await waitForPinRemoved(page);
-        assert.equal(await pinHash(page), null);
         assert.equal(await resetTime(page), null);
-        await reloadAndSeeDreams(page);
+        await page.waitForSelector('.entry', { state: 'visible', timeout: 10000 });
+        assert.equal(await visibleTabCount(page), 5);
     });
 
     assert.deepEqual(problems, []);
