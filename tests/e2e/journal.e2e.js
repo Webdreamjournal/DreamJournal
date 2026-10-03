@@ -136,3 +136,35 @@ test('journal flows', async (t) => {
     assert.deepEqual(problems, []);
     await context.close();
 });
+
+test('the new dream form shows its success and encrypted-save error messages on the page', async (t) => {
+    const { page, context } = await openApp(browser, server.url);
+
+    await t.test('saving a dream shows "Dream saved successfully!" inside the form', async () => {
+        await page.fill('#dreamContent', 'A dream saved with a visible message.');
+        await page.click('[data-action="save-dream"]');
+        const message = page.locator('#dreamFormFull .message-success');
+        await message.waitFor();
+        assert.match(await message.innerText(), /Dream saved successfully!/);
+        assert.ok(await message.isVisible());
+    });
+
+    await t.test('a failed encrypted save shows its error inside the form and keeps the text', async () => {
+        // Encryption on with a session password, and key import failing, so encrypting the dream throws
+        await page.evaluate(async () => {
+            const state = await import('/state.js');
+            state.setEncryptionEnabled(true);
+            state.setEncryptionPassword('a session password');
+            SubtleCrypto.prototype.importKey = () => Promise.reject(new Error('blocked for the test'));
+        });
+        await page.fill('#dreamContent', 'A dream that cannot be encrypted.');
+        await page.click('[data-action="save-dream"]');
+        const message = page.locator('#dreamFormFull .message-error');
+        await message.waitFor();
+        assert.match(await message.innerText(), /Failed to save encrypted dream/);
+        assert.ok(await message.isVisible());
+        assert.equal(await page.inputValue('#dreamContent'), 'A dream that cannot be encrypted.');
+    });
+
+    await context.close();
+});
