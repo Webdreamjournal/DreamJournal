@@ -1564,8 +1564,12 @@ async function verifyLockScreenPin() {
                 removePinHash();
                 setUnlocked(true);
                 setAppLocked(false);
-                switchAppTab(preLockActiveTab);
+                showAllTabButtons();
+                switchAppTab(preLockActiveTab === 'lock' ? 'journal' : preLockActiveTab);
                 updateSecurityControls();
+                // Load and display the data, as after a successful PIN entry
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData(false);
             }
             return;
         }
@@ -2240,11 +2244,15 @@ async function confirmDataWipe() {
             setFailedPinAttempts(0);
             updateTimerWarning();
             
-            setTimeout(() => {
+            setTimeout(async () => {
                 showAllTabButtons();
                 const targetTab = (preLockActiveTab === 'lock') ? 'journal' : preLockActiveTab;
                 switchAppTab(targetTab);
                 updateSecurityControls();
+
+                // Load and display the data, as after a successful PIN entry
+                const { initializeApplicationData } = await import('./main.js');
+                await initializeApplicationData(false);
             }, 2000);
         } else {
             showLockScreenMessage('error', 'One or more titles did not match. Please try again.');
