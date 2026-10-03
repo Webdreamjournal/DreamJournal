@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { startServer, launchBrowser, openApp, openTab, importBackup } from './helpers.js';
 import { sampleBackup } from './sample-data.js';
 
@@ -251,6 +252,26 @@ test('after another tab upgraded the database, saving a goal is refused and the 
     await page.waitForSelector('.message-error:has-text("Reload the page first")');
     assert.equal(await page.inputValue('#goalTitle'), 'Goal typed before the upgrade');
     assert.equal(await page.locator('[id^="goal-"]:has-text("Goal typed before the upgrade")').count(), 0);
+    await context.close();
+});
+
+test('after another tab upgraded the database, a finished recording is offered as a download and not stored', async () => {
+    const { page, context } = await openApp(browser, server.url, { permissions: ['microphone'] });
+    const toggle = '[data-action="toggle-recording"]';
+    if (!(await page.isVisible(toggle))) await page.locator('[data-action="switch-voice-tab"]').first().click();
+    // The Stop button pulses while recording, so Playwright never sees it as "stable": force the click
+    await page.click(toggle, { force: true });
+    await page.waitForTimeout(2000);
+    await upgradeFromOtherTab(context, page);
+    await page.click(toggle, { force: true });
+
+    const message = page.locator('#voiceTabRecord .message-error');
+    await message.waitFor({ timeout: 10000 });
+    assert.match(await message.innerText(), /could not be saved/);
+    assert.equal(await page.locator('[data-action="play-voice"]').count(), 0, 'a voice note was listed');
+    const [download] = await Promise.all([page.waitForEvent('download'), message.locator('button', { hasText: 'Download recording' }).click()]);
+    assert.match(download.suggestedFilename(), /^dream-voice-note-.*\.(webm|mp4)$/);
+    assert.ok(fs.statSync(await download.path()).size > 1000, 'the downloaded audio is empty');
     await context.close();
 });
 
