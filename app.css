@@ -63,8 +63,8 @@
             /* Semantic color lightness values */
             --primary-l: 59%;          --primary-hover-l: 52%;      /* Primary action colors */
             --primary-solid-l: 59%;                                 /* Primary as a button background under white text */
-            --success-l: 30%;          --success-hover-l: 26%;      /* Success state colors */
-            --error-l: 46%;            --error-hover-l: 40%;        /* Error state colors */
+            --success-l: 28%;          --success-hover-l: 26%;      /* Success state colors */
+            --error-l: 42%;            --error-hover-l: 40%;        /* Error state colors */
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
             --info-l: 35%;             --info-hover-l: 30%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
@@ -658,6 +658,15 @@
                        border-color 0.3s ease, 
                        box-shadow 0.3s ease,
                        transform 0.2s ease;
+        }
+
+        /* Reduced motion: no colour, shadow or transform transitions (a theme switch changes colours at once) */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
         }
 
         .autocomplete-item {

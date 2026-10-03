@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { startServer, launchBrowser, openApp, openTab, importBackup } from './helpers.js';
+import { startServer, launchBrowser, openApp, openTab, importBackup, disableTransitions } from './helpers.js';
 import { sampleBackup } from './sample-data.js';
 
 const axeSource = fs.readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
@@ -14,6 +14,7 @@ after(async () => { await browser?.close(); await server?.close(); });
 const TABS = ['journal', 'goals', 'stats', 'advice', 'settings'];
 
 async function scan(page) {
+    await disableTransitions(page);
     await page.evaluate(axeSource);
     // `where` names the first offending element and, for contrast failures, its colours, so a failure is diagnosable from the log
     return page.evaluate(async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => {
@@ -157,5 +158,79 @@ test('collapsible section headers are buttons inside headings and toggle once pe
     await page.keyboard.press('Space');
     await page.waitForTimeout(400);
     assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    await context.close();
+});
+
+test('status message colours reach 4.5:1 in both themes', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const ratios = await page.evaluate(() => {
+        const channels = (css) => css.match(/[\d.]+/g).slice(0, 3).map(Number);
+        const luminance = ([r, g, b]) => {
+            const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+            return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        const measure = (el) => {
+            document.body.append(el);
+            const style = getComputedStyle(el);
+            const [a, b] = [luminance(channels(style.color)), luminance(channels(style.backgroundColor))];
+            el.remove();
+            return Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+        };
+        const out = {};
+        for (const theme of ['light', 'dark']) {
+            document.documentElement.setAttribute('data-theme', theme);
+            for (const kind of ['success', 'error', 'warning', 'info']) {
+                // New elements have no earlier style, so their colours are the final ones, not mid-transition
+                const byClass = document.createElement('div');
+                byClass.className = `message-base message-${kind}`;
+                byClass.textContent = 'sample';
+                out[`${theme} .message-${kind}`] = measure(byClass);
+                // The pairing used by messages that set their colours inline (for example the theme switch message)
+                const byVariables = document.createElement('div');
+                byVariables.style.cssText = `background: var(--notification-${kind}-bg); color: var(--${kind}-color);`;
+                byVariables.textContent = 'sample';
+                out[`${theme} ${kind} variables`] = measure(byVariables);
+            }
+        }
+        return out;
+    });
+    // The light warning pairing is covered by the todo test below
+    const low = Object.entries(ratios).filter(([name, ratio]) => ratio < 4.5 && name !== 'light warning variables');
+    assert.deepEqual(low, [], `ratios: ${JSON.stringify(ratios)}`);
+    await context.close();
+});
+
+test('light theme warning text on the warning notification background reaches 4.5:1',
+    { todo: 'Known gap: --warning-color (hsl 32, 95%, 44%) on --notification-warning-bg is 2.88:1; .notification-message.warning uses it. It needs a much darker orange (about 33% lightness), which changes the warning buttons too' },
+    async () => {
+        const { page, context } = await openApp(browser, server.url);
+        const ratio = await page.evaluate(() => {
+            document.documentElement.setAttribute('data-theme', 'light');
+            const el = document.createElement('div');
+            el.className = 'notification-message warning';
+            el.textContent = 'sample';
+            document.body.append(el);
+            const style = getComputedStyle(el);
+            const lum = (css) => { const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+            const [a, b] = [lum(style.color), lum(style.backgroundColor)];
+            el.remove();
+            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        });
+        assert.ok(ratio >= 4.5, `ratio ${ratio.toFixed(2)}`);
+        await context.close();
+    });
+
+test('prefers-reduced-motion turns the colour transitions off', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const durations = () => page.evaluate(() => ({
+        body: getComputedStyle(document.body).transitionDuration,
+        button: getComputedStyle(document.querySelector('button')).transitionDuration
+    }));
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const normal = await durations();
+    assert.notEqual(normal.body, '0s', 'the app normally fades colours');
+    assert.ok(normal.button.includes('0.3s'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.deepEqual(await durations(), { body: '0s', button: '0s' });
     await context.close();
 });
