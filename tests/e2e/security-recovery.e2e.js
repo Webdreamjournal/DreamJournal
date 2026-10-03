@@ -46,16 +46,33 @@ async function failPinThreeTimes(page) {
 }
 const titles = async (page) => (await storedDreams(page)).map(d => d.title).filter(t => t !== 'Untitled Dream');
 const visibleText = (page) => page.innerText('body');
-/** Waits until an element's text matches (handlers answer asynchronously). */
-const waitForText = (page, selector, pattern) => page.waitForFunction(
-    ([sel, source]) => new RegExp(source).test(document.querySelector(sel)?.innerText ?? ''),
-    [selector, pattern.source], { timeout: 10000 }
-);
+/** Waits until an element's text matches (handlers answer asynchronously); a timeout reports what the page showed. */
+const waitForText = async (page, selector, pattern) => {
+    try {
+        await page.waitForFunction(
+            ([sel, source]) => new RegExp(source).test(document.querySelector(sel)?.innerText ?? ''),
+            [selector, pattern.source], { timeout: 10000 }
+        );
+    } catch (error) {
+        const shown = await page.evaluate((sel) => ({
+            text: document.querySelector(sel)?.innerText ?? null,
+            overlay: document.querySelector('#pinOverlay')?.innerText ?? null,
+            inputs: ['recovery1', 'recovery2', 'recovery3'].map(id => document.getElementById(id)?.value ?? null)
+        }), selector);
+        throw new Error(`${selector} never matched ${pattern}: ${JSON.stringify(shown)}`, { cause: error });
+    }
+};
 const waitForPinRemoved = (page) => page.waitForFunction(() => localStorage.getItem('dreamJournalPinHash') === null, null, { timeout: 10000 });
 const visibleTabCount = (page) => page.$$eval('.app-tab', all => all.filter(x => getComputedStyle(x).display !== 'none').length);
 const reloadAndSeeDreams = async (page) => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.entry');
+};
+/** Opens the three-title recovery screen and waits for its first field to take the focus the app gives it after 100 ms. */
+const openTitleRecovery = async (page, action) => {
+    await page.click(`[data-action="${action}"]`);
+    await page.waitForSelector('#recovery1');
+    await page.waitForFunction(() => document.activeElement?.id === 'recovery1', null, { timeout: 5000 });
 };
 const fillTitles = async (page, [a, b, c]) => {
     await page.fill('#recovery1', a);
@@ -76,7 +93,7 @@ test('lock screen: PIN recovery with dream titles', async (t) => {
     });
 
     await t.test('empty, repeated and wrong titles are refused and the PIN stays', async () => {
-        await page.click('[data-action="start-lock-screen-title-recovery"]');
+        await openTitleRecovery(page, 'start-lock-screen-title-recovery');
         await page.click('[data-action="verify-lock-screen-dream-titles"]');
         await waitForText(page, 'body', /enter all 3/i);
         await fillTitles(page, [names[0], names[0], names[1]]);
@@ -105,7 +122,7 @@ test('lock screen: dreams are listed straight after PIN recovery by titles', asy
     const { page, context, problems } = await openLocked();
     const names = await titles(page);
     await page.click('[data-action="show-lock-screen-forgot-pin"]');
-    await page.click('[data-action="start-lock-screen-title-recovery"]');
+    await openTitleRecovery(page, 'start-lock-screen-title-recovery');
     await fillTitles(page, names.slice(0, 3));
     await page.click('[data-action="verify-lock-screen-dream-titles"]');
     await waitForPinRemoved(page);
@@ -185,8 +202,7 @@ test('PIN overlay: recovery by dream titles', async (t) => {
     await failPinThreeTimes(page);
 
     await t.test('wrong titles are refused', async () => {
-        await page.click('[data-action="start-title-recovery"]');
-        await page.waitForSelector('#recovery1');
+        await openTitleRecovery(page, 'start-title-recovery');
         await page.click('[data-action="verify-dream-titles"]');
         await waitForText(page, '#pinFeedback', /enter all 3/i);
         await fillTitles(page, [names[0], names[1], 'nope']);
@@ -280,7 +296,7 @@ test('forgotten encryption password: wiping all data', async (t) => {
         await page.waitForSelector('[data-action="reload-app"]', { timeout: 30000 });
         assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), null);
         await page.click('[data-action="reload-app"]');
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('.container')).visibility === 'visible');
+        await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
         assert.equal(await page.locator('.entry').count(), 0);
         assert.equal((await storedDreams(page)).length, 0);
     });
