@@ -31,7 +31,11 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 | `pin-core.js` | PIN hashing, lockout and storage of the PIN hash and reset time. No UI. |
 | `pin-controls.js`, `pin-overlay.js`, `pin-recovery.js`, `lock-screen.js` | PIN UI: Settings controls, the overlay and PIN setup, recovery by titles or timer, the lock screen and data wipe. |
 | `encryption-settings.js`, `encryption-auth.js` | Encryption flag, password dialog, progress dialogs and `reEncryptAllData`; start-up authentication and encryption password check. |
-| `dom-helpers.js` | Shared UI helpers, tab switching, escaping (`escapeHtml`, `escapeAttr`), PIN screen rendering. |
+| `dom-helpers.js` | Re-exports the UI modules below, so `import ... from './dom-helpers.js'` keeps working. Its export list is pinned by `tests/module-exports.test.js`. |
+| `ui-basics.js` | Action buttons, inline messages and live-region announcements, escaping (`escapeHtml`, `escapeAttr`), pagination control. |
+| `tab-navigation.js`, `collapsible-sections.js` | Tab switching and panels, tab button visibility; collapse state of the form and Settings, Goals, Advice and Journal sections. |
+| `preferences.js`, `format-helpers.js` | Theme and pagination preferences; date and pie chart formatting. |
+| `autocomplete-ui.js`, `info-tooltips.js`, `tips-and-goals-ui.js`, `pin-screen.js` | Autocomplete interface, help tooltips, tip display and goal elements, PIN screen rendering. |
 | `dream-crud.js`, `goalstab.js`, `voice-notes.js` | Dreams, goals and voice notes: forms, lists, edit and delete. |
 | `journaltab.js`, `statstab.js`, `advicetab.js`, `settingstab.js` | Tab rendering. |
 | `import-export.js` | JSON and text import and export. Imported data is untrusted. |

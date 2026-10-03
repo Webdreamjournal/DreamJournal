@@ -5,6 +5,11 @@
  * and consistent styling helpers. All functions are designed to work with the application's
  * HSL-based theme system and centralized event handling via data-action attributes.
  * 
+ * This file only re-exports the UI modules, so existing imports of './dom-helpers.js'
+ * (including dynamic import() calls) keep working: ui-basics.js, preferences.js,
+ * format-helpers.js, info-tooltips.js, collapsible-sections.js, autocomplete-ui.js,
+ * tips-and-goals-ui.js, pin-screen.js and tab-navigation.js.
+ * 
  * @module DOMHelpers
  * @version 2.05.06
  * @author Dream Journal Development Team
