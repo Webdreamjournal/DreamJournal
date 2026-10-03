@@ -65,3 +65,37 @@ test('saves resolve after the IndexedDB transaction has committed', async (t) =>
     assert.deepEqual(problems.filter(p => !/Error writing to dreams store|aborted|Error adding/.test(p)), []);
     await context.close();
 });
+
+test('an existing version 5 database is upgraded: the meta store is added and the dreams stay', async () => {
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+    // A same-origin page that is not the app, so the database can be built the way version 5 left it
+    await page.goto(`${server.url}manifest.json`);
+    await page.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 5);
+        open.onupgradeneeded = () => {
+            const db = open.result;
+            const dreams = db.createObjectStore('dreams', { keyPath: 'id' });
+            dreams.createIndex('timestamp', 'timestamp', { unique: false });
+            dreams.createIndex('isLucid', 'isLucid', { unique: false });
+            db.createObjectStore('voiceNotes', { keyPath: 'id' });
+            db.createObjectStore('goals', { keyPath: 'id' });
+            db.createObjectStore('autocomplete', { keyPath: 'id' });
+            dreams.put({ id: 'old-1', title: 'Dream from version 5', content: 'kept', timestamp: new Date().toISOString(), isLucid: false });
+        };
+        open.onsuccess = () => { open.result.close(); resolve(); };
+        open.onerror = () => reject(open.error);
+    }));
+    await page.goto(server.url, { waitUntil: 'load' });
+    await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
+    await page.waitForSelector('.entry');
+    assert.match(await page.innerText('body'), /Dream from version 5/);
+    const schema = await page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => { const r = { version: open.result.version, stores: [...open.result.objectStoreNames].sort() }; open.result.close(); resolve(r); };
+    }));
+    assert.equal(schema.version, 6);
+    assert.deepEqual(schema.stores, ['autocomplete', 'dreams', 'goals', 'meta', 'voiceNotes']);
+    await context.close();
+});

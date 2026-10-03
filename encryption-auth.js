@@ -135,6 +135,7 @@ async function verifyEncryptionPassword() {
 
             // Import initialization function
             const { initializeApplicationData } = await import('./main.js');
+            const { getUndecryptableItemCount } = await import('./storage.js');
 
             updateDecryptionProgress('Password verified! Loading encrypted data...');
 
@@ -152,6 +153,9 @@ async function verifyEncryptionPassword() {
                 updateDecryptionProgress(message);
             });
 
+            // The password was accepted, so items that did not decrypt are damaged, not wrongly keyed
+            const undecryptable = getUndecryptableItemCount();
+
             updateDecryptionProgress('Finalizing application setup...');
 
             hidePinOverlay();
@@ -159,7 +163,9 @@ async function verifyEncryptionPassword() {
             showAllTabButtons();
 
             // Show success and transition to main app
-            await showDecryptionProgress('success', 'Welcome back! Your encrypted data has been loaded successfully.');
+            await showDecryptionProgress('success', undecryptable
+                ? 'Welcome back! Your data has been loaded, except for some items that could not be decrypted.'
+                : 'Welcome back! Your encrypted data has been loaded successfully.');
 
             // Show additional success message in main app
             setTimeout(() => {
@@ -169,6 +175,14 @@ async function verifyEncryptionPassword() {
                     position: 'top',
                     duration: 3000
                 });
+                if (undecryptable) {
+                    const noun = undecryptable === 1 ? 'stored item' : 'stored items';
+                    createInlineMessage('warning', `${undecryptable} ${noun} could not be decrypted and ${undecryptable === 1 ? 'is' : 'are'} not shown. ${undecryptable === 1 ? 'It' : 'They'} may be damaged. Your password is correct and your other data is unaffected.`, {
+                        container: container,
+                        position: 'top',
+                        duration: 20000
+                    });
+                }
             }, 100);
 
         } else {

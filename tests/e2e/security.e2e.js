@@ -159,6 +159,53 @@ test('data encryption', async (t) => {
         };
     }), store);
 
+    // The encryption check value lives in the meta store; its first 16 bytes are the salt, as for stored items
+    const metaRecord = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const get = open.result.transaction('meta').objectStore('meta').get('encryptionCheck');
+            get.onsuccess = () => { open.result.close(); resolve(get.result ?? null); };
+        };
+    }));
+    const hex = (bytes) => Array.from(bytes.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('');
+    const deleteMetaRecord = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction('meta', 'readwrite');
+            tx.objectStore('meta').delete('encryptionCheck');
+            tx.oncomplete = () => { open.result.close(); resolve(); };
+        };
+    }));
+    // Flips the last byte of the first stored dream so it no longer decrypts; returns the original record
+    const damageFirstDream = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction('dreams', 'readwrite');
+            const store = tx.objectStore('dreams');
+            const all = store.getAll();
+            let original;
+            all.onsuccess = () => {
+                original = all.result[0];
+                const data = new Uint8Array(original.data);
+                data[data.length - 1] ^= 0xff;
+                store.put({ ...original, data });
+            };
+            tx.oncomplete = () => { open.result.close(); resolve(original); };
+        };
+    }));
+    const restoreDream = (record) => page.evaluate((original) => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction('dreams', 'readwrite');
+            tx.objectStore('dreams').put(original);
+            tx.oncomplete = () => { open.result.close(); resolve(); };
+        };
+    }), record);
+    const dismissDecryptionSuccess = async () => {
+        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
+        await page.click('#decryption-progress-dialog button');
+    };
+
     // The sample backup has no goals or autocomplete data, so store some directly
     await page.evaluate(() => new Promise(resolve => {
         const open = indexedDB.open('DreamJournal');
@@ -206,6 +253,14 @@ test('data encryption', async (t) => {
         const salts = await storedSalts();
         assert.equal(salts.length, 3);
         assert.equal(new Set(salts).size, 1);
+    });
+
+    await t.test('enabling encryption also stores an encrypted check value under the journal salt', async () => {
+        const check = await metaRecord();
+        assert.ok(check, 'no check value stored');
+        assert.ok(check.data.length > 28);
+        assert.ok(!JSON.stringify(check).includes('encryption-check'), 'plaintext in the check value');
+        assert.equal(hex(check.data), (await storedSalts())[0]);
     });
 
     await t.test('after a reload the journal stays locked until the right password is given', async () => {
@@ -266,6 +321,7 @@ test('data encryption', async (t) => {
 
         // Goals and autocomplete data move to the new key as well: still ciphertext, same new salt
         const [dreamSalt] = salts;
+        assert.equal(hex((await metaRecord()).data), dreamSalt, 'the check value was not re-keyed with the journal');
         assert.ok(!(await rawStore('goals')).includes('Seeded goal title'));
         assert.ok(!(await rawStore('autocomplete')).includes('seededtagalpha'));
         assert.deepEqual(await storedSalts('goals'), [dreamSalt]);
@@ -340,6 +396,41 @@ test('data encryption', async (t) => {
         assert.equal((await storedDreams(page)).length, 4);
     });
 
+    await t.test('a damaged dream does not stop the right password; the unlock says what could not be read', async () => {
+        const original = await damageFirstDream();
+        await page.reload({ waitUntil: 'load' });
+        // A wrong password is still refused, as a wrong password
+        await unlockWithPassword('not the password');
+        await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
+        await page.click('.security-dialog-overlay button');
+        // The right password is accepted although the first dream cannot be decrypted
+        await unlockWithPassword('battery staple');
+        await dismissDecryptionSuccess();
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 3);
+        await page.waitForFunction(() => /1 stored item could not be decrypted/.test(document.body.innerText), null, { timeout: 10000 });
+        await restoreDream(original);
+        await page.reload({ waitUntil: 'load' });
+        await unlockWithPassword('battery staple');
+        await dismissDecryptionSuccess();
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 4);
+        assert.ok(!/could not be decrypted/.test(await page.innerText('body')), 'warning shown for an intact journal');
+    });
+
+    await t.test('a journal from before the check value existed still unlocks, and gets one', async () => {
+        await deleteMetaRecord();
+        await page.reload({ waitUntil: 'load' });
+        await unlockWithPassword('not the password');
+        await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
+        await page.click('.security-dialog-overlay button');
+        assert.equal(await metaRecord(), null, 'a wrong password must not create a check value');
+        await unlockWithPassword('battery staple');
+        await dismissDecryptionSuccess();
+        await page.waitForSelector('.entry');
+        assert.ok(await metaRecord(), 'the check value was not created');
+    });
+
     await t.test('pressing Enter on Cancel in the disable-encryption confirmation keeps encryption on', async () => {
         await openTab(page, 'settings');
         await page.click('[data-action="toggle-encryption"]');
@@ -376,12 +467,13 @@ test('data encryption', async (t) => {
         assert.ok(raw.includes('Encrypted era dream'), 'dreams are still encrypted');
         assert.ok(!/"encrypted":true/.test(raw));
         assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), 'false');
+        assert.equal(await metaRecord(), null, 'the check value was kept after encryption was turned off');
         await page.reload({ waitUntil: 'load' });
         await page.waitForSelector('.entry');
         assert.equal((await storedDreams(page)).length, 4);
     });
 
-    // The app logs a console error for the deliberate wrong-password attempt above
-    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError|Re-encryption error/.test(p)), []);
+    // The app logs console errors for the deliberate wrong-password attempt and the damaged dream above
+    assert.deepEqual(problems.filter(p => !/Decryption error: OperationError|Re-encryption error|Failed to decrypt dream/.test(p)), []);
     await context.close();
 });
