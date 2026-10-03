@@ -104,6 +104,8 @@ const urlsToCache = [
   './state.js',            // Global state management
   './storage.js',          // IndexedDB operations
   './dom-helpers.js',      // DOM utilities
+
+  './ui-basics.js',           // UI building blocks and escaping
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
