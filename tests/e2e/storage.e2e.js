@@ -130,3 +130,31 @@ test('startup asks the browser for persistent storage once, and the app works wh
         });
     }
 });
+
+test('when IndexedDB cannot be opened, the app falls back to memory storage and the autocomplete lists still show', async () => {
+    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
+    // A database newer than the app expects makes indexedDB.open(name, 6) fail with a VersionError
+    await page.goto(`${server.url}manifest.json`);
+    await page.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 99);
+        open.onupgradeneeded = () => open.result.createObjectStore('dreams', { keyPath: 'id' });
+        open.onsuccess = () => { open.result.close(); resolve(); };
+        open.onerror = () => reject(open.error);
+    }));
+    await page.goto(server.url, { waitUntil: 'load' });
+    await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
+    await page.click('#tab-settings');
+    await page.waitForSelector('#tagsManagementList .autocomplete-list-item');
+    const lists = await page.evaluate(() => ['tagsManagementList', 'dreamSignsManagementList', 'emotionsManagementList']
+        .map(id => ({ id, items: document.querySelectorAll(`#${id} .autocomplete-list-item`).length, error: !!document.querySelector(`#${id} .message-error`) })));
+    for (const list of lists) {
+        assert.equal(list.error, false, `${list.id} shows an error`);
+        assert.ok(list.items > 0, `${list.id} is empty`);
+    }
+    assert.deepEqual(pageErrors, []);
+    await context.close();
+});

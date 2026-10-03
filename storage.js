@@ -1823,7 +1823,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
         // For new users or migrated users, use the new unified 'autocomplete' store
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             const autocompleteData = await loadItemFromStoreRaw('autocomplete', storeId);
             if (autocompleteData && autocompleteData.items) {
                 // Sort alphabetically for consistent display
@@ -1870,7 +1870,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         const { getEncryptionEnabled, getEncryptionPassword } = await import('./state.js');
 
         // For new users or migrated users, use the new unified 'autocomplete' store
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             let autocompleteData;
 
             // Check if encryption is enabled and we have a password
@@ -2183,7 +2183,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     async function getAutocompleteSuggestionsRawData(type) {
         const storeId = type === 'tags' ? 'tags' : type === 'dreamSigns' ? 'dreamSigns' : 'emotions';
 
-        if (isIndexedDBAvailable() && db.objectStoreNames.contains('autocomplete')) {
+        if (isIndexedDBReady() && db.objectStoreNames.contains('autocomplete')) {
             return await loadItemFromStoreRaw('autocomplete', storeId);
         }
 
