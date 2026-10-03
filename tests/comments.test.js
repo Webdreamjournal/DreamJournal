@@ -15,5 +15,5 @@ test('code comments describe behaviour without guarantees or marketing language'
             }
         });
     }
-    assert.deepEqual(offenders, [], 'Reword these comments to state what the code does (see CLAUDE.md)');
+    assert.deepEqual(offenders, [], 'Reword these comments to state what the code does (see AGENTS.md)');
 });

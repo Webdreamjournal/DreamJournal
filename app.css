@@ -66,6 +66,7 @@
             --success-l: 28%;          --success-hover-l: 26%;      /* Success state colors */
             --error-l: 42%;            --error-hover-l: 40%;        /* Error state colors */
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
+            --warning-text-l: 33%;                                  /* Warning text on warning backgrounds; the base orange is only 2.9:1 there */
             --info-l: 35%;             --info-hover-l: 30%;         /* Info and info hover colors */
             --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
             --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
@@ -125,7 +126,7 @@
                         font-weight: var(--font-weight-semibold); text-align: center; }
         .message-success { background: var(--notification-success-bg); color: var(--success-color); }
         .message-error { background: var(--notification-error-bg); color: var(--error-color); }
-        .message-warning { background: var(--notification-warning-bg); color: var(--warning-color); }
+        .message-warning { background: var(--notification-warning-bg); color: var(--warning-text); }
         .message-info { background: var(--notification-info-bg); color: var(--info-color); }
         
         /* Input utilities */
@@ -420,6 +421,7 @@
             --success-l: 70%;          --success-hover-l: 30%;
             --error-l: 72%;            --error-hover-l: 51%;
             --warning-l: 71%;          --warning-hover-l: 65%;
+            --warning-text-l: 71%;
             --info-l: 67%;             --info-hover-l: 61%;
             --purple-l: 72%;           --purple-hover-l: 66%;
             --secondary-l: 68%;        --secondary-hover-l: 83%;
@@ -467,6 +469,7 @@
             --error-hover: hsl(var(--error-h), var(--error-s), var(--error-hover-l));
             --warning-color: hsl(var(--warning-h), var(--warning-s), var(--warning-l));
             --warning-hover: hsl(var(--warning-h), var(--warning-s), var(--warning-hover-l));
+            --warning-text: hsl(var(--warning-h), var(--warning-s), var(--warning-text-l));
             --info-color: hsl(var(--info-h), var(--info-s), var(--info-l));
             --info-hover: hsl(var(--info-h), var(--info-s), var(--info-hover-l));
             --purple-color: hsl(var(--purple-h), var(--purple-s), var(--purple-l));
@@ -589,13 +592,6 @@
             
             .voice-tab-content {
                 padding: 10px;
-            }
-            
-            /* Extra small screens - compress tabs further */
-            .app-tab {
-                min-width: 50px;
-                padding: 12px 6px;
-                font-size: 11px;
             }
             
             /* Keep date filters inline on very small screens */
@@ -1016,7 +1012,7 @@
             background: var(--notification-info-bg);
         }
         .notification-message.warning {
-            color: var(--warning-color);
+            color: var(--warning-text);
             background: var(--notification-warning-bg);
         }
         
@@ -1721,7 +1717,7 @@
         }
         .voice-status.warning {
             background: var(--notification-warning-bg);
-            color: var(--warning-color);
+            color: var(--warning-text);
         }
         .voice-status.error {
             background: var(--notification-error-bg);
@@ -1990,7 +1986,7 @@
             background: var(--notification-info-bg);
         }
         .notification-message.warning {
-            color: var(--warning-color);
+            color: var(--warning-text);
             background: var(--notification-warning-bg);
         }
         
@@ -2635,6 +2631,85 @@
             }
         }
 
+        /* Phones: the five tabs share the bar with the icon above the label, so none is cut off.
+           This comes after the 768px rule above so that it wins; the bar still scrolls on very narrow screens. */
+        @media (max-width: 560px) {
+            .app-tab {
+                flex: 1 1 0;
+                min-width: 64px;
+                min-height: 52px;
+                padding: 8px 2px;
+                font-size: 11px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+            }
+            .app-tab .tab-icon {
+                font-size: 18px;
+                line-height: 1;
+            }
+        }
+
+        /* Touch screens and phones: controls are at least 44 x 44 px (checkboxes 24 px, the WCAG 2.2 AA minimum) */
+        @media (max-width: 768px), (pointer: coarse) {
+            .btn,
+            .btn-small,
+            .stats-tab,
+            .voice-tab,
+            .record-btn,
+            .calendar-nav-btn,
+            .collapse-toggle,
+            .info-icon {
+                min-height: 44px;
+            }
+            .btn,
+            .btn-small {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .calendar-nav-btn,
+            .info-icon {
+                min-width: 44px;
+            }
+            .info-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            input.form-control,
+            select.form-control {
+                min-height: 44px;
+            }
+            input[type="checkbox"],
+            input[type="radio"],
+            .lucid-checkbox input[type="checkbox"] {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                flex: none;
+            }
+            /* Seven day columns of 44 px need about 308 px, so the calendar card gives up some side padding */
+            #calendarContainer {
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+            .calendar-grid {
+                table-layout: fixed;
+            }
+            .calendar-grid td {
+                padding: 0;
+            }
+            footer a {
+                display: inline-flex;
+                align-items: center;
+                min-height: 44px;
+                padding: 0 6px;
+            }
+        }
+
         /* ================================ */
         /* CLOUD SYNC COMPONENT STYLES     */
         /* ================================ */
@@ -2993,7 +3068,7 @@
         }
         .voice-status.warning {
             background: var(--notification-warning-bg);
-            color: var(--warning-color);
+            color: var(--warning-text);
         }
         
         /* Multiple high-specificity selectors needed to override voice status 
@@ -3655,7 +3730,7 @@
     .btn-small {
         padding: 8px 12px !important;
         font-size: 14px !important;
-        min-height: 36px !important;
+        min-height: 44px !important;
     }
 }
 

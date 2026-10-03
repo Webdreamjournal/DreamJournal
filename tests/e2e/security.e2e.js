@@ -201,9 +201,11 @@ test('data encryption', async (t) => {
             tx.oncomplete = () => { open.result.close(); resolve(); };
         };
     }), record);
-    const dismissDecryptionSuccess = async () => {
+    // After a successful unlock the dialog closes by itself; it waits for OK only when items were skipped
+    const dismissDecryptionSuccess = async ({ closesItself = true } = {}) => {
         await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
-        await page.click('#decryption-progress-dialog button');
+        if (closesItself) await page.waitForSelector('#decryption-progress-dialog', { state: 'detached', timeout: 10000 });
+        else await page.click('#decryption-progress-dialog button');
     };
 
     // The sample backup has no goals or autocomplete data, so store some directly
@@ -276,8 +278,7 @@ test('data encryption', async (t) => {
 
         await page.fill('#lockScreenPasswordInput', 'correct horse');
         await page.click('[data-action="verify-encryption-password"]');
-        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
-        await page.click('#decryption-progress-dialog button'); // success is a dialog that must be dismissed
+        await dismissDecryptionSuccess();
         await page.waitForSelector('.entry');
         assert.equal((await storedDreams(page)).length, 3);
     });
@@ -333,8 +334,7 @@ test('data encryption', async (t) => {
         await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
         await page.click('.security-dialog-overlay button');
         await unlockWithPassword('battery staple');
-        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
-        await page.click('#decryption-progress-dialog button');
+        await dismissDecryptionSuccess();
         await page.waitForSelector('.entry');
         const titles = (await storedDreams(page)).map(d => d.title);
         assert.equal(titles.length, 4);
@@ -390,8 +390,7 @@ test('data encryption', async (t) => {
         // The journal still opens with the real password
         await page.reload({ waitUntil: 'load' });
         await unlockWithPassword('battery staple');
-        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
-        await page.click('#decryption-progress-dialog button');
+        await dismissDecryptionSuccess();
         await page.waitForSelector('.entry');
         assert.equal((await storedDreams(page)).length, 4);
     });
@@ -405,7 +404,11 @@ test('data encryption', async (t) => {
         await page.click('.security-dialog-overlay button');
         // The right password is accepted although the first dream cannot be decrypted
         await unlockWithPassword('battery staple');
-        await dismissDecryptionSuccess();
+        // With a skipped item the dialog waits for OK, so the note about it is read
+        await page.waitForSelector('#decryption-progress-dialog:has-text("could not be decrypted")', { timeout: 30000 });
+        await page.waitForTimeout(2500);
+        assert.ok(await page.locator('#decryption-progress-dialog').isVisible(), 'the dialog closed by itself although an item was skipped');
+        await dismissDecryptionSuccess({ closesItself: false });
         await page.waitForSelector('.entry');
         assert.equal((await storedDreams(page)).length, 3);
         await page.waitForFunction(() => /1 stored item could not be decrypted/.test(document.body.innerText), null, { timeout: 10000 });

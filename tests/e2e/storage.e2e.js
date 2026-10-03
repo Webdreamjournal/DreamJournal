@@ -99,3 +99,34 @@ test('an existing version 5 database is upgraded: the meta store is added and th
     assert.deepEqual(schema.stores, ['autocomplete', 'dreams', 'goals', 'meta', 'voiceNotes']);
     await context.close();
 });
+
+test('startup asks the browser for persistent storage once, and the app works whatever the answer', async (t) => {
+    for (const [answer, script] of [
+        ['granted', 'async () => true'],
+        ['refused', 'async () => false'],
+        ['an error', 'async () => { throw new Error("blocked"); }']
+    ]) {
+        await t.test(`persist() answered ${answer}`, async () => {
+            const context = await browser.newContext({ serviceWorkers: 'block' });
+            const page = await context.newPage();
+            await page.route(/cdn\.jsdelivr\.net/, route => route.abort());
+            await page.addInitScript((persistSource) => {
+                window.__persistCalls = 0;
+                const persist = eval(`(${persistSource})`);
+                Object.defineProperty(navigator, 'storage', {
+                    configurable: true,
+                    value: { persisted: async () => false, persist: () => { window.__persistCalls++; return persist(); } }
+                });
+            }, script);
+            const problems = [];
+            page.on('pageerror', e => problems.push(e.message));
+            await page.goto(server.url, { waitUntil: 'load' });
+            await page.waitForFunction(() => { const c = document.querySelector('.container'); return c && getComputedStyle(c).visibility === 'visible'; });
+            await page.waitForFunction(() => window.__persistCalls > 0, null, { timeout: 5000 });
+            await page.waitForTimeout(300);
+            assert.equal(await page.evaluate(() => window.__persistCalls), 1);
+            assert.deepEqual(problems, []);
+            await context.close();
+        });
+    }
+});

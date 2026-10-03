@@ -187,38 +187,46 @@ test('status message colours reach 4.5:1 in both themes', async () => {
                 out[`${theme} .message-${kind}`] = measure(byClass);
                 // The pairing used by messages that set their colours inline (for example the theme switch message)
                 const byVariables = document.createElement('div');
-                byVariables.style.cssText = `background: var(--notification-${kind}-bg); color: var(--${kind}-color);`;
+                const textVariable = kind === 'warning' ? '--warning-text' : `--${kind}-color`;
+                byVariables.style.cssText = `background: var(--notification-${kind}-bg); color: var(${textVariable});`;
                 byVariables.textContent = 'sample';
                 out[`${theme} ${kind} variables`] = measure(byVariables);
             }
         }
         return out;
     });
-    // The light warning pairing is covered by the todo test below
-    const low = Object.entries(ratios).filter(([name, ratio]) => ratio < 4.5 && name !== 'light warning variables');
+    const low = Object.entries(ratios).filter(([, ratio]) => ratio < 4.5);
     assert.deepEqual(low, [], `ratios: ${JSON.stringify(ratios)}`);
     await context.close();
 });
 
-test('light theme warning text on the warning notification background reaches 4.5:1',
-    { todo: 'Known gap: --warning-color (hsl 32, 95%, 44%) on --notification-warning-bg is 2.88:1; .notification-message.warning uses it. It needs a much darker orange (about 33% lightness), which changes the warning buttons too' },
-    async () => {
-        const { page, context } = await openApp(browser, server.url);
-        const ratio = await page.evaluate(() => {
-            document.documentElement.setAttribute('data-theme', 'light');
-            const el = document.createElement('div');
-            el.className = 'notification-message warning';
-            el.textContent = 'sample';
-            document.body.append(el);
-            const style = getComputedStyle(el);
-            const lum = (css) => { const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-            const [a, b] = [lum(style.color), lum(style.backgroundColor)];
-            el.remove();
-            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-        });
-        assert.ok(ratio >= 4.5, `ratio ${ratio.toFixed(2)}`);
-        await context.close();
+test('warning text on warning backgrounds reaches 4.5:1 in both themes', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const ratios = await page.evaluate(() => {
+        const luminance = (css) => {
+            const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const out = {};
+        for (const theme of ['light', 'dark']) {
+            document.documentElement.setAttribute('data-theme', theme);
+            for (const className of ['notification-message warning', 'voice-status warning', 'message-warning']) {
+                const el = document.createElement('div');
+                el.className = className;
+                el.textContent = 'sample';
+                document.body.append(el);
+                const style = getComputedStyle(el);
+                const [a, b] = [luminance(style.color), luminance(style.backgroundColor)];
+                el.remove();
+                out[`${theme} .${className.replace(' ', '.')}`] = Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+            }
+        }
+        return out;
     });
+    const low = Object.entries(ratios).filter(([, ratio]) => ratio < 4.5);
+    assert.deepEqual(low, [], `ratios: ${JSON.stringify(ratios)}`);
+    await context.close();
+});
 
 test('prefers-reduced-motion turns the colour transitions off', async () => {
     const { page, context } = await openApp(browser, server.url);

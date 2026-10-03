@@ -1316,6 +1316,28 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
+     * Asks the browser not to clear this site's storage (IndexedDB and localStorage) when the device
+     * is short of space. Browsers decide for themselves: some grant it without asking, some ask the
+     * user, some refuse. The outcome is only logged; the app works the same either way.
+     *
+     * @async
+     * @returns {Promise<'unsupported'|'already-persistent'|'granted'|'denied'>} What happened
+     */
+    async function requestPersistentStorage() {
+        try {
+            const manager = typeof navigator !== 'undefined' ? navigator.storage : undefined;
+            if (!manager || typeof manager.persist !== 'function') return 'unsupported';
+            if (typeof manager.persisted === 'function' && await manager.persisted()) return 'already-persistent';
+            const granted = await manager.persist();
+            debugLog('Persistent storage', granted ? 'granted' : 'denied');
+            return granted ? 'granted' : 'denied';
+        } catch (error) {
+            console.warn('Could not request persistent storage:', error);
+            return 'denied';
+        }
+    }
+
+    /**
      * Number of stored dreams and goals that could not be decrypted during their last load.
      *
      * @returns {number} Count of items the loaders skipped because decryption failed
@@ -2792,6 +2814,7 @@ export {
     saveMetaRecord,
     deleteMetaRecord,
     getUndecryptableItemCount,
+    requestPersistentStorage,
 
     // Encryption utilities
     shouldEncryptStore,

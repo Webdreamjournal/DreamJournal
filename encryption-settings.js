@@ -615,7 +615,10 @@ async function showEncryptionProgress(operation, message = '') {
  * @function
  * @param {string} operation - The operation being performed ('decrypting', 'success', 'error')
  * @param {string} [message] - Optional custom message for the operation
- * @returns {Promise<void>} Resolves when user dismisses the completed dialog
+ * @param {Object} [options] - Display options
+ * @param {number} [options.autoCloseMs] - For 'success': close the dialog by itself after this many ms
+ *   (the OK button still closes it at once)
+ * @returns {Promise<void>} Resolves when the dialog is dismissed or has closed itself
  * @throws {Error} When dialog creation or operation fails
  * @since 2.04.01
  *
@@ -629,7 +632,7 @@ async function showEncryptionProgress(operation, message = '') {
  *   await showDecryptionProgress('error', 'Decryption failed: ' + error.message);
  * }
  */
-async function showDecryptionProgress(operation, message = '') {
+async function showDecryptionProgress(operation, message = '', options = {}) {
     return new Promise((resolve) => {
         let dialog = document.getElementById('decryption-progress-dialog');
 
@@ -692,14 +695,23 @@ async function showDecryptionProgress(operation, message = '') {
         }
 
         dialog.innerHTML = dialogHtml;
+        // Any earlier timer for this dialog must not close what is shown now
+        const autoCloseId = Symbol('autoClose');
+        dialog.autoCloseId = null;
 
         if (canDismiss) {
             // Add event listener for OK button
             const okButton = dialog.querySelector('#decryption-progress-ok');
-            okButton.addEventListener('click', () => {
-                document.body.removeChild(dialog);
+            const close = () => {
+                if (dialog.parentNode) document.body.removeChild(dialog);
                 resolve();
-            });
+            };
+            okButton.addEventListener('click', close);
+
+            if (operation === 'success' && options.autoCloseMs > 0) {
+                dialog.autoCloseId = autoCloseId;
+                setTimeout(() => { if (dialog.autoCloseId === autoCloseId) close(); }, options.autoCloseMs);
+            }
         }
 
         if (!canDismiss) {
