@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import { startServer, launchBrowser, openApp, openTab, importBackup } from './helpers.js';
+import { startServer, launchBrowser, openApp, openTab, importBackup, disableTransitions } from './helpers.js';
 import { sampleBackup } from './sample-data.js';
 
 const axeSource = fs.readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
@@ -14,6 +14,7 @@ after(async () => { await browser?.close(); await server?.close(); });
 const TABS = ['journal', 'goals', 'stats', 'advice', 'settings'];
 
 async function scan(page) {
+    await disableTransitions(page);
     await page.evaluate(axeSource);
     // `where` names the first offending element and, for contrast failures, its colours, so a failure is diagnosable from the log
     return page.evaluate(async () => (await axe.run(document, { resultTypes: ['violations'] })).violations.map(v => {
@@ -218,3 +219,18 @@ test('light theme warning text on the warning notification background reaches 4.
         assert.ok(ratio >= 4.5, `ratio ${ratio.toFixed(2)}`);
         await context.close();
     });
+
+test('prefers-reduced-motion turns the colour transitions off', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const durations = () => page.evaluate(() => ({
+        body: getComputedStyle(document.body).transitionDuration,
+        button: getComputedStyle(document.querySelector('button')).transitionDuration
+    }));
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const normal = await durations();
+    assert.notEqual(normal.body, '0s', 'the app normally fades colours');
+    assert.ok(normal.button.includes('0.3s'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.deepEqual(await durations(), { body: '0s', button: '0s' });
+    await context.close();
+});

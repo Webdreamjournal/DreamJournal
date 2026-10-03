@@ -60,6 +60,14 @@ export async function openApp(browser, url, { width = 1280, height = 800, mobile
     return { page, context, problems };
 }
 
+/**
+ * Turns off CSS transitions and animations on the page. Colours change over 0.3 s after a theme switch,
+ * and a contrast scan that runs during the fade measures in-between colours.
+ */
+export const disableTransitions = (page) => page.addStyleTag({
+    content: '*, *::before, *::after { transition: none !important; animation: none !important; }'
+});
+
 export const openTab = async (page, tab) => {
     await page.click(`[data-action="switch-app-tab"][data-tab="${tab}"]`);
     await page.waitForTimeout(300);

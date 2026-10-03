@@ -660,6 +660,15 @@
                        transform 0.2s ease;
         }
 
+        /* Reduced motion: no colour, shadow or transform transitions (a theme switch changes colours at once) */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                transition: none !important;
+            }
+        }
+
         .autocomplete-item {
             padding: 8px 12px;
             cursor: pointer;
