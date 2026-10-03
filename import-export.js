@@ -44,7 +44,7 @@ import {
     getAutocompleteSuggestions,
     saveItemToStore
 } from './storage.js';
-import { announceLiveMessage, createInlineMessage, switchAppTab, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, parseImportDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
+import { announceLiveMessage, createInlineMessage, switchAppTab, escapeHtml, getCurrentTheme, formatDateTimeDisplay, formatDisplayDate, getCurrentPaginationPreference, storePaginationPreference } from './dom-helpers.js';
 import {
     encryptData,
     decryptData,
