@@ -114,6 +114,8 @@ const urlsToCache = [
   './info-tooltips.js',       // Info and help tooltips
 
   './collapsible-sections.js',// Collapsible sections
+
+  './autocomplete-ui.js',     // Autocomplete interface
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
 
