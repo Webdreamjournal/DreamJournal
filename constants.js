@@ -447,7 +447,7 @@ const CONSTANTS = {
         BYTES_PER_MB: 1048576, // Bytes per megabyte (1024 * 1024)
         
         // IndexedDB Configuration
-        DB_VERSION: 5, // Current database schema version
+        DB_VERSION: 6, // Current database schema version (6 added the meta store)
         DATETIME_LOCAL_SLICE_LENGTH: 16, // Characters in datetime-local format
         
         // UI Timing & Animation Durations (milliseconds)

@@ -980,7 +980,7 @@ async function setupEncryption(password) {
     try {
         // Import required functions
         const { setEncryptionPassword, clearDecryptedDataCache, setEncryptionEnabled } = await import('./state.js');
-        const { saveEncryptionSettings, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
+        const { saveEncryptionSettings, saveEncryptionCheck, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
@@ -990,8 +990,9 @@ async function setupEncryption(password) {
         // Show encryption progress dialog
         showEncryptionProgress('encrypting');
 
-        // Enable encryption setting
+        // Enable encryption setting. The check value is stored first, so a failure here changes nothing.
         updateEncryptionProgress('Enabling encryption settings...');
+        await saveEncryptionCheck(password);
         await saveEncryptionSettings(true);
         setEncryptionEnabled(true);
         setEncryptionPassword(password);
@@ -1322,7 +1323,7 @@ async function performEncryptionDisabling(password) {
     try {
         // Import required functions
         const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { saveEncryptionSettings, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
+        const { saveEncryptionSettings, removeEncryptionCheck, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
         const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
@@ -1387,6 +1388,7 @@ async function performEncryptionDisabling(password) {
         // Disable encryption settings
         updateDecryptionProgress('Disabling encryption settings...');
         await saveEncryptionSettings(false);
+        await removeEncryptionCheck();
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDerivedKeys();

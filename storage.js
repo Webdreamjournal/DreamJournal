@@ -88,6 +88,22 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     const DB_VERSION = CONSTANTS.DB_VERSION; // Increment for voice notes support
 
     /**
+     * Name of the object store for small settings records, such as the encryption check value.
+     * @constant {string}
+     */
+    const META_STORE_NAME = 'meta';
+
+    /** Prefix of the localStorage keys that hold meta records when IndexedDB is not available. */
+    const META_LOCAL_STORAGE_PREFIX = 'dreamJournalMeta:';
+
+    /**
+     * Number of stored items that could not be decrypted during the last load of each kind.
+     * The loaders skip such items; this lets the unlock flow tell the user.
+     * @type {{dreams: number, goals: number}}
+     */
+    const undecryptableItemCounts = { dreams: 0, goals: 0 };
+
+    /**
      * Name of the dreams object store in IndexedDB.
      * @constant {string}
      * @since 1.0.0
@@ -503,6 +519,12 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                     debugLog('Created autocomplete object store');
                 }
 
+                // Create meta store for settings records such as the encryption check value
+                if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+                    db.createObjectStore(META_STORE_NAME, { keyPath: 'id' });
+                    debugLog('Created meta object store');
+                }
+
                 // Legacy migration from older versions
                 if (event.oldVersion < 3) {
                     // Migrate from localStorage if needed
@@ -802,6 +824,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
 
         // Process mixed encrypted/unencrypted dreams
         const processedDreams = [];
+        let undecryptable = 0;
         const password = getEncryptionPassword();
 
         for (const dream of rawDreams) {
@@ -820,12 +843,15 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 }
             } catch (error) {
                 console.error(`Failed to decrypt dream ${dream.id}:`, error);
+                undecryptable++;
 
                 // Skip this dream but continue processing others
                 // In a production app, you might want to show a warning to the user
                 // about inaccessible encrypted dreams
             }
         }
+
+        undecryptableItemCounts.dreams = undecryptable;
 
         // Cache the processed dreams for future calls
         const cache = getDecryptedDataCache();
@@ -984,6 +1010,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
         }
 
         const processedGoals = [];
+        let undecryptable = 0;
         const password = getEncryptionPassword();
 
         for (const goal of rawGoals) {
@@ -1000,9 +1027,12 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 }
             } catch (error) {
                 console.error(`Failed to decrypt goal ${goal.id}:`, error);
+                undecryptable++;
                 // Skip this goal but continue processing others
             }
         }
+
+        undecryptableItemCounts.goals = undecryptable;
 
         // Cache the processed goals for future calls
         const cache = getDecryptedDataCache();
@@ -1215,6 +1245,83 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 resolve(false);
             }
         });
+    }
+
+    /**
+     * Loads a record from the meta store (localStorage when IndexedDB is not available).
+     *
+     * @async
+     * @param {string} id - Record id
+     * @returns {Promise<Object|null>} The record, or null if there is none
+     */
+    async function loadMetaRecord(id) {
+        if (isIndexedDBAvailable()) return loadItemFromStoreRaw(META_STORE_NAME, id);
+        try {
+            const raw = localStorage.getItem(META_LOCAL_STORAGE_PREFIX + id);
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            console.error('Error reading meta record:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Saves a record to the meta store. With IndexedDB the promise resolves when the transaction
+     * has committed.
+     *
+     * @async
+     * @param {{id: string}} record - Record to store
+     * @returns {Promise<boolean>} True if the record was stored
+     */
+    async function saveMetaRecord(record) {
+        if (isIndexedDBAvailable()) return putItemsInStores({ [META_STORE_NAME]: [record] });
+        try {
+            localStorage.setItem(META_LOCAL_STORAGE_PREFIX + record.id, JSON.stringify(record));
+            return true;
+        } catch (error) {
+            console.error('Error saving meta record:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Deletes a record from the meta store.
+     *
+     * @async
+     * @param {string} id - Record id
+     * @returns {Promise<boolean>} True if the record is gone (or was never there)
+     */
+    async function deleteMetaRecord(id) {
+        if (!isIndexedDBAvailable()) {
+            try {
+                localStorage.removeItem(META_LOCAL_STORAGE_PREFIX + id);
+                return true;
+            } catch (error) {
+                console.error('Error deleting meta record:', error);
+                return false;
+            }
+        }
+        return new Promise((resolve) => {
+            try {
+                const transaction = db.transaction([META_STORE_NAME], 'readwrite');
+                transaction.oncomplete = () => resolve(true);
+                transaction.onerror = () => { console.error('Error deleting meta record:', transaction.error); resolve(false); };
+                transaction.onabort = () => { console.error('Deleting meta record was aborted:', transaction.error); resolve(false); };
+                transaction.objectStore(META_STORE_NAME).delete(id);
+            } catch (error) {
+                console.error('Error deleting meta record:', error);
+                resolve(false);
+            }
+        });
+    }
+
+    /**
+     * Number of stored dreams and goals that could not be decrypted during their last load.
+     *
+     * @returns {number} Count of items the loaders skipped because decryption failed
+     */
+    function getUndecryptableItemCount() {
+        return undecryptableItemCounts.dreams + undecryptableItemCounts.goals;
     }
 
     /**
@@ -2679,6 +2786,12 @@ export {
     saveItemToStore,
     putItemsInStores,
     saveToStore,
+
+    // Settings records (meta store) and decryption failures
+    loadMetaRecord,
+    saveMetaRecord,
+    deleteMetaRecord,
+    getUndecryptableItemCount,
 
     // Encryption utilities
     shouldEncryptStore,

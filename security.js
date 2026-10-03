@@ -73,6 +73,8 @@ import {
     saveEncryptionSettings,
     validateEncryptionPassword,
     testEncryptionPassword,
+    saveEncryptionCheck,
+    removeEncryptionCheck,
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
@@ -195,6 +197,8 @@ export {
     loadEncryptionSettings,
     saveEncryptionSettings,
     validateEncryptionPassword,
+    saveEncryptionCheck,
+    removeEncryptionCheck,
     reEncryptAllData,
 
     // Authentication flow integration

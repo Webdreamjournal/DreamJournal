@@ -17,11 +17,15 @@ import {
     loadGoalsRaw,
     getAutocompleteSuggestionsRawData,
     putItemsInStores,
+    isIndexedDBAvailable,
+    loadMetaRecord,
+    saveMetaRecord,
+    deleteMetaRecord,
     isEncryptedItem,
     decryptItemFromStorage,
     encryptItemForStorage
 } from './storage.js';
-import { clearDerivedKeys } from './security-crypto.js';
+import { clearDerivedKeys, encryptStoredData, decryptStoredData } from './security-crypto.js';
 
 // ================================
 // TYPE DEFINITIONS
@@ -342,17 +346,89 @@ function validateEncryptionPassword(password) {
 }
 
 /**
- * Tests if a password can decrypt existing encrypted data.
+ * Id of the meta record that holds the encryption check value.
+ * @constant {string}
+ */
+const ENCRYPTION_CHECK_ID = 'encryptionCheck';
+
+/**
+ * Text stored, encrypted, as the encryption check value. Decrypting it back proves that a
+ * password is the one the journal was encrypted with, without touching any dream or goal.
+ * @constant {string}
+ */
+const ENCRYPTION_CHECK_TEXT = 'dream-journal-encryption-check-v1';
+
+/**
+ * Builds the encryption check record for a password. It is encrypted like a stored item, so it shares
+ * the password's derived key and salt and costs no extra key derivation.
  *
- * Validates an encryption password by attempting to decrypt any available
- * encrypted content. This is used during password verification to ensure
- * the entered password is correct without exposing the actual data.
+ * @async
+ * @param {string} password - Encryption password
+ * @returns {Promise<{id: string, version: number, data: number[]}>} Record for the meta store
+ */
+async function createEncryptionCheckRecord(password) {
+    const encrypted = await encryptStoredData(ENCRYPTION_CHECK_TEXT, password);
+    return { id: ENCRYPTION_CHECK_ID, version: 1, data: Array.from(encrypted) };
+}
+
+/**
+ * Stores the encryption check value for a password, replacing any earlier one.
+ *
+ * @async
+ * @param {string} password - Encryption password
+ * @returns {Promise<void>}
+ * @throws {Error} When the record could not be stored
+ */
+async function saveEncryptionCheck(password) {
+    if (!(await saveMetaRecord(await createEncryptionCheckRecord(password)))) {
+        throw new Error('The encryption check value could not be saved');
+    }
+}
+
+/**
+ * Deletes the encryption check value (used when encryption is turned off).
+ *
+ * @async
+ * @returns {Promise<void>}
+ */
+async function removeEncryptionCheck() {
+    await deleteMetaRecord(ENCRYPTION_CHECK_ID);
+}
+
+/**
+ * Compares a password with the stored encryption check value.
+ *
+ * @async
+ * @param {string} password - Password to check
+ * @returns {Promise<'valid'|'invalid'|'missing'>} 'valid' if the password decrypts the check value,
+ *   'invalid' if it does not, 'missing' if there is no check value (a journal encrypted before it existed)
+ */
+async function verifyEncryptionCheck(password) {
+    const record = await loadMetaRecord(ENCRYPTION_CHECK_ID);
+    if (!record || !Array.isArray(record.data)) return 'missing';
+    try {
+        const text = await decryptStoredData(new Uint8Array(record.data), password);
+        return text === ENCRYPTION_CHECK_TEXT ? 'valid' : 'invalid';
+    } catch (error) {
+        return 'invalid';
+    }
+}
+
+/**
+ * Tests whether a password is the journal's encryption password.
+ *
+ * Uses the encryption check value, so the answer does not depend on any single dream: a correct
+ * password is accepted even if some stored item is damaged, and a wrong one is rejected as a wrong
+ * password, not as damaged data. A journal encrypted before the check value existed has none; the
+ * password is then tested against the first encrypted dream, and on success the check value is
+ * created for next time.
  *
  * @async
  * @function
  * @param {string} password - Password to test for validity
  * @returns {Promise<Object>} Test result with validity and error information
- * @returns {boolean} returns.valid - Whether password successfully decrypts data
+ * @returns {boolean} returns.valid - Whether the password is the encryption password
+ * @returns {string} [returns.reason] - 'wrong-password' when the check value rejected it
  * @returns {string} [returns.error] - Error message if test fails
  * @since 2.03.01
  * @example
@@ -363,20 +439,26 @@ function validateEncryptionPassword(password) {
  */
 async function testEncryptionPassword(password) {
     try {
-        // Import storage functions
-        const { loadFromStore, isEncryptedItem, decryptItemFromStorage } = await import('./storage.js');
+        const check = await verifyEncryptionCheck(password);
+        if (check === 'valid') return { valid: true };
+        if (check === 'invalid') return { valid: false, reason: 'wrong-password', error: 'Incorrect password' };
 
-        // Try to decrypt any encrypted item to verify password
+        // No check value: test against the first encrypted dream
+        const { loadFromStore } = await import('./storage.js');
         const dreams = await loadFromStore('dreams');
         const encryptedDream = dreams.find(d => isEncryptedItem(d));
 
         if (encryptedDream) {
             await decryptItemFromStorage(encryptedDream, password);
-            return { valid: true };
-        } else {
-            // No encrypted data to test against - assume valid for first-time setup
+            try {
+                await saveEncryptionCheck(password);
+            } catch (error) {
+                console.warn('Could not store the encryption check value:', error.message);
+            }
             return { valid: true };
         }
+        // No encrypted data to test against - assume valid for first-time setup
+        return { valid: true };
     } catch (error) {
         return { valid: false, error: error.message };
     }
@@ -706,8 +788,15 @@ async function reEncryptAllData(oldPassword, newPassword) {
 
         updateEncryptionProgress('Saving re-encrypted data...');
         const stores = Object.fromEntries(Object.entries(pending).filter(([, items]) => items.length > 0));
+        // The check value goes in the same transaction, so the data and the value that verifies the
+        // password are never stored under different passwords
+        const checkRecord = await createEncryptionCheckRecord(newPassword);
+        if (isIndexedDBAvailable()) stores.meta = [checkRecord];
         if (Object.keys(stores).length > 0 && !(await putItemsInStores(stores))) {
             throw new Error('The re-encrypted data could not be saved');
+        }
+        if (!isIndexedDBAvailable() && !(await saveMetaRecord(checkRecord))) {
+            throw new Error('The encryption check value could not be saved');
         }
 
         setEncryptionPassword(newPassword);
@@ -758,6 +847,9 @@ export {
     saveEncryptionSettings,
     validateEncryptionPassword,
     testEncryptionPassword,
+    saveEncryptionCheck,
+    removeEncryptionCheck,
+    verifyEncryptionCheck,
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
