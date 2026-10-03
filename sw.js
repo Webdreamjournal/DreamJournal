@@ -114,6 +114,8 @@ const urlsToCache = [
   './encryption-settings.js', // Encryption settings and dialogs
 
   './pin-controls.js',        // Settings PIN controls
+
+  './lock-screen.js',         // Lock screen
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
   './pwa.js',              // PWA installation system
