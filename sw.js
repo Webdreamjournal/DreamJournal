@@ -106,6 +106,8 @@ const urlsToCache = [
   './dom-helpers.js',      // DOM utilities
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
+
+  './security-crypto.js',     // AES-GCM and PBKDF2 helpers
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
   './pwa.js',              // PWA installation system
