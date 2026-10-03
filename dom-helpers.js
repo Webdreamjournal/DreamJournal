@@ -3016,57 +3016,6 @@ function formatDateTimeDisplay(dateInput, customOptions = {}) {
 }
 
 /**
- * Safely parse date strings during import with UTC handling and fallback.
- * 
- * Handles various date formats and falls back to the current date for invalid input. Ensures
- * consistent UTC timestamp handling across different import sources.
- * 
- * @param {string} dateStr - Date string to parse (preferably ISO format)
- * @param {Date} [fallbackDate=new Date()] - Fallback date for invalid input
- * @returns {string} ISO string in UTC format
- * @since 2.02.50
- * @example
- * // Valid ISO string with Z
- * parseImportDate('2025-09-02T14:30:00Z')
- * // Returns: "2025-09-02T14:30:00.000Z"
- * 
- * @example
- * // ISO string without Z (forces UTC interpretation)
- * parseImportDate('2025-09-02T14:30:00')
- * // Returns: "2025-09-02T14:30:00.000Z"
- * 
- * @example
- * // Invalid date string
- * parseImportDate('invalid-date')
- * // Returns: current date as ISO string (e.g., "2025-09-13T12:00:00.000Z")
- */
-function parseImportDate(dateStr, fallbackDate = new Date()) {
-    try {
-        if (!dateStr || typeof dateStr !== 'string') {
-            return fallbackDate.toISOString();
-        }
-        
-        // Ensure UTC interpretation by adding Z if missing
-        let normalizedDateStr = dateStr.trim();
-        if (!normalizedDateStr.endsWith('Z') && !normalizedDateStr.includes('+') && !normalizedDateStr.includes('-', 10)) {
-            normalizedDateStr += 'Z';
-        }
-        
-        const parsedDate = new Date(normalizedDateStr);
-        
-        if (isNaN(parsedDate.getTime())) {
-            console.warn(`Invalid date during import: "${dateStr}", using fallback`);
-            return fallbackDate.toISOString();
-        }
-        
-        return parsedDate.toISOString();
-    } catch (error) {
-        console.warn(`Error parsing import date: "${dateStr}":`, error);
-        return fallbackDate.toISOString();
-    }
-}
-
-/**
  * Create standardized pie chart colors and gradient for dream type visualization.
  * 
  * Generates consistent color scheme using CSS custom properties to ensure
@@ -3902,7 +3851,6 @@ export {
     formatDateKey,
     formatDisplayDate,
     formatDateTimeDisplay,
-    parseImportDate,
     createPieChartColors,
     createPieChartHTML,
     calculateMostCommonItems,

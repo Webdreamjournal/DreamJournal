@@ -107,7 +107,6 @@ const DOM_HELPERS_EXPORTS = [
     'hideAllTabButtons',
     'hideSearchLoading',
     'initializeAutocomplete',
-    'parseImportDate',
     'renderAutocompleteManagementList',
     'renderPinScreen',
     'setDateFilter',
