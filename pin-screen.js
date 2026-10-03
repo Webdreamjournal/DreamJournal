@@ -8,7 +8,6 @@
 // ES MODULE IMPORTS
 // ================================
 
-import { CONSTANTS } from './constants.js';
 import { escapeHtml, escapeAttr } from './ui-basics.js';
 
 
@@ -168,14 +167,15 @@ function renderPinScreen(targetElement, config) {
             ${feedbackHTML}
         `;
 
-        // Auto-focus the first input if it exists
+        // Focus the first input straight after rendering. A delayed focus could move focus away from
+        // a field the user had already started typing in (autofill, a fast paste). If the container
+        // is still hidden, focus() does nothing and dialog-focus.js focuses the first input when the
+        // overlay is shown.
         if (config.inputs && config.inputs.length > 0) {
-            setTimeout(() => {
-                const firstInput = document.getElementById(config.inputs[0].id);
-                if (firstInput) {
-                    firstInput.focus();
-                }
-            }, CONSTANTS.FOCUS_DELAY_MS);
+            const firstInput = document.getElementById(config.inputs[0].id);
+            if (firstInput) {
+                firstInput.focus();
+            }
         }
     }
 
