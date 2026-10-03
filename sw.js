@@ -120,6 +120,8 @@ const urlsToCache = [
   './pin-recovery.js',        // PIN recovery
 
   './pin-overlay.js',         // PIN overlay and setup
+
+  './encryption-auth.js',     // Start-up authentication
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
   './pwa.js',              // PWA installation system

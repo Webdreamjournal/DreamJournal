@@ -14,7 +14,6 @@ import { CONSTANTS } from './constants.js';
 import { getFailedPinAttempts, setFailedPinAttempts, preLockActiveTab, setUnlocked, setAppLocked } from './state.js';
 import { switchAppTab, showAllTabButtons, renderPinScreen } from './dom-helpers.js';
 import { loadDreams } from './storage.js';
-import { getAuthenticationRequirements } from './security.js';
 import { clearDerivedKeys } from './security-crypto.js';
 import {
     registerFailedPinAttempt,
@@ -28,6 +27,7 @@ import {
     isPinSetup
 } from './pin-core.js';
 import { updateSecurityControls } from './pin-controls.js';
+import { getAuthenticationRequirements } from './encryption-auth.js';
 
 // ================================
 // TYPE DEFINITIONS
