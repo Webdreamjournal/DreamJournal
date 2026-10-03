@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer, launchBrowser, openApp } from './helpers.js';
+import { startServer, launchBrowser, openApp, openTab, importBackup } from './helpers.js';
 import { sampleBackup } from './sample-data.js';
 
 let server, browser;
@@ -194,6 +194,63 @@ test('a database upgrade in another tab closes this tab\'s connection and asks f
     // The reload button reloads; the app is older than the database, so it falls back to the memory banner
     await Promise.all([page.waitForNavigation(), page.click('#storageBanner button')]);
     await page.waitForSelector('#storageBanner[data-kind="memory"]');
+    await context.close();
+});
+
+/** Upgrades the database from a second page and waits until the app page has shown the "updated" banner. */
+const upgradeFromOtherTab = async (context, page) => {
+    const other = await openOtherTab(context, server.url);
+    await other.evaluate(() => new Promise((resolve, reject) => {
+        const open = indexedDB.open('DreamJournal', 7);
+        open.onsuccess = () => { open.result.close(); resolve(); };
+        open.onerror = () => reject(open.error);
+    }));
+    await page.waitForSelector('#storageBanner[data-kind="updated"]');
+};
+
+test('after another tab upgraded the database, saving a new dream is refused and the form keeps what was typed', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(2));
+    await page.fill('#dreamTitle', 'Typed before the upgrade');
+    await page.fill('#dreamContent', 'This text must not be lost.');
+    await upgradeFromOtherTab(context, page);
+
+    await page.click('[data-action="save-dream"]');
+    await page.waitForSelector('#dreamFormFull .message-error:has-text("Reload the page first")');
+    assert.equal(await page.inputValue('#dreamTitle'), 'Typed before the upgrade');
+    assert.equal(await page.inputValue('#dreamContent'), 'This text must not be lost.');
+    assert.equal(await page.locator('.message-success:has-text("Dream saved")').count(), 0);
+    assert.equal(await page.locator('.entry').count(), 2, 'a dream was added to the list');
+    await context.close();
+});
+
+test('after another tab upgraded the database, saving an inline dream edit is refused and the edit keeps what was typed', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(2));
+    const entry = page.locator('.entry').first();
+    await entry.locator('[data-action="edit-dream"]').click();
+    await entry.locator('textarea[id^="edit-content-"]').fill('Edited text that must stay');
+    await upgradeFromOtherTab(context, page);
+
+    await entry.locator('[data-action="save-edit"]').click();
+    await entry.locator('.message-error:has-text("Reload the page first")').waitFor();
+    assert.equal(await entry.locator('textarea[id^="edit-content-"]').inputValue(), 'Edited text that must stay');
+    await context.close();
+});
+
+test('after another tab upgraded the database, saving a goal is refused and the form keeps what was typed', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await openTab(page, 'goals');
+    await page.click('[data-action="create-goal"]');
+    await page.fill('#goalTitle', 'Goal typed before the upgrade');
+    await page.selectOption('#goalType', 'custom');
+    await page.fill('#goalTarget', '3');
+    await upgradeFromOtherTab(context, page);
+
+    await page.click('[data-action="save-goal"]');
+    await page.waitForSelector('.message-error:has-text("Reload the page first")');
+    assert.equal(await page.inputValue('#goalTitle'), 'Goal typed before the upgrade');
+    assert.equal(await page.locator('[id^="goal-"]:has-text("Goal typed before the upgrade")').count(), 0);
     await context.close();
 });
 

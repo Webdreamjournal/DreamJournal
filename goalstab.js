@@ -48,7 +48,8 @@ import {
     getIsGoalsCompletedCollapsed,
     setIsGoalsCompletedCollapsed
 } from './state.js';
-import { loadGoals, saveGoals, generateUniqueId, loadDreams } from './storage.js';
+import { loadGoals, saveGoals, generateUniqueId, loadDreams, isDatabaseClosedForUpgrade } from './storage.js';
+import { SAVE_REFUSED_MESSAGE } from './storage-banner.js';
 import { announceLiveMessage, createInlineMessage, escapeHtml, escapeAttr, createPaginationHTML, getGoalTypeLabel, createGoalElement } from './dom-helpers.js';
 import { calculateDreamRecallStreak, calculateJournalingStreak } from './statstab.js';
 
@@ -1303,6 +1304,12 @@ function createTemplateGoal(templateKey) {
  */
 async function saveGoal() {
     debugLog('saveGoal function called');
+
+    // After another tab upgraded the database a save would only reach memory: refuse and keep the form as it is
+    if (isDatabaseClosedForUpgrade()) {
+        showGoalMessage('error', SAVE_REFUSED_MESSAGE);
+        return;
+    }
 
     try {
         // Validate goals data integrity

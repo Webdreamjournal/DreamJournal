@@ -133,6 +133,24 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     let storageType = 'memory'; // Track which storage is being used
 
     /**
+     * True after another tab upgraded the database and this tab closed its connection.
+     * Saves are refused until the page is reloaded, because they would only reach memory.
+     * @type {boolean}
+     * @private
+     */
+    let closedForUpgrade = false;
+
+    /**
+     * Reports whether this tab closed its database connection for another tab's upgrade.
+     *
+     * @function
+     * @returns {boolean} True if saves should be refused until the page is reloaded
+     */
+    function isDatabaseClosedForUpgrade() {
+        return closedForUpgrade;
+    }
+
+    /**
      * Displays a warning message when storage is not persistent.
      * 
      * Shows a banner at the top of the page saying that entries are held in memory
@@ -488,6 +506,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 connection.onversionchange = () => {
                     connection.close();
                     if (db === connection) db = null;
+                    closedForUpgrade = true;
                     showStorageBanner('updated');
                 };
                 
@@ -2805,6 +2824,7 @@ export {
     isLocalStorageAvailable,
     isIndexedDBAvailable,
     isIndexedDBReady,
+    isDatabaseClosedForUpgrade,
     storageType,
     
     // Generic storage operations
