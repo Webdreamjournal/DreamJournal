@@ -106,6 +106,22 @@ const urlsToCache = [
   './dom-helpers.js',      // DOM utilities
   './form-validation.js',  // Form validation system
   './security.js',         // PIN protection and encryption
+
+  './security-crypto.js',     // AES-GCM and PBKDF2 helpers
+
+  './pin-core.js',            // PIN hashing, lockout and storage
+
+  './encryption-settings.js', // Encryption settings and dialogs
+
+  './pin-controls.js',        // Settings PIN controls
+
+  './lock-screen.js',         // Lock screen
+
+  './pin-recovery.js',        // PIN recovery
+
+  './pin-overlay.js',         // PIN overlay and setup
+
+  './encryption-auth.js',     // Start-up authentication
   './dream-crud.js',       // Dream management
   './voice-notes.js',      // Voice recording
   './pwa.js',              // PWA installation system

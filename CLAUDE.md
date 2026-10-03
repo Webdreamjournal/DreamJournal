@@ -26,7 +26,11 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 | `action-router.js` | Event delegation. Elements carry `data-action="..."`; `ACTION_MAP` maps each name to a handler. |
 | `state.js` | All shared mutable state, behind getters and setters. |
 | `storage.js` | IndexedDB (database `DreamJournal`, stores `dreams`, `goals`, `voiceNotes`), localStorage fallbacks, ID generation, autocomplete data. |
-| `security.js` | AES-GCM and PBKDF2 helpers, PIN hashing and lockout, lock screen, PIN recovery. |
+| `security.js` | Re-exports the security modules below, so `import ... from './security.js'` keeps working. Its export list is pinned by `tests/module-exports.test.js`. |
+| `security-crypto.js` | AES-GCM and PBKDF2 helpers, the per-password derived-key cache. |
+| `pin-core.js` | PIN hashing, lockout and storage of the PIN hash and reset time. No UI. |
+| `pin-controls.js`, `pin-overlay.js`, `pin-recovery.js`, `lock-screen.js` | PIN UI: Settings controls, the overlay and PIN setup, recovery by titles or timer, the lock screen and data wipe. |
+| `encryption-settings.js`, `encryption-auth.js` | Encryption flag, password dialog, progress dialogs and `reEncryptAllData`; start-up authentication and encryption password check. |
 | `dom-helpers.js` | Shared UI helpers, tab switching, escaping (`escapeHtml`, `escapeAttr`), PIN screen rendering. |
 | `dream-crud.js`, `goalstab.js`, `voice-notes.js` | Dreams, goals and voice notes: forms, lists, edit and delete. |
 | `journaltab.js`, `statstab.js`, `advicetab.js`, `settingstab.js` | Tab rendering. |
@@ -48,8 +52,8 @@ All modules are flat in the repo root (not in `src/`, which only holds the entry
 - **No inline scripts or inline event handlers.** `index.html` has a Content-Security-Policy that forbids them (`tests/csp.test.js` checks this). Add a `data-action` and a handler in `ACTION_MAP` instead of `onclick`.
 - **No `console.log`.** Use `debugLog` from `logger.js`. `console.warn` and `console.error` are fine.
 - **Key derivation settings live in `CONSTANTS`** (`CRYPTO_PBKDF2_ITERATIONS`). The PIN lockout settings are there too. The PIN is a screen lock, not encryption. Stored data is protected only when the user enables encryption.
-- **Stored items share one derived key.** One PBKDF2 derivation takes about 100 ms, so dreams, goals and autocomplete data go through `encryptStoredData` / `decryptStoredData` (`security.js`), which keep a derived key per password and salt in memory. Calling `encryptData` per item (a new salt each time) makes unlocking cost about 100 ms per dream; `encryptData` is for exported files and tokens. Call `clearDerivedKeys()` when the session password is cleared or replaced. `tests/security.test.js` counts derivations.
-- **Changing the password goes through `reEncryptAllData`** (`security.js`), which decrypts and re-encrypts everything in memory and then writes all stores in one transaction (`putItemsInStores`, `storage.js`). Do not save re-encrypted items one at a time: a failure part way leaves data under two passwords.
+- **Stored items share one derived key.** One PBKDF2 derivation takes about 100 ms, so dreams, goals and autocomplete data go through `encryptStoredData` / `decryptStoredData` (`security-crypto.js`), which keep a derived key per password and salt in memory. Calling `encryptData` per item (a new salt each time) makes unlocking cost about 100 ms per dream; `encryptData` is for exported files and tokens. Call `clearDerivedKeys()` when the session password is cleared or replaced. `tests/security.test.js` counts derivations.
+- **Changing the password goes through `reEncryptAllData`** (`encryption-settings.js`), which decrypts and re-encrypts everything in memory and then writes all stores in one transaction (`putItemsInStores`, `storage.js`). Do not save re-encrypted items one at a time: a failure part way leaves data under two passwords.
 - **Collapsible sections use a button inside a heading**, not `role="button"` on the heading: `<h3 class="collapsible-heading"><button class="collapse-toggle" data-action="...">`. Tab titles are `<h2 id="<tab>-main-heading">`, which receives focus after a tab switch from outside the tab bar. `tests/e2e/a11y.e2e.js` runs axe on every tab in both themes and expects no violations.
 - **`form-validation.js` must run after the dream form exists.** It is called at the end of `renderJournalTab`, because the form is created by JS after startup.
 
