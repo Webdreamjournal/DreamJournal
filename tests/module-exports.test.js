@@ -47,7 +47,6 @@ const SECURITY_EXPORTS = [
     'setupPin',
     'showAuthenticationScreen',
     'showDecryptionProgress',
-    'showEncryptionPasswordScreen',
     'showEncryptionProgress',
     'showForgotEncryptionPassword',
     'showForgotPin',
@@ -84,7 +83,6 @@ const SECURITY_EXPORTS = [
 const DOM_HELPERS_EXPORTS = [
     'announceLiveMessage',
     'applyTheme',
-    'calculateMostCommonItems',
     'closeExportFormatInfo',
     'closeInfoTooltip',
     'createActionButton',

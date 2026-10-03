@@ -31,9 +31,6 @@
  * // Initialize calendar system
  * await initCalendar();
  * 
- * // Update main statistics display
- * await updateStatsDisplay();
- * 
  * // Switch to yearly statistics tab
  * await switchStatsTab('year');
  */
@@ -44,15 +41,14 @@
 
 import { CONSTANTS } from './constants.js';
 import { calendarState } from './state.js';
-import { loadDreams, loadGoals, loadVoiceNotes } from './storage.js';
+import { loadDreams, loadGoals } from './storage.js';
 import {
     createInlineMessage,
     escapeHtml,
     formatDateKey,
     formatDisplayDate,
     createPieChartColors,
-    createPieChartHTML,
-    calculateMostCommonItems
+    createPieChartHTML
 } from './dom-helpers.js';
 
 // ================================
@@ -345,115 +341,6 @@ import {
      */
     function getLifetimeGoalStats(goals) {
         return calculateGoalStats(goals);
-    }
-
-// ================================
-// 3. OVERVIEW STATISTICS DISPLAY SYSTEM
-// ================================
-// Main statistics dashboard with dream counts, top emotions, tags, and voice notes
-
-    /**
-     * Update main stats display with comprehensive dream and voice note analysis.
-     * 
-     * Calculates and displays comprehensive statistics including total dreams, lucid percentage,
-     * recent activity, top emotions and tags, and voice note usage. Handles all DOM element
-     * updates with safety checks and graceful fallbacks for missing elements. This is the
-     * primary function for updating the main statistics dashboard.
-     * 
-     * @async
-     * @returns {Promise<void>} Resolves when all statistics are calculated and displayed
-     * @throws {Error} When data loading fails or DOM manipulation errors occur
-     * @since 1.0.0
-     * @todo Split into calculateStatsData() and updateStatsDOM() functions for better separation
-     * @example
-     * // Update main dashboard when tab is loaded
-     * await updateStatsDisplay();
-     * 
-     * @example
-     * // Refresh stats after adding new dream
-     * try {
-     *   await updateStatsDisplay();
-     * } catch (error) {
-     *   console.error('Failed to update stats:', error);
-     * }
-     */
-    async function updateStatsDisplay() {
-        try {
-            const dreams = await loadDreams();
-            const voiceNotes = await loadVoiceNotes();
-            
-            // Basic counts
-            const totalDreams = dreams.length;
-            const lucidDreams = dreams.filter(d => d.isLucid).length;
-            const lucidPercentage = totalDreams > 0 ? ((lucidDreams / totalDreams) * 100).toFixed(1) : 0;
-            
-            // Recent dreams (last 7 days)
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            const recentDreams = dreams.filter(d => new Date(d.timestamp) > weekAgo).length;
-            
-            // Most common emotion analysis
-            const emotions = dreams
-                .map(d => d.emotions)
-                .filter(e => e && e.trim())
-                .flatMap(e => e.split(',').map(em => em.trim()));
-
-            const topEmotionResult = calculateMostCommonItems(emotions);
-            const topEmotion = topEmotionResult.item ? [topEmotionResult.item, topEmotionResult.count] : null;
-            
-            // Most common tag analysis
-            const tags = dreams
-                .flatMap(d => Array.isArray(d.tags) ? d.tags : [])
-                .filter(t => t && t.trim());
-
-            const topTagResult = calculateMostCommonItems(tags, false); // Keep original casing for tags
-            const topTag = topTagResult.item ? [topTagResult.item, topTagResult.count] : null;
-            
-            // Update display elements
-            const totalElement = document.getElementById('totalDreamsCount');
-            const lucidElement = document.getElementById('lucidDreamsCount');
-            const lucidPercentageElement = document.getElementById('lucidPercentage');
-            const voiceElement = document.getElementById('voiceNotesCount');
-            const voiceDetailElement = document.getElementById('voiceNotesDetail');
-            const recentElement = document.getElementById('recentDreamsCount');
-            const topEmotionElement = document.getElementById('topEmotionDisplay');
-            const topEmotionDetailElement = document.getElementById('topEmotionDetail');
-            const topTagElement = document.getElementById('topTagDisplay');
-            const topTagDetailElement = document.getElementById('topTagDetail');
-            
-            if (totalElement) totalElement.textContent = totalDreams;
-            if (lucidElement) lucidElement.textContent = lucidDreams;
-            if (lucidPercentageElement) lucidPercentageElement.textContent = `${lucidPercentage}% of all dreams`;
-            if (voiceElement) voiceElement.textContent = voiceNotes.length;
-            if (voiceDetailElement) {
-                const voiceLimit = CONSTANTS.VOICE_STORAGE_LIMIT;
-                voiceDetailElement.textContent = `${voiceNotes.length}/${voiceLimit} storage slots used`;
-            }
-            if (recentElement) recentElement.textContent = recentDreams;
-            
-            if (topEmotionElement && topEmotionDetailElement) {
-                if (topEmotion) {
-                    topEmotionElement.textContent = topEmotion[0];
-                    topEmotionDetailElement.textContent = `Appears in ${topEmotion[1]} dreams`;
-                } else {
-                    topEmotionElement.textContent = '😴';
-                    topEmotionDetailElement.textContent = 'No emotions recorded yet';
-                }
-            }
-            
-            if (topTagElement && topTagDetailElement) {
-                if (topTag) {
-                    topTagElement.textContent = `#${topTag[0]}`;
-                    topTagDetailElement.textContent = `Used in ${topTag[1]} dreams`;
-                } else {
-                    topTagElement.textContent = '#dreams';
-                    topTagDetailElement.textContent = 'No tags recorded yet';
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error updating stats display:', error);
-        }
     }
 
 // ================================
@@ -1792,7 +1679,6 @@ export {
     initializeStatsTab,
     
     // Main statistics functions
-    updateStatsDisplay,
     switchStatsTab,
     
     // Calendar system

@@ -3301,12 +3301,11 @@ async function getAuthenticationRequirements() {
 }
 
 /**
- * Shows appropriate authentication screen based on enabled features.
+ * Shows the authentication screen.
  *
- * Smart authentication dispatcher that determines which authentication screen
- * to display based on the current security configuration. Prioritizes encryption
- * password entry when both PIN and encryption are enabled, as encryption password
- * can bypass PIN protection.
+ * Authentication happens on the lock screen, which renders the encryption
+ * password form when encryption is enabled and the PIN form otherwise (see
+ * renderUnifiedAuthenticationScreen). This delegates to returnToLockScreen.
  *
  * @async
  * @function
@@ -3314,79 +3313,11 @@ async function getAuthenticationRequirements() {
  * @example
  * // Called during app initialization when authentication is required
  * await showAuthenticationScreen();
- * // Shows encryption password screen, PIN screen, or appropriate combination
+ * // Shows the lock screen
  */
 async function showAuthenticationScreen() {
     // All authentication now happens on the lock screen for consistency
     await returnToLockScreen();
-}
-
-/**
- * Shows the encryption password entry screen.
- *
- * Displays the password entry interface for accessing encrypted data. Supports
- * dual authentication scenarios where both PIN and encryption are enabled,
- * providing appropriate context and alternative authentication options.
- *
- * @async
- * @function
- * @since 2.03.01
- * @example
- * // Show encryption password screen
- * showEncryptionPasswordScreen();
- * // Displays password entry with appropriate context and options
- */
-async function showEncryptionPasswordScreen() {
-    const requirements = await getAuthenticationRequirements();
-
-    let title, message;
-    if (requirements.bothEnabled) {
-        title = 'Enter Encryption Password';
-        message = 'Your encryption password will bypass PIN protection and decrypt your data.';
-    } else {
-        title = 'Enter Password';
-        message = 'Enter your password to access your encrypted data.';
-    }
-
-    const pinContainer = document.querySelector('#pinOverlay .pin-container');
-    const config = {
-        title,
-        icon: '🔒',
-        message,
-        inputs: [
-            {
-                id: 'encryptionPassword',
-                type: 'password',
-                placeholder: 'Enter password',
-                class: 'pin-input',
-                autocomplete: 'current-password'
-            }
-        ],
-        buttons: [
-            {
-                text: 'Unlock',
-                action: 'verify-encryption-password',
-                class: 'btn-primary'
-            }
-        ],
-        links: requirements.bothEnabled ? [
-            {
-                text: 'Use PIN instead',
-                action: 'switch-to-pin-entry',
-                class: 'forgot-pin-link'
-            }
-        ] : [],
-        feedbackContainer: true
-    };
-
-    renderPinScreen(pinContainer, config);
-    document.getElementById('pinOverlay').style.display = 'flex';
-
-    // Focus the password input
-    setTimeout(() => {
-        const passwordInput = document.getElementById('encryptionPassword');
-        if (passwordInput) passwordInput.focus();
-    }, CONSTANTS.FOCUS_DELAY_MS);
 }
 
 /**
@@ -4061,7 +3992,6 @@ export {
     // Authentication flow integration
     getAuthenticationRequirements,
     showAuthenticationScreen,
-    showEncryptionPasswordScreen,
     verifyEncryptionPassword,
     testEncryptionPassword,
 

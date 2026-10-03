@@ -57,7 +57,7 @@ import {
 
 // Security module
 import {
-    toggleLock, showPinSetup, setupPin, showPinOverlay, hidePinOverlay,
+    toggleLock, showPinSetup, setupPin, hidePinOverlay,
     verifyPin, verifyEncryptionPassword, showRemovePin, showForgotPin,
     confirmRemovePin, executePinRemoval, completePinRemoval, startTitleRecovery,
     verifyDreamTitles, startTimerRecovery, confirmStartTimer, confirmCancelTimer,
@@ -462,7 +462,6 @@ const ACTION_MAP = {
         // ================================
         'verify-pin': () => verifyPin(),                                     // Verify PIN entry for authentication
         'verify-encryption-password': () => verifyEncryptionPassword(),     // Verify encryption password for authentication
-        'switch-to-pin-entry': () => showPinOverlay(),                      // Switch from password to PIN authentication
         'hide-pin-overlay': () => hidePinOverlay(),                         // Hide PIN entry overlay
         // 'confirm-password': () => confirmPassword(),                        // Confirm password entry - FUNCTION REMOVED, using showPasswordDialog instead
         // 'cancel-password': () => cancelPassword(),                          // Cancel password entry - FUNCTION REMOVED, using showPasswordDialog instead
