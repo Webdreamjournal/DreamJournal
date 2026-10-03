@@ -163,9 +163,11 @@ async function verifyEncryptionPassword() {
             showAllTabButtons();
 
             // Show success and transition to main app
+            // The dialog closes by itself when everything loaded; if items were skipped it waits for OK so the note is read
             await showDecryptionProgress('success', undecryptable
                 ? 'Welcome back! Your data has been loaded, except for some items that could not be decrypted.'
-                : 'Welcome back! Your encrypted data has been loaded successfully.');
+                : 'Welcome back! Your encrypted data has been loaded successfully.',
+                undecryptable ? {} : { autoCloseMs: 1800 });
 
             // Show additional success message in main app
             setTimeout(() => {

@@ -594,13 +594,6 @@
                 padding: 10px;
             }
             
-            /* Extra small screens - compress tabs further */
-            .app-tab {
-                min-width: 50px;
-                padding: 12px 6px;
-                font-size: 11px;
-            }
-            
             /* Keep date filters inline on very small screens */
             .date-filter-group {
                 grid-template-columns: auto 1fr !important;
@@ -2638,6 +2631,85 @@
             }
         }
 
+        /* Phones: the five tabs share the bar with the icon above the label, so none is cut off.
+           This comes after the 768px rule above so that it wins; the bar still scrolls on very narrow screens. */
+        @media (max-width: 560px) {
+            .app-tab {
+                flex: 1 1 0;
+                min-width: 64px;
+                min-height: 52px;
+                padding: 8px 2px;
+                font-size: 11px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+            }
+            .app-tab .tab-icon {
+                font-size: 18px;
+                line-height: 1;
+            }
+        }
+
+        /* Touch screens and phones: controls are at least 44 x 44 px (checkboxes 24 px, the WCAG 2.2 AA minimum) */
+        @media (max-width: 768px), (pointer: coarse) {
+            .btn,
+            .btn-small,
+            .stats-tab,
+            .voice-tab,
+            .record-btn,
+            .calendar-nav-btn,
+            .collapse-toggle,
+            .info-icon {
+                min-height: 44px;
+            }
+            .btn,
+            .btn-small {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .calendar-nav-btn,
+            .info-icon {
+                min-width: 44px;
+            }
+            .info-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+            input.form-control,
+            select.form-control {
+                min-height: 44px;
+            }
+            input[type="checkbox"],
+            input[type="radio"],
+            .lucid-checkbox input[type="checkbox"] {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                flex: none;
+            }
+            /* Seven day columns of 44 px need about 308 px, so the calendar card gives up some side padding */
+            #calendarContainer {
+                padding-left: 2px;
+                padding-right: 2px;
+            }
+            .calendar-grid {
+                table-layout: fixed;
+            }
+            .calendar-grid td {
+                padding: 0;
+            }
+            footer a {
+                display: inline-flex;
+                align-items: center;
+                min-height: 44px;
+                padding: 0 6px;
+            }
+        }
+
         /* ================================ */
         /* CLOUD SYNC COMPONENT STYLES     */
         /* ================================ */
@@ -3658,7 +3730,7 @@
     .btn-small {
         padding: 8px 12px !important;
         font-size: 14px !important;
-        min-height: 36px !important;
+        min-height: 44px !important;
     }
 }
 

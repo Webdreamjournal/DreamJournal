@@ -443,7 +443,7 @@ function switchAppTab(tabName, isInitialLoad = false) {
     // Update lock tab button visibility based on app state
     const lockTabButton = document.querySelector('.app-tab[data-tab="lock"]');
     if (lockTabButton) {
-        lockTabButton.style.display = tabName === 'lock' ? 'block' : 'none';
+        lockTabButton.style.display = tabName === 'lock' ? '' : 'none';
     }
 
     // 2. INFRASTRUCTURE SETUP
@@ -531,7 +531,8 @@ function showAllTabButtons() {
     const tabButtons = document.querySelectorAll('.app-tab');
     tabButtons.forEach(button => {
         if (button.dataset.tab !== 'lock') {
-            button.style.display = 'block';
+            // Clear the inline display so the stylesheet decides (the phone layout uses flex)
+            button.style.display = '';
         }
     });
     debugLog('Showed all tab buttons');

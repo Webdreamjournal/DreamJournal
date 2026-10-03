@@ -24,13 +24,50 @@ for (const vp of VIEWPORTS) {
     });
 }
 
-test('phone: the tab bar scrolls so every tab can be reached', async () => {
-    const { page, context } = await openApp(browser, server.url, VIEWPORTS[1]);
-    await page.evaluate(() => { document.querySelector('[role="tablist"]').scrollLeft = 9999; });
-    const right = await page.$eval('#tab-settings', el => el.getBoundingClientRect().right);
-    assert.ok(right <= 391, `Settings tab ends at ${right}px`);
-    await page.click('#tab-settings');
-    await page.waitForSelector('#settingsTab', { state: 'visible' });
+for (const width of [360, 375, 390, 414]) {
+    test(`phone ${width}px: all five tabs fit on screen without scrolling, and each can be used`, async () => {
+        const { page, context } = await openApp(browser, server.url, { width, height: 800, mobile: true });
+        const layout = await page.evaluate(() => {
+            const bar = document.querySelector('[role="tablist"]');
+            const tabs = [...bar.querySelectorAll('.app-tab')].filter(t => getComputedStyle(t).display !== 'none');
+            return {
+                scrolls: bar.scrollWidth > bar.clientWidth + 1,
+                tabs: tabs.map(t => { const r = t.getBoundingClientRect(); return { tab: t.dataset.tab, left: r.left, right: r.right, height: r.height }; }),
+                viewport: window.innerWidth
+            };
+        });
+        assert.equal(layout.tabs.length, 5);
+        assert.equal(layout.scrolls, false, 'the tab bar needs sideways scrolling');
+        for (const t of layout.tabs) {
+            assert.ok(t.left >= 0 && t.right <= layout.viewport, `${t.tab} tab is cut off (${t.left}..${t.right} in ${layout.viewport}px)`);
+            assert.ok(t.height >= 44, `${t.tab} tab is ${t.height}px tall`);
+        }
+        await page.click('#tab-settings');
+        await page.waitForSelector('#settingsTab', { state: 'visible' });
+        await page.click('#tab-advice');
+        await page.waitForSelector('#adviceTab', { state: 'visible' });
+        await context.close();
+    });
+}
+
+test('phone: buttons and other controls are at least 44 px, checkboxes at least 24 px', async () => {
+    const { page, context } = await openApp(browser, server.url, { width: 390, height: 844, mobile: true });
+    await importBackup(page, sampleBackup(12));
+    const tooSmall = {};
+    for (const tab of TABS) {
+        await openTab(page, tab);
+        const found = await page.evaluate(() => [...document.querySelectorAll('button, [data-action], select, input:not([type="hidden"]):not([type="file"]), textarea')]
+            .filter(el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && el.offsetParent !== null; })
+            .map(el => {
+                const r = el.getBoundingClientRect();
+                const minimum = el.type === 'checkbox' || el.type === 'radio' ? 24 : 44;
+                const name = `${el.tagName.toLowerCase()}${el.dataset.action ? `[${el.dataset.action}]` : ''}${el.id ? `#${el.id}` : ''}`;
+                return { name, w: Math.round(r.width), h: Math.round(r.height), minimum };
+            })
+            .filter(x => x.w < x.minimum || x.h < x.minimum));
+        for (const f of found) (tooSmall[`${f.name} ${f.w}x${f.h} (needs ${f.minimum})`] ??= []).push(tab);
+    }
+    assert.deepEqual(tooSmall, {});
     await context.close();
 });
 
