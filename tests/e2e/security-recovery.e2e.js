@@ -99,6 +99,20 @@ test('lock screen: PIN recovery with dream titles', async (t) => {
     await context.close();
 });
 
+test('lock screen: dreams are listed straight after PIN recovery by titles',
+    { todo: 'Known bug: verifyLockScreenDreamTitles (security.js) opens the Journal tab without loading the dreams, so the list is empty until the page is reloaded' },
+    async () => {
+        const { page, context } = await openLocked();
+        const names = await titles(page);
+        await page.click('[data-action="show-lock-screen-forgot-pin"]');
+        await page.click('[data-action="start-lock-screen-title-recovery"]');
+        await fillTitles(page, names.slice(0, 3));
+        await page.click('[data-action="verify-lock-screen-dream-titles"]');
+        await waitForPinRemoved(page);
+        await page.waitForSelector('.entry', { state: 'visible', timeout: 5000 });
+        await context.close();
+    });
+
 test('lock screen: the 72-hour timer', async (t) => {
     const { page, context, problems } = await openLocked();
 
