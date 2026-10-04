@@ -168,3 +168,26 @@ test('the new dream form shows its success and encrypted-save error messages on 
 
     await context.close();
 });
+
+test('an encrypted dream whose write fails shows the error instead of success', async (t) => {
+    const { page, context } = await openApp(browser, server.url);
+    await page.evaluate(async () => {
+        const state = await import('/state.js');
+        state.setEncryptionEnabled(true);
+        state.setEncryptionPassword('a session password');
+        // Encryption works; the IndexedDB write fails, so saveItemToStore resolves false
+        IDBObjectStore.prototype.put = () => { throw new Error('write blocked for the test'); };
+    });
+    await page.fill('#dreamContent', 'A dream that cannot be written.');
+    await page.click('[data-action="save-dream"]');
+
+    const message = page.locator('#dreamFormFull .message-error');
+    await message.waitFor();
+    assert.match(await message.innerText(), /Failed to save encrypted dream/);
+    assert.equal(await page.locator('#dreamFormFull .message-success').count(), 0);
+    assert.equal(await page.inputValue('#dreamContent'), 'A dream that cannot be written.');
+    const listed = await page.evaluate(async () => (await import('/state.js')).dreams.length);
+    assert.equal(listed, 0, 'the dream must not be added to the in-memory list');
+
+    await context.close();
+});

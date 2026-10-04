@@ -237,7 +237,10 @@ async function shouldEncryptDream() {
                 const encryptedDream = await encryptItemForStorage(newDream, password);
 
                 // Save encrypted dream to storage
-                await saveItemToStore('dreams', encryptedDream);
+                const stored = await saveItemToStore('dreams', encryptedDream);
+                if (!stored) {
+                    throw new Error('Encrypted dream was not written to storage');
+                }
 
                 // Update memory state with unencrypted data
                 dreams.unshift(newDream);
@@ -964,7 +967,10 @@ function parseSmartSearchQuery(searchInput) {
                 const encryptedDream = await encryptItemForStorage(updatedDream, password);
 
                 // Save encrypted dream to storage
-                await saveItemToStore('dreams', encryptedDream);
+                const stored = await saveItemToStore('dreams', encryptedDream);
+                if (!stored) {
+                    throw new Error('Encrypted dream was not written to storage');
+                }
 
                 // Update memory state with unencrypted data
                 const dreamIndex = dreams.findIndex(d => d.id.toString() === dreamId.toString());
