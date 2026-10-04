@@ -70,6 +70,7 @@ import {
 import {
     showPasswordDialog,
     loadEncryptionSettings,
+    reconcileEncryptionFlag,
     saveEncryptionSettings,
     validateEncryptionPassword,
     testEncryptionPassword,
@@ -196,6 +197,7 @@ export {
 
     // Encryption settings management
     loadEncryptionSettings,
+    reconcileEncryptionFlag,
     saveEncryptionSettings,
     validateEncryptionPassword,
     saveEncryptionCheck,

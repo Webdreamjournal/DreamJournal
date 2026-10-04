@@ -1367,8 +1367,9 @@ async function performEncryptionDisabling(password) {
 
         // Disable encryption settings
         updateDecryptionProgress('Disabling encryption settings...');
-        await saveEncryptionSettings(false);
+        // The check value goes first: it decides at startup whether the journal is encrypted
         await removeEncryptionCheck();
+        await saveEncryptionSettings(false);
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDerivedKeys();

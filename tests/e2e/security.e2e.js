@@ -197,6 +197,79 @@ test('enabling encryption that fails part way changes nothing', async (t) => {
     await context.close();
 });
 
+test('the stored check record decides whether the journal is encrypted', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(3));
+    await openTab(page, 'settings');
+    const flag = () => page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled'));
+    const deleteCheckRecord = () => page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction('meta', 'readwrite');
+            tx.objectStore('meta').delete('encryptionCheck');
+            tx.oncomplete = () => { open.result.close(); resolve(); };
+        };
+    }));
+    const waitForPasswordScreen = async () => {
+        await page.waitForSelector('#lockScreenPasswordInput');
+        assert.equal(await page.locator('.entry').count(), 0);
+    };
+
+    await t.test('set up encrypted data', async () => {
+        await page.click('[data-action="toggle-encryption"]');
+        await page.fill('#passwordInput', 'correct horse');
+        await page.fill('#confirmPasswordInput', 'correct horse');
+        await page.click('#confirmPasswordBtn');
+        await page.waitForSelector('.security-dialog-overlay:has-text("Encryption Successful")', { timeout: 60000 });
+        await page.click('.security-dialog-overlay button');
+        assert.equal(await flag(), 'true');
+    });
+
+    await t.test('with the flag missing the app still asks for the password, and the flag comes back', async () => {
+        await page.evaluate(() => localStorage.removeItem('dreamJournalEncryptionEnabled'));
+        await page.reload({ waitUntil: 'load' });
+        await waitForPasswordScreen();
+        assert.equal(await flag(), 'true');
+    });
+
+    await t.test('with the flag set to false the app still asks for the password', async () => {
+        await page.evaluate(() => localStorage.setItem('dreamJournalEncryptionEnabled', 'false'));
+        await page.reload({ waitUntil: 'load' });
+        await waitForPasswordScreen();
+        assert.equal(await flag(), 'true');
+    });
+
+    await t.test('a journal without a check record but with encrypted dreams stays encrypted', async () => {
+        await deleteCheckRecord();
+        await page.reload({ waitUntil: 'load' });
+        await waitForPasswordScreen();
+        assert.equal(await flag(), 'true');
+    });
+
+    await t.test('the right password still unlocks it', async () => {
+        await page.fill('#lockScreenPasswordInput', 'correct horse');
+        await page.click('[data-action="verify-encryption-password"]');
+        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
+        await page.waitForSelector('.entry');
+        assert.equal((await storedDreams(page)).length, 3);
+    });
+
+    assert.deepEqual(problems.filter(p => !/Encryption flag corrected/.test(p)), []);
+    await context.close();
+});
+
+test('a leftover encryption flag on a journal with no encrypted data is cleared', async () => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(3));
+    await page.evaluate(() => localStorage.setItem('dreamJournalEncryptionEnabled', 'true'));
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('.entry');
+    assert.equal(await page.locator('#lockScreenPasswordInput').count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), 'false');
+    assert.deepEqual(problems, []);
+    await context.close();
+});
+
 test('data encryption', async (t) => {
     const { page, context, problems } = await openApp(browser, server.url);
     await importBackup(page, sampleBackup(3));

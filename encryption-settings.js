@@ -18,6 +18,7 @@ import {
     getAutocompleteSuggestionsRawData,
     putItemsInStores,
     isIndexedDBAvailable,
+    isIndexedDBReady,
     loadMetaRecord,
     saveMetaRecord,
     deleteMetaRecord,
@@ -300,6 +301,51 @@ async function saveEncryptionSettings(enabled) {
 }
 
 /**
+ * Corrects the localStorage encryption flag from what IndexedDB holds.
+ *
+ * The encryption check record in the meta store is written in the same transaction as the encrypted
+ * data, so it is the source of truth; the localStorage flag can be lost or left behind separately
+ * (cleared site data, an interrupted change). Rules, applied only when IndexedDB is open:
+ * - check record present: encryption is on; a missing or false flag is set to true.
+ * - no check record and the flag is true: a journal encrypted before the record existed has encrypted
+ *   dreams or goals and stays on; with none, the flag is set to false.
+ * - no check record and the flag is not true: nothing is read and the flag is left as it is.
+ * When IndexedDB is not open (memory storage, blocked or closed), nothing is changed.
+ * A correction also updates the encryption state, through saveEncryptionSettings.
+ *
+ * @async
+ * @function
+ * @returns {Promise<boolean>} The encryption flag after reconciling
+ * @example
+ * await initDB();
+ * const encrypted = await reconcileEncryptionFlag();
+ */
+async function reconcileEncryptionFlag() {
+    const flag = loadEncryptionSettings();
+    if (!isIndexedDBReady()) return flag;
+
+    try {
+        let encrypted;
+        if (await loadMetaRecord(ENCRYPTION_CHECK_ID)) {
+            encrypted = true;
+        } else if (flag) {
+            const items = [...await loadDreamsRaw(), ...await loadGoalsRaw()];
+            encrypted = items.some(isEncryptedItem);
+        } else {
+            return flag;
+        }
+        if (encrypted !== flag) {
+            console.warn(`Encryption flag corrected to ${encrypted} from the stored data`);
+            if (!(await saveEncryptionSettings(encrypted))) return flag;
+        }
+        return encrypted;
+    } catch (error) {
+        console.error('Could not reconcile the encryption flag:', error);
+        return flag;
+    }
+}
+
+/**
  * Validates an encryption password meets security requirements.
  *
  * Performs comprehensive validation of encryption passwords including length
@@ -390,9 +436,12 @@ async function saveEncryptionCheck(password) {
  *
  * @async
  * @returns {Promise<void>}
+ * @throws {Error} When the record could not be deleted
  */
 async function removeEncryptionCheck() {
-    await deleteMetaRecord(ENCRYPTION_CHECK_ID);
+    if (!(await deleteMetaRecord(ENCRYPTION_CHECK_ID))) {
+        throw new Error('The encryption check value could not be removed');
+    }
 }
 
 /**
@@ -917,6 +966,7 @@ function updateDecryptionProgress(message) {
 
 export {
     showPasswordDialog,
+    reconcileEncryptionFlag,
     loadEncryptionSettings,
     saveEncryptionSettings,
     validateEncryptionPassword,

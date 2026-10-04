@@ -37,6 +37,7 @@ const SECURITY_EXPORTS = [
     'isPinSetup',
     'loadEncryptionSettings',
     'reEncryptAllData',
+    'reconcileEncryptionFlag',
     'registerFailedPinAttempt',
     'removeEncryptionCheck',
     'removePinHash',
