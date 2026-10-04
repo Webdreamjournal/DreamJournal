@@ -14,6 +14,8 @@ python3 -m http.server 8000   # run the app locally, then open http://localhost:
 
 Run `npm run lint` and `npm test` before every commit, and `npm run test:e2e` after changes to startup, locking, import, or the dream, goal and voice flows. CI (`.github/workflows/test.yml`) runs all three.
 
+After pushing a finished change, always open a pull request so CI runs, unless told otherwise.
+
 ## Layout
 
 All modules are flat in the repo root (not in `src/`, which only holds the entry point).
