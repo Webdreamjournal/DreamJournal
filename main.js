@@ -70,7 +70,7 @@ import {
 // Security system
 import {
     isPinSetup, getResetTime, removeResetTime, removePinHash, updateTimerWarning,
-    updateSecurityControls, verifyLockScreenPin, loadEncryptionSettings,
+    updateSecurityControls, verifyLockScreenPin, loadEncryptionSettings, reconcileEncryptionFlag,
     getAuthenticationRequirements, showAuthenticationScreen
 } from './security.js';
 
@@ -752,6 +752,7 @@ function restoreDreamFormState() {
  * // 4. Neither: Normal app initialization
  */
 async function initializeApp() {
+    const DATABASE_OPEN_WAIT_MS = 3000;
 
     // ================================
     // PHASE 1: IMMEDIATE SETUP
@@ -765,6 +766,16 @@ async function initializeApp() {
     // Load encryption settings and update global state
     const encryptionEnabled = loadEncryptionSettings();
     setEncryptionEnabled(encryptionEnabled);
+
+    // The stored encryption check record decides whether the journal is encrypted, so the database is
+    // opened before the authentication screen is chosen. If it does not open within a few seconds
+    // (for example an upgrade blocked by another tab), the flag is used as it is.
+    const databaseReady = initDB();
+    const openedInTime = await Promise.race([
+        databaseReady.then(() => true),
+        new Promise(resolve => setTimeout(() => resolve(false), DATABASE_OPEN_WAIT_MS))
+    ]);
+    if (openedInTime) await reconcileEncryptionFlag();
 
     // Handle PIN timer expiration and determine initial app state
     const resetTime = getResetTime();
@@ -823,7 +834,7 @@ async function initializeApp() {
 
     setupEventDelegation();
 
-    await initDB();
+    await databaseReady;
 
     // Ask the browser to keep the journal's storage when space runs low (not awaited; the answer is only logged)
     requestPersistentStorage();

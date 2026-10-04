@@ -70,6 +70,7 @@ import {
 import {
     showPasswordDialog,
     loadEncryptionSettings,
+    reconcileEncryptionFlag,
     saveEncryptionSettings,
     validateEncryptionPassword,
     testEncryptionPassword,
@@ -78,6 +79,7 @@ import {
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
+    encryptAllData,
     reEncryptAllData,
     updateDecryptionProgress
 } from './encryption-settings.js';
@@ -195,10 +197,12 @@ export {
 
     // Encryption settings management
     loadEncryptionSettings,
+    reconcileEncryptionFlag,
     saveEncryptionSettings,
     validateEncryptionPassword,
     saveEncryptionCheck,
     removeEncryptionCheck,
+    encryptAllData,
     reEncryptAllData,
 
     // Authentication flow integration

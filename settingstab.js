@@ -974,19 +974,19 @@ async function showEncryptionSetupDialog() {
  * a seamless transition from unencrypted to encrypted data storage.
  *
  * **Setup Process:**
- * 1. Save encryption settings to localStorage
- * 2. Set session encryption password in state
- * 3. Encrypt all existing dreams in IndexedDB
- * 4. Encrypt all existing goals in IndexedDB
- * 5. Clear decrypted data cache to force reload
- * 6. Refresh settings UI to show new encryption state
- * 7. Provide user feedback on successful completion
+ * 1. Encrypt all existing dreams, goals and autocomplete data and store the encryption check
+ *    value in one IndexedDB transaction (all or nothing)
+ * 2. Save the encryption flag to localStorage, only after that transaction has committed
+ * 3. Set session encryption password in state
+ * 4. Clear decrypted data cache to force reload
+ * 5. Refresh settings UI to show new encryption state
+ * 6. Provide user feedback on successful completion
  *
  * **Data Integrity:**
  * - Preserves all existing data during migration
  * - Maintains data relationships and metadata
- * - Handles mixed encrypted/unencrypted scenarios gracefully
- * - Provides rollback capability if errors occur
+ * - Items that are already encrypted are left as they are
+ * - If the write fails, nothing is stored and encryption stays off
  *
  * @async
  * @function
@@ -1002,9 +1002,9 @@ async function showEncryptionSetupDialog() {
 async function setupEncryption(password) {
     try {
         // Import required functions
-        const { setEncryptionPassword, clearDecryptedDataCache, setEncryptionEnabled } = await import('./state.js');
-        const { saveEncryptionSettings, saveEncryptionCheck, showEncryptionProgress, updateEncryptionProgress } = await import('./security.js');
-        const { loadDreamsRaw, loadGoalsRaw, encryptItemForStorage, saveItemToStore } = await import('./storage.js');
+        const { setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
+        const { saveEncryptionSettings, showEncryptionProgress, updateEncryptionProgress, encryptAllData } = await import('./security.js');
+        const { isLocalStorageAvailable } = await import('./storage.js');
         const { initializeApplicationData } = await import('./main.js');
 
         // Disable encryption controls to prevent user interaction
@@ -1013,64 +1013,23 @@ async function setupEncryption(password) {
         // Show encryption progress dialog
         showEncryptionProgress('encrypting');
 
-        // Enable encryption setting. The check value is stored first, so a failure here changes nothing.
+        // The flag is stored after the data, so it must be possible to store it before anything is written
+        if (!isLocalStorageAvailable()) {
+            throw new Error('The encryption setting cannot be stored in this browser');
+        }
+
+        // Encrypt dreams, goals, autocomplete data and the check value in one transaction.
+        // If it fails, nothing was written and the flag and session password are not set.
+        const counts = await encryptAllData(password);
+        const encryptedCount = counts.dreams;
+        const goalsEncryptedCount = counts.goals;
+        const autocompleteEncryptedCount = counts.autocomplete;
+
         updateEncryptionProgress('Enabling encryption settings...');
-        await saveEncryptionCheck(password);
-        await saveEncryptionSettings(true);
-        setEncryptionEnabled(true);
+        if (!(await saveEncryptionSettings(true))) {
+            throw new Error('The data was encrypted but the encryption setting could not be saved');
+        }
         setEncryptionPassword(password);
-
-        // Encrypt existing dreams
-        updateEncryptionProgress('Processing dreams...');
-        const dreams = await loadDreamsRaw();
-        let encryptedCount = 0;
-        for (let i = 0; i < dreams.length; i++) {
-            const dream = dreams[i];
-            if (!dream.encrypted) { // Don't re-encrypt already encrypted items
-                if (dreams.length > 5) {
-                    updateEncryptionProgress(`Processing dreams... (${i + 1} of ${dreams.length})`);
-                }
-                const encrypted = await encryptItemForStorage(dream, password);
-                await saveItemToStore('dreams', encrypted);
-                encryptedCount++;
-            }
-        }
-
-        // Encrypt existing goals
-        updateEncryptionProgress('Processing goals...');
-        const goals = await loadGoalsRaw();
-        let goalsEncryptedCount = 0;
-        for (let i = 0; i < goals.length; i++) {
-            const goal = goals[i];
-            if (!goal.encrypted) { // Don't re-encrypt already encrypted items
-                if (goals.length > 5) {
-                    updateEncryptionProgress(`Processing goals... (${i + 1} of ${goals.length})`);
-                }
-                const encrypted = await encryptItemForStorage(goal, password);
-                await saveItemToStore('goals', encrypted);
-                goalsEncryptedCount++;
-            }
-        }
-
-        // Encrypt existing autocomplete data (tags and dream signs)
-        updateEncryptionProgress('Processing autocomplete data...');
-        const { getAutocompleteSuggestionsRawData } = await import('./storage.js');
-        const autocompleteTypes = ['tags', 'dreamSigns', 'emotions'];
-        let autocompleteEncryptedCount = 0;
-
-        for (const type of autocompleteTypes) {
-            try {
-                const autocompleteData = await getAutocompleteSuggestionsRawData(type);
-                if (autocompleteData && !autocompleteData.encrypted) {
-                    const encrypted = await encryptItemForStorage(autocompleteData, password);
-                    await saveItemToStore('autocomplete', encrypted);
-                    autocompleteEncryptedCount++;
-                }
-            } catch (error) {
-                // Autocomplete may not exist for this type, continue with other types
-                console.warn(`Autocomplete ${type} encryption skipped:`, error.message);
-            }
-        }
 
         // Clear cache and reload data
         updateEncryptionProgress('Updating application data...');
@@ -1117,8 +1076,6 @@ async function setupEncryption(password) {
 
         // Show error dialog
         await showEncryptionProgress('error', 'Failed to enable encryption. Please try again.');
-
-        throw error;
     }
 }
 
@@ -1410,8 +1367,9 @@ async function performEncryptionDisabling(password) {
 
         // Disable encryption settings
         updateDecryptionProgress('Disabling encryption settings...');
-        await saveEncryptionSettings(false);
+        // The check value goes first: it decides at startup whether the journal is encrypted
         await removeEncryptionCheck();
+        await saveEncryptionSettings(false);
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDerivedKeys();

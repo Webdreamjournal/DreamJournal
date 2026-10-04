@@ -1,7 +1,7 @@
 /**
  * @fileoverview Encryption settings and dialogs: the password dialog, loading and saving the encryption
- *   flag, password validation and testing, the encrypt and decrypt progress dialogs, and
- *   reEncryptAllData for password changes.
+ *   flag, password validation and testing, the encrypt and decrypt progress dialogs,
+ *   encryptAllData for turning encryption on, and reEncryptAllData for password changes.
  *
  * @module EncryptionSettings
  */
@@ -18,6 +18,7 @@ import {
     getAutocompleteSuggestionsRawData,
     putItemsInStores,
     isIndexedDBAvailable,
+    isIndexedDBReady,
     loadMetaRecord,
     saveMetaRecord,
     deleteMetaRecord,
@@ -300,6 +301,51 @@ async function saveEncryptionSettings(enabled) {
 }
 
 /**
+ * Corrects the localStorage encryption flag from what IndexedDB holds.
+ *
+ * The encryption check record in the meta store is written in the same transaction as the encrypted
+ * data, so it is the source of truth; the localStorage flag can be lost or left behind separately
+ * (cleared site data, an interrupted change). Rules, applied only when IndexedDB is open:
+ * - check record present: encryption is on; a missing or false flag is set to true.
+ * - no check record and the flag is true: a journal encrypted before the record existed has encrypted
+ *   dreams or goals and stays on; with none, the flag is set to false.
+ * - no check record and the flag is not true: nothing is read and the flag is left as it is.
+ * When IndexedDB is not open (memory storage, blocked or closed), nothing is changed.
+ * A correction also updates the encryption state, through saveEncryptionSettings.
+ *
+ * @async
+ * @function
+ * @returns {Promise<boolean>} The encryption flag after reconciling
+ * @example
+ * await initDB();
+ * const encrypted = await reconcileEncryptionFlag();
+ */
+async function reconcileEncryptionFlag() {
+    const flag = loadEncryptionSettings();
+    if (!isIndexedDBReady()) return flag;
+
+    try {
+        let encrypted;
+        if (await loadMetaRecord(ENCRYPTION_CHECK_ID)) {
+            encrypted = true;
+        } else if (flag) {
+            const items = [...await loadDreamsRaw(), ...await loadGoalsRaw()];
+            encrypted = items.some(isEncryptedItem);
+        } else {
+            return flag;
+        }
+        if (encrypted !== flag) {
+            console.warn(`Encryption flag corrected to ${encrypted} from the stored data`);
+            if (!(await saveEncryptionSettings(encrypted))) return flag;
+        }
+        return encrypted;
+    } catch (error) {
+        console.error('Could not reconcile the encryption flag:', error);
+        return flag;
+    }
+}
+
+/**
  * Validates an encryption password meets security requirements.
  *
  * Performs comprehensive validation of encryption passwords including length
@@ -390,9 +436,12 @@ async function saveEncryptionCheck(password) {
  *
  * @async
  * @returns {Promise<void>}
+ * @throws {Error} When the record could not be deleted
  */
 async function removeEncryptionCheck() {
-    await deleteMetaRecord(ENCRYPTION_CHECK_ID);
+    if (!(await deleteMetaRecord(ENCRYPTION_CHECK_ID))) {
+        throw new Error('The encryption check value could not be removed');
+    }
 }
 
 /**
@@ -755,6 +804,68 @@ function updateEncryptionProgress(message) {
 }
 
 /**
+ * Encrypts all stored dreams, goals and autocomplete data under a password, for turning encryption on.
+ *
+ * Every item that is not yet encrypted is encrypted in memory first, and the encryption check value
+ * is built with them. Everything is then written in one IndexedDB transaction, so the stores end up
+ * either entirely plain text or entirely encrypted with the check value present. If an item cannot be
+ * encrypted or the write does not commit, nothing is stored, the password's cached key is dropped and
+ * the error is thrown. This function does not set the encryption flag or the session password; the
+ * caller does that after it resolves.
+ *
+ * @async
+ * @function
+ * @param {string} password - Encryption password
+ * @returns {Promise<{dreams: number, goals: number, autocomplete: number}>} Number of items encrypted per store
+ * @throws {Error} When IndexedDB is not available, an item cannot be encrypted or the write does not commit
+ * @example
+ * const counts = await encryptAllData('new-password');
+ */
+async function encryptAllData(password) {
+    try {
+        if (!isIndexedDBAvailable()) {
+            throw new Error('Encryption needs IndexedDB, which is not available');
+        }
+        const pending = { dreams: [], goals: [], autocomplete: [] };
+
+        const encryptItems = async (items, target) => {
+            for (const item of items) {
+                if (isEncryptedItem(item)) continue;
+                target.push(await encryptItemForStorage(item, password));
+            }
+        };
+
+        updateEncryptionProgress('Processing dreams...');
+        await encryptItems(await loadDreamsRaw(), pending.dreams);
+
+        updateEncryptionProgress('Processing goals...');
+        await encryptItems(await loadGoalsRaw(), pending.goals);
+
+        updateEncryptionProgress('Processing autocomplete data...');
+        for (const type of ['tags', 'dreamSigns', 'emotions']) {
+            const stored = await getAutocompleteSuggestionsRawData(type);
+            if (stored) await encryptItems([stored], pending.autocomplete);
+        }
+
+        updateEncryptionProgress('Saving encrypted data...');
+        // The check value goes in the same transaction as the data it verifies
+        const stores = Object.fromEntries(Object.entries(pending).filter(([, items]) => items.length > 0));
+        stores.meta = [await createEncryptionCheckRecord(password)];
+        if (!(await putItemsInStores(stores))) {
+            throw new Error('The encrypted data could not be saved');
+        }
+
+        clearDecryptedDataCache();
+        return { dreams: pending.dreams.length, goals: pending.goals.length, autocomplete: pending.autocomplete.length };
+    } catch (error) {
+        // Nothing was written, so the stored data is still plain text
+        clearDerivedKeys(password);
+        console.error('Encryption error:', error);
+        throw error;
+    }
+}
+
+/**
  * Re-encrypts all encrypted dreams, goals and autocomplete data under a new password.
  *
  * Every encrypted item is decrypted with the old password and encrypted with the new one
@@ -855,6 +966,7 @@ function updateDecryptionProgress(message) {
 
 export {
     showPasswordDialog,
+    reconcileEncryptionFlag,
     loadEncryptionSettings,
     saveEncryptionSettings,
     validateEncryptionPassword,
@@ -865,6 +977,7 @@ export {
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
+    encryptAllData,
     reEncryptAllData,
     updateDecryptionProgress
 };
