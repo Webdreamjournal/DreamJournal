@@ -570,6 +570,29 @@ function renderSettingsTab(tabPanel) {
                 </div>
             </div>
         </div>
+        <div class="settings-section" data-settings-section="browser-support">
+            <h3>🌐 Browser Support</h3>
+            <div class="settings-section-content">
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Voice Recording</div>
+                        <div class="settings-description" id="voiceRecordingCompatibility">Checking browser support...</div>
+                    </div>
+                    <div class="settings-controls">
+                        <span id="voiceRecordingStatus" class="text-xs"></span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div>
+                        <div class="settings-label">Speech Transcription</div>
+                        <div class="settings-description" id="transcriptionCompatibility">Checking browser support...</div>
+                    </div>
+                    <div class="settings-controls">
+                        <span id="transcriptionStatus" class="text-xs"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
     `;
 }
 

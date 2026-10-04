@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { startServer, launchBrowser, openApp } from './helpers.js';
+import { startServer, launchBrowser, openApp, openTab } from './helpers.js';
 
 let server, browser;
 before(async () => { server = await startServer(); browser = await launchBrowser(); });
@@ -78,6 +78,43 @@ test('a transcribed recording offers "Create Dream Entry" on the stored notes ta
     await prompt.click();
     // The handler loads the note first, then switches tab and fills the form
     await page.waitForFunction(() => document.getElementById('dreamContent')?.value === 'I was flying over a quiet town');
+
+    assert.deepEqual(problems, []);
+    await context.close();
+});
+
+test('the Settings tab reports voice recording and transcription support', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    const rows = () => page.evaluate(() => Object.fromEntries(
+        ['voiceRecordingCompatibility', 'voiceRecordingStatus', 'transcriptionCompatibility', 'transcriptionStatus']
+            .map(id => [id, document.getElementById(id)?.textContent.trim()])));
+
+    await t.test('a browser with both APIs shows "Supported"', async () => {
+        await page.evaluate(() => { window.SpeechRecognition ||= window.webkitSpeechRecognition || function () {}; });
+        await openTab(page, 'settings');
+        await page.locator('#voiceRecordingStatus').filter({ hasText: 'Supported' }).waitFor();
+        const shown = await rows();
+        assert.equal(shown.voiceRecordingStatus, '\u2705 Supported');
+        assert.equal(shown.voiceRecordingCompatibility, 'Your browser supports voice recording');
+        assert.equal(shown.transcriptionStatus, '\u2705 Supported');
+        assert.equal(shown.transcriptionCompatibility, 'Your browser supports speech transcription');
+    });
+
+    await t.test('a browser without them shows "Not Supported"', async () => {
+        await page.addInitScript(() => {
+            delete window.MediaRecorder;
+            delete window.SpeechRecognition;
+            delete window.webkitSpeechRecognition;
+        });
+        await page.reload();
+        await openTab(page, 'settings');
+        await page.locator('#voiceRecordingStatus').filter({ hasText: 'Not Supported' }).waitFor();
+        const shown = await rows();
+        assert.equal(shown.voiceRecordingStatus, '\u274c Not Supported');
+        assert.equal(shown.voiceRecordingCompatibility, 'Voice recording not supported in this browser');
+        assert.equal(shown.transcriptionStatus, '\u274c Not Supported');
+        assert.match(shown.transcriptionCompatibility, /Speech Recognition API/);
+    });
 
     assert.deepEqual(problems, []);
     await context.close();
