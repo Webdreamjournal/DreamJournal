@@ -41,26 +41,8 @@ import { hidePinOverlay, resetPinOverlay } from './pin-overlay.js';
  * updateSecurityControls(); // Shows "Setup & Lock" and "Setup PIN"
  */
 function updateSecurityControls() {
-        const lockBtn = document.getElementById('lockBtn');
         const lockBtnSettings = document.getElementById('lockBtnSettings');
         const setupBtnSettings = document.getElementById('setupPinBtnSettings');
-        
-        // Always show the lock button - much simpler UX!
-        if (lockBtn) {
-            lockBtn.style.display = 'inline-block';
-            if (isPinSetup()) {
-                if (isUnlocked && !isAppLocked) {
-                    lockBtn.textContent = '🔒 Lock Journal';
-                    lockBtn.title = 'Lock your journal with your PIN to keep dreams private';
-                } else {
-                    lockBtn.textContent = '🔓 Unlock Journal'; // This case shouldn't happen much since we use lock screen
-                    lockBtn.title = 'Unlock your journal by entering your PIN';
-                }
-            } else {
-                lockBtn.textContent = '🔒 Setup & Lock';
-                lockBtn.title = 'Set up a PIN to secure your dreams, then lock the journal';
-            }
-        }
         
         // Show settings lock button only when PIN is set
         if (lockBtnSettings) {

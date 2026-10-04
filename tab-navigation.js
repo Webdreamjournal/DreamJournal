@@ -20,7 +20,6 @@ import {
     setActiveVoiceTab,
     getUnlocked
 } from './state.js';
-import { storageType } from './storage.js';
 import { getResetTime, updateSecurityControls, isPinSetup } from './security.js';
 import { renderGoalsTab, initializeGoalsTab } from './goalstab.js';
 import { renderJournalTab } from './journaltab.js';
@@ -583,23 +582,6 @@ function syncSettingsDisplay() {
             }
         }
         
-        // Sync encryption checkbox
-        const encryptionOriginal = document.getElementById('encryptionEnabled');
-        const encryptionSettings = document.getElementById('encryptionEnabledSettings');
-        
-        if (encryptionOriginal && encryptionSettings) {
-            encryptionSettings.checked = encryptionOriginal.checked;
-            
-            // Add sync event listeners
-            encryptionSettings.addEventListener('change', function() {
-                encryptionOriginal.checked = this.checked;
-            });
-            
-            encryptionOriginal.addEventListener('change', function() {
-                encryptionSettings.checked = this.checked;
-            });
-        }
-        
         // Sync theme select - enhanced
         const themeSelect = document.getElementById('themeSelect');
         if (themeSelect) {
@@ -615,34 +597,6 @@ function syncSettingsDisplay() {
                         themeSelectDelayed.value = currentTheme;
                     }
                 }, 50);
-            }
-        }
-        
-        // Update storage info
-        const storageTypeElement = document.getElementById('storageTypeDisplay');
-        const storageStatusElement = document.getElementById('storageStatusDisplay');
-        
-        if (storageTypeElement && storageStatusElement) {
-            switch (storageType) {
-                case 'indexeddb':
-                    storageTypeElement.textContent = 'Data stored in IndexedDB (recommended)';
-                    storageStatusElement.textContent = '💾 IndexedDB';
-                    storageStatusElement.style.color = 'var(--success-color)';
-                    break;
-                case 'localstorage':
-                    storageTypeElement.textContent = 'Data stored in localStorage';
-                    storageStatusElement.textContent = '📱 LocalStorage';
-                    storageStatusElement.style.color = 'var(--info-color)';
-                    break;
-                case 'memory':
-                    storageTypeElement.textContent = 'Data stored temporarily in memory only';
-                    storageStatusElement.textContent = '⚠️ Memory Only';
-                    storageStatusElement.style.color = 'var(--warning-color)';
-                    break;
-                default:
-                    storageTypeElement.textContent = 'Storage type unknown';
-                    storageStatusElement.textContent = '❓ Unknown';
-                    storageStatusElement.style.color = 'var(--text-secondary)';
             }
         }
         
