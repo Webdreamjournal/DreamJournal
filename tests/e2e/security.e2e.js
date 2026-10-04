@@ -231,7 +231,21 @@ test('the stored check record decides whether the journal is encrypted', async (
         assert.equal(await flag(), 'true');
     });
 
-    assert.deepEqual(problems.filter(p => !/Encryption flag corrected/.test(p)), []);
+    await t.test('a failed read of the check record leaves the flag on, so the password is still asked for', async () => {
+        // From here every page load fails reads of the meta store, as a damaged or busy database could
+        await page.addInitScript(() => {
+            const originalGet = IDBObjectStore.prototype.get;
+            IDBObjectStore.prototype.get = function (...args) {
+                if (this.name === 'meta') throw new DOMException('forced read failure', 'UnknownError');
+                return originalGet.apply(this, args);
+            };
+        });
+        await page.reload({ waitUntil: 'load' });
+        await waitForPasswordScreen();
+        assert.equal(await flag(), 'true');
+    });
+
+    assert.deepEqual(problems.filter(p => !/Encryption flag corrected|Could not reconcile the encryption flag/.test(p)), []);
     await context.close();
 });
 

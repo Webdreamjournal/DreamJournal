@@ -21,6 +21,7 @@ import {
     isIndexedDBAvailable,
     isIndexedDBReady,
     loadMetaRecord,
+    loadMetaRecordStrict,
     saveMetaRecord,
     deleteMetaRecord,
     isEncryptedItem,
@@ -309,8 +310,9 @@ async function saveEncryptionSettings(enabled) {
  * localStorage flag can be lost or left behind separately (cleared site data, an interrupted change).
  * Only when IndexedDB is open: a check record means encryption is on and no check record means it is
  * off, and a flag that disagrees is corrected. When IndexedDB is not open (memory storage, blocked or
- * closed), nothing is changed. A correction also updates the encryption state, through
- * saveEncryptionSettings.
+ * closed), nothing is changed. If the check record cannot be read, the flag is left as it is, because
+ * a failed read is not evidence that there is no record. A correction also updates the encryption
+ * state, through saveEncryptionSettings.
  *
  * @async
  * @function
@@ -324,7 +326,7 @@ async function reconcileEncryptionFlag() {
     if (!isIndexedDBReady()) return flag;
 
     try {
-        const encrypted = Boolean(await loadMetaRecord(ENCRYPTION_CHECK_ID));
+        const encrypted = Boolean(await loadMetaRecordStrict(ENCRYPTION_CHECK_ID));
         if (encrypted !== flag) {
             console.warn(`Encryption flag corrected to ${encrypted} from the check record`);
             if (!(await saveEncryptionSettings(encrypted))) return flag;

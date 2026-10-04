@@ -1314,6 +1314,33 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
+     * Loads a record from the meta store like loadMetaRecord, but a failed read throws instead of
+     * looking like a missing record. Used where "no record" and "could not read" must lead to
+     * different decisions.
+     *
+     * @async
+     * @param {string} id - Record id
+     * @returns {Promise<Object|null>} The record, or null if the read worked and there is none
+     * @throws {Error} When the read fails or the meta store does not exist
+     */
+    async function loadMetaRecordStrict(id) {
+        if (!isIndexedDBAvailable()) return loadMetaRecord(id);
+        return new Promise((resolve, reject) => {
+            try {
+                if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+                    reject(new Error(`Store '${META_STORE_NAME}' not found in database`));
+                    return;
+                }
+                const request = db.transaction([META_STORE_NAME], 'readonly').objectStore(META_STORE_NAME).get(id);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    /**
      * Saves a record to the meta store. With IndexedDB the promise resolves when the transaction
      * has committed.
      *
@@ -2860,6 +2887,7 @@ export {
 
     // Settings records (meta store) and decryption failures
     loadMetaRecord,
+    loadMetaRecordStrict,
     saveMetaRecord,
     deleteMetaRecord,
     getUndecryptableItemCount,
