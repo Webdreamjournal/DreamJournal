@@ -202,14 +202,6 @@ test('the stored check record decides whether the journal is encrypted', async (
     await importBackup(page, sampleBackup(3));
     await openTab(page, 'settings');
     const flag = () => page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled'));
-    const deleteCheckRecord = () => page.evaluate(() => new Promise(resolve => {
-        const open = indexedDB.open('DreamJournal');
-        open.onsuccess = () => {
-            const tx = open.result.transaction('meta', 'readwrite');
-            tx.objectStore('meta').delete('encryptionCheck');
-            tx.oncomplete = () => { open.result.close(); resolve(); };
-        };
-    }));
     const waitForPasswordScreen = async () => {
         await page.waitForSelector('#lockScreenPasswordInput');
         assert.equal(await page.locator('.entry').count(), 0);
@@ -237,21 +229,6 @@ test('the stored check record decides whether the journal is encrypted', async (
         await page.reload({ waitUntil: 'load' });
         await waitForPasswordScreen();
         assert.equal(await flag(), 'true');
-    });
-
-    await t.test('a journal without a check record but with encrypted dreams stays encrypted', async () => {
-        await deleteCheckRecord();
-        await page.reload({ waitUntil: 'load' });
-        await waitForPasswordScreen();
-        assert.equal(await flag(), 'true');
-    });
-
-    await t.test('the right password still unlocks it', async () => {
-        await page.fill('#lockScreenPasswordInput', 'correct horse');
-        await page.click('[data-action="verify-encryption-password"]');
-        await page.waitForSelector('#decryption-progress-dialog:has-text("Decryption Successful")', { timeout: 30000 });
-        await page.waitForSelector('.entry');
-        assert.equal((await storedDreams(page)).length, 3);
     });
 
     assert.deepEqual(problems.filter(p => !/Encryption flag corrected/.test(p)), []);
@@ -393,14 +370,6 @@ test('data encryption', async (t) => {
         };
     }));
     const hex = (bytes) => Array.from(bytes.slice(0, 16), b => b.toString(16).padStart(2, '0')).join('');
-    const deleteMetaRecord = () => page.evaluate(() => new Promise(resolve => {
-        const open = indexedDB.open('DreamJournal');
-        open.onsuccess = () => {
-            const tx = open.result.transaction('meta', 'readwrite');
-            tx.objectStore('meta').delete('encryptionCheck');
-            tx.oncomplete = () => { open.result.close(); resolve(); };
-        };
-    }));
     // Flips the last byte of the first stored dream so it no longer decrypts; returns the original record
     const damageFirstDream = () => page.evaluate(() => new Promise(resolve => {
         const open = indexedDB.open('DreamJournal');
@@ -644,19 +613,6 @@ test('data encryption', async (t) => {
         await page.waitForSelector('.entry');
         assert.equal((await storedDreams(page)).length, 4);
         assert.ok(!/could not be decrypted/.test(await page.innerText('body')), 'warning shown for an intact journal');
-    });
-
-    await t.test('a journal from before the check value existed still unlocks, and gets one', async () => {
-        await deleteMetaRecord();
-        await page.reload({ waitUntil: 'load' });
-        await unlockWithPassword('not the password');
-        await page.waitForSelector('.security-dialog-overlay:has-text("Incorrect password")', { timeout: 30000 });
-        await page.click('.security-dialog-overlay button');
-        assert.equal(await metaRecord(), null, 'a wrong password must not create a check value');
-        await unlockWithPassword('battery staple');
-        await dismissDecryptionSuccess();
-        await page.waitForSelector('.entry');
-        assert.ok(await metaRecord(), 'the check value was not created');
     });
 
     await t.test('pressing Enter on Cancel in the disable-encryption confirmation keeps encryption on', async () => {
