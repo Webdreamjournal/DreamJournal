@@ -1200,6 +1200,21 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
+     * Aborts an open transaction after a request in it threw. Without this, the transaction commits
+     * whatever was requested before the throw.
+     *
+     * @param {IDBTransaction|undefined} transaction - Transaction to abort, if one was created
+     * @returns {void}
+     */
+    function abortTransaction(transaction) {
+        try {
+            transaction?.abort();
+        } catch (error) {
+            // Already finished or aborted
+        }
+    }
+
+    /**
      * Replaces the contents of an object store with the given items in one transaction.
      *
      * Resolves true only after the transaction has committed (`oncomplete`), not when
@@ -1213,8 +1228,9 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      */
     function replaceStoreContents(storeName, items) {
         return new Promise((resolve) => {
+            let transaction;
             try {
-                const transaction = db.transaction([storeName], 'readwrite');
+                transaction = db.transaction([storeName], 'readwrite');
                 const store = transaction.objectStore(storeName);
                 transaction.oncomplete = () => resolve(true);
                 transaction.onerror = () => {
@@ -1229,6 +1245,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 items.forEach(item => store.add(item));
             } catch (error) {
                 console.error(`Error saving to ${storeName} store:`, error);
+                abortTransaction(transaction);
                 resolve(false);
             }
         });
@@ -1249,9 +1266,10 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      */
     function putItemsInStores(itemsByStore) {
         return new Promise((resolve) => {
+            let transaction;
             try {
                 const storeNames = Object.keys(itemsByStore);
-                const transaction = db.transaction(storeNames, 'readwrite');
+                transaction = db.transaction(storeNames, 'readwrite');
                 transaction.oncomplete = () => resolve(true);
                 transaction.onerror = () => {
                     console.error('Error writing to stores:', transaction.error);
@@ -1267,6 +1285,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 }
             } catch (error) {
                 console.error('Error saving to stores:', error);
+                abortTransaction(transaction);
                 resolve(false);
             }
         });

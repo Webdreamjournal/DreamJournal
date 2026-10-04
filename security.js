@@ -78,6 +78,7 @@ import {
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
+    encryptAllData,
     reEncryptAllData,
     updateDecryptionProgress
 } from './encryption-settings.js';
@@ -199,6 +200,7 @@ export {
     validateEncryptionPassword,
     saveEncryptionCheck,
     removeEncryptionCheck,
+    encryptAllData,
     reEncryptAllData,
 
     // Authentication flow integration

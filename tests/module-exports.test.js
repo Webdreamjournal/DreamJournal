@@ -23,6 +23,7 @@ const SECURITY_EXPORTS = [
     'decryptData',
     'decryptStoredData',
     'deriveKey',
+    'encryptAllData',
     'encryptData',
     'encryptStoredData',
     'executePinRemoval',

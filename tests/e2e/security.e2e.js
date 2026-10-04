@@ -127,6 +127,76 @@ test('PIN protection', async (t) => {
     await context.close();
 });
 
+test('enabling encryption that fails part way changes nothing', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    await importBackup(page, sampleBackup(3));
+    await openTab(page, 'settings');
+    const readStore = (name) => page.evaluate((storeName) => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const all = open.result.transaction(storeName).objectStore(storeName).getAll();
+            all.onsuccess = () => { open.result.close(); resolve(JSON.stringify(all.result)); };
+        };
+    }), name);
+    await page.evaluate(() => new Promise(resolve => {
+        const open = indexedDB.open('DreamJournal');
+        open.onsuccess = () => {
+            const tx = open.result.transaction(['goals', 'autocomplete'], 'readwrite');
+            tx.objectStore('goals').put({
+                id: 'goal_seeded_1', title: 'Seeded goal title', description: 'seeded goal text',
+                type: 'custom', status: 'active', createdAt: new Date().toISOString()
+            });
+            tx.objectStore('autocomplete').put({ id: 'tags', items: ['seededtagalpha', 'seededtagbeta'] });
+            tx.oncomplete = () => { open.result.close(); resolve(); };
+        };
+    }));
+    const snapshot = async () => JSON.stringify([await readStore('dreams'), await readStore('goals'), await readStore('autocomplete'), await readStore('meta')]);
+    const startEncryption = async () => {
+        await page.click('[data-action="toggle-encryption"]');
+        await page.fill('#passwordInput', 'correct horse');
+        await page.fill('#confirmPasswordInput', 'correct horse');
+        await page.click('#confirmPasswordBtn');
+    };
+
+    await t.test('a write that throws after the dreams were queued rolls the whole transaction back', async () => {
+        const before = await snapshot();
+        // Dreams are put first; the first goal put then throws, as a failing request in the same transaction would
+        await page.evaluate(() => {
+            window.__originalPut = IDBObjectStore.prototype.put;
+            IDBObjectStore.prototype.put = function (...args) {
+                if (this.name === 'goals') throw new DOMException('forced failure', 'DataError');
+                return window.__originalPut.apply(this, args);
+            };
+        });
+        await startEncryption();
+        await page.waitForSelector('.security-dialog-overlay:has-text("Failed to enable encryption")', { timeout: 60000 });
+        await page.click('.security-dialog-overlay button');
+
+        assert.equal(await snapshot(), before, 'stored data changed although enabling encryption failed');
+        assert.ok(!(await readStore('dreams')).includes('"encrypted":true'));
+        assert.equal(await readStore('meta'), '[]', 'a check value was stored');
+        assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), null);
+        assert.equal(await page.evaluate(async () => (await import('/state.js')).getEncryptionEnabled()), false);
+        assert.equal(await page.evaluate(async () => (await import('/state.js')).getEncryptionPassword?.() ?? null), null);
+    });
+
+    await t.test('after the failure the same steps succeed and encrypt everything', async () => {
+        await page.evaluate(() => { IDBObjectStore.prototype.put = window.__originalPut; });
+        await startEncryption();
+        await page.waitForSelector('.security-dialog-overlay:has-text("Encryption Successful")', { timeout: 60000 });
+        await page.click('.security-dialog-overlay button');
+        assert.match(await readStore('dreams'), /"encrypted":true/);
+        assert.ok(!(await readStore('goals')).includes('Seeded goal title'));
+        assert.ok(!(await readStore('autocomplete')).includes('seededtagalpha'));
+        assert.notEqual(await readStore('meta'), '[]');
+        assert.equal(await page.evaluate(() => localStorage.getItem('dreamJournalEncryptionEnabled')), 'true');
+    });
+
+    // The forced failure is logged by the code that handles it
+    assert.deepEqual(problems.filter(p => !/Error setting up encryption|Encryption error|Error saving to stores|Error writing to stores|Write to stores was aborted/.test(p)), []);
+    await context.close();
+});
+
 test('data encryption', async (t) => {
     const { page, context, problems } = await openApp(browser, server.url);
     await importBackup(page, sampleBackup(3));

@@ -1,7 +1,7 @@
 /**
  * @fileoverview Encryption settings and dialogs: the password dialog, loading and saving the encryption
- *   flag, password validation and testing, the encrypt and decrypt progress dialogs, and
- *   reEncryptAllData for password changes.
+ *   flag, password validation and testing, the encrypt and decrypt progress dialogs,
+ *   encryptAllData for turning encryption on, and reEncryptAllData for password changes.
  *
  * @module EncryptionSettings
  */
@@ -755,6 +755,68 @@ function updateEncryptionProgress(message) {
 }
 
 /**
+ * Encrypts all stored dreams, goals and autocomplete data under a password, for turning encryption on.
+ *
+ * Every item that is not yet encrypted is encrypted in memory first, and the encryption check value
+ * is built with them. Everything is then written in one IndexedDB transaction, so the stores end up
+ * either entirely plain text or entirely encrypted with the check value present. If an item cannot be
+ * encrypted or the write does not commit, nothing is stored, the password's cached key is dropped and
+ * the error is thrown. This function does not set the encryption flag or the session password; the
+ * caller does that after it resolves.
+ *
+ * @async
+ * @function
+ * @param {string} password - Encryption password
+ * @returns {Promise<{dreams: number, goals: number, autocomplete: number}>} Number of items encrypted per store
+ * @throws {Error} When IndexedDB is not available, an item cannot be encrypted or the write does not commit
+ * @example
+ * const counts = await encryptAllData('new-password');
+ */
+async function encryptAllData(password) {
+    try {
+        if (!isIndexedDBAvailable()) {
+            throw new Error('Encryption needs IndexedDB, which is not available');
+        }
+        const pending = { dreams: [], goals: [], autocomplete: [] };
+
+        const encryptItems = async (items, target) => {
+            for (const item of items) {
+                if (isEncryptedItem(item)) continue;
+                target.push(await encryptItemForStorage(item, password));
+            }
+        };
+
+        updateEncryptionProgress('Processing dreams...');
+        await encryptItems(await loadDreamsRaw(), pending.dreams);
+
+        updateEncryptionProgress('Processing goals...');
+        await encryptItems(await loadGoalsRaw(), pending.goals);
+
+        updateEncryptionProgress('Processing autocomplete data...');
+        for (const type of ['tags', 'dreamSigns', 'emotions']) {
+            const stored = await getAutocompleteSuggestionsRawData(type);
+            if (stored) await encryptItems([stored], pending.autocomplete);
+        }
+
+        updateEncryptionProgress('Saving encrypted data...');
+        // The check value goes in the same transaction as the data it verifies
+        const stores = Object.fromEntries(Object.entries(pending).filter(([, items]) => items.length > 0));
+        stores.meta = [await createEncryptionCheckRecord(password)];
+        if (!(await putItemsInStores(stores))) {
+            throw new Error('The encrypted data could not be saved');
+        }
+
+        clearDecryptedDataCache();
+        return { dreams: pending.dreams.length, goals: pending.goals.length, autocomplete: pending.autocomplete.length };
+    } catch (error) {
+        // Nothing was written, so the stored data is still plain text
+        clearDerivedKeys(password);
+        console.error('Encryption error:', error);
+        throw error;
+    }
+}
+
+/**
  * Re-encrypts all encrypted dreams, goals and autocomplete data under a new password.
  *
  * Every encrypted item is decrypted with the old password and encrypted with the new one
@@ -865,6 +927,7 @@ export {
     showEncryptionProgress,
     showDecryptionProgress,
     updateEncryptionProgress,
+    encryptAllData,
     reEncryptAllData,
     updateDecryptionProgress
 };
