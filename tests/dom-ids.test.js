@@ -21,10 +21,6 @@ const ALLOWED = new Map([
     ['settingsTab', 'tab panel created from a variable id'],
     ['lockTab', 'tab panel created from a variable id'],
     // Lookups of elements that no template contains. Each caller checks for null, so these do nothing today.
-    ['lockBtn', 'pin-controls.js: only #lockBtnSettings exists'],
-    ['encryptionEnabledSettings', 'tab-navigation.js: no such element'],
-    ['storageTypeDisplay', 'tab-navigation.js: no such element'],
-    ['storageStatusDisplay', 'tab-navigation.js: no such element'],
     ['voiceRecordingCompatibility', 'tab-navigation.js: no such element'],
     ['voiceRecordingStatus', 'tab-navigation.js: no such element'],
     ['transcriptionCompatibility', 'tab-navigation.js: no such element'],
