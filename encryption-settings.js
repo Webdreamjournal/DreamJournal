@@ -1,7 +1,8 @@
 /**
  * @fileoverview Encryption settings and dialogs: the password dialog, loading and saving the encryption
  *   flag, password validation and testing, the encrypt and decrypt progress dialogs,
- *   encryptAllData for turning encryption on, and reEncryptAllData for password changes.
+ *   encryptAllData for turning encryption on, decryptAllData for turning it off, and reEncryptAllData
+ *   for password changes.
  *
  * @module EncryptionSettings
  */
@@ -866,6 +867,61 @@ async function encryptAllData(password) {
 }
 
 /**
+ * Decrypts all stored dreams, goals and autocomplete data and removes the encryption check value, for
+ * turning encryption off.
+ *
+ * Every encrypted item is decrypted in memory first, so a wrong password or a damaged item throws before
+ * anything is written. The plain items are then written, and the check record deleted, in one IndexedDB
+ * transaction, so the stores end up either entirely encrypted with the check value present or entirely
+ * plain text without it. If the write does not commit, nothing is stored and the error is thrown. This
+ * function does not clear the encryption flag or the session password; the caller does that after it
+ * resolves.
+ *
+ * @async
+ * @function
+ * @param {string} password - Encryption password
+ * @returns {Promise<{dreams: number, goals: number, autocomplete: number}>} Number of items decrypted per store
+ * @throws {Error} When IndexedDB is not available, an item cannot be decrypted or the write does not commit
+ * @example
+ * const counts = await decryptAllData('current-password');
+ */
+async function decryptAllData(password) {
+    if (!isIndexedDBAvailable()) {
+        throw new Error('Decryption needs IndexedDB, which is not available');
+    }
+    const pending = { dreams: [], goals: [], autocomplete: [] };
+
+    const decryptItems = async (items, target) => {
+        for (const item of items) {
+            if (!isEncryptedItem(item)) continue;
+            target.push(await decryptItemFromStorage(item, password));
+        }
+    };
+
+    updateDecryptionProgress('Processing dreams...');
+    await decryptItems(await loadDreamsRaw(), pending.dreams);
+
+    updateDecryptionProgress('Processing goals...');
+    await decryptItems(await loadGoalsRaw(), pending.goals);
+
+    updateDecryptionProgress('Processing autocomplete data...');
+    for (const type of ['tags', 'dreamSigns', 'emotions']) {
+        const stored = await getAutocompleteSuggestionsRawData(type);
+        if (stored) await decryptItems([stored], pending.autocomplete);
+    }
+
+    updateDecryptionProgress('Saving decrypted data...');
+    const stores = Object.fromEntries(Object.entries(pending).filter(([, items]) => items.length > 0));
+    // The check record is deleted in the same transaction, so it never outlives the encrypted data
+    if (!(await putItemsInStores(stores, { meta: [ENCRYPTION_CHECK_ID] }))) {
+        throw new Error('The decrypted data could not be saved');
+    }
+
+    clearDecryptedDataCache();
+    return { dreams: pending.dreams.length, goals: pending.goals.length, autocomplete: pending.autocomplete.length };
+}
+
+/**
  * Re-encrypts all encrypted dreams, goals and autocomplete data under a new password.
  *
  * Every encrypted item is decrypted with the old password and encrypted with the new one
@@ -978,6 +1034,7 @@ export {
     showDecryptionProgress,
     updateEncryptionProgress,
     encryptAllData,
+    decryptAllData,
     reEncryptAllData,
     updateDecryptionProgress
 };
