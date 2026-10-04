@@ -1252,23 +1252,26 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
     }
 
     /**
-     * Writes items into several object stores in a single transaction.
+     * Writes items into several object stores, and optionally deletes records, in a single transaction.
      *
      * Each item is stored with `put`, so existing items with the same key are replaced and
-     * other items are left alone. The transaction commits as a whole or not at all, and the
-     * promise resolves only after the commit (`oncomplete`). Resolves false if any write
-     * fails or the transaction aborts; nothing is changed in that case.
+     * other items are left alone. Keys in `deleteKeysByStore` are deleted in the same transaction.
+     * The transaction commits as a whole or not at all, and the promise resolves only after the
+     * commit (`oncomplete`). Resolves false if any write fails or the transaction aborts; nothing
+     * is changed in that case.
      *
      * @param {Object<string, Array<Object>>} itemsByStore - Items to write, keyed by store name
-     * @returns {Promise<boolean>} True once all items are committed
+     * @param {Object<string, Array<string>>} [deleteKeysByStore] - Keys to delete, keyed by store name
+     * @returns {Promise<boolean>} True once everything is committed
      * @example
      * await putItemsInStores({ dreams: [dreamA, dreamB], goals: [goalA] });
+     * await putItemsInStores({ dreams: [dreamA] }, { meta: ['encryptionCheck'] });
      */
-    function putItemsInStores(itemsByStore) {
+    function putItemsInStores(itemsByStore, deleteKeysByStore = {}) {
         return new Promise((resolve) => {
             let transaction;
             try {
-                const storeNames = Object.keys(itemsByStore);
+                const storeNames = [...new Set([...Object.keys(itemsByStore), ...Object.keys(deleteKeysByStore)])];
                 transaction = db.transaction(storeNames, 'readwrite');
                 transaction.oncomplete = () => resolve(true);
                 transaction.onerror = () => {
@@ -1281,7 +1284,8 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
                 };
                 for (const storeName of storeNames) {
                     const store = transaction.objectStore(storeName);
-                    itemsByStore[storeName].forEach(item => store.put(item));
+                    (itemsByStore[storeName] || []).forEach(item => store.put(item));
+                    (deleteKeysByStore[storeName] || []).forEach(key => store.delete(key));
                 }
             } catch (error) {
                 console.error('Error saving to stores:', error);

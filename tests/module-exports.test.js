@@ -20,6 +20,7 @@ const SECURITY_EXPORTS = [
     'confirmLockScreenTimer',
     'confirmNewPin',
     'confirmStartTimer',
+    'decryptAllData',
     'decryptData',
     'decryptStoredData',
     'deriveKey',

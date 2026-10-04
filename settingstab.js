@@ -1303,8 +1303,7 @@ async function performEncryptionDisabling(password) {
     try {
         // Import required functions
         const { setEncryptionEnabled, setEncryptionPassword, clearDecryptedDataCache } = await import('./state.js');
-        const { saveEncryptionSettings, removeEncryptionCheck, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
-        const { loadDreamsRaw, loadGoalsRaw, isEncryptedItem, decryptItemFromStorage, saveItemToStore } = await import('./storage.js');
+        const { saveEncryptionSettings, decryptAllData, showDecryptionProgress, updateDecryptionProgress, clearDerivedKeys } = await import('./security.js');
         const { initializeApplicationData } = await import('./main.js');
 
         // Disable encryption controls to prevent user interaction
@@ -1313,63 +1312,18 @@ async function performEncryptionDisabling(password) {
         // Show decryption progress dialog
         showDecryptionProgress('decrypting');
 
-        // Decrypt all encrypted dreams
-        updateDecryptionProgress('Processing dreams...');
-        const dreams = await loadDreamsRaw();
-        let decryptedCount = 0;
-        for (let i = 0; i < dreams.length; i++) {
-            const dream = dreams[i];
-            if (isEncryptedItem(dream)) {
-                if (dreams.length > 5) {
-                    updateDecryptionProgress(`Processing dreams... (${i + 1} of ${dreams.length})`);
-                }
-                const decrypted = await decryptItemFromStorage(dream, password);
-                await saveItemToStore('dreams', decrypted);
-                decryptedCount++;
-            }
-        }
+        // Decrypt everything and delete the check value in one transaction; nothing changes if it fails
+        const counts = await decryptAllData(password);
+        const decryptedCount = counts.dreams;
+        const goalsDecryptedCount = counts.goals;
+        const autocompleteDecryptedCount = counts.autocomplete;
 
-        // Decrypt all encrypted goals
-        updateDecryptionProgress('Processing goals...');
-        const goals = await loadGoalsRaw();
-        let goalsDecryptedCount = 0;
-        for (let i = 0; i < goals.length; i++) {
-            const goal = goals[i];
-            if (isEncryptedItem(goal)) {
-                if (goals.length > 5) {
-                    updateDecryptionProgress(`Processing goals... (${i + 1} of ${goals.length})`);
-                }
-                const decrypted = await decryptItemFromStorage(goal, password);
-                await saveItemToStore('goals', decrypted);
-                goalsDecryptedCount++;
-            }
-        }
-
-        // Decrypt all encrypted autocomplete data (tags and dream signs)
-        updateDecryptionProgress('Processing autocomplete data...');
-        const { getAutocompleteSuggestionsRaw } = await import('./storage.js');
-        const autocompleteTypes = ['tags', 'dreamSigns'];
-        let autocompleteDecryptedCount = 0;
-
-        for (const type of autocompleteTypes) {
-            try {
-                const autocompleteData = await getAutocompleteSuggestionsRaw(type);
-                if (autocompleteData && isEncryptedItem(autocompleteData)) {
-                    const decrypted = await decryptItemFromStorage(autocompleteData, password);
-                    await saveItemToStore('autocomplete', decrypted);
-                    autocompleteDecryptedCount++;
-                }
-            } catch (error) {
-                // Autocomplete may not exist for this type, continue with other types
-                console.warn(`Autocomplete ${type} decryption skipped:`, error.message);
-            }
-        }
-
-        // Disable encryption settings
+        // The flag is cleared only after the commit. If this fails, the data is already plain text and
+        // the next startup clears the flag, because no check value is stored.
         updateDecryptionProgress('Disabling encryption settings...');
-        // The check value goes first: it decides at startup whether the journal is encrypted
-        await removeEncryptionCheck();
-        await saveEncryptionSettings(false);
+        if (!(await saveEncryptionSettings(false))) {
+            throw new Error('The encryption setting could not be saved');
+        }
         setEncryptionEnabled(false);
         setEncryptionPassword(null);
         clearDerivedKeys();
