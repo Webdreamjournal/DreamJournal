@@ -56,6 +56,12 @@ test('testEncryptionPassword accepts the right password and names a wrong one', 
     assert.equal(wrong.reason, 'wrong-password');
 });
 
+test('without a check value no password is valid, because the journal is not encrypted', async () => {
+    const result = await testEncryptionPassword('correct horse');
+    assert.equal(result.valid, false);
+    assert.equal(result.reason, 'no-check-value');
+});
+
 test('removing the check value returns to missing', async () => {
     await saveEncryptionCheck('correct horse');
     await removeEncryptionCheck();

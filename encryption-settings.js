@@ -302,17 +302,15 @@ async function saveEncryptionSettings(enabled) {
 }
 
 /**
- * Corrects the localStorage encryption flag from what IndexedDB holds.
+ * Corrects the localStorage encryption flag from the check record in IndexedDB.
  *
  * The encryption check record in the meta store is written in the same transaction as the encrypted
- * data, so it is the source of truth; the localStorage flag can be lost or left behind separately
- * (cleared site data, an interrupted change). Rules, applied only when IndexedDB is open:
- * - check record present: encryption is on; a missing or false flag is set to true.
- * - no check record and the flag is true: a journal encrypted before the record existed has encrypted
- *   dreams or goals and stays on; with none, the flag is set to false.
- * - no check record and the flag is not true: nothing is read and the flag is left as it is.
- * When IndexedDB is not open (memory storage, blocked or closed), nothing is changed.
- * A correction also updates the encryption state, through saveEncryptionSettings.
+ * data and deleted in the same transaction as the decrypted data, so it is the source of truth; the
+ * localStorage flag can be lost or left behind separately (cleared site data, an interrupted change).
+ * Only when IndexedDB is open: a check record means encryption is on and no check record means it is
+ * off, and a flag that disagrees is corrected. When IndexedDB is not open (memory storage, blocked or
+ * closed), nothing is changed. A correction also updates the encryption state, through
+ * saveEncryptionSettings.
  *
  * @async
  * @function
@@ -326,17 +324,9 @@ async function reconcileEncryptionFlag() {
     if (!isIndexedDBReady()) return flag;
 
     try {
-        let encrypted;
-        if (await loadMetaRecord(ENCRYPTION_CHECK_ID)) {
-            encrypted = true;
-        } else if (flag) {
-            const items = [...await loadDreamsRaw(), ...await loadGoalsRaw()];
-            encrypted = items.some(isEncryptedItem);
-        } else {
-            return flag;
-        }
+        const encrypted = Boolean(await loadMetaRecord(ENCRYPTION_CHECK_ID));
         if (encrypted !== flag) {
-            console.warn(`Encryption flag corrected to ${encrypted} from the stored data`);
+            console.warn(`Encryption flag corrected to ${encrypted} from the check record`);
             if (!(await saveEncryptionSettings(encrypted))) return flag;
         }
         return encrypted;
@@ -451,7 +441,7 @@ async function removeEncryptionCheck() {
  * @async
  * @param {string} password - Password to check
  * @returns {Promise<'valid'|'invalid'|'missing'>} 'valid' if the password decrypts the check value,
- *   'invalid' if it does not, 'missing' if there is no check value (a journal encrypted before it existed)
+ *   'invalid' if it does not, 'missing' if there is no check value
  */
 async function verifyEncryptionCheck(password) {
     const record = await loadMetaRecord(ENCRYPTION_CHECK_ID);
@@ -469,16 +459,15 @@ async function verifyEncryptionCheck(password) {
  *
  * Uses the encryption check value, so the answer does not depend on any single dream: a correct
  * password is accepted even if some stored item is damaged, and a wrong one is rejected as a wrong
- * password, not as damaged data. A journal encrypted before the check value existed has none; the
- * password is then tested against the first encrypted dream, and on success the check value is
- * created for next time.
+ * password, not as damaged data. A journal without a check value is not encrypted, so no password
+ * is valid for it.
  *
  * @async
  * @function
  * @param {string} password - Password to test for validity
  * @returns {Promise<Object>} Test result with validity and error information
  * @returns {boolean} returns.valid - Whether the password is the encryption password
- * @returns {string} [returns.reason] - 'wrong-password' when the check value rejected it
+ * @returns {string} [returns.reason] - 'wrong-password' when the check value rejected it, 'no-check-value' when there is none
  * @returns {string} [returns.error] - Error message if test fails
  * @since 2.03.01
  * @example
@@ -492,23 +481,7 @@ async function testEncryptionPassword(password) {
         const check = await verifyEncryptionCheck(password);
         if (check === 'valid') return { valid: true };
         if (check === 'invalid') return { valid: false, reason: 'wrong-password', error: 'Incorrect password' };
-
-        // No check value: test against the first encrypted dream
-        const { loadFromStore } = await import('./storage.js');
-        const dreams = await loadFromStore('dreams');
-        const encryptedDream = dreams.find(d => isEncryptedItem(d));
-
-        if (encryptedDream) {
-            await decryptItemFromStorage(encryptedDream, password);
-            try {
-                await saveEncryptionCheck(password);
-            } catch (error) {
-                console.warn('Could not store the encryption check value:', error.message);
-            }
-            return { valid: true };
-        }
-        // No encrypted data to test against - assume valid for first-time setup
-        return { valid: true };
+        return { valid: false, reason: 'no-check-value', error: 'This journal has no encryption check value' };
     } catch (error) {
         return { valid: false, error: error.message };
     }
