@@ -52,7 +52,7 @@ It is written in plain JavaScript (ES modules), HTML and CSS, with no framework 
 
 *   **Dream journal.** Record the date and time, a title, the dream itself, emotions, tags and dream signs (recurring oddities that can tip you off that you are dreaming), and mark whether the dream was lucid. Suggestions appear as you type, and you can manage the suggestion lists in Settings. Press Ctrl+Enter in the description box to save.
 *   **Search and filter.** Smart search understands the prefixes `title:`, `content:`, `emotion:`, `tag:` and `sign:`, for example `tag:lucid emotion:happy` or `title:"vacation dream"`. You can also filter to lucid or non-lucid dreams, limit by date range, sort (newest, oldest, lucid first, longest) and choose between pages of 5, 10, 20 or 50, endless scrolling, or everything at once.
-*   **Voice notes.** Record a dream by voice as soon as you wake, play it back and download it. Where the browser supports speech recognition, a live transcript is captured while you record and you can turn it into a dream entry. Up to 5 notes are stored at a time. Note that [speech recognition may send your audio off the device](#what-leaves-your-device).
+*   **Voice notes.** A temporary scratchpad for the moment you wake up. Record a dream by voice, play it back, transcribe it by hand into a dream entry, then delete the recording. You can download a recording first. Up to 5 are stored at a time.
 *   **Goals.** Templates for monthly lucid dream targets, dream recall and journalling streaks, and collecting dream signs, plus custom goals that you adjust by hand. Template goals update themselves from your entries.
 *   **Statistics.** A calendar of your entries (lucid dreams are marked, and clicking a day jumps to that day's entries), Month, Year and Lifetime summaries, and a lucid versus regular chart. The Dream Signs view shows a word cloud and, for each sign, how often the dreams containing it were lucid.
 *   **Advice.** 375 tips in 16 categories (journalling, reality checks, induction techniques such as MILD and WBTB, sleep, recall, dream control, safety and more), a daily tip that you can step through, and short guides to the main techniques.
@@ -61,7 +61,7 @@ It is written in plain JavaScript (ES modules), HTML and CSS, with no framework 
 *   **Dropbox backup (optional).** Upload a backup to your Dropbox and restore it on another device. See [Back up your journal](#back-up-your-journal).
 *   **Light and dark themes.** Dark is the default. The layout adapts to phones and desktops.
 *   **Accessibility.** Works from the keyboard, announces changes to screen readers through ARIA live regions and keeps focus inside dialogs. An automated axe-core scan of every tab in both themes runs as part of the browser tests.
-*   **Installable and offline.** Install it like an app. After your first visit it works without a connection, apart from the features that need one (Dropbox, and speech transcription in some browsers).
+*   **Installable and offline.** Install it like an app. After your first visit it works without a connection, apart from Dropbox.
 
 ## Privacy and security
 
@@ -74,7 +74,7 @@ Dreams, goals, voice notes and suggestion lists are kept in your browser's Index
 | Data | Encrypted when encryption is on? | In a complete JSON backup? |
 | --- | --- | --- |
 | Dreams, goals, and tag, dream sign and emotion suggestions | Yes | Yes |
-| Voice notes (audio and transcripts) | **No** | No (download them one at a time) |
+| Voice notes (audio) | **No** | No (download them one at a time) |
 | Settings (theme, page size, collapsed sections) | No | Theme, page size and the dream form's collapsed state |
 | PIN | Not encrypted, but stored only as a salted hash | No |
 | Dropbox sign-in tokens | Encrypted, with your journal password or a per-device key | No |
@@ -101,7 +101,7 @@ Dreams, goals, voice notes and suggestion lists are kept in your browser's Index
 *   **The app files.** They are served by whichever host you use (GitHub Pages for the link above), which sees ordinary web requests, as any website does. The service worker caches the files for offline use.
 *   **The Dropbox SDK.** A script from cdn.jsdelivr.net loads with the page, pinned by an integrity hash. It is a third-party request, but no journal data is sent. If it cannot load (for example, offline), only Dropbox features are unavailable.
 *   **Dropbox, only after you connect it.** Sign-in uses OAuth 2.0 with PKCE. The page's content security policy allows connections only to its own origin and the Dropbox API hosts.
-*   **Speech transcription.** In browsers that support speech recognition, transcription starts automatically whenever you record a voice note, and there is no setting to turn it off. It uses the browser's built-in recognition. Depending on the browser, that can mean your audio is sent to an online speech service (Chrome does this by default), and the app does not ask for on-device processing. In browsers without speech recognition, recording stays entirely on your device.
+*   **Voice notes.** Recordings are made with the browser's MediaRecorder and stay on your device. The app does no speech recognition and does not send audio anywhere.
 *   **Nothing else.** There are no analytics, adverts or error-reporting services.
 
 Imported files and cloud data are treated as untrusted: IDs are validated and text is escaped before it is displayed. A content security policy forbids inline scripts. Automated tests cover both.
@@ -133,8 +133,7 @@ Connect an account under **Settings → Cloud Sync**.
 
 *   You need a current browser with ES modules, IndexedDB, Web Crypto and service worker support, served over HTTPS (or from `localhost`).
 *   The automated browser tests run in Chromium only. The code handles Firefox and Safari differences in voice recording, but those browsers are not covered by the automated tests.
-*   Voice notes need microphone permission. Only 5 can be stored at a time, they are not encrypted, and they are not included in backups.
-*   Transcription is experimental and English (US) only. Support depends on the browser, and the app warns that it is unreliable on mobile. Settings shows what your browser supports. See [What leaves your device](#what-leaves-your-device) for the privacy side.
+*   Voice notes need microphone permission. Only 5 can be stored at a time, they are not encrypted, and they are not included in backups. They are meant as a short-term scratchpad: write the dream up, then delete the recording. Settings shows whether your browser can record.
 *   A monthly goal counts the month it was created in, so create a new one each month.
 *   Dropbox sync is a manual backup and restore, as described above. There is no automatic or live sync between devices.
 
