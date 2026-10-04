@@ -37,6 +37,9 @@ const BANNERS = {
 /** Shown in place of a save while this tab's database connection is closed. */
 const SAVE_REFUSED_MESSAGE = 'The app was updated in another tab, so this could not be saved. Reload the page first. What you typed is still here until you reload, so copy it if you need it.';
 
+/** Shown with a Download button in place of saving a finished recording while this tab's database connection is closed. */
+const RECORDING_NOT_SAVED_MESSAGE = 'The app was updated in another tab, so this recording could not be saved. Download it now, then reload the page.';
+
 let currentKind = null;
 
 /**
@@ -90,4 +93,4 @@ function hideStorageBanner(kind) {
     currentKind = null;
 }
 
-export { showStorageBanner, hideStorageBanner, SAVE_REFUSED_MESSAGE };
+export { showStorageBanner, hideStorageBanner, SAVE_REFUSED_MESSAGE, RECORDING_NOT_SAVED_MESSAGE };

@@ -63,8 +63,10 @@ import {
     saveVoiceNotes,
     isIndexedDBAvailable,
     deleteVoiceNoteFromIndexedDB,
-    generateUniqueId
+    generateUniqueId,
+    isDatabaseClosedForUpgrade
 } from './storage.js';
+import { RECORDING_NOT_SAVED_MESSAGE } from './storage-banner.js';
 import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
 import { formatDatetimeLocal } from './dream-crud.js';
 
@@ -392,6 +394,44 @@ import { formatDatetimeLocal } from './dream-crud.js';
     }
 
 /**
+ * Shows the "recording could not be saved" message with a button that downloads the audio.
+ *
+ * @param {Object} voiceNote - The unsaved voice note (uses audioBlob and timestamp)
+ * @returns {void}
+ */
+    function showUnsavedRecording(voiceNote) {
+        updateVoiceStatus('Recording not saved: reload the page after downloading it', 'error');
+        const container = document.getElementById('voiceTabRecord');
+        if (!container) return;
+
+        const message = document.createElement('div');
+        message.className = 'message-error mt-md';
+        message.setAttribute('role', 'alert');
+        message.append(RECORDING_NOT_SAVED_MESSAGE, document.createElement('br'));
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-primary btn-small mt-sm';
+        button.textContent = 'Download recording';
+        button.addEventListener('click', () => {
+            const url = URL.createObjectURL(voiceNote.audioBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            const date = new Date(voiceNote.timestamp);
+            const dateStr = date.toISOString().split('T')[0];
+            const timeStr = date.toTimeString().split(' ')[0].replace(/:/g, '-');
+            const extension = voiceNote.audioBlob.type.includes('webm') ? 'webm' : 'mp4';
+            link.download = `dream-voice-note-${dateStr}-${timeStr}.${extension}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+        message.append(button);
+        container.appendChild(message);
+    }
+
+/**
  * Processes and saves completed audio recording with metadata and transcription.
  * 
  * This function handles duration calculation, storage persistence, user feedback,
@@ -440,6 +480,12 @@ import { formatDatetimeLocal } from './dream-crud.js';
                 transcription: (getRecognitionResults() && getRecognitionResults().trim()) || null // Store transcribed text
             };
             
+            // After another tab upgraded the database the note would only reach memory: offer the audio as a file instead
+            if (isDatabaseClosedForUpgrade()) {
+                showUnsavedRecording(voiceNote);
+                return;
+            }
+
             try {
                 await saveVoiceNote(voiceNote);
                 await updateRecordButtonState();

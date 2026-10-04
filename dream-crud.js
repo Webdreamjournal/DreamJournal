@@ -245,7 +245,7 @@ async function shouldEncryptDream() {
             } catch (error) {
                 console.error('Error encrypting and saving dream:', error);
                 createInlineMessage('error', 'Failed to save encrypted dream. Please try again.', {
-                    container: document.querySelector('.entry-form'),
+                    container: document.getElementById('dreamFormFull'),
                     position: 'bottom'
                 });
                 return;
@@ -275,7 +275,7 @@ async function shouldEncryptDream() {
         resetPaginationToFirst();
         
         createInlineMessage('success', 'Dream saved successfully!', {
-            container: document.querySelector('.entry-form'),
+            container: document.getElementById('dreamFormFull'),
             position: 'bottom'
         });
         
