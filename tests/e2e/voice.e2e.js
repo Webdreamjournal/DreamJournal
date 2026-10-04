@@ -61,3 +61,24 @@ test('voice notes (fake microphone)', async (t) => {
     assert.deepEqual(problems, []);
     await context.close();
 });
+
+test('a transcribed recording offers "Create Dream Entry" on the stored notes tab', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url, { permissions: ['microphone'] });
+    if (!(await page.isVisible('[data-action="toggle-recording"]'))) await page.locator('[data-action="switch-voice-tab"]').first().click();
+    await page.click('[data-action="toggle-recording"]', { force: true });
+    await page.waitForTimeout(1500);
+    // Speech recognition is not available with the fake microphone: set the text it would have produced
+    await page.evaluate(async () => (await import('/state.js')).setRecognitionResults('I was flying over a quiet town'));
+    await page.click('[data-action="toggle-recording"]', { force: true });
+
+    const prompt = page.locator('#voiceTabStored [data-action="create-from-transcription"]');
+    await prompt.waitFor();
+    assert.ok(await prompt.isVisible(), 'the prompt is in the visible stored notes panel');
+
+    await prompt.click();
+    // The handler loads the note first, then switches tab and fills the form
+    await page.waitForFunction(() => document.getElementById('dreamContent')?.value === 'I was flying over a quiet town');
+
+    assert.deepEqual(problems, []);
+    await context.close();
+});
