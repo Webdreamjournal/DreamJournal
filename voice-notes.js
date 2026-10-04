@@ -513,8 +513,9 @@ import { formatDatetimeLocal } from './dream-crud.js';
             if (getRecognitionResults() && getRecognitionResults().trim()) {
                 updateVoiceStatus(`Recording saved with transcription! Duration: ${formatDuration(duration)}`, 'info');
                 
-                // Show option to create dream entry
-                const container = document.querySelector('.voice-recording-section');
+                // Show option to create dream entry. The app has already switched to the stored notes
+                // tab, so the prompt goes above the notes list there (the record panel is hidden).
+                const container = document.getElementById('voiceTabStored');
                 if (container) {
                     const successMsg = document.createElement('div');
                     successMsg.className = 'message-success mt-md';
@@ -524,7 +525,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                             📝 Create Dream Entry
                         </button>
                     `;
-                    container.appendChild(successMsg);
+                    container.prepend(successMsg);
                     
                     setTimeout(() => {
                         if (successMsg.parentNode) {
