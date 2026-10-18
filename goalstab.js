@@ -275,13 +275,8 @@ function validateGoalForm() {
         errors.push('Goal title is required');
     }
 
-    if (!target || isNaN(target) || target < 1) {
-        errors.push('Target must be a positive number');
-    }
-
-    // Data type validation
-    if (target && target > 1000) {
-        errors.push('Target should be reasonable (maximum 1000)');
+    if (!target || isNaN(target) || target < 1 || target > CONSTANTS.GOAL_TARGET_MAX) {
+        errors.push(`Target must be a number from 1 to ${CONSTANTS.GOAL_TARGET_MAX}`);
     }
 
     if (icon && icon.length > 2) {
@@ -1224,6 +1219,7 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
                 <input type="number" id="goalTarget" class="form-control"
                        value="${templateData?.target || 1}"
                        min="1"
+                       max="${CONSTANTS.GOAL_TARGET_MAX}"
                        required
                        aria-describedby="goalTargetHelp">
             </div>
@@ -1422,7 +1418,7 @@ async function saveGoal() {
         // Validate form data
         const validation = validateGoalForm();
         if (!validation.isValid) {
-            console.error('Goal form validation failed:', validation.errors);
+            debugLog('Goal form validation failed:', validation.errors);
             showGoalMessage('form-error', validation.errors[0]);
             return;
         }

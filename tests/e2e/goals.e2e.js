@@ -11,6 +11,18 @@ test('goal lifecycle', async (t) => {
     await openTab(page, 'goals');
     const goal = () => page.locator('[id^="goal-"]', { hasText: 'Meditate nightly' }).first();
 
+    await t.test('a target above the maximum is rejected with the limit in the message', async () => {
+        await page.click('[data-action="create-goal"]');
+        await page.fill('#goalTitle', 'Too ambitious');
+        assert.equal(await page.getAttribute('#goalTarget', 'max'), '1000');
+        await page.fill('#goalTarget', '1001');
+        await page.click('[data-action="save-goal"]');
+        await page.waitForTimeout(400);
+        assert.match(await page.innerText('body'), /Target must be a number from 1 to 1000/);
+        await page.click('[data-action="cancel-goal-dialog"]');
+        assert.equal(await page.locator('[id^="goal-"]', { hasText: 'Too ambitious' }).count(), 0);
+    });
+
     await t.test('a custom goal can be created and appears under Active Goals', async () => {
         await page.click('[data-action="create-goal"]');
         await page.fill('#goalTitle', 'Meditate nightly');
