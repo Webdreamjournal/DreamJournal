@@ -52,6 +52,7 @@ import {
     showLockScreenMessage
 } from './security.js';
 import { ACTION_MAP } from './action-router.js';
+import { validateEncryptionPassword } from './encryption-settings.js';
 import { 
     displayDreams, 
     filterDreams,
@@ -1693,14 +1694,14 @@ function showPasswordDialog(config) {
         overlay.style.display = 'flex';
 
         const confirmInputHTML = config.requireConfirm ? `
-            <input type="password" id="${config.type}PasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="50" style="margin-top: 10px;">
+            <input type="password" id="${config.type}PasswordConfirm" class="pin-input" placeholder="Confirm password" maxlength="128" style="margin-top: 10px;">
         ` : '';
 
         overlay.innerHTML = `
             <div class="pin-container">
                 <h2>${config.icon || '🔐'} ${escapeHtml(config.title)}</h2>
                 <p>${escapeHtml(config.description)}</p>
-                <input type="password" id="${config.type}Password" class="pin-input" placeholder="Enter password" maxlength="50">
+                <input type="password" id="${config.type}Password" class="pin-input" placeholder="Enter password" maxlength="128">
                 ${confirmInputHTML}
                 <div class="pin-buttons">
                     <button data-action="confirm-${config.type}-password" class="btn btn-primary">${escapeHtml(config.primaryButtonText)}</button>
@@ -1729,35 +1730,10 @@ function showPasswordDialog(config) {
 }
 
 /**
- * Shows password input dialog for export operations.
- * 
- * Pre-configured wrapper for showPasswordDialog() with export-specific
- * settings including password confirmation requirement and appropriate
- * messaging for encryption operations.
- * 
- * @returns {Promise<string|null>} Export password or null if cancelled
- * @since 2.0.0
- * @deprecated Use showPasswordDialog() directly with export config
- * @example
- * const password = await showExportPasswordDialog();
- * if (password) {
- *   // Proceed with encrypted export
- * }
- */
-function showExportPasswordDialog() {
-    return showPasswordDialog({
-        type: 'export',
-        title: 'Set Export Password',
-        description: 'Choose a password to encrypt your dream export. This password is not stored - remember it for importing!',
-        requireConfirm: true,
-        primaryButtonText: 'Encrypt & Export'
-    });
-}
-
-/**
  * Confirms export password with validation and confirmation matching.
  * 
- * Validates password meets minimum length requirements and confirms
+ * Validates the password with validateEncryptionPassword (8 to 128 characters,
+ * common passwords rejected) and confirms
  * that password and confirmation fields match before resolving the
  * password dialog promise. Displays inline errors for validation failures.
  * 
@@ -1773,8 +1749,9 @@ function confirmExportPassword() {
     const confirm = document.getElementById('exportPasswordConfirm').value;
     const errorDiv = document.getElementById('exportPasswordError');
     
-    if (!password || password.length < 4) {
-        errorDiv.textContent = 'Password must be at least 4 characters long';
+    const validation = validateEncryptionPassword(password);
+    if (!validation.valid) {
+        errorDiv.textContent = validation.error;
         errorDiv.style.display = 'block';
         return;
     }
@@ -1919,7 +1896,6 @@ export {
     
     // Password dialog functions
     showPasswordDialog,
-    showExportPasswordDialog,
     confirmExportPassword,
     cancelExportPassword,
     showImportPasswordDialog,

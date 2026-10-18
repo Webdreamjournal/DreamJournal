@@ -343,7 +343,6 @@ const DEFAULT_PAGINATION_LIMIT = 'endless';
  * @property {number} PIN_RESET_HOURS - Hours before PIN reset timer expires
  * @property {number} PIN_MIN_LENGTH - Minimum PIN length requirement
  * @property {number} PIN_MAX_LENGTH - Maximum PIN length allowed
- * @property {number} PASSWORD_MIN_LENGTH - Minimum password length for encryption
  * @property {number} FAILED_PIN_ATTEMPT_LIMIT - Max failed PIN attempts before lockout
  * @property {number} CRYPTO_SALT_SIZE - Salt size in bytes for PBKDF2 key derivation
  * @property {number} CRYPTO_IV_SIZE - Initialization vector size for AES-GCM encryption
@@ -404,7 +403,6 @@ const CONSTANTS = {
         PIN_RESET_HOURS: 72, // Hours before PIN reset timer expires
         PIN_MIN_LENGTH: 4, // Minimum PIN length
         PIN_MAX_LENGTH: 6, // Maximum PIN length
-        PASSWORD_MIN_LENGTH: 4, // Minimum password length for encryption
         FAILED_PIN_ATTEMPT_LIMIT: 3, // Failed attempts allowed before throttling starts
         PIN_LOCKOUT_BASE_MS: 30000, // First lockout duration (doubles with each further failure)
         PIN_LOCKOUT_MAX_MS: 900000, // Lockout duration cap (15 minutes)

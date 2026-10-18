@@ -8,17 +8,17 @@
  * 
  * The service worker manages:
  * - Installation and activation lifecycle with automatic cache updates
- * - Cache-first network request interception with intelligent fallbacks
+ * - Network-first request interception with a cache fallback
  * - Automatic cleanup of outdated caches during updates
  * - Background synchronization for connectivity restoration
  * - Push notification handling and app focusing
  * - Cross-client messaging for status updates
  * 
  * **Caching Strategy:**
- * 1. **Cache First**: Always check cache before network for faster loading
- * 2. **Network Fallback**: Fetch from network if not cached, then cache the result
- * 3. **Offline Fallback**: Serve main app from cache if network fails completely
- * 4. **Selective Caching**: Only cache same-origin GET requests for security
+ * 1. **Network First**: Try the network, giving up after 4 seconds
+ * 2. **Cache Update**: Store successful same-origin responses in the cache
+ * 3. **Cache Fallback**: Serve the cached copy if the network fails or times out
+ * 4. **Offline Fallback**: Return a 503 response if the request is not cached
  * 
  * **Update Strategy:**
  * - Version-based cache names enable automatic updates
