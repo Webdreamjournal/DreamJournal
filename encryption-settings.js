@@ -105,7 +105,7 @@ function showPasswordDialog(config) {
                        id="confirmPasswordInput"
                        class="pin-input"
                        placeholder="Confirm password"
-                       maxlength="50"
+                       maxlength="128"
                        style="margin-top: 10px;">
             ` : '';
 
@@ -117,7 +117,7 @@ function showPasswordDialog(config) {
                            id="passwordInput"
                            class="pin-input"
                            placeholder="Enter password"
-                           maxlength="50">
+                           maxlength="128">
                     ${confirmInputHTML}
                     <div class="pin-buttons">
                         <button class="btn btn-primary" id="confirmPasswordBtn">${config.primaryButtonText}</button>
