@@ -2454,6 +2454,10 @@
             align-items: center;
             justify-content: center;
         }
+        /* --primary-color on --bg-selected is 2.8:1 in the dark theme */
+        [data-theme='dark'] .calendar-day.today .day-number {
+            color: var(--text-primary);
+        }
         .dream-indicator {
             margin-top: 8px;
             background-color: var(--primary-color);
