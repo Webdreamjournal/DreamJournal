@@ -229,7 +229,7 @@ function renderSettingsTab(tabPanel) {
                         <div class="settings-description">Choose your preferred color theme</div>
                     </div>
                     <div class="settings-controls">
-                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-label="Theme" aria-keyshortcuts="Control+T">
+                        <select id="themeSelect" class="filter-select" style="min-width: 120px;" aria-label="Theme">
                             <option value="light" ${lightSelected}>🌞 Light</option>
                             <option value="dark" ${darkSelected}>🌙 Dark</option>
                         </select>
@@ -254,7 +254,7 @@ function renderSettingsTab(tabPanel) {
                     </div>
                     <div class="settings-controls">
                         <button data-action="setup-pin" id="setupPinBtnSettings" class="btn btn-secondary">⚙️ Setup PIN</button>
-                        <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" aria-keyshortcuts="Control+L" style="display: none;">🔒 Lock Journal</button>
+                        <button data-action="toggle-lock" id="lockBtnSettings" class="btn btn-lock" title="Lock your journal with your PIN to keep dreams private" style="display: none;">🔒 Lock Journal</button>
                     </div>
                 </div>
 
@@ -324,8 +324,8 @@ function renderSettingsTab(tabPanel) {
                         <div class="settings-description">Export or import your dreams as text files</div>
                     </div>
                     <div class="settings-controls export-import-controls">
-                        <button data-action="export-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+E">Export Dreams</button>
-                        <button data-action="import-dreams" class="btn btn-secondary" aria-keyshortcuts="Control+I">Import Dreams</button>
+                        <button data-action="export-dreams" class="btn btn-secondary">Export Dreams</button>
+                        <button data-action="import-dreams" class="btn btn-secondary">Import Dreams</button>
                         <div class="encryption-option flex-center gap-sm">
                             <input type="checkbox" id="encryptionEnabled" class="form-checkbox">
                             <label for="encryptionEnabled" class="form-label-inline text-primary">🔐 Password Protected</label>
@@ -425,7 +425,7 @@ function renderSettingsTab(tabPanel) {
                 </button>
             </h3>
             <div class="settings-section-content">
-                <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to automatically backup and sync your dreams across devices. Your data remains encrypted and private.</p>
+                <p class="settings-description" style="margin-bottom: 20px;">Connect your Dropbox account to back up your dreams and goals to a single file in Dropbox, or restore them from it. Syncing is manual: use Upload to Cloud and Download from Cloud. Download from Cloud replaces the dreams and goals on this device.</p>
 
                 <!-- Advanced Configuration -->
                 <div class="settings-row">
@@ -542,7 +542,7 @@ function renderSettingsTab(tabPanel) {
                     <div>
                         <div class="settings-label">Cloud Encryption</div>
                         <div class="settings-description">
-                            Encrypt your cloud backups using your encryption password for maximum security.
+                            Encrypt your cloud backups using your encryption password. Without this, backups are stored as readable JSON.
                         </div>
                     </div>
                     <div class="settings-controls">
@@ -564,8 +564,8 @@ function renderSettingsTab(tabPanel) {
                         <strong>🔒 Privacy:</strong> ${getEncryptionEnabled()
                             ? (getCloudEncryptionEnabled()
                                 ? 'Your cloud backups are encrypted using your encryption password. Only you can decrypt them.'
-                                : 'Your cloud backups are stored as readable JSON. Enable "Encrypt cloud backups" above for maximum security.')
-                            : 'Your cloud backups contain readable JSON data. Enable encryption in settings above for secure cloud storage.'}
+                                : 'Your cloud backups are stored as readable JSON. Tick "Encrypt cloud backups" above to encrypt them.')
+                            : 'Your cloud backups contain readable JSON data. Turn on journal encryption in settings above, then tick "Encrypt cloud backups", to encrypt them.'}
                     </div>
                 </div>
             </div>
