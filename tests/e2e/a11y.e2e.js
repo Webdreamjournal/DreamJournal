@@ -260,6 +260,34 @@ test('warning text on page and card backgrounds reaches 4.5:1 in both themes', a
     await context.close();
 });
 
+// axe skips single-character text, so the axe scans above only check this marker from the 10th of a month:
+// measure it directly, on any date
+test("the stats calendar's today marker reaches 4.5:1 in both themes", async () => {
+    const { page, context } = await openApp(browser, server.url);
+    const ratios = await page.evaluate(() => {
+        const luminance = (css) => {
+            const [r, g, b] = css.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const out = {};
+        for (const theme of ['light', 'dark']) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const day = document.createElement('div');
+            day.className = 'calendar-day today';
+            day.innerHTML = '<div class="day-number">18</div>';
+            document.body.append(day);
+            const style = getComputedStyle(day.querySelector('.day-number'));
+            const [a, b] = [luminance(style.color), luminance(style.backgroundColor)];
+            day.remove();
+            out[`${theme} .today > .day-number`] = Number(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toFixed(2));
+        }
+        return out;
+    });
+    const low = Object.entries(ratios).filter(([, ratio]) => ratio < 4.5);
+    assert.deepEqual(low, [], `ratios: ${JSON.stringify(ratios)}`);
+    await context.close();
+});
+
 test('prefers-reduced-motion turns the colour transitions off', async () => {
     const { page, context } = await openApp(browser, server.url);
     const durations = () => page.evaluate(() => ({
