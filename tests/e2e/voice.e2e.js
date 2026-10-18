@@ -62,49 +62,24 @@ test('voice notes (fake microphone)', async (t) => {
     await context.close();
 });
 
-test('a transcribed recording offers "Create Dream Entry" on the stored notes tab', async (t) => {
-    const { page, context, problems } = await openApp(browser, server.url, { permissions: ['microphone'] });
-    if (!(await page.isVisible('[data-action="toggle-recording"]'))) await page.locator('[data-action="switch-voice-tab"]').first().click();
-    await page.click('[data-action="toggle-recording"]', { force: true });
-    await page.waitForTimeout(1500);
-    // Speech recognition is not available with the fake microphone: set the text it would have produced
-    await page.evaluate(async () => (await import('/state.js')).setRecognitionResults('I was flying over a quiet town'));
-    await page.click('[data-action="toggle-recording"]', { force: true });
-
-    const prompt = page.locator('#voiceTabStored [data-action="create-from-transcription"]');
-    await prompt.waitFor();
-    assert.ok(await prompt.isVisible(), 'the prompt is in the visible stored notes panel');
-
-    await prompt.click();
-    // The handler loads the note first, then switches tab and fills the form
-    await page.waitForFunction(() => document.getElementById('dreamContent')?.value === 'I was flying over a quiet town');
-
-    assert.deepEqual(problems, []);
-    await context.close();
-});
-
-test('the Settings tab reports voice recording and transcription support', async (t) => {
+test('the Settings tab reports voice recording support', async (t) => {
     const { page, context, problems } = await openApp(browser, server.url);
     const rows = () => page.evaluate(() => Object.fromEntries(
-        ['voiceRecordingCompatibility', 'voiceRecordingStatus', 'transcriptionCompatibility', 'transcriptionStatus']
+        ['voiceRecordingCompatibility', 'voiceRecordingStatus']
             .map(id => [id, document.getElementById(id)?.textContent.trim()])));
 
-    await t.test('a browser with both APIs shows "Supported"', async () => {
-        await page.evaluate(() => { window.SpeechRecognition ||= window.webkitSpeechRecognition || function () {}; });
+    await t.test('a browser with MediaRecorder shows "Supported"', async () => {
         await openTab(page, 'settings');
         await page.locator('#voiceRecordingStatus').filter({ hasText: 'Supported' }).waitFor();
         const shown = await rows();
         assert.equal(shown.voiceRecordingStatus, '\u2705 Supported');
         assert.equal(shown.voiceRecordingCompatibility, 'Your browser supports voice recording');
-        assert.equal(shown.transcriptionStatus, '\u2705 Supported');
-        assert.equal(shown.transcriptionCompatibility, 'Your browser supports speech transcription');
+        assert.equal(await page.$('#transcriptionStatus'), null, 'there is no speech transcription row');
     });
 
-    await t.test('a browser without them shows "Not Supported"', async () => {
+    await t.test('a browser without it shows "Not Supported"', async () => {
         await page.addInitScript(() => {
             delete window.MediaRecorder;
-            delete window.SpeechRecognition;
-            delete window.webkitSpeechRecognition;
         });
         await page.reload();
         await openTab(page, 'settings');
@@ -112,8 +87,6 @@ test('the Settings tab reports voice recording and transcription support', async
         const shown = await rows();
         assert.equal(shown.voiceRecordingStatus, '\u274c Not Supported');
         assert.equal(shown.voiceRecordingCompatibility, 'Voice recording not supported in this browser');
-        assert.equal(shown.transcriptionStatus, '\u274c Not Supported');
-        assert.match(shown.transcriptionCompatibility, /Speech Recognition API/);
     });
 
     assert.deepEqual(problems, []);

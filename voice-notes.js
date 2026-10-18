@@ -1,13 +1,11 @@
 /**
- * @fileoverview Complete voice recording system with audio capture, playback, transcription,
- * storage management, and dream entry integration for the Dream Journal application.
+ * @fileoverview Voice recording system with audio capture, playback and storage
+ * management for the Dream Journal application.
  * 
- * This module provides comprehensive voice recording capabilities including:
+ * This module provides voice recording capabilities including:
  * - Audio recording with MediaRecorder API
- * - Real-time speech transcription using Web Speech API
  * - Audio playback with seeking and progress tracking
  * - Voice note storage and management
- * - Integration with dream entry creation
  * - Cross-browser compatibility handling
  * 
  * @module VoiceNotes
@@ -18,7 +16,6 @@
  * @requires state
  * @requires storage
  * @requires dom-helpers
- * @requires dream-crud
  * @example
  * // Initialize voice recording
  * await startRecording();
@@ -41,14 +38,8 @@ import {
     setMediaRecorder,
     getAudioChunks,
     setAudioChunks,
-    getSpeechRecognition,
-    setSpeechRecognition,
-    getRecognitionResults,
-    setRecognitionResults,
     getRecordingStartTime,
     setRecordingStartTime,
-    getIsTranscribing,
-    setIsTranscribing,
     getRecordingTimer,
     setRecordingTimer,
     voiceDeleteTimeouts,
@@ -67,8 +58,7 @@ import {
     isDatabaseClosedForUpgrade
 } from './storage.js';
 import { RECORDING_NOT_SAVED_MESSAGE } from './storage-banner.js';
-import { createInlineMessage, escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, toggleDreamForm, switchAppTab, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
-import { formatDatetimeLocal } from './dream-crud.js';
+import { escapeHtml, escapeAttr, switchVoiceTab, createMetaDisplay, formatDateTimeDisplay, formatDisplayDate } from './dom-helpers.js';
 
 /**
  * Represents a complete voice note with metadata and audio data.
@@ -81,7 +71,6 @@ import { formatDatetimeLocal } from './dream-crud.js';
  * @property {string} title - Human-readable title with date and time
  * @property {string} dateString - Formatted date string for display
  * @property {number} size - Audio file size in bytes
- * @property {string|null} transcription - Transcribed text or null if unavailable
  * @since 1.0.0
  */
 
@@ -90,13 +79,9 @@ import { formatDatetimeLocal } from './dream-crud.js';
  * 
  * @typedef {Object} VoiceCapabilities
  * @property {boolean} canRecord - Whether audio recording is supported
- * @property {boolean} canTranscribe - Whether speech recognition is supported
- * @property {boolean} canTranscribeMobile - Whether this is mobile transcription (unreliable)
  * @property {boolean} hasGetUserMedia - Whether getUserMedia API is available
  * @property {boolean} hasMediaRecorder - Whether MediaRecorder API is available
- * @property {boolean} hasSpeechRecognition - Whether Speech Recognition API is available
  * @property {BrowserInfo} browser - Browser-specific information
- * @property {Function} getStatusMessage - Function returning capability status message
  * @since 1.0.0
  */
 
@@ -110,16 +95,6 @@ import { formatDatetimeLocal } from './dream-crud.js';
  * @property {boolean} isSafariMobile - Whether browser is Safari on mobile
  * @property {boolean} isChrome - Whether browser is Chrome
  * @property {boolean} isEdge - Whether browser is Edge
- * @property {boolean} isMobile - Whether browser is on a mobile device (transcription unreliable)
- * @since 1.0.0
- */
-
-/**
- * Status message with type for user feedback.
- * 
- * @typedef {Object} StatusMessage
- * @property {'success'|'info'|'warning'|'error'} type - Message type for styling
- * @property {string} message - Human-readable status message
  * @since 1.0.0
  */
 
@@ -135,19 +110,17 @@ import { formatDatetimeLocal } from './dream-crud.js';
 // ================================
 // VOICE NOTES MODULE
 // ================================
-// Complete voice recording system with audio capture, playback, transcription,
-// storage management, and dream entry integration
+// Voice recording system with audio capture, playback and storage management
 
 // ================================
 // 1. VOICE RECORDING OPERATIONS
 // ================================
     
 /**
- * Initializes and starts audio recording with transcription support.
+ * Initializes and starts audio recording.
  * 
- * This function handles microphone permissions, storage limits, and speech recognition setup.
- * It determines the best audio format, sets up MediaRecorder, and optionally enables
- * real-time speech transcription if supported by the browser.
+ * This function handles microphone permissions and storage limits.
+ * It determines the best audio format and sets up MediaRecorder.
  * 
  * @async
  * @function startRecording
@@ -190,30 +163,6 @@ import { formatDatetimeLocal } from './dream-crud.js';
             
             setAudioChunks([]);
             setRecordingStartTime(Date.now());
-            setRecognitionResults('');
-            
-            // Setup speech recognition if supported
-            if (isSpeechRecognitionSupported()) {
-                setSpeechRecognition(await setupSpeechRecognition());
-                if (getSpeechRecognition()) {
-                    try {
-                        setIsTranscribing(true);
-                        getSpeechRecognition().start();
-                        debugLog('Speech recognition started successfully');
-                    } catch (speechError) {
-                        console.error('Failed to start speech recognition:', speechError);
-                        setIsTranscribing(false);
-                        const capabilities = getVoiceCapabilities();
-                        if (capabilities.canTranscribeMobile) {
-                            updateVoiceStatus('Recording... (mobile transcription failed as expected - this is normal)', 'warning');
-                        } else {
-                            updateVoiceStatus('Recording... (transcription start failed)', 'warning');
-                        }
-                    }
-                } else {
-                    updateVoiceStatus('Recording... (transcription not available)', 'info');
-                }
-            }
             
             getMediaRecorder().ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
@@ -269,16 +218,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
             if (recordText) recordText.textContent = 'Stop Recording';
             if (timerElement) timerElement.style.display = 'block';
             
-            if (isSpeechRecognitionSupported()) {
-                const capabilities = getVoiceCapabilities();
-                if (capabilities.canTranscribeMobile) {
-                    updateVoiceStatus('Recording with experimental transcription... Results may be unreliable on mobile', 'warning');
-                } else {
-                    updateVoiceStatus('Recording with transcription... Speak clearly for best results', 'info');
-                }
-            } else {
-                updateVoiceStatus('Recording... (transcription not available in this browser)', 'info');
-            }
+            updateVoiceStatus('Recording...', 'info');
             
             // Start timer
             setRecordingTimer(setInterval(updateRecordingTimer, 100));
@@ -305,7 +245,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
 /**
  * Stops active audio recording and cleanup resources.
  * 
- * This function handles speech recognition cleanup, UI state reset, and proper
+ * This function handles UI state reset and proper
  * release of microphone resources. It ensures all timers are cleared and the
  * interface is returned to the ready state.
  * 
@@ -319,25 +259,6 @@ import { formatDatetimeLocal } from './dream-crud.js';
     function stopRecording() {
         if (getMediaRecorder() && getMediaRecorder().state === 'recording') {
             getMediaRecorder().stop();
-        }
-        
-        // Stop speech recognition with proper state validation
-        if (getSpeechRecognition() && getIsTranscribing()) {
-            try {
-                // Call cleanup function if available
-                if (typeof getSpeechRecognition().cleanup === 'function') {
-                    getSpeechRecognition().cleanup();
-                }
-                
-                // Only stop if recognition is in an active state
-                if (getSpeechRecognition().state !== 'inactive') {
-                    getSpeechRecognition().abort(); // Use abort for immediate stop
-                }
-            } catch (error) {
-                console.error('Error stopping speech recognition:', error);
-            } finally {
-                setIsTranscribing(false);
-            }
         }
         
         // Clear timer
@@ -432,7 +353,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
     }
 
 /**
- * Processes and saves completed audio recording with metadata and transcription.
+ * Processes and saves completed audio recording with metadata.
  * 
  * This function handles duration calculation, storage persistence, user feedback,
  * and automatic duration detection. It creates a complete voice note object with
@@ -476,8 +397,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                 dateString: formatDateTimeDisplay(now, {
                     month: 'short'
                 }),
-                size: audioBlob.size,
-                transcription: (getRecognitionResults() && getRecognitionResults().trim()) || null // Store transcribed text
+                size: audioBlob.size
             };
             
             // After another tab upgraded the database the note would only reach memory: offer the audio as a file instead
@@ -509,33 +429,7 @@ import { formatDatetimeLocal } from './dream-crud.js';
                 return;
             }
             
-            // Show different success messages based on transcription
-            if (getRecognitionResults() && getRecognitionResults().trim()) {
-                updateVoiceStatus(`Recording saved with transcription! Duration: ${formatDuration(duration)}`, 'info');
-                
-                // Show option to create dream entry. The app has already switched to the stored notes
-                // tab, so the prompt goes above the notes list there (the record panel is hidden).
-                const container = document.getElementById('voiceTabStored');
-                if (container) {
-                    const successMsg = document.createElement('div');
-                    successMsg.className = 'message-success mt-md';
-                    successMsg.innerHTML = `
-                        Voice note saved with transcription! (${formatDuration(duration)})<br>
-                        <button data-action="create-from-transcription" data-voice-note-id="${escapeAttr(voiceNote.id)}" class="btn btn-primary btn-small mt-sm">
-                            📝 Create Dream Entry
-                        </button>
-                    `;
-                    container.prepend(successMsg);
-                    
-                    setTimeout(() => {
-                        if (successMsg.parentNode) {
-                            successMsg.remove();
-                        }
-                    }, CONSTANTS.MESSAGE_DURATION_EXTENDED);
-                }
-            } else {
-                updateVoiceStatus(`Recording saved! Duration: ${formatDuration(duration)}`, 'success');
-            }
+            updateVoiceStatus(`Recording saved! Duration: ${formatDuration(duration)}`, 'success');
             
         } catch (error) {
             console.error('Error saving recording:', error);
@@ -824,23 +718,19 @@ import { formatDatetimeLocal } from './dream-crud.js';
 // ================================
         
 /**
- * Comprehensive browser capability detection for voice recording and transcription.
+ * Browser capability detection for voice recording.
  * 
- * Returns detailed compatibility information for different browsers and platforms,
- * including support for MediaRecorder API, Speech Recognition API, and browser-specific
+ * Returns compatibility information for different browsers and platforms,
+ * including support for the MediaRecorder API and browser-specific
  * features and limitations.
- * 
- * **Important**: Mobile browsers are allowed to attempt transcription but with clear warnings
- * about reliability issues, as extensive testing shows transcription often fails on mobile
- * platforms despite browsers reporting API support. This future-proofs for potential improvements.
  * 
  * @function getVoiceCapabilities
  * @returns {VoiceCapabilities} Object containing capability information and browser detection
  * @since 1.0.0
  * @example
  * const capabilities = getVoiceCapabilities();
- * if (capabilities.canRecord && capabilities.canTranscribe) {
- *   console.log('Full voice support available');
+ * if (capabilities.canRecord) {
+ *   console.log('Voice recording available');
  * }
  * 
  * @example
@@ -853,7 +743,6 @@ import { formatDatetimeLocal } from './dream-crud.js';
 function getVoiceCapabilities() {
             const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
             const hasMediaRecorder = !!(window.MediaRecorder);
-            const hasSpeechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
             
             // Detect browser type and mobile platforms
             const userAgent = navigator.userAgent.toLowerCase();
@@ -864,50 +753,17 @@ function getVoiceCapabilities() {
             const isChrome = userAgent.includes('chrome') && !userAgent.includes('edg');
             const isEdge = userAgent.includes('edg');
             
-            // Comprehensive mobile detection - mobile browsers claim transcription support but fail in practice
-            const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet|touch/i.test(userAgent) ||
-                           /android|iphone|ipad/i.test(userAgent) ||
-                           isFirefoxMobile || isSafariMobile ||
-                           userAgent.includes('mobile') || userAgent.includes('tablet') ||
-                           (typeof window.orientation !== 'undefined') ||
-                           (window.screen && window.screen.width <= 768);
-            
             return {
                 canRecord: hasGetUserMedia && hasMediaRecorder,
-                canTranscribe: hasSpeechRecognition, // Allow transcription attempts on all browsers
-                canTranscribeMobile: hasSpeechRecognition && isMobile, // Mobile transcription flag for warnings
                 hasGetUserMedia,
                 hasMediaRecorder,
-                hasSpeechRecognition,
                 browser: {
                     isFirefox,
                     isFirefoxMobile,
                     isSafari,
                     isSafariMobile,
                     isChrome,
-                    isEdge,
-                    isMobile
-                },
-                getStatusMessage() {
-                    if (this.canRecord && this.canTranscribe && !this.canTranscribeMobile) {
-                        return { type: 'success', message: 'Full voice recording and transcription support' };
-                    } else if (this.canRecord && this.canTranscribeMobile) {
-                        return { type: 'warning', message: 'Voice recording with experimental transcription - mobile speech recognition is unreliable' };
-                    } else if (this.canRecord && !this.canTranscribe) {
-                        if (isFirefox) {
-                            return { type: 'warning', message: 'Voice recording supported, Firefox does not support transcription' };
-                        } else if (isSafari) {
-                            return { type: 'warning', message: 'Voice recording supported, Safari does not support transcription' };
-                        } else {
-                            return { type: 'warning', message: 'Voice recording supported, transcription not available' };
-                        }
-                    } else if (!this.canRecord) {
-                        if (isSafariMobile) {
-                            return { type: 'error', message: 'Safari iOS has limited voice recording support. Try Chrome or Edge mobile.' };
-                        } else {
-                            return { type: 'error', message: 'Voice recording not supported in this browser. Try Chrome, Edge, or Firefox.' };
-                        }
-                    }
+                    isEdge
                 }
             };
         }
@@ -927,255 +783,6 @@ function getVoiceCapabilities() {
  */
 function isVoiceRecordingSupported() {
             return getVoiceCapabilities().canRecord;
-        }
-        
-/**
- * Checks if current browser supports Speech Recognition API for transcription.
- * 
- * @function isSpeechRecognitionSupported
- * @returns {boolean} True if speech recognition is supported
- * @since 1.0.0
- * @example
- * if (isSpeechRecognitionSupported()) {
- *   enableTranscription();
- * } else {
- *   disableTranscriptionFeatures();
- * }
- */
-function isSpeechRecognitionSupported() {
-            return getVoiceCapabilities().canTranscribe;
-        }
-        
-// ================================
-// 4. SPEECH RECOGNITION SYSTEM
-// ================================
-
-/**
- * Sets up and configures Speech Recognition API with error handling and retry logic.
- * 
- * This function handles secure context requirements (HTTPS), timeouts, and recognition
- * state management. It provides comprehensive error handling with automatic retries
- * and graceful degradation when transcription features are unavailable.
- * 
- * @async
- * @function setupSpeechRecognition
- * @returns {Promise<SpeechRecognition|null>} Configured SpeechRecognition instance or null if unavailable
- * @throws {Error} When speech recognition setup fails
- * @since 1.0.0
- * @example
- * const recognition = await setupSpeechRecognition();
- * if (recognition) {
- *   recognition.start();
- *   console.log('Transcription enabled');
- * } else {
- *   console.log('Transcription not available');
- * }
- */
-async function setupSpeechRecognition() {
-            if (!isSpeechRecognitionSupported()) return null;
-            
-            // Check if we're in a secure context (HTTPS required for Speech Recognition)
-            if (!window.isSecureContext) {
-                console.warn('Speech Recognition requires HTTPS');
-                updateVoiceStatus('Recording... (transcription requires HTTPS)', 'warning');
-                return null;
-            }
-            
-            try {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                const recognition = new SpeechRecognition();
-                
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
-                recognition.maxAlternatives = 1;
-                
-                let finalTranscript = '';
-                let recognitionTimeout = null;
-                let retryCount = 0;
-                const maxRetries = 2;
-                let isRecognitionRunning = false;
-                let errorHandlerTriggered = false;
-                
-                // Set up timeout to prevent hanging recognition
-                const setupRecognitionTimeout = () => {
-                    if (recognitionTimeout) clearTimeout(recognitionTimeout);
-                    recognitionTimeout = setTimeout(() => {
-                        if (getIsTranscribing() && recognition) {
-                            console.warn('Speech recognition timeout - restarting');
-                            try {
-                                recognition.stop();
-                                if (retryCount < maxRetries) {
-                                    retryCount++;
-                                    setTimeout(() => {
-                                        if (getIsTranscribing() && !isRecognitionRunning) {
-                                            recognition.start();
-                                            setupRecognitionTimeout();
-                                        }
-                                    }, 1000);
-                                } else {
-                                    updateVoiceStatus('Recording... (transcription timeout)', 'warning');
-                                }
-                            } catch (e) {
-                                console.error('Error during recognition timeout handling:', e);
-                            }
-                        }
-                    }, 30000); // 30 second timeout
-                };
-                
-                recognition.onstart = () => {
-                    debugLog('Speech recognition started');
-                    isRecognitionRunning = true;
-                    setupRecognitionTimeout();
-                    retryCount = 0; // Reset retry count on successful start
-                };
-                
-                recognition.onresult = (event) => {
-                    if (recognitionTimeout) {
-                        clearTimeout(recognitionTimeout);
-                        setupRecognitionTimeout(); // Reset timeout on activity
-                    }
-                    
-                    let interimTranscript = '';
-                    
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        const confidence = event.results[i][0].confidence;
-                        
-                        // Only use high-confidence results for final transcript
-                        if (event.results[i].isFinal) {
-                            if (!confidence || confidence > 0.3) { // Accept if confidence unavailable or > 30%
-                                finalTranscript += transcript + ' ';
-                            }
-                        } else {
-                            interimTranscript += transcript;
-                        }
-                    }
-                    
-                    setRecognitionResults(finalTranscript + interimTranscript);
-                    if (getRecognitionResults().trim()) {
-                        updateVoiceStatus(`Recording... "${getRecognitionResults().slice(-CONSTANTS.TEXT_TRUNCATE_LENGTH)}${getRecognitionResults().length > CONSTANTS.TEXT_TRUNCATE_LENGTH ? '...' : ''}"`, 'info');
-                    }
-                };
-                
-                recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error, event);
-                    errorHandlerTriggered = true;
-                    
-                    if (recognitionTimeout) {
-                        clearTimeout(recognitionTimeout);
-                        recognitionTimeout = null;
-                    }
-                    
-                    // Categorize errors and handle appropriately
-                    switch (event.error) {
-                        case 'not-allowed':
-                        case 'service-not-allowed':
-                            updateVoiceStatus('Recording... (microphone permission required for transcription)', 'warning');
-                            setIsTranscribing(false);
-                            break;
-                        case 'network':
-                            // Network errors are common and can be retried
-                            if (retryCount < maxRetries && getIsTranscribing()) {
-                                retryCount++;
-                                updateVoiceStatus('Recording... (transcription reconnecting)', 'warning');
-                                setTimeout(() => {
-                                    if (getIsTranscribing() && !isRecognitionRunning) {
-                                        try {
-                                            recognition.start();
-                                        } catch (e) {
-                                            console.error('Error restarting recognition after network error:', e);
-                                            updateVoiceStatus('Recording... (transcription unavailable)', 'warning');
-                                        }
-                                    }
-                                }, 2000);
-                            } else {
-                                updateVoiceStatus('Recording... (transcription network error)', 'warning');
-                            }
-                            break;
-                        case 'aborted':
-                            // Normal shutdown, don't show error
-                            break;
-                        case 'audio-capture':
-                            updateVoiceStatus('Recording... (transcription audio error)', 'warning');
-                            break;
-                        case 'no-speech':
-                            // No speech detected - this is normal when user is silent
-                            // Only restart after a longer delay and fewer retries to avoid spam
-                            if (getIsTranscribing() && retryCount === 0) {
-                                retryCount = maxRetries; // Prevent further no-speech restarts
-                                debugLog('No speech detected, waiting for user to speak...');
-                                setTimeout(() => {
-                                    if (getIsTranscribing() && !isRecognitionRunning) {
-                                        try {
-                                            recognition.start();
-                                        } catch (e) {
-                                            console.error('Error restarting recognition after no-speech:', e);
-                                        }
-                                    }
-                                }, 3000); // Longer delay for no-speech
-                            } else {
-                                debugLog('No speech detected, transcription will continue listening during recording');
-                            }
-                            break;
-                        default:
-                            updateVoiceStatus('Recording... (transcription error)', 'warning');
-                    }
-                };
-                
-                recognition.onend = () => {
-                    debugLog('Speech recognition ended');
-                    isRecognitionRunning = false;
-                    if (recognitionTimeout) {
-                        clearTimeout(recognitionTimeout);
-                        recognitionTimeout = null;
-                    }
-                    
-                    // Only restart if recognition ended unexpectedly (not due to an error we're handling)
-                    if (!errorHandlerTriggered && getIsTranscribing() && retryCount < maxRetries) {
-                        retryCount++;
-                        debugLog('Recognition ended unexpectedly, restarting...');
-                        setTimeout(() => {
-                            if (getIsTranscribing() && !isRecognitionRunning) {
-                                try {
-                                    recognition.start();
-                                } catch (e) {
-                                    console.error('Error restarting recognition on end:', e);
-                                    setIsTranscribing(false);
-                                }
-                            }
-                        }, 100);
-                    } else if (errorHandlerTriggered) {
-                        debugLog('Recognition ended due to handled error - not auto-restarting');
-                    } else {
-                        setIsTranscribing(false);
-                    }
-                    
-                    // Reset the flag for the next cycle
-                    errorHandlerTriggered = false;
-                };
-                
-                // Store cleanup function
-                recognition.cleanup = () => {
-                    if (recognitionTimeout) {
-                        clearTimeout(recognitionTimeout);
-                        recognitionTimeout = null;
-                    }
-                    setIsTranscribing(false);
-                };
-                
-                return recognition;
-                
-            } catch (error) {
-                console.error('Error setting up speech recognition:', error);
-                const capabilities = getVoiceCapabilities();
-                if (capabilities.canTranscribeMobile) {
-                    updateVoiceStatus('Recording... (mobile transcription setup failed - this is expected)', 'warning');
-                } else {
-                    updateVoiceStatus('Recording... (transcription setup failed)', 'warning');
-                }
-                return null;
-            }
         }
         
 // ================================
@@ -1425,14 +1032,7 @@ async function updateRecordButtonState() {
                     if (voiceCount >= 3) {
                         updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - ${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount} slot${CONSTANTS.VOICE_STORAGE_LIMIT - voiceCount === 1 ? '' : 's'} remaining`, 'warning');
                     } else {
-                        const voiceCapabilities = getVoiceCapabilities();
-                        if (voiceCapabilities.canTranscribeMobile) {
-                            updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording supported (experimental transcription - unreliable on mobile)`, 'info');
-                        } else if (voiceCapabilities.canTranscribe) {
-                            updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording and transcription supported`, 'info');
-                        } else {
-                            updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording supported (no transcription)`, 'warning');
-                        }
+                        updateVoiceStatus(`Voice Notes (${voiceCount}/${CONSTANTS.VOICE_STORAGE_LIMIT}) - Recording supported`, 'info');
                     }
                 }
             } catch (error) {
@@ -1507,10 +1107,6 @@ async function displayVoiceNotes() {
                     // Format date for accessibility
                     const formattedDate = note.dateString;
 
-                    // Check if transcription is available
-                    const hasTranscription = note.transcription && note.transcription.trim();
-                    const transcriptionIndicator = hasTranscription ? ' • 📝 Transcribed' : '';
-                    
                     // Create meta information
                     const metaItems = [
                         { value: escapeHtml(note.dateString) },
@@ -1518,26 +1114,12 @@ async function displayVoiceNotes() {
                         { value: sizeDisplay }
                     ];
                     
-                    if (transcriptionIndicator) {
-                        metaItems.push({ value: transcriptionIndicator });
-                    }
-                    
                     // Create control buttons using utility classes
                     const controlButtons = [
                         `<button data-action="play-voice" data-voice-note-id="${escapeAttr(note.id)}" id="play-btn-${escapeAttr(note.id)}" class="voice-btn-base voice-btn-play">▶️ Play</button>`,
-                        // Only show transcribe button if transcription exists
-                        ...(hasTranscription ? [`<button data-action="transcribe-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-transcribe" title="Create a dream entry from this transcription">📝 Fill transcription into Record Your Dream</button>`] : []),
                         `<button data-action="download-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-download">⬇️ Download</button>`,
                         `<button data-action="delete-voice" data-voice-note-id="${escapeAttr(note.id)}" class="voice-btn-base voice-btn-delete">🗑️ Delete</button>`
                     ].join('');
-                    
-                    // Create transcription display if available
-                    const transcriptionHTML = hasTranscription ? `
-                        <div class="voice-note-transcription">
-                            <div class="voice-note-transcription-text" id="transcription-text-${escapeAttr(note.id)}" data-full-text="${escapeAttr(note.transcription)}">${escapeHtml(note.transcription.length > 200 ? note.transcription.substring(0, 200) + '...' : note.transcription)}</div>
-                            ${note.transcription.length > 200 ? `<button class="voice-note-transcription-toggle" data-action="toggle-transcription" data-voice-note-id="${escapeAttr(note.id)}" id="transcription-toggle-${escapeAttr(note.id)}">Show more</button>` : ''}
-                        </div>
-                    ` : '';
                     
                     return `
                         <div class="voice-note-container" 
@@ -1558,7 +1140,6 @@ async function displayVoiceNotes() {
                                     </div>
                                     <div class="voice-time-display" id="time-total-${escapeAttr(note.id)}">${formatDuration(note.duration || 0)}</div>
                                 </div>
-                                ${transcriptionHTML}
                             </div>
                         </div>
                     `;
@@ -2063,188 +1644,6 @@ function cancelDeleteVoiceNote(voiceNoteId) {
         }
 
 // ================================
-// 9. TRANSCRIPTION & DREAM INTEGRATION
-// ================================
-
-/**
- * Creates dream entry from voice note transcription.
- * 
- * This function creates a dream entry from an existing transcription.
- * The associated button only appears when transcription is available,
- * so this function assumes transcription exists.
- * 
- * @async
- * @function transcribeVoiceNote
- * @param {string} voiceNoteId - ID of the voice note with transcription
- * @returns {Promise<void>} Resolves when dream entry is created
- * @throws {Error} When voice note is not found
- * @since 2.02.35
- * @example
- * await transcribeVoiceNote('voice_123456_abc');
- * // Creates dream entry from available transcription
- */
-async function transcribeVoiceNote(voiceNoteId) {
-        try {
-            const voiceNotes = await loadVoiceNotes();
-            const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-            
-            if (!voiceNote) {
-                updateVoiceStatus('Voice note not found', 'error');
-                return;
-            }
-            
-            if (voiceNote.transcription && voiceNote.transcription.trim()) {
-                // Transcription exists, create dream entry
-                await createDreamFromTranscription(voiceNoteId);
-            } else {
-                // This should not happen since button only shows when transcription exists
-                console.warn('transcribeVoiceNote called but no transcription found for:', voiceNoteId);
-                updateVoiceStatus('No transcription available', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Error transcribing voice note:', error);
-            updateVoiceStatus('Failed to process transcription', 'error');
-        }
-    }
-/**
- * Creates new dream entry from voice note transcription text.
- * 
- * This function handles form population, field clearing, and user interface navigation.
- * It populates the dream entry form with transcribed text and provides smooth
- * navigation to help users complete their dream entry.
- * 
- * @async
- * @function createDreamFromTranscription
- * @param {string} voiceNoteId - ID of the voice note containing transcription
- * @returns {Promise<void>} Resolves when dream form is populated
- * @throws {Error} When voice note is not found or has no transcription
- * @since 1.0.0
- * @todo Extract formFieldsPopulation() and dreamFormNavigation() functions
- * @example
- * await createDreamFromTranscription('voice_123456_abc');
- * // Dream form is populated with transcribed text
- * 
- * @example
- * // Handle transcription button click
- * button.onclick = () => createDreamFromTranscription(voiceNoteId);
- */
-async function createDreamFromTranscription(voiceNoteId) {
-        try {
-            const voiceNotes = await loadVoiceNotes();
-            const voiceNote = voiceNotes.find(n => n.id === voiceNoteId);
-            
-            if (!voiceNote || !voiceNote.transcription) {
-                updateVoiceStatus('No transcription available for this voice note', 'error');
-                return;
-            }
-            
-            // Switch to the journal tab and ensure the dream form is expanded
-            switchAppTab('journal');
-            
-            // Check if the dream form is collapsed and expand it if needed
-            const dreamFormFull = document.getElementById('dreamFormFull');
-            const dreamFormCollapsed = document.getElementById('dreamFormCollapsed');
-            if (dreamFormCollapsed && dreamFormCollapsed.style.display !== 'none') {
-                // Form is collapsed, expand it
-                toggleDreamForm();
-            }
-            
-            // Set the current date/time as the dream date (preserving local time zone)
-            const now = new Date();
-            const dreamDateInput = document.getElementById('dreamDate');
-            if (dreamDateInput) {
-                dreamDateInput.value = formatDatetimeLocal(now);
-            }
-            
-            // Clear other form fields
-            const titleInput = document.getElementById('dreamTitle');
-            const emotionsInput = document.getElementById('dreamEmotions');
-            const tagsInput = document.getElementById('dreamTags');
-            const dreamSignsInput = document.getElementById('dreamSigns');
-            const lucidCheckbox = document.getElementById('isLucid');
-            const contentInput = document.getElementById('dreamContent');
-            
-            if (titleInput) titleInput.value = '';
-            if (emotionsInput) emotionsInput.value = '';
-            if (tagsInput) tagsInput.value = '';
-            if (dreamSignsInput) dreamSignsInput.value = '';
-            if (lucidCheckbox) lucidCheckbox.checked = false;
-            
-            // Populate with transcribed text
-            if (contentInput) {
-                contentInput.value = voiceNote.transcription;
-                contentInput.focus();
-                contentInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            
-            // Show success message
-            const container = document.querySelector('.main-content');
-            if (container) {
-                createInlineMessage('info', 'Dream entry filled from transcription! The form has been expanded and the description field filled. Review and edit as needed, then save.', {
-                    container: container,
-                    position: 'top',
-                    duration: 5000
-                });
-            }
-            
-        } catch (error) {
-            console.error('Error creating dream from transcription:', error);
-            updateVoiceStatus('Failed to create dream entry', 'error');
-        }
-    }
-
-    /**
-     * Toggles the display of transcription text between truncated and full view.
-     * 
-     * This function handles the "Show more/Show less" functionality for long transcriptions
-     * in voice note playback boxes. It toggles between a truncated view (first 200 characters)
-     * and the full transcription text, updating the button text accordingly.
-     * 
-     * @async
-     * @function toggleTranscriptionDisplay
-     * @param {string} voiceNoteId - Unique identifier of the voice note
-     * @returns {Promise<void>} Resolves when transcription display is toggled
-     * @since 2.02.35
-     * @example
-     * // Toggle transcription display for a specific voice note
-     * await toggleTranscriptionDisplay('voice_123_abc');
-     * 
-     * @example
-     * // Called automatically via action delegation when user clicks toggle button
-     * // <button data-action="toggle-transcription" data-voice-note-id="voice_123">Show more</button>
-     */
-    async function toggleTranscriptionDisplay(voiceNoteId) {
-        try {
-            const textElement = document.getElementById(`transcription-text-${voiceNoteId}`);
-            const toggleButton = document.getElementById(`transcription-toggle-${voiceNoteId}`);
-            
-            if (!textElement || !toggleButton) {
-                console.error('Transcription elements not found for voice note:', voiceNoteId);
-                return;
-            }
-            
-            const fullText = textElement.dataset.fullText;
-            const currentText = textElement.textContent;
-            const isExpanded = currentText === fullText;
-            
-            if (isExpanded) {
-                // Show truncated version
-                const truncatedText = fullText.length > 200 ? fullText.substring(0, 200) + '...' : fullText;
-                textElement.textContent = truncatedText;
-                toggleButton.textContent = 'Show more';
-            } else {
-                // Show full version
-                textElement.textContent = fullText;
-                toggleButton.textContent = 'Show less';
-            }
-            
-        } catch (error) {
-            console.error('Error toggling transcription display:', error);
-        }
-    }
-
-// ================================
 // ES MODULE EXPORTS
 // ================================
 
@@ -2263,11 +1662,6 @@ export {
     confirmDeleteVoiceNote,
     cancelDeleteVoiceNote,
     
-    // Transcription functions
-    transcribeVoiceNote,
-    createDreamFromTranscription,
-    toggleTranscriptionDisplay,
-    
     // Audio utilities
     updateAudioProgress,
     seekAudio,
@@ -2275,7 +1669,6 @@ export {
     // Voice capabilities
     getVoiceCapabilities,
     isVoiceRecordingSupported,
-    isSpeechRecognitionSupported,
     
     // UI update functions
     updateRecordButtonState,

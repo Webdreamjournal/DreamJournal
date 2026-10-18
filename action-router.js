@@ -77,9 +77,8 @@ import {
 // Voice notes system
 import {
     toggleRecording, playVoiceNote, pauseVoiceNote,
-    transcribeVoiceNote, downloadVoiceNote, deleteVoiceNote,
-    confirmDeleteVoiceNote, seekAudio,
-    createDreamFromTranscription, toggleTranscriptionDisplay
+    downloadVoiceNote, deleteVoiceNote,
+    confirmDeleteVoiceNote, seekAudio
 } from './voice-notes.js';
 
 // Goals system - import business logic functions
@@ -373,7 +372,6 @@ const ACTION_MAP = {
         'toggle-advice-techniques': () => toggleAdviceSection('techniques'),     // Toggle advice techniques section visibility
         'toggle-advice-general': () => toggleAdviceSection('general'),           // Toggle advice general section visibility
         'toggle-journal-controls': () => toggleJournalSection('controls'),       // Toggle journal controls section visibility
-        'create-from-transcription': (ctx) => createDreamFromTranscription(ctx.voiceNoteId), // Create dream from voice transcription
         
         // ================================
         // VOICE RECORDING SYSTEM
@@ -410,12 +408,10 @@ const ACTION_MAP = {
         // ================================
         'play-voice': (ctx) => playVoiceNote(ctx.voiceNoteId),               // Play voice note with progress tracking
         'pause-voice': (ctx) => pauseVoiceNote(ctx.voiceNoteId),             // Pause voice note playback
-        'transcribe-voice': (ctx) => transcribeVoiceNote(ctx.voiceNoteId),   // Process voice note transcription
         'download-voice': (ctx) => downloadVoiceNote(ctx.voiceNoteId),       // Download voice note as audio file
         'delete-voice': (ctx) => deleteVoiceNote(ctx.voiceNoteId),           // Delete voice note with confirmation
         'confirm-delete-voice': (ctx) => confirmDeleteVoiceNote(ctx.voiceNoteId), // Confirm voice note deletion
         'seek-audio': (ctx) => seekAudio(ctx.voiceNoteId, ctx.event),        // Seek to position in audio playback
-        'toggle-transcription': (ctx) => toggleTranscriptionDisplay(ctx.voiceNoteId), // Toggle transcription text display (show more/less)
         
         // ================================
         // DREAM ENTRIES CRUD OPERATIONS

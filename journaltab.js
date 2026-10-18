@@ -61,7 +61,7 @@ function generatePaginationDropdownOptions() {
  * 
  * The Journal tab is the most complex tab in the application, containing:
  * - Collapsible dream entry form with all input fields
- * - Voice recording system with transcription capabilities  
+ * - Voice recording system  
  * - Comprehensive search and filter controls
  * - Dreams list container with pagination support
  * 
@@ -215,7 +215,7 @@ function renderJournalTab(tabPanel) {
             <div class="voice-tabs-container">
                 <!-- Voice Tab Navigation -->
                 <div class="voice-tabs">
-                    <!-- Recording Tab - Live voice recording with transcription -->
+                    <!-- Recording Tab - Live voice recording -->
                     <button class="voice-tab active" data-action="switch-voice-tab" data-tab="record">
                         🎤 Record
                     </button>

@@ -68,7 +68,7 @@ let allGoals = [];
 let preLockActiveTab = 'journal';
 
 // ===================================================================================
-// VOICE RECORDING & TRANSCRIPTION STATE
+// VOICE RECORDING STATE
 // ===================================================================================
 
 /**
@@ -131,42 +131,6 @@ let recordingTimer = null;
  */
 let currentPlayingAudio = null;
 
-/**
- * SpeechRecognition API instance for voice-to-text transcription.
- * 
- * Created when transcription begins using the browser's SpeechRecognition API.
- * Only available in Chrome and Edge browsers. Handles continuous recognition
- * with interim results for real-time transcription display.
- * 
- * @type {SpeechRecognition|null}
- * @default null
- * @since 1.0.0
- */
-let speechRecognition = null;
-
-/**
- * Accumulated transcription results from the speech recognition system.
- * 
- * Stores the final transcription text as it's recognized. Updated incrementally
- * as speech recognition processes audio input. Reset between transcription sessions.
- * 
- * @type {string}
- * @default ''
- * @since 1.0.0
- */
-let recognitionResults = '';
-
-/**
- * Flag indicating whether transcription is currently in progress.
- * 
- * Prevents concurrent transcription sessions and provides UI state feedback.
- * Set to true when transcription starts, false when it completes or errors.
- * 
- * @type {boolean}
- * @default false
- * @since 1.0.0
- */
-let isTranscribing = false;
     
 // ===================================================================================
 // PERFORMANCE OPTIMIZATION STATE
@@ -389,7 +353,7 @@ function setMemoryStorage(dreams) {
  * In-memory fallback storage array for voice notes when IndexedDB is unavailable.
  * 
  * Stores voice note objects temporarily when persistent storage fails.
- * Includes audio blob data, transcriptions, and metadata. Data is lost on
+ * Includes audio blob data and metadata. Data is lost on
  * page refresh but allows continued functionality during storage failures.
  * 
  * @type {Object[]}
@@ -1269,66 +1233,6 @@ function getRecordingStartTime() {
 }
 
 /**
- * Sets the recognition results.
- * 
- * @param {string} results - The recognition results string
- * @since 2.02.06
- */
-function setRecognitionResults(results) {
-    recognitionResults = results;
-}
-
-/**
- * Gets the current recognition results.
- * 
- * @returns {string} The recognition results string
- * @since 2.02.06
- */
-function getRecognitionResults() {
-    return recognitionResults;
-}
-
-/**
- * Sets the speech recognition instance.
- * 
- * @param {SpeechRecognition|null} recognition - The speech recognition instance or null
- * @since 2.02.06
- */
-function setSpeechRecognition(recognition) {
-    speechRecognition = recognition;
-}
-
-/**
- * Gets the current speech recognition instance.
- * 
- * @returns {SpeechRecognition|null} The speech recognition instance or null
- * @since 2.02.06
- */
-function getSpeechRecognition() {
-    return speechRecognition;
-}
-
-/**
- * Sets the transcribing state.
- * 
- * @param {boolean} transcribing - Whether transcribing is active
- * @since 2.02.06
- */
-function setIsTranscribing(transcribing) {
-    isTranscribing = transcribing;
-}
-
-/**
- * Gets the current transcribing state.
- * 
- * @returns {boolean} Whether transcribing is active
- * @since 2.02.06
- */
-function getIsTranscribing() {
-    return isTranscribing;
-}
-
-/**
  * Sets the recording timer.
  * 
  * @param {number|null} timer - The recording timer ID or null
@@ -2188,12 +2092,6 @@ export {
     getCurrentPlayingAudio,
     setRecordingStartTime,
     getRecordingStartTime,
-    setRecognitionResults,
-    getRecognitionResults,
-    setSpeechRecognition,
-    getSpeechRecognition,
-    setIsTranscribing,
-    getIsTranscribing,
     setRecordingTimer,
     getRecordingTimer,
     setDailyTips,
@@ -2223,15 +2121,12 @@ export {
     getDropboxRefreshToken,
     setDropboxRefreshToken,
 
-    // Voice Recording & Transcription State
+    // Voice Recording State
     mediaRecorder,
     audioChunks,
     recordingStartTime,
     recordingTimer,
     currentPlayingAudio,
-    speechRecognition,
-    recognitionResults,
-    isTranscribing,
     
     // Performance Optimization State
     searchDebounceTimer,
