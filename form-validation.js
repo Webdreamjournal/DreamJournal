@@ -74,40 +74,6 @@ const VALIDATION_RULES = {
         }
     },
 
-    // Goal form validation rules
-    goal: {
-        goalTitle: {
-            required: true,
-            minLength: 1,
-            maxLength: 100,
-            errorMessage: 'Goal title must be between 1 and 100 characters.'
-        },
-        goalDescription: {
-            required: false,
-            maxLength: 500,
-            errorMessage: 'Goal description must be 500 characters or less.'
-        },
-        goalType: {
-            required: true,
-            errorMessage: 'Please select a goal type.'
-        },
-        goalPeriod: {
-            required: true,
-            errorMessage: 'Please select a time period for your goal.'
-        },
-        goalTarget: {
-            required: true,
-            min: 1,
-            max: 1000000,
-            errorMessage: 'Target number must be between 1 and 1000000.'
-        },
-        goalIcon: {
-            required: false,
-            maxLength: 10,
-            errorMessage: 'Icon must be 10 characters or less (usually one emoji).'
-        }
-    },
-
     // Security form validation rules
     security: {
         pinInput: {
@@ -145,7 +111,7 @@ const VALIDATION_RULES = {
  * It integrates with ARIA accessibility features and provides detailed error messages.
  *
  * @function validateField
- * @param {string} formType - The type of form (e.g., 'dream', 'goal', 'security')
+ * @param {string} formType - The type of form ('dream' or 'security')
  * @param {string} fieldName - The name of the field to validate
  * @param {string|number} value - The current value of the field
  * @param {Object} [formData={}] - Complete form data for cross-field validation
@@ -640,8 +606,7 @@ function initializeFormValidation() {
         });
     }
 
-    // Set up validation for goal forms (will be present when goal dialogs are shown)
-    // Note: Goal form fields are dynamically created, so we'll validate on submission
+    // The goal form is checked on save by validateGoalForm (goalstab.js)
 
     // Set up validation for security forms
     const pinInput = document.getElementById('pinInput');

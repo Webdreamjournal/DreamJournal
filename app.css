@@ -998,6 +998,12 @@
             outline: none;
             border-color: var(--border-focus);
         }
+        /* Keyboard shortcut hints are hidden on devices whose main input is touch */
+        @media (pointer: coarse) {
+            .keyboard-hint {
+                display: none;
+            }
+        }
         
         .form-control::placeholder,
         .search-box::placeholder {

@@ -107,13 +107,14 @@ import {
      * Calculate consecutive days of dream recall streak starting from today backwards.
      * 
      * Analyzes dream entries to determine the current streak of consecutive days
-     * with recorded dreams. Works backwards from today to find the longest unbroken
-     * sequence of dream recall. Used by the goals system for tracking recall consistency
-     * and measuring progress towards recall-based goals.
-     * 
+     * with recorded dreams. Counts back from today (or from yesterday when there is
+     * no dream today yet) until a day without a dream. There is no upper limit, so a
+     * streak goal with any target can be reached. Used by the goals system for
+     * tracking recall consistency and measuring progress towards recall-based goals.
+     *
      * @param {Array<Object>} dreams - Array of dream objects with timestamp property
      * @param {string|number|Date} dreams[].timestamp - Dream entry timestamp
-     * @returns {number} Number of consecutive days with dream entries (0-365)
+     * @returns {number} Number of consecutive days with dream entries
      * @throws {TypeError} When dreams parameter is not an array
      * @since 1.0.0
      * @example
@@ -131,32 +132,25 @@ import {
      * const progress = Math.min(currentStreak / goalTarget, 1.0);
      */
     function calculateDreamRecallStreak(dreams) {
-        const today = new Date();
-        let streak = 0;
-        
-        for (let i = 0; i < 365; i++) {
-            const checkDate = new Date(today);
-            checkDate.setDate(today.getDate() - i);
-            checkDate.setHours(0, 0, 0, 0);
-            
-            const nextDay = new Date(checkDate);
-            nextDay.setDate(checkDate.getDate() + 1);
-            
-            const hasDream = dreams.some(dream => {
-                const dreamDate = new Date(dream.timestamp);
-                return dreamDate >= checkDate && dreamDate < nextDay;
-            });
-            
-            if (hasDream) {
-                streak++;
-            } else if (i === 0) {
-                // If no dream today, check if there's one yesterday to start counting
-                continue;
-            } else {
-                break;
-            }
+        // Local calendar days that have at least one dream
+        const dayKey = (date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        const daysWithDreams = new Set(dreams.map(dream => dayKey(new Date(dream.timestamp))));
+
+        // Noon, so stepping back one day at a time never lands on a daylight saving change
+        const day = new Date();
+        day.setHours(12, 0, 0, 0);
+
+        // If no dream today, check if there's one yesterday to start counting
+        if (!daysWithDreams.has(dayKey(day))) {
+            day.setDate(day.getDate() - 1);
         }
-        
+
+        let streak = 0;
+        while (daysWithDreams.has(dayKey(day))) {
+            streak++;
+            day.setDate(day.getDate() - 1);
+        }
+
         return streak;
     }
     
@@ -170,7 +164,7 @@ import {
      * 
      * @param {Array<Object>} dreams - Array of dream objects with timestamp property
      * @param {string|number|Date} dreams[].timestamp - Dream entry timestamp
-     * @returns {number} Number of consecutive days with journaling activity (0-365)
+     * @returns {number} Number of consecutive days with journaling activity
      * @throws {TypeError} When dreams parameter is not an array
      * @since 1.0.0
      * @todo Consider separate logic if journaling includes non-dream entries in future

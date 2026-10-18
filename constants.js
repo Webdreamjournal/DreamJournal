@@ -355,6 +355,7 @@ const DEFAULT_PAGINATION_LIMIT = 'endless';
  * @property {number} ENDLESS_SCROLL_INCREMENT - Items to load per scroll event
  * @property {number} MAX_TAGS_PER_DREAM - Maximum tags allowed per dream entry
  * @property {number} MAX_TAG_LENGTH - Maximum characters allowed per tag
+ * @property {number} GOAL_TARGET_MAX - Largest target the goal form accepts
  * @property {number} AI_ANALYSIS_RECENT_LIMIT - Recent dreams included in AI export
  * @property {number} AI_ANALYSIS_TOTAL_LIMIT - Total dreams exported for AI analysis
  * @property {number} AI_ANALYSIS_THRESHOLD - Minimum word count for AI analysis inclusion
@@ -423,6 +424,7 @@ const CONSTANTS = {
         // Data Validation & Content Limits
         MAX_TAGS_PER_DREAM: 20, // Maximum tags allowed per dream entry
         MAX_TAG_LENGTH: 50, // Maximum characters per tag
+        GOAL_TARGET_MAX: 1000, // Largest target the goal form accepts
         AI_ANALYSIS_RECENT_LIMIT: 15, // Recent dreams included in AI export
         AI_ANALYSIS_TOTAL_LIMIT: 20, // Total dreams to export for AI analysis
         AI_ANALYSIS_THRESHOLD: 50, // Word count threshold for analysis inclusion

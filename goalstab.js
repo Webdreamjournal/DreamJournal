@@ -67,7 +67,7 @@ import { calculateDreamRecallStreak, calculateJournalingStreak } from './statsta
  * @property {GoalType} type - Goal type determining how progress is calculated
  * @property {GoalPeriod} period - Time period for goal completion
  * @property {number} target - Target number to achieve
- * @property {string} icon - Goal icon (emoji, max 2 characters)
+ * @property {string} icon - Goal icon (one emoji or character)
  * @property {GoalStatus} status - Current goal status
  * @property {string} createdAt - ISO timestamp of goal creation
  * @property {string} [updatedAt] - ISO timestamp of last update
@@ -95,9 +95,11 @@ import { calculateDreamRecallStreak, calculateJournalingStreak } from './statsta
  * 
  * @typedef {('monthly'|'streak'|'total')} GoalPeriod
  * @description
- * - monthly: Progress resets each month
- * - streak: Consecutive days counting
- * - total: All-time cumulative total
+ * - monthly: Counts the calendar month the goal was created in (lucid_count only)
+ * - streak: Consecutive days counting (recall_streak, journal_streak)
+ * - total: All-time cumulative total (lucid_count, dream_signs_count, custom)
+ *
+ * GOAL_TYPE_PERIODS lists the periods the goal form offers for each type.
  */
 
 /**
@@ -273,17 +275,12 @@ function validateGoalForm() {
         errors.push('Goal title is required');
     }
 
-    if (!target || isNaN(target) || target < 1) {
-        errors.push('Target must be a positive number');
+    if (!target || isNaN(target) || target < 1 || target > CONSTANTS.GOAL_TARGET_MAX) {
+        errors.push(`Target must be a number from 1 to ${CONSTANTS.GOAL_TARGET_MAX}`);
     }
 
-    // Data type validation
-    if (target && target > 1000) {
-        errors.push('Target should be reasonable (maximum 1000)');
-    }
-
-    if (icon && icon.length > 2) {
-        errors.push('Icon should be maximum 2 characters');
+    if (splitGraphemes(icon).length > 1) {
+        errors.push('Icon must be one emoji or character');
     }
 
     // Return validation result
@@ -963,6 +960,10 @@ async function displayGoals() {
  * - Completed monthly goals remain accurate even in subsequent months
  * - Progress message shows the specific month name and year for clarity
  *
+ * **All Time Total lucid goals** count every lucid dream in the journal, including
+ * dreams dated before the goal was created. A lucid_count goal with any period other
+ * than monthly is counted this way.
+ *
  * @async
  * @function calculateGoalProgress
  * @param {Goal} goal - Goal object to calculate progress for
@@ -1007,23 +1008,26 @@ async function calculateGoalProgress(goal) {
     let message = '';
     
     switch (goal.type) {
-        case 'lucid_count':
+        case 'lucid_count': {
+            const lucidDreams = dreams.filter(dream => dream.isLucid);
+            const noun = (count) => count === 1 ? 'lucid dream' : 'lucid dreams';
             if (goal.period === 'monthly') {
                 // Use the month the goal was created in, not the current month
                 const goalCreatedDate = new Date(goal.createdAt);
                 const startOfGoalMonth = new Date(goalCreatedDate.getFullYear(), goalCreatedDate.getMonth(), 1);
                 const endOfGoalMonth = new Date(goalCreatedDate.getFullYear(), goalCreatedDate.getMonth() + 1, 1);
 
-                const lucidDreams = dreams.filter(dream => {
+                current = lucidDreams.filter(dream => {
                     const dreamDate = new Date(dream.timestamp);
-                    return dream.isLucid && dreamDate >= startOfGoalMonth && dreamDate < endOfGoalMonth;
-                });
-
+                    return dreamDate >= startOfGoalMonth && dreamDate < endOfGoalMonth;
+                }).length;
+                message = `${current} ${noun(current)} in ${formatGoalMonth(goalCreatedDate)}`;
+            } else {
                 current = lucidDreams.length;
-                const monthName = goalCreatedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                message = `${current} lucid dreams in ${monthName}`;
+                message = `${current} ${noun(current)} in total`;
             }
             break;
+        }
             
         case 'recall_streak':
             current = calculateDreamRecallStreak(dreams);
@@ -1055,11 +1059,151 @@ async function calculateGoalProgress(goal) {
 // ================================
 
 /**
+ * Time periods the goal form offers for each goal type; the first is the default.
+ * Only lucid_count goals use the period when counting progress, so they are the
+ * only type with a choice. The other types are stored with the period that
+ * describes how they count.
+ */
+const GOAL_TYPE_PERIODS = {
+    lucid_count: ['monthly', 'total'],
+    recall_streak: ['streak'],
+    journal_streak: ['streak'],
+    dream_signs_count: ['total'],
+    custom: ['total']
+};
+
+const GOAL_PERIOD_LABELS = {
+    monthly: 'Monthly',
+    streak: 'Consecutive Days',
+    total: 'All Time Total'
+};
+
+/**
+ * Formats the month a monthly goal counts, for example "October 2026".
+ *
+ * @function formatGoalMonth
+ * @param {Date} date - Any date in the month
+ * @returns {string} Month name and year
+ */
+function formatGoalMonth(date) {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Describes how a goal of the given type and period counts progress, for the help
+ * text under the goal form's type and period fields.
+ *
+ * @function describeGoalProgress
+ * @param {GoalType} type - Selected goal type
+ * @param {GoalPeriod} period - Selected period
+ * @param {string} [createdAt] - Creation time of the goal being edited; a new goal uses the current month
+ * @returns {string} One sentence for the help text
+ */
+function describeGoalProgress(type, period, createdAt) {
+    switch (type) {
+        case 'lucid_count':
+            if (period === 'monthly') {
+                const month = formatGoalMonth(createdAt ? new Date(createdAt) : new Date());
+                return `Counts lucid dreams dated in ${month}. A monthly goal counts the month it was created in.`;
+            }
+            return 'Counts every lucid dream in your journal, including dreams from before the goal was created.';
+        case 'recall_streak':
+            return 'Counts the days in a row, up to today or yesterday, with at least one dream recorded.';
+        case 'journal_streak':
+            return 'Counts the days in a row, up to today or yesterday, with at least one journal entry.';
+        case 'dream_signs_count':
+            return 'Counts the different dream signs across your whole journal.';
+        case 'custom':
+            return 'You record progress yourself with the ➕ and ➖ buttons on the goal.';
+        default:
+            return '';
+    }
+}
+
+/**
+ * Fills the Time Period select with the periods the selected Goal Type supports and
+ * updates the help text that says how progress is counted. The period field is hidden
+ * when the type has only one period. Runs when the form opens and when either select
+ * changes (data-action="update-goal-period").
+ *
+ * @function updateGoalPeriodField
+ * @param {GoalPeriod} [preferredPeriod] - Period to select if the type supports it; defaults to the current selection
+ * @returns {void}
+ */
+function updateGoalPeriodField(preferredPeriod) {
+    const typeField = document.getElementById('goalType');
+    const periodField = document.getElementById('goalPeriod');
+    const periodGroup = document.getElementById('goalPeriodGroup');
+    const help = document.getElementById('goalProgressHelp');
+    if (!typeField || !periodField || !periodGroup || !help) return;
+
+    const periods = GOAL_TYPE_PERIODS[typeField.value] || ['total'];
+    const wanted = preferredPeriod || periodField.value;
+
+    // Rebuild the options only when the type's periods differ, so a period change
+    // does not replace the options of the focused select
+    const shown = Array.from(periodField.options, option => option.value);
+    if (shown.join() !== periods.join()) {
+        periodField.replaceChildren(...periods.map(period => new Option(GOAL_PERIOD_LABELS[period], period)));
+    }
+    periodField.value = periods.includes(wanted) ? wanted : periods[0];
+    periodGroup.hidden = periods.length < 2;
+    help.textContent = describeGoalProgress(typeField.value, periodField.value, periodField.dataset.createdAt);
+}
+
+/**
+ * Splits text into the characters a reader sees (grapheme clusters), so an emoji
+ * built from several code points, such as a flag, a skin tone or a joined emoji
+ * like 🧘‍♀️, counts as one. Browsers without Intl.Segmenter split by code point,
+ * which keeps simple emoji whole but splits joined ones.
+ *
+ * @function splitGraphemes
+ * @param {string} text - Text to split
+ * @returns {Array<{segment: string, index: number}>} Each character and its start offset in the string
+ */
+function splitGraphemes(text) {
+    if (typeof Intl.Segmenter === 'function') {
+        const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+        return Array.from(segmenter.segment(text), ({ segment, index }) => ({ segment, index }));
+    }
+    const parts = [];
+    let index = 0;
+    for (const segment of text) {
+        parts.push({ segment, index });
+        index += segment.length;
+    }
+    return parts;
+}
+
+/**
+ * Keeps the goal icon field to one emoji or character. When an entry leaves more
+ * than one in the field, it keeps the one just before the caret, which is the one
+ * just entered, so picking a new emoji replaces the old icon. Spaces are ignored.
+ * Runs on input and, for input methods that compose text, once composition ends.
+ *
+ * @function keepOneIconCharacter
+ * @param {InputEvent|CompositionEvent} event - Event from the icon field
+ * @returns {void}
+ */
+function keepOneIconCharacter(event) {
+    if (event.isComposing) return;
+    const field = event.target;
+    const parts = splitGraphemes(field.value).filter(part => part.segment.trim());
+    if (parts.length < 2) return;
+
+    const caret = field.selectionStart ?? field.value.length;
+    const entered = parts.filter(part => part.index < caret).pop() || parts[0];
+    field.value = entered.segment;
+}
+
+/**
  * Builds the HTML content for the goal creation/editing form.
  *
  * This function generates the complete HTML structure for the goal form including
  * all form fields, labels, validation attributes, and action buttons. It supports
- * template-based pre-population and proper accessibility markup.
+ * template-based pre-population and proper accessibility markup. The Time Period
+ * options and the progress help text are empty here; updateGoalPeriodField fills
+ * them once the form is in the page.
  *
  * @function buildGoalFormHTML
  * @param {Object|null} [templateData=null] - Template data to pre-populate form fields
@@ -1087,7 +1231,7 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
 
     return `
         <div class="pin-container">
-            <h3>${formTitle}</h3>
+            <h3 id="goalDialogTitle">${formTitle}</h3>
             <div class="form-group">
                 <label for="goalTitle">Goal Title</label>
                 <input type="text" id="goalTitle" class="form-control"
@@ -1102,27 +1246,25 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
             </div>
             <div class="form-group">
                 <label for="goalType">Goal Type</label>
-                <select id="goalType" class="form-control" aria-describedby="goalTypeHelp">
+                <select id="goalType" class="form-control" data-action="update-goal-period" aria-describedby="goalProgressHelp">
                     <option value="lucid_count" ${templateData?.type === 'lucid_count' ? 'selected' : ''}>Lucid Dreams Count</option>
                     <option value="recall_streak" ${templateData?.type === 'recall_streak' ? 'selected' : ''}>Dream Recall Streak</option>
                     <option value="journal_streak" ${templateData?.type === 'journal_streak' ? 'selected' : ''}>Journal Writing Streak</option>
                     <option value="dream_signs_count" ${templateData?.type === 'dream_signs_count' ? 'selected' : ''}>Dream Signs Collection</option>
                     <option value="custom" ${templateData?.type === 'custom' ? 'selected' : ''}>Custom (Manual Tracking)</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="goalPeriod">Time Period</label>
-                <select id="goalPeriod" class="form-control" aria-describedby="goalPeriodHelp">
-                    <option value="monthly" ${templateData?.period === 'monthly' ? 'selected' : ''}>Monthly</option>
-                    <option value="streak" ${templateData?.period === 'streak' ? 'selected' : ''}>Consecutive Days</option>
-                    <option value="total" ${templateData?.period === 'total' ? 'selected' : ''}>All Time Total</option>
-                </select>
+                <div id="goalPeriodGroup" class="mt-lg">
+                    <label for="goalPeriod">Time Period</label>
+                    <select id="goalPeriod" class="form-control" data-action="update-goal-period" aria-describedby="goalProgressHelp"></select>
+                </div>
+                <div id="goalProgressHelp" class="text-sm text-secondary mt-sm" aria-live="polite"></div>
             </div>
             <div class="form-group">
                 <label for="goalTarget">Target Number</label>
                 <input type="number" id="goalTarget" class="form-control"
                        value="${templateData?.target || 1}"
                        min="1"
+                       max="${CONSTANTS.GOAL_TARGET_MAX}"
                        required
                        aria-describedby="goalTargetHelp">
             </div>
@@ -1130,8 +1272,8 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
                 <label for="goalIcon">Icon (optional)</label>
                 <input type="text" id="goalIcon" class="form-control"
                        value="${templateData?.icon || '🎯'}"
-                       maxlength="2"
                        aria-describedby="goalIconHelp">
+                <div id="goalIconHelp" class="text-sm text-secondary mt-sm">One emoji or character. Entering a new one replaces it.<span class="keyboard-hint"> Emoji picker: Windows key + . on Windows, Control + Command + Space on a Mac.</span></div>
             </div>
             <div class="pin-buttons">
                 <button data-action="save-goal" class="btn btn-primary">${buttonText}</button>
@@ -1175,6 +1317,12 @@ function showGoalDialog(htmlContent, focusTitle = true) {
 
     document.body.appendChild(dialog);
 
+    const iconField = document.getElementById('goalIcon');
+    if (iconField) {
+        iconField.addEventListener('input', keepOneIconCharacter);
+        iconField.addEventListener('compositionend', keepOneIconCharacter);
+    }
+
     if (focusTitle) {
         const titleField = document.getElementById('goalTitle');
         if (titleField) {
@@ -1212,7 +1360,8 @@ function populateGoalEditForm(goal) {
     if (titleField) titleField.value = goal.title;
     if (descriptionField) descriptionField.value = goal.description;
     if (typeField) typeField.value = goal.type;
-    if (periodField) periodField.value = goal.period;
+    if (periodField) periodField.dataset.createdAt = goal.createdAt; // Month named in the monthly help text
+    updateGoalPeriodField(goal.period);
     if (targetField) targetField.value = goal.target;
     if (iconField) iconField.value = goal.icon;
 
@@ -1255,6 +1404,7 @@ function showCreateGoalDialog(template = null) {
     const templateData = template ? GOAL_TEMPLATES[template] : null;
     const formHTML = buildGoalFormHTML(templateData, false);
     showGoalDialog(formHTML, true);
+    updateGoalPeriodField(templateData?.period);
 }
 
 /**
@@ -1319,7 +1469,7 @@ async function saveGoal() {
         // Validate form data
         const validation = validateGoalForm();
         if (!validation.isValid) {
-            console.error('Goal form validation failed:', validation.errors);
+            debugLog('Goal form validation failed:', validation.errors);
             showGoalMessage('form-error', validation.errors[0]);
             return;
         }
@@ -1616,6 +1766,7 @@ export {
     // UI functions
     cancelGoalDelete,
     cancelGoalDialog,
+    updateGoalPeriodField,
     
     // Tab rendering functions
     renderGoalsTab,
