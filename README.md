@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://github.com/Webdreamjournal/DreamJournal/actions/workflows/test.yml"><img src="https://github.com/Webdreamjournal/DreamJournal/actions/workflows/test.yml/badge.svg?branch=main" alt="Tests status"></a>
-  <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="Licence: AGPL v3.0">
+  <img src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg" alt="Licence: AGPL v3.0 or later">
   <img src="https://img.shields.io/badge/version-2.05.06-blue.svg" alt="Version 2.05.06">
 </p>
 
@@ -197,7 +197,7 @@ Almost all of the code was written by AI tools, mainly Claude Code and Jules, an
 
 ## Licence
 
-Distributed under the GNU Affero General Public License v3.0. See [`LICENSE`](LICENSE) for the full text. Under the AGPL, if you offer a modified version to others over a network, you must also make its source available to those users.
+Distributed under the GNU Affero General Public License v3.0 or later (SPDX: `AGPL-3.0-or-later`). See [`LICENSE`](LICENSE) for the full text. Under the AGPL, if you offer a modified version to others over a network, you must also make its source available to those users.
 
 ## Disclaimer
 
