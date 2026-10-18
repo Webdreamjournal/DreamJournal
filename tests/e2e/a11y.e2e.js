@@ -54,6 +54,15 @@ test('no axe violations with an autocomplete list open', async () => {
     await context.close();
 });
 
+test('no axe violations in the goal form', async () => {
+    const { page, context } = await openApp(browser, server.url);
+    await openTab(page, 'goals');
+    await page.click('[data-action="create-goal"]');
+    await page.waitForSelector('#goalProgressHelp:not(:empty)');
+    assert.deepEqual(await scan(page), []);
+    await context.close();
+});
+
 const insideDialog = (page) => page.evaluate(() => !!document.activeElement.closest('.pin-overlay, .security-dialog-overlay'));
 const backgroundInert = (page) => page.evaluate(() => document.querySelector('.container').inert);
 const activeAction = (page) => page.evaluate(() => document.activeElement.dataset.action || document.activeElement.id || document.activeElement.tagName);

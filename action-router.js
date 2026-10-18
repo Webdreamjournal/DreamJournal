@@ -85,7 +85,7 @@ import {
 import {
     showCreateGoalDialog, createTemplateGoal, editGoal, completeGoal,
     reactivateGoal, deleteGoal, confirmDeleteGoal, saveGoal, cancelGoalDialog,
-    displayGoals
+    updateGoalPeriodField, displayGoals
 } from './goalstab.js';
 
 // Statistics system - import business logic functions
@@ -390,6 +390,7 @@ const ACTION_MAP = {
         'confirm-delete-goal': (ctx) => confirmDeleteGoal(ctx.goalId),      // Confirm goal deletion
         'save-goal': () => saveGoal(),                                       // Save goal form data
         'cancel-goal-dialog': () => cancelGoalDialog(),                     // Cancel goal dialog and cleanup
+        'update-goal-period': () => updateGoalPeriodField(),                // Match Time Period options and help text to the Goal Type (change event)
         'increase-goal-progress': (ctx) => increaseGoalProgress(ctx.goalId), // Increment custom goal progress
         'decrease-goal-progress': (ctx) => decreaseGoalProgress(ctx.goalId), // Decrement custom goal progress
         'active-goals-page': (ctx) => changeActiveGoalsPage(parseInt(ctx.page)),     // Navigate active goals pagination

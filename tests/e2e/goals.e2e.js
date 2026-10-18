@@ -58,3 +58,72 @@ test('goal lifecycle', async (t) => {
     assert.deepEqual(problems, []);
     await context.close();
 });
+
+test('lucid dream count goals', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    const logDream = async (content, { lucid = false, date } = {}) => {
+        await page.fill('#dreamContent', content);
+        if (date) await page.fill('#dreamDate', date);
+        await page.setChecked('#isLucid', lucid);
+        await page.click('[data-action="save-dream"]');
+        await page.locator('.entry', { hasText: content }).waitFor();
+    };
+    await logDream('A lucid dream from today', { lucid: true });
+    await logDream('A lucid dream from years ago', { lucid: true, date: '2020-01-15T08:00' });
+    await logDream('A dream that was not lucid');
+    await openTab(page, 'goals');
+
+    const periodOptions = () => page.$$eval('#goalPeriod option', options => options.map(o => o.value));
+    const card = (title) => page.locator('[id^="goal-"]', { hasText: title }).first();
+    const createLucidGoal = async (title, period) => {
+        await page.click('[data-action="create-goal"]');
+        await page.fill('#goalTitle', title);
+        await page.selectOption('#goalType', 'lucid_count');
+        await page.selectOption('#goalPeriod', period);
+        await page.fill('#goalTarget', '5');
+        await page.click('[data-action="save-goal"]');
+        await card(title).waitFor();
+    };
+
+    await t.test('the Time Period field offers only the periods the Goal Type counts by', async () => {
+        await page.click('[data-action="create-goal"]');
+        await page.waitForSelector('#goalType');
+        assert.deepEqual(await periodOptions(), ['monthly', 'total']);
+        assert.ok(await page.isVisible('#goalPeriod'));
+        for (const [type, period] of [['recall_streak', 'streak'], ['journal_streak', 'streak'], ['dream_signs_count', 'total'], ['custom', 'total']]) {
+            await page.selectOption('#goalType', type);
+            assert.deepEqual(await periodOptions(), [period], type);
+            assert.ok(await page.isHidden('#goalPeriod'), `${type} offers a period choice`);
+            assert.notEqual((await page.innerText('#goalProgressHelp')).trim(), '', `${type} has no help text`);
+        }
+        await page.selectOption('#goalType', 'lucid_count');
+        assert.ok(await page.isVisible('#goalPeriod'));
+        await page.selectOption('#goalPeriod', 'total');
+        assert.match(await page.innerText('#goalProgressHelp'), /every lucid dream/);
+        await page.click('[data-action="cancel-goal-dialog"]');
+    });
+
+    await t.test('an All Time Total goal counts every lucid dream', async () => {
+        await createLucidGoal('Lucid dreams overall', 'total');
+        const text = await card('Lucid dreams overall').innerText();
+        assert.match(text, /2 \/ 5/);
+        assert.match(text, /2 lucid dreams in total/);
+    });
+
+    await t.test('a Monthly goal counts only the month it was created in', async () => {
+        await createLucidGoal('Lucid dreams this month', 'monthly');
+        const text = await card('Lucid dreams this month').innerText();
+        assert.match(text, /1 \/ 5/);
+        assert.match(text, /1 lucid dream in /);
+    });
+
+    await t.test('editing a goal shows its stored period', async () => {
+        await card('Lucid dreams overall').locator('[data-action="edit-goal"]').click();
+        await page.waitForFunction(() => document.getElementById('goalTitle')?.value === 'Lucid dreams overall');
+        assert.equal(await page.inputValue('#goalPeriod'), 'total');
+        await page.click('[data-action="cancel-goal-dialog"]');
+    });
+
+    assert.deepEqual(problems, []);
+    await context.close();
+});
