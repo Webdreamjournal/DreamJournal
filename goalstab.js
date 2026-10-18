@@ -67,7 +67,7 @@ import { calculateDreamRecallStreak, calculateJournalingStreak } from './statsta
  * @property {GoalType} type - Goal type determining how progress is calculated
  * @property {GoalPeriod} period - Time period for goal completion
  * @property {number} target - Target number to achieve
- * @property {string} icon - Goal icon (emoji, max 2 characters)
+ * @property {string} icon - Goal icon (one emoji or character)
  * @property {GoalStatus} status - Current goal status
  * @property {string} createdAt - ISO timestamp of goal creation
  * @property {string} [updatedAt] - ISO timestamp of last update
@@ -279,8 +279,8 @@ function validateGoalForm() {
         errors.push(`Target must be a number from 1 to ${CONSTANTS.GOAL_TARGET_MAX}`);
     }
 
-    if (icon && icon.length > 2) {
-        errors.push('Icon should be maximum 2 characters');
+    if (splitGraphemes(icon).length > 1) {
+        errors.push('Icon must be one emoji or character');
     }
 
     // Return validation result
@@ -1152,6 +1152,51 @@ function updateGoalPeriodField(preferredPeriod) {
 }
 
 /**
+ * Splits text into the characters a reader sees (grapheme clusters), so an emoji
+ * built from several code points, such as a flag, a skin tone or a joined emoji
+ * like 🧘‍♀️, counts as one. Browsers without Intl.Segmenter split by code point,
+ * which keeps simple emoji whole but splits joined ones.
+ *
+ * @function splitGraphemes
+ * @param {string} text - Text to split
+ * @returns {Array<{segment: string, index: number}>} Each character and its start offset in the string
+ */
+function splitGraphemes(text) {
+    if (typeof Intl.Segmenter === 'function') {
+        const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+        return Array.from(segmenter.segment(text), ({ segment, index }) => ({ segment, index }));
+    }
+    const parts = [];
+    let index = 0;
+    for (const segment of text) {
+        parts.push({ segment, index });
+        index += segment.length;
+    }
+    return parts;
+}
+
+/**
+ * Keeps the goal icon field to one emoji or character. When an entry leaves more
+ * than one in the field, it keeps the one just before the caret, which is the one
+ * just entered, so picking a new emoji replaces the old icon. Spaces are ignored.
+ * Runs on input and, for input methods that compose text, once composition ends.
+ *
+ * @function keepOneIconCharacter
+ * @param {InputEvent|CompositionEvent} event - Event from the icon field
+ * @returns {void}
+ */
+function keepOneIconCharacter(event) {
+    if (event.isComposing) return;
+    const field = event.target;
+    const parts = splitGraphemes(field.value).filter(part => part.segment.trim());
+    if (parts.length < 2) return;
+
+    const caret = field.selectionStart ?? field.value.length;
+    const entered = parts.filter(part => part.index < caret).pop() || parts[0];
+    field.value = entered.segment;
+}
+
+/**
  * Builds the HTML content for the goal creation/editing form.
  *
  * This function generates the complete HTML structure for the goal form including
@@ -1227,8 +1272,8 @@ function buildGoalFormHTML(templateData = null, isEdit = false) {
                 <label for="goalIcon">Icon (optional)</label>
                 <input type="text" id="goalIcon" class="form-control"
                        value="${templateData?.icon || '🎯'}"
-                       maxlength="2"
                        aria-describedby="goalIconHelp">
+                <div id="goalIconHelp" class="text-sm text-secondary mt-sm">One emoji or character. Entering a new one replaces it.<span class="keyboard-hint"> Emoji picker: Windows key + . on Windows, Control + Command + Space on a Mac.</span></div>
             </div>
             <div class="pin-buttons">
                 <button data-action="save-goal" class="btn btn-primary">${buttonText}</button>
@@ -1271,6 +1316,12 @@ function showGoalDialog(htmlContent, focusTitle = true) {
     dialog.innerHTML = htmlContent;
 
     document.body.appendChild(dialog);
+
+    const iconField = document.getElementById('goalIcon');
+    if (iconField) {
+        iconField.addEventListener('input', keepOneIconCharacter);
+        iconField.addEventListener('compositionend', keepOneIconCharacter);
+    }
 
     if (focusTitle) {
         const titleField = document.getElementById('goalTitle');

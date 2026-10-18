@@ -139,3 +139,43 @@ test('lucid dream count goals', async (t) => {
     assert.deepEqual(problems, []);
     await context.close();
 });
+
+test('goal icons', async (t) => {
+    const { page, context, problems } = await openApp(browser, server.url);
+    await openTab(page, 'goals');
+    await page.click('[data-action="create-goal"]');
+    await page.waitForSelector('#goalIcon');
+
+    await t.test('entering a new emoji replaces the icon, wherever the caret is', async () => {
+        await page.focus('#goalIcon');
+        await page.press('#goalIcon', 'End');
+        await page.keyboard.insertText('🇦🇺');
+        assert.equal(await page.inputValue('#goalIcon'), '🇦🇺');
+        await page.press('#goalIcon', 'Home');
+        await page.keyboard.insertText('🧘‍♀️');
+        assert.equal(await page.inputValue('#goalIcon'), '🧘‍♀️');
+    });
+
+    await t.test('an emoji built from several code points is saved and shown', async () => {
+        await page.fill('#goalTitle', 'Morning stretch');
+        await page.selectOption('#goalType', 'custom');
+        await page.click('[data-action="save-goal"]');
+        const card = page.locator('[id^="goal-"]', { hasText: 'Morning stretch' }).first();
+        await card.waitFor();
+        assert.match(await card.locator('h4').innerText(), /🧘‍♀️/);
+    });
+
+    await t.test('an icon of more than one character is rejected on save', async () => {
+        await page.click('[data-action="create-goal"]');
+        await page.fill('#goalTitle', 'Two icons');
+        await page.$eval('#goalIcon', field => { field.value = '🎯⭐'; }); // No input event, so the field keeps both
+        await page.click('[data-action="save-goal"]');
+        await page.waitForTimeout(400);
+        assert.match(await page.innerText('body'), /Icon must be one emoji or character/);
+        await page.click('[data-action="cancel-goal-dialog"]');
+        assert.equal(await page.locator('[id^="goal-"]', { hasText: 'Two icons' }).count(), 0);
+    });
+
+    assert.deepEqual(problems, []);
+    await context.close();
+});
