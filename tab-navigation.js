@@ -612,7 +612,7 @@ function syncSettingsDisplay() {
  * Updates browser compatibility information in the settings interface.
  * 
  * Analyzes current browser capabilities and updates the compatibility display
- * to show support status for voice recording and transcription features.
+ * to show support status for voice recording.
  * Provides specific guidance for different browsers and their limitations.
  * 
  * @returns {void}
@@ -647,28 +647,6 @@ function updateBrowserCompatibilityDisplay() {
                 }
                 voiceRecordingStatus.textContent = '❌ Not Supported';
                 voiceRecordingStatus.style.color = 'var(--error-color)';
-            }
-        }
-        
-        // Transcription Status
-        const transcriptionCompatibility = document.getElementById('transcriptionCompatibility');
-        const transcriptionStatus = document.getElementById('transcriptionStatus');
-        
-        if (transcriptionCompatibility && transcriptionStatus) {
-            if (voiceCapabilities.canTranscribe) {
-                transcriptionCompatibility.textContent = 'Your browser supports speech transcription';
-                transcriptionStatus.textContent = '✅ Supported';
-                transcriptionStatus.style.color = 'var(--success-color)';
-            } else {
-                if (voiceCapabilities.browser.isFirefox) {
-                    transcriptionCompatibility.textContent = 'Firefox does not support Speech Recognition API';
-                } else if (voiceCapabilities.browser.isSafari) {
-                    transcriptionCompatibility.textContent = 'Safari does not support Speech Recognition API';
-                } else {
-                    transcriptionCompatibility.textContent = 'Speech Recognition API not available in this browser';
-                }
-                transcriptionStatus.textContent = '❌ Not Supported';
-                transcriptionStatus.style.color = 'var(--error-color)';
             }
         }
     }

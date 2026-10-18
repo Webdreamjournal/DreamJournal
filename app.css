@@ -32,7 +32,6 @@
             --error-h: 0;        --error-s: 84%;      /* Red for error states */
             --warning-h: 32;     --warning-s: 95%;    /* Orange/yellow for warnings */
             --info-h: 199;       --info-s: 89%;       /* Light blue for informational states */
-            --purple-h: 261;     --purple-s: 83%;     /* Purple for transcribe buttons */
             
             /* Neutral color families for backgrounds and text */
             --neutral-h: 222;    --neutral-s: 47%;    /* Primary neutral base */
@@ -68,7 +67,6 @@
             --warning-l: 44%;          --warning-hover-l: 38%;      /* Warning and warning hover colors */
             --warning-text-l: 33%;                                  /* Warning text on warning backgrounds; the base orange is only 2.9:1 there */
             --info-l: 35%;             --info-hover-l: 30%;         /* Info and info hover colors */
-            --purple-l: 54%;           --purple-hover-l: 47%;       /* Purple and purple hover colors */
             --secondary-l: 86%;        --secondary-hover-l: 75%;    /* Secondary action colors */
             
             /* Component-specific lightness values */
@@ -161,7 +159,6 @@
          * - .voice-note-container: Main flexbox wrapper with hover states
          * - .voice-note-info:      Left side containing title and metadata (flex-grow)
          * - .voice-note-controls:  Right side containing action buttons (play, delete, etc.)
-         * - .voice-note-transcription: Collapsible transcription display below
          * - .delete-pending:       Modifier class applied via JavaScript during deletion confirmation
          *
          * Layout Strategy:
@@ -183,45 +180,10 @@
         .voice-note-title { font-weight: var(--font-weight-semibold); color: var(--text-primary); 
                             margin-bottom: 4px; }
         .voice-note-meta { color: var(--text-secondary); font-size: 14px; }
-        /* Flex item for the group of buttons (play, delete, transcribe, etc.) - maintains minimum width */
+        /* Flex item for the group of buttons (play, download, delete) - maintains minimum width */
         .voice-note-controls { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; 
                                min-width: 300px; justify-content: flex-start; flex: 1; width: 100%; }
         
-        /* Voice transcription display */
-        .voice-note-transcription { 
-            margin-top: 10px; 
-            padding: 10px; 
-            background: var(--bg-tertiary); 
-            border: 1px solid var(--border-subtle); 
-            border-radius: 6px; 
-            width: 100%; 
-        }
-        
-        .voice-note-transcription-text { 
-            color: var(--text-secondary); 
-            font-size: 14px; 
-            line-height: 1.4; 
-            margin: 0; 
-            word-wrap: break-word; 
-            white-space: pre-wrap; 
-        }
-        
-        .voice-note-transcription-toggle { 
-            background: none; 
-            border: none; 
-            color: var(--primary-color); 
-            cursor: pointer; 
-            font-size: 12px; 
-            padding: 4px 0; 
-            margin-top: 6px; 
-            text-decoration: underline; 
-            transition: var(--transition); 
-        }
-        
-        .voice-note-transcription-toggle:hover { 
-            color: var(--primary-hover); 
-        }
-
         /* Voice button base styling */
         .voice-btn-base { padding: 6px 12px; border: none; border-radius: 6px; font-size: 12px; 
                           font-weight: var(--font-weight-semibold); cursor: pointer; transition: var(--transition); 
@@ -301,9 +263,6 @@
         .voice-btn-play:hover { background: var(--info-hover); }
         .voice-btn-pause { background: var(--warning-color); color: var(--text-inverse); }
         .voice-btn-pause:hover { background: var(--warning-hover); }
-        .voice-btn-transcribe { background: var(--purple-color); color: var(--text-inverse); }
-        .voice-btn-transcribe:hover { background: var(--purple-hover); }
-        .voice-btn-transcribe:disabled { background: var(--text-muted); cursor: not-allowed; }
         .voice-btn-download { background: var(--success-color); color: var(--text-inverse); }
         .voice-btn-download:hover { background: var(--success-hover); }
         .voice-btn-delete { background: var(--error-color); color: var(--text-inverse); }
@@ -423,7 +382,6 @@
             --warning-l: 71%;          --warning-hover-l: 65%;
             --warning-text-l: 71%;
             --info-l: 67%;             --info-hover-l: 61%;
-            --purple-l: 72%;           --purple-hover-l: 66%;
             --secondary-l: 68%;        --secondary-hover-l: 83%;
             
             /* Component adjustments */
@@ -472,8 +430,6 @@
             --warning-text: hsl(var(--warning-h), var(--warning-s), var(--warning-text-l));
             --info-color: hsl(var(--info-h), var(--info-s), var(--info-l));
             --info-hover: hsl(var(--info-h), var(--info-s), var(--info-hover-l));
-            --purple-color: hsl(var(--purple-h), var(--purple-s), var(--purple-l));
-            --purple-hover: hsl(var(--purple-h), var(--purple-s), var(--purple-hover-l));
             
             /* Background Hierarchy */
             --bg-primary: hsl(var(--neutral-h), var(--neutral-s), var(--bg-primary-l));
@@ -1820,17 +1776,6 @@
             background: var(--warning-hover);
         }
         
-        .voice-btn.transcribe {
-            background: var(--purple-color);
-            color: var(--text-inverse);
-        }
-        .voice-btn.transcribe:hover {
-            background: var(--purple-hover);
-        }
-        .voice-btn.transcribe:disabled {
-            background: var(--text-muted);
-            cursor: not-allowed;
-        }
         
         .voice-btn.download {
             background: var(--success-color);
@@ -3205,17 +3150,6 @@
         }
         .voice-btn.pause:hover {
             background: var(--warning-hover);
-        }
-        .voice-btn.transcribe {
-            background: var(--purple-color);
-            color: var(--text-inverse);
-        }
-        .voice-btn.transcribe:hover {
-            background: var(--purple-hover);
-        }
-        .voice-btn.transcribe:disabled {
-            background: var(--text-muted);
-            cursor: not-allowed;
         }
         .voice-btn.download {
             background: var(--success-color);

@@ -50,7 +50,6 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * @typedef {Object} VoiceNote
      * @property {string} id - Unique identifier for the voice note
      * @property {Blob} audioBlob - Binary audio data blob
-     * @property {string} transcript - Transcribed text from speech recognition
      * @property {string} timestamp - ISO 8601 timestamp when recorded
      * @property {number} duration - Duration of recording in seconds
      * @property {number} size - File size of audio data in bytes
@@ -937,7 +936,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * @throws {Error} When IndexedDB operations fail
      * @since 1.0.0
      * @example
-     * const voiceNotes = [{ id: '1', audioBlob: blob, transcript: 'Hello' }];
+     * const voiceNotes = [{ id: '1', audioBlob: blob }];
      * const success = await saveAllVoiceNotesToIndexedDB(voiceNotes);
      */
     async function saveAllVoiceNotesToIndexedDB(voiceNotes) {
@@ -1566,7 +1565,7 @@ import { createInlineMessage, renderAutocompleteManagementList } from './dom-hel
      * @throws {Error} When IndexedDB is unavailable or save operation fails
      * @since 1.0.0
      * @example
-     * const voiceNote = { id: '123', audioBlob: blob, transcript: 'My dream...' };
+     * const voiceNote = { id: '123', audioBlob: blob };
      * await saveVoiceNote(voiceNote);
      */
     async function saveVoiceNote(voiceNote) {

@@ -51,9 +51,8 @@ export async function openApp(browser, url, { width = 1280, height = 800, mobile
     page.on('console', m => {
         const text = m.text();
         if (/Content Security Policy|violates the following/i.test(text)) problems.push(`csp: ${text.slice(0, 160)}`);
-        // Headless Chromium has no speech service; the app logs this when recording
         // A reload aborts in-flight fetches (e.g. tips.json), which the app logs as "Failed to fetch"
-        else if (m.type() === 'error' && !/net::ERR_FAILED|Speech recognition error|Failed to fetch/.test(text)) problems.push(`console.error: ${text.slice(0, 160)}`);
+        else if (m.type() === 'error' && !/net::ERR_FAILED|Failed to fetch/.test(text)) problems.push(`console.error: ${text.slice(0, 160)}`);
     });
     await page.goto(url, { waitUntil: 'load' });
     await page.waitForFunction(() => getComputedStyle(document.querySelector('.container')).visibility === 'visible');

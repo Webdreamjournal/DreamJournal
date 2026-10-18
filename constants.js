@@ -363,7 +363,6 @@ const DEFAULT_PAGINATION_LIMIT = 'endless';
  * @property {number} AUTOCOMPLETE_MIN_CHARS - Minimum characters to trigger autocomplete
  * @property {number} AUTOCOMPLETE_MAX_RESULTS - Maximum autocomplete suggestions displayed
  * @property {number} DOM_TRAVERSAL_LEVELS - Maximum DOM levels traversed for action contexts
- * @property {number} TEXT_TRUNCATE_LENGTH - Character limit for text truncation
  * @property {number} PAGINATION_MAX_VISIBLE_PAGES - Maximum page numbers shown in pagination
  * @property {number} PAGINATION_CURRENT_PAGE_PROXIMITY - Pages shown around current page
  * @property {number} PAGINATION_ELLIPSIS_THRESHOLD - Threshold for showing pagination ellipsis
@@ -435,7 +434,6 @@ const CONSTANTS = {
         AUTOCOMPLETE_MIN_CHARS: 2, // Minimum chars to trigger autocomplete
         AUTOCOMPLETE_MAX_RESULTS: 8, // Maximum autocomplete suggestions shown
         DOM_TRAVERSAL_LEVELS: 3, // Max levels to traverse for action contexts
-        TEXT_TRUNCATE_LENGTH: 50, // Character limit for text truncation
         
         // Pagination Display Configuration
         PAGINATION_MAX_VISIBLE_PAGES: 7, // Maximum page numbers shown in pagination
